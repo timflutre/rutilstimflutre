@@ -1,0 +1,14 @@
+Package "rutilstimflutre"
+=========================
+
+This directory contains the "rutilstimflutre" package for the R programming
+language. This package contains Timothee Flutre's personal R code which can
+nevertheless be useful to others. The development is funded by the Institut
+National de la Recherche Agronomique (INRA).
+
+The copyright is owned by the INRA. See the COPYING file for usage
+permissions.
+
+The content of this directory is versioned using git, the central
+repository being hosted on GitHub:
+https://github.com/timflutre/rutilstimflutre
