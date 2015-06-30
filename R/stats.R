@@ -4,7 +4,7 @@
 ##'
 ##'
 ##' @title Root Mean Squared Error
-##' @param error vector \hat{\theta}_i - \theta_i
+##' @param error vector \eqn{\hat{\theta}_i - \theta_i}
 ##' @return numeric
 ##' @author Timothée Flutre
 rmse <- function(error){
@@ -15,7 +15,7 @@ rmse <- function(error){
 ##'
 ##'
 ##' @title Mean Absolute Error
-##' @param error vector \hat{\theta}_i - \theta_i
+##' @param error vector \eqn{\hat{\theta}_i - \theta_i}
 ##' @return numeric
 ##' @author Timothée Flutre
 mae <- function(error){
@@ -26,7 +26,7 @@ mae <- function(error){
 ##'
 ##'
 ##' @title Mean Signed Difference
-##' @param error vector \hat{\theta}_i - \theta_i
+##' @param error vector \eqn{\hat{\theta}_i - \theta_i}
 ##' @return numeric
 ##' @author Timothée Flutre
 msd <- function(error){
@@ -92,7 +92,7 @@ binary.classif <- function(known.nulls, called.nulls){
            tpp=tpp, fpp=fpp, acc=acc, tnp=tnp, fdp=fdp, fnp=fnp, ppv=ppv))
 }
 
-##' Stable computation of log_{10}(\sum_i w_i 10^x_i)
+##' Stable computation of \eqn{log_{10}(\sum_i w_i 10^x_i)}
 ##'
 ##' Use equal weights if not specified
 ##' @title Log of weighted sum

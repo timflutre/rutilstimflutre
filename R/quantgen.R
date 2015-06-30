@@ -473,7 +473,7 @@ estim.kinship <- function(X, mafs=NULL, thresh=0.01,
 ##' @param snp.coords data.frame with SNP identifiers as row names, and two columns, "chr" and "pos"
 ##' @param only.chr identifier of a given chromosome
 ##' @param only.pop identifier of a given population
-##' @return
+##' @return data frame
 ##' @author Timothée Flutre
 estim.ld <- function(X, K=NULL, pops=NULL, snp.coords,
                      only.chr=NULL, only.pop=NULL, verbose=0){
@@ -675,10 +675,10 @@ simul.bslmm <- function(X, Q=1, pi=NULL, h=NULL, rho=NULL, seed=NULL){
 ##' A quantile is an order statistic, and the j-th order statistic from a
 ##' Uniform(0,1) sample has a Beta(j,N-j+1) distribution (Casella & Berger,
 ##' 2001, 2nd edition, p230).
-##' Let us assume we have N independent p values, $\{p_1,\ldots,p_N\}$, for
+##' Let us assume we have N independent p values, \eqn{\{p_1,\ldots,p_N\}}, for
 ##' instance: pvalues <- c(runif(99000,0,1), rbeta(1000,0.5,1)). Under the
 ##' null, they are identically uniformly distributed:
-##' $\forall i \; p_i \overset{\text{i.i.d.}{\sim}} \mathcal{U}_{[0,1]}$.
+##' \eqn{\forall i \; p_i \overset{\text{i.i.d.}{\sim}} \mathcal{U}_{[0,1]}}.
 ##' Therefore, the 95% confidence interval for the j-th quantile of the set
 ##' of p values can be calculated with: qbeta(0.95, j, N-j+1).
 ##' TODO: look at this https://github.com/stephenturner/qqman/blob/v0.0.0/qqman.r
