@@ -8,3 +8,4 @@ License: GPL-3
 LazyData: true
 URL: https://github.com/timflutre/rutilstimflutre
 BugReports: https://github.com/timflutre/rutilstimflutre/issues
+Suggests: testthat
