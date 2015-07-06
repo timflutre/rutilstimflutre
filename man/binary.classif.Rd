@@ -25,6 +25,6 @@ value (precision)
 Both input vectors should be sorted beforehand
 }
 \author{
-Timothée Flutre
+Timothee Flutre
 }
 

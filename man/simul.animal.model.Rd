@@ -35,6 +35,6 @@ y is n x 1; X is n x P; Z is n x Q; W is n x (P+1)
 u ~ Norm_Q(0, sigma_u^2 A); e ~ Norm_n(0, sigma^2 I_n)
 }
 \author{
-Timothée Flutre
+Timothee Flutre
 }
 

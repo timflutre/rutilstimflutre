@@ -16,6 +16,6 @@ list
 http://moulon.inra.fr/index.php/en/tranverse-team/atelier-de-bioinformatique/projects/projets/135
 }
 \author{
-Timothée Flutre
+Timothee Flutre
 }
 

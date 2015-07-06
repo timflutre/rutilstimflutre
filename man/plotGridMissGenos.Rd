@@ -24,6 +24,6 @@ nothing
 Data will be represented in black if missing, white otherwise.
 }
 \author{
-Timothée Flutre
+Timothee Flutre
 }
 

@@ -18,6 +18,6 @@ nothing
 Plot the arrangement of samples on a given plate.
 }
 \author{
-Timothée Flutre
+Timothee Flutre
 }
 

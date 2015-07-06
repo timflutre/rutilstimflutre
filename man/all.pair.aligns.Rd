@@ -10,6 +10,8 @@
 \item{x}{vector of sequences (e.g. "AGGT"), possibly with names}
 
 \item{type}{type of alignment (default="global", i.e. Needleman-Wunsch)}
+
+\item{...}{arguments to be passed to Biostrings::pairwiseAlignment()}
 }
 \value{
 list of instances of class PairwiseAlignments
@@ -21,6 +23,6 @@ Align each sequence against each other (and itself).
 Requires the Biostrings package.
 }
 \author{
-Timothée Flutre
+Timothee Flutre
 }
 

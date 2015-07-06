@@ -7,8 +7,9 @@
 ##'
 ##' @param x vector of points
 ##' @param y vector of points
+##' @param ... arguments to be passed to plot()
 ##' @return nothing
-##' @author Timothée Flutre
+##' @author Timothee Flutre
 regplot <- function(x, y, ...){
   x <- as.numeric(x)
   y <- as.numeric(y)
@@ -31,7 +32,7 @@ regplot <- function(x, y, ...){
 ##' @param m matrix
 ##' @param main main title
 ##' @param max.sqrt.m to play with the scaling
-##' @author Timothée Flutre
+##' @author Timothee Flutre
 hinton <- function(m, main="", max.sqrt.m=NULL){
   rows <- dim(m)[1]
   cols <- dim(m)[2]
@@ -101,17 +102,17 @@ hinton <- function(m, main="", max.sqrt.m=NULL){
 ##'
 ##' Takes some time to draw (there is one polygon per break...)
 ##' http://menugget.blogspot.de/2011/08/adding-scale-to-image-plot.html
-##' @param z
-##' @param zlim
-##' @param col
-##' @param breaks
-##' @param horiz
-##' @param ylim
-##' @param xlim
-##' @param ...
-##' @author Timothée Flutre
-plot.scale <- function(z, zlim, col = heat.colors(12),
-                        breaks, horiz=TRUE, ylim=NULL, xlim=NULL, ...){
+##' @param z vector
+##' @param zlim lim
+##' @param col color
+##' @param breaks vector
+##' @param horiz boolean
+##' @param ylim lim
+##' @param xlim lim
+##' @param ... arguments to be passed to plot()
+##' @author Timothee Flutre
+plot.with.scale <- function(z, zlim, col = heat.colors(12),
+                            breaks, horiz=TRUE, ylim=NULL, xlim=NULL, ...){
   if(! missing(breaks))
     if(length(breaks) != (length(col)+1))
       stop("must have one more break than colour")
@@ -167,8 +168,8 @@ plot.scale <- function(z, zlim, col = heat.colors(12),
 ##' @param idx.rownames vector giving the indices of the row names of z to be added on the left side of the plot
 ##' @param idx.colnames vector giving the indices of the column names of z to be added on top of the plot
 ##' @param breaks vector (default=seq(min(z), max(z), length.out=100))
-##' @author Timothée Flutre
-image.scale <- function(z, main=NULL, idx.rownames=NULL, idx.colnames=NULL,
+##' @author Timothee Flutre
+image.with.scale <- function(z, main=NULL, idx.rownames=NULL, idx.colnames=NULL,
                         breaks=NULL){
   if(! is.null(idx.rownames) & is.null(rownames(z)))
     stop("non-null idx.rownames requires z to have row names")
@@ -203,7 +204,7 @@ image.scale <- function(z, main=NULL, idx.rownames=NULL, idx.colnames=NULL,
 
   ## plot the scale
   par(mar=c(1,0,6,3))
-  plot.scale(z, col=col.pal(length(breaks)-1), breaks=breaks, horiz=FALSE,
+  plot.with.scale(z, col=col.pal(length(breaks)-1), breaks=breaks, horiz=FALSE,
              yaxt="n")
   axis(4, at=format(breaks[seq.int(from=1,to=100,length.out=5)], digits=2),
        las=2, lwd=0, lwd.ticks=1)

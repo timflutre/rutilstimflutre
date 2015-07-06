@@ -16,6 +16,6 @@ matrix with diploid individuals in rows and SNPs in columns
 SFS stands for site frequency spectrum
 }
 \author{
-Timothée Flutre
+Timothee Flutre
 }
 

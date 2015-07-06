@@ -18,6 +18,6 @@ list of matrices, one per plate, in the "wide" format
 Read each file into a matrix and gather them into a list.
 }
 \author{
-Timothée Flutre
+Timothee Flutre
 }
 

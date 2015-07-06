@@ -16,6 +16,6 @@ numeric
 Return the Mean Absolute Error
 }
 \author{
-Timothée Flutre
+Timothee Flutre
 }
 

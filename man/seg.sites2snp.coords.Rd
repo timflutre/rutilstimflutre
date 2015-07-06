@@ -18,6 +18,6 @@ data.frame with SNPs in rows and 2 columns (chr, pos)
 SFS stands for site frequency spectrum
 }
 \author{
-Timothée Flutre
+Timothee Flutre
 }
 

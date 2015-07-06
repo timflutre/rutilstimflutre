@@ -5,7 +5,8 @@
 \title{Histogram of minor allele frequencies}
 \usage{
 plotHistMinAllelFreq(X = NULL, maf = NULL, main = "", xlim = c(0, 0.5),
-  col = "grey", border = "white", las = 1, breaks = "FD", ...)
+  col = "grey", border = "white", las = 1, breaks = "FD", verbose = 1,
+  ...)
 }
 \arguments{
 \item{X}{matrix of SNP genotypes encoded as allele doses, with SNPs in
@@ -17,15 +18,17 @@ columns and individuals in rows (optional if maf is not null)}
 
 \item{xlim}{default=c(0,0.5)}
 
-\item{col}{}
+\item{col}{color for the bars}
 
-\item{border}{}
+\item{border}{color for the border of the bars}
 
-\item{las}{}
+\item{las}{see ?par (default=1)}
 
-\item{breaks}{}
+\item{breaks}{see ?hist (default="FD")}
 
-\item{...}{}
+\item{verbose}{verbosity level (0/default=1)}
+
+\item{...}{arguments to be passed to hist()}
 }
 \value{
 nothing
@@ -37,6 +40,6 @@ Plot the histogram of the minor allele frequency per SNP
 Missing values (encoded as NA) are discarded.
 }
 \author{
-Timothée Flutre
+Timothee Flutre
 }
 

@@ -12,6 +12,8 @@ regplot(x, y, ...)
 \item{x}{vector of points}
 
 \item{y}{vector of points}
+
+\item{...}{arguments to be passed to plot()}
 }
 \value{
 nothing
@@ -22,6 +24,6 @@ line from lm() as well as both confidence and both prediction lines from
 predict().
 }
 \author{
-Timothée Flutre
+Timothee Flutre
 }
 

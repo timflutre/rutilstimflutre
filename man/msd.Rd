@@ -16,6 +16,6 @@ numeric
 Return the Mean Signed Difference
 }
 \author{
-Timothée Flutre
+Timothee Flutre
 }
 

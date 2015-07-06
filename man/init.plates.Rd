@@ -22,6 +22,6 @@ list of matrices, one per plate, in the "wide" format
 Initialize plates as matrices with missing data.
 }
 \author{
-Timothée Flutre
+Timothee Flutre
 }
 

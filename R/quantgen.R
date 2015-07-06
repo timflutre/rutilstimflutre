@@ -10,7 +10,7 @@
 ##' @param verbose verbosity level (0/default=1)
 ##' @return list of a matrix (allele doses, SNPs in columns and individuals in
 ##' rows) and a vector (minor alleles)
-##' @author Timothée Flutre
+##' @author Timothee Flutre
 genotypes.alleles2dose <- function(x, na.string="--", verbose=1){
   stopifnot(is.data.frame(x),
             ! is.null(colnames(x)))
@@ -74,7 +74,7 @@ genotypes.alleles2dose <- function(x, na.string="--", verbose=1){
 ##' @param xlab a title for the x axis (default="Individuals")
 ##' @param ylab a title for the y axis (default="SNPs")
 ##' @return nothing
-##' @author Timothée Flutre
+##' @author Timothee Flutre
 plotGridMissGenos <- function(x, main="Missing genotypes", xlab="Individuals",
                               ylab="SNPs"){
   if(ncol(x) < nrow(x))
@@ -89,7 +89,7 @@ plotGridMissGenos <- function(x, main="Missing genotypes", xlab="Individuals",
 ##' @param X matrix of SNP genotypes encoded as allele doses, with SNPs in
 ##' columns and individuals in rows
 ##' @return vector
-##' @author Timothée Flutre
+##' @author Timothee Flutre
 maf.from.dose <- function(X){
   stopifnot(is.matrix(X))
   N <- nrow(X)
@@ -115,14 +115,14 @@ maf.from.dose <- function(X){
 ##' @param maf vector of minor allele frequencies (optional if X is not null)
 ##' @param main string for the main title (default="")
 ##' @param xlim default=c(0,0.5)
-##' @param col
-##' @param border
-##' @param las
-##' @param breaks
+##' @param col color for the bars
+##' @param border color for the border of the bars
+##' @param las see ?par (default=1)
+##' @param breaks see ?hist (default="FD")
 ##' @param verbose verbosity level (0/default=1)
-##' @param ...
+##' @param ... arguments to be passed to hist()
 ##' @return nothing
-##' @author Timothée Flutre
+##' @author Timothee Flutre
 plotHistMinAllelFreq <- function(X=NULL, maf=NULL, main="", xlim=c(0,0.5),
                                  col="grey", border="white", las=1,
                                  breaks="FD", verbose=1, ...){
@@ -155,7 +155,7 @@ plotHistMinAllelFreq <- function(X=NULL, maf=NULL, main="", xlim=c(0,0.5),
 ##' @param file prints the genotype data to this file if non NULL (for instance
 ##' 'genotypes_bimbam.txt' or gzfile('genotypes_bimbam.txt.gz'))
 ##' @return data.frame
-##' @author Timothée Flutre
+##' @author Timothee Flutre
 genotypes.dose2bimbam <- function(X=NULL, tX=NULL, alleles, file=NULL){
     stopifnot(xor(is.null(X), is.null(tX)),
               ! is.null(row.names(alleles)),
@@ -177,7 +177,7 @@ genotypes.dose2bimbam <- function(X=NULL, tX=NULL, alleles, file=NULL){
 ##' @param estim.inbreeding name of the inbreeding estimator (e.g. "LR")
 ##' @param debug boolean (TRUE to check the output matrix is indeed symmetric)
 ##' @return matrix
-##' @author Timothée Flutre
+##' @author Timothee Flutre
 coancestry2addrel <- function(x, estim.coancestry, estim.inbreeding=NULL,
                               debug=FALSE){
   stopifnot(estim.coancestry %in% colnames(x$relatedness))
@@ -223,7 +223,7 @@ coancestry2addrel <- function(x, estim.coancestry, estim.inbreeding=NULL,
 ##' SFS stands for site frequency spectrum
 ##' @param seg.sites list returned by scrm()
 ##' @return matrix with diploid individuals in rows and SNPs in columns
-##' @author Timothée Flutre
+##' @author Timothee Flutre
 seg.sites2all.doses <- function(seg.sites){
   stopifnot(is.list(seg.sites),
             length(unique(sapply(seg.sites, nrow))) == 1)
@@ -250,7 +250,7 @@ seg.sites2all.doses <- function(seg.sites){
 ##' @param seg.sites list returned by scrm()
 ##' @param snp.ids vector of identifiers (one per SNP)
 ##' @return data.frame with SNPs in rows and 2 columns (chr, pos)
-##' @author Timothée Flutre
+##' @author Timothee Flutre
 seg.sites2snp.coords <- function(seg.sites, snp.ids){
   stopifnot(is.list(seg.sites),
             length(unique(sapply(seg.sites, nrow))) == 1)
@@ -292,7 +292,7 @@ seg.sites2snp.coords <- function(seg.sites, snp.ids){
 ##' @param mig.rate migration rate = 4 N0 m (symmetric)
 ##' @param verbose verbosity level (default=0=nothing, 1=few, 2=more)
 ##' @return list with haplotypes (list), genotypes as allele doses (matrix) and SNP coordinates (data.frame)
-##' @author Timothée Flutre
+##' @author Timothee Flutre
 simul.coalescent <- function(nb.inds=100,
                              ind.ids=NULL,
                              nb.reps=20,
@@ -302,7 +302,9 @@ simul.coalescent <- function(nb.inds=100,
                              nb.pops=1,
                              mig.rate=5,
                              verbose=0){
-  suppressPackageStartupMessages(library(scrm))
+  if(! requireNamespace("scrm", quietly=TRUE))
+    stop("Pkg needed for this function to work. Please install it.",
+         call.=FALSE)
   stopifnot(nb.inds > nb.pops)
 
   if(is.null(ind.ids))
@@ -331,7 +333,7 @@ simul.coalescent <- function(nb.inds=100,
   }
   if(verbose > 1)
     message(cmd)
-  sum.stats <- scrm(cmd)
+  sum.stats <- scrm::scrm(cmd)
   if(verbose > 1)
     print(str(sum.stats))
 
@@ -370,14 +372,17 @@ simul.coalescent <- function(nb.inds=100,
 ##' @param snp.coords data.frame with SNP identifiers as row names, and with two columns "chr" and "pos"
 ##' @param nb.cores the number of cores to use (default=1)
 ##' @return list with one component per chromosome
-##' @author Timothée Flutre
+##' @author Timothee Flutre
 snp.distances <- function(snp.coords, nb.cores=1){
+  if(! requireNamespace("parallel", quietly=TRUE))
+    stop("Pkg needed for this function to work. Please install it.",
+         call.=FALSE)
   stopifnot(is.data.frame(snp.coords),
             colnames(snp.coords) == c("chr", "pos"),
             ! is.null(rownames(snp.coords)))
 
   chr.names <- unique(snp.coords$chr)
-  snp.dists <- mclapply(chr.names, function(chr.name){
+  snp.dists <- parallel::mclapply(chr.names, function(chr.name){
     pos <- snp.coords$pos[snp.coords$chr == chr.name]
     names(pos) <- rownames(snp.coords)[snp.coords$chr == chr.name]
     dis <- pos[2:length(pos)] - pos[1:(length(pos)-1)]
@@ -399,7 +404,7 @@ snp.distances <- function(snp.coords, nb.cores=1){
 ##' @param method default is "astle-balding"; "animal-model"; "center", "center-std"
 ##' @param verbose verbosity level (default=1)
 ##' @return matrix
-##' @author Timothée Flutre
+##' @author Timothee Flutre
 estim.kinship <- function(X, mafs=NULL, thresh=0.01,
                           method="astle-balding", verbose=1){
   stopifnot(is.matrix(X),
@@ -487,11 +492,14 @@ estim.kinship <- function(X, mafs=NULL, thresh=0.01,
 ##' @param snp.coords data.frame with SNP identifiers as row names, and two columns, "chr" and "pos"
 ##' @param only.chr identifier of a given chromosome
 ##' @param only.pop identifier of a given population
+##' @param verbose verbosity level (default=0/1)
 ##' @return data frame
-##' @author Timothée Flutre
+##' @author Timothee Flutre
 estim.ld <- function(X, K=NULL, pops=NULL, snp.coords,
                      only.chr=NULL, only.pop=NULL, verbose=0){
-  suppressPackageStartupMessages(library(LDcorSV))
+  if(! requireNamespace("LDcorSV", quietly=TRUE))
+    stop("Pkg needed for this function to work. Please install it.",
+         call.=FALSE)
   stopifnot(is.matrix(X),
             ! is.null(dimnames(X)),
             sum(is.na(X)) == 0,
@@ -532,26 +540,26 @@ estim.ld <- function(X, K=NULL, pops=NULL, snp.coords,
     write("estimate pairwise LD ...", stdout())
   if(is.null(K)){
     if(is.null(only.pop)){
-      ld <- LD.Measures(donnees=X[subset.inds, subset.snps],
-                        V=NA,
-                        S=W.s,
-                        data="G", supinfo=FALSE, na.presence=FALSE)
+      ld <- LDcorSV::LD.Measures(donnees=X[subset.inds, subset.snps],
+                                 V=NA,
+                                 S=W.s,
+                                 data="G", supinfo=FALSE, na.presence=FALSE)
     } else
-      ld <- LD.Measures(donnees=X[subset.inds, subset.snps],
-                        V=NA,
-                        S=NA,
-                        data="G", supinfo=FALSE, na.presence=FALSE)
+      ld <- LDcorSV::LD.Measures(donnees=X[subset.inds, subset.snps],
+                                 V=NA,
+                                 S=NA,
+                                 data="G", supinfo=FALSE, na.presence=FALSE)
   } else{
     if(is.null(only.pop)){
-      ld <- LD.Measures(donnees=X[subset.inds, subset.snps],
-                        V=K[subset.inds, subset.inds],
-                        S=W.s,
-                        data="G", supinfo=FALSE, na.presence=FALSE)
+      ld <- LDcorSV::LD.Measures(donnees=X[subset.inds, subset.snps],
+                                 V=K[subset.inds, subset.inds],
+                                 S=W.s,
+                                 data="G", supinfo=FALSE, na.presence=FALSE)
     } else
-      ld <- LD.Measures(donnees=X[subset.inds, subset.snps],
-                        V=K[subset.inds, subset.inds],
-                        S=NA,
-                        data="G", supinfo=FALSE, na.presence=FALSE)
+      ld <- LDcorSV::LD.Measures(donnees=X[subset.inds, subset.snps],
+                                 V=K[subset.inds, subset.inds],
+                                 S=NA,
+                                 data="G", supinfo=FALSE, na.presence=FALSE)
   }
 
   return(ld)
@@ -572,11 +580,15 @@ estim.ld <- function(X, K=NULL, pops=NULL, snp.coords,
 ##' @param sigma2 variance component of the errors (default is 5)
 ##' @param lambda ratio of variance components as sigma_u^2 /sigma^2 (default is 3)
 ##' @return list with all input variables and the data set ready to be analyzed
-##' @author Timothée Flutre
+##' @author Timothee Flutre
 simul.animal.model <- function(n=300, mu=4, P=1, b=2, nb.snps=1000, maf=0.3,
                                A=NULL, sigma2=5, lambda=3){
-  suppressPackageStartupMessages(library(MASS))
-  suppressPackageStartupMessages(library(Matrix))
+  if(! requireNamespace("MASS", quietly=TRUE))
+    stop("Pkg needed for this function to work. Please install it.",
+         call.=FALSE)
+  if(! requireNamespace("Matrix", quietly=TRUE))
+    stop("Pkg needed for this function to work. Please install it.",
+         call.=FALSE)
 
   animal.ids <- sprintf(fmt=paste0("ind%0", floor(log10(n))+1, "i"), 1:n)
   X <- matrix(data=rnorm(n=n), nrow=n, ncol=P)
@@ -595,10 +607,10 @@ simul.animal.model <- function(n=300, mu=4, P=1, b=2, nb.snps=1000, maf=0.3,
   Z <- diag(Q)
   sigmau2 <- lambda * sigma2
   h2 <- sigmau2 / (sigmau2 + sigma2)
-  G <- as.matrix(nearPD(sigmau2 * A)$mat)
-  u <- matrix(mvrnorm(n=1, mu=rep(0, Q), Sigma=G))
+  G <- as.matrix(Matrix::nearPD(sigmau2 * A)$mat)
+  u <- matrix(MASS::mvrnorm(n=1, mu=rep(0, Q), Sigma=G))
   R <- sigma2 * diag(n)
-  e <- matrix(mvrnorm(n=1, mu=rep(0, n), Sigma=R))
+  e <- matrix(MASS::mvrnorm(n=1, mu=rep(0, n), Sigma=R))
   y <- W %*% a + Z %*% u + e
   dat <- data.frame(fix=W[,2],
                     animal=factor(animal.ids),
@@ -619,13 +631,15 @@ simul.animal.model <- function(n=300, mu=4, P=1, b=2, nb.snps=1000, maf=0.3,
 ##' @param rho approximation to E[PGE]
 ##' @param seed seed for the pseudo-random number generator
 ##' @return list
-##' @author Timothée Flutre
+##' @author Timothee Flutre
 simul.bslmm <- function(X, Q=1, pi=NULL, h=NULL, rho=NULL, seed=NULL){
+  if(! requireNamespace("MASS", quietly=TRUE))
+    stop("Pkg needed for this function to work. Please install it.",
+         call.=FALSE)
   stopifnot(xor(is.null(h) & is.null(rho), ! (is.null(h) & is.null(rho))),
             sum(is.na(X)) == 0,
             ! is.null(rownames(X)),
             ! is.null(colnames(X)))
-  suppressPackageStartupMessages(library(MASS))
   if(! is.null(seed))
     set.seed(seed)
 
@@ -666,7 +680,7 @@ simul.bslmm <- function(X, Q=1, pi=NULL, h=NULL, rho=NULL, seed=NULL){
             sd=sqrt(sigma.a2 * tau^(-1)))
 
   ## polygenic effects
-  u <- setNames(object=mvrnorm(n=1, mu=rep(0, N),
+  u <- setNames(object=MASS::mvrnorm(n=1, mu=rep(0, N),
                     Sigma=sigma.b2 * tau^(-1) * K),
                 nm=rownames(X))
 
@@ -691,8 +705,8 @@ simul.bslmm <- function(X, Q=1, pi=NULL, h=NULL, rho=NULL, seed=NULL){
 ##' 2001, 2nd edition, p230).
 ##' Let us assume we have N independent p values, \eqn{\{p_1,\ldots,p_N\}}, for
 ##' instance: pvalues <- c(runif(99000,0,1), rbeta(1000,0.5,1)). Under the
-##' null, they are identically uniformly distributed:
-##' \eqn{\forall i \; p_i \overset{\text{i.i.d.}{\sim}} \mathcal{U}_{[0,1]}}.
+##' null, they are independent and identically uniformly distributed:
+##' \eqn{\forall i \; p_i \sim \mathcal{U}_{[0,1]}}.
 ##' Therefore, the 95% confidence interval for the j-th quantile of the set
 ##' of p values can be calculated with: qbeta(0.95, j, N-j+1).
 ##' TODO: look at this https://github.com/stephenturner/qqman/blob/v0.0.0/qqman.r
@@ -703,7 +717,7 @@ simul.bslmm <- function(X, Q=1, pi=NULL, h=NULL, rho=NULL, seed=NULL){
 ##' @param main an overall title for the plot (default: "Q-Q plot (<length(pvalues)> p-values)")
 ##' @param col plotting color for the points (default is all points in black)
 ##' @param ... graphical parameters other than xlim, ylim, xlab, ylab, las and col
-##' @author Timothée Flutre (inspired from an anonymous comment to http://gettinggeneticsdone.blogspot.fr/2009/11/qq-plots-of-p-values-in-r-using-ggplot2.html)
+##' @author Timothee Flutre (inspired from an anonymous comment to http://gettinggeneticsdone.blogspot.fr/2009/11/qq-plots-of-p-values-in-r-using-ggplot2.html)
 qqplot.pval <- function(pvalues, plot.conf.int=TRUE,
                         xlab=expression(Expected~~-log[10](italic(p)~values)),
                         ylab=expression(Observed~~-log[10](italic(p)~values)),
@@ -750,7 +764,7 @@ qqplot.pval <- function(pvalues, plot.conf.int=TRUE,
 ##' http://moulon.inra.fr/index.php/en/tranverse-team/atelier-de-bioinformatique/projects/projets/135
 ##' @param file the name of the file which the data are to be read from
 ##' @return list
-##' @author Timothée Flutre
+##' @author Timothee Flutre
 read.biomercator <- function(file){
     stopifnot(file.exists(file))
 

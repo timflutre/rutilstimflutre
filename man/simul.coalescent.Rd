@@ -34,6 +34,6 @@ list with haplotypes (list), genotypes as allele doses (matrix) and SNP coordina
 Requires the scrm package (Staab et al, 2014).
 }
 \author{
-Timothée Flutre
+Timothee Flutre
 }
 

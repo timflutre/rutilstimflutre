@@ -21,6 +21,6 @@ Stable computation of \eqn{log_{10}(\sum_i w_i 10^x_i)}
 Use equal weights if not specified
 }
 \author{
-Timothée Flutre
+Timothee Flutre
 }
 

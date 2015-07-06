@@ -24,6 +24,6 @@ data.frame
 The format is specified in BimBam's manual http://www.haplotype.org/download/bimbam-manual.pdf#page=6
 }
 \author{
-Timothée Flutre
+Timothee Flutre
 }
 

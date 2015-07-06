@@ -20,6 +20,6 @@ Plot a Hinton diagram
 Modified from http://www.cs.princeton.edu/~mimno/factor-analysis.R
 }
 \author{
-Timothée Flutre
+Timothee Flutre
 }
 

@@ -16,6 +16,6 @@ empty.wells(plate.w)
 Identify empty wells, if any, in a plate.
 }
 \author{
-Timothée Flutre
+Timothee Flutre
 }
 

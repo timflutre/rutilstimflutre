@@ -30,13 +30,13 @@ Uniform(0,1) sample has a Beta(j,N-j+1) distribution (Casella & Berger,
 2001, 2nd edition, p230).
 Let us assume we have N independent p values, \eqn{\{p_1,\ldots,p_N\}}, for
 instance: pvalues <- c(runif(99000,0,1), rbeta(1000,0.5,1)). Under the
-null, they are identically uniformly distributed:
-\eqn{\forall i \; p_i \overset{\text{i.i.d.}{\sim}} \mathcal{U}_{[0,1]}}.
+null, they are independent and identically uniformly distributed:
+\eqn{\forall i \; p_i \sim \mathcal{U}_{[0,1]}}.
 Therefore, the 95% confidence interval for the j-th quantile of the set
 of p values can be calculated with: qbeta(0.95, j, N-j+1).
 TODO: look at this https://github.com/stephenturner/qqman/blob/v0.0.0/qqman.r
 }
 \author{
-Timothée Flutre (inspired from an anonymous comment to http://gettinggeneticsdone.blogspot.fr/2009/11/qq-plots-of-p-values-in-r-using-ggplot2.html)
+Timothee Flutre (inspired from an anonymous comment to http://gettinggeneticsdone.blogspot.fr/2009/11/qq-plots-of-p-values-in-r-using-ggplot2.html)
 }
 

@@ -26,6 +26,6 @@ matrix
 SNPs with missing data are ignored.
 }
 \author{
-Timothée Flutre
+Timothee Flutre
 }
 

@@ -19,6 +19,8 @@ estim.ld(X, K = NULL, pops = NULL, snp.coords, only.chr = NULL,
 \item{only.chr}{identifier of a given chromosome}
 
 \item{only.pop}{identifier of a given population}
+
+\item{verbose}{verbosity level (default=0/1)}
 }
 \value{
 data frame
@@ -27,6 +29,6 @@ data frame
 Requires package LDcorSV
 }
 \author{
-Timothée Flutre
+Timothee Flutre
 }
 

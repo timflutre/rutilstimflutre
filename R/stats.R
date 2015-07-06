@@ -6,7 +6,7 @@
 ##' @title Root Mean Squared Error
 ##' @param error vector \eqn{\hat{\theta}_i - \theta_i}
 ##' @return numeric
-##' @author Timothée Flutre
+##' @author Timothee Flutre
 rmse <- function(error){
   sqrt(mean(error^2))
 }
@@ -17,7 +17,7 @@ rmse <- function(error){
 ##' @title Mean Absolute Error
 ##' @param error vector \eqn{\hat{\theta}_i - \theta_i}
 ##' @return numeric
-##' @author Timothée Flutre
+##' @author Timothee Flutre
 mae <- function(error){
   mean(abs(error))
 }
@@ -28,7 +28,7 @@ mae <- function(error){
 ##' @title Mean Signed Difference
 ##' @param error vector \eqn{\hat{\theta}_i - \theta_i}
 ##' @return numeric
-##' @author Timothée Flutre
+##' @author Timothee Flutre
 msd <- function(error){
   mean(error)
 }
@@ -44,7 +44,7 @@ msd <- function(error){
 ##' @param known.nulls vector of booleans (TRUE if the null is true)
 ##' @param called.nulls vector of booleans (TRUE if the null is accepted)
 ##' @return vector with names
-##' @author Timothée Flutre
+##' @author Timothee Flutre
 binary.classif <- function(known.nulls, called.nulls){
   ## http://en.wikipedia.org/wiki/Sensitivity_and_specificity
   ##
@@ -99,7 +99,7 @@ binary.classif <- function(known.nulls, called.nulls){
 ##' @param x vector
 ##' @param weights weights
 ##' @return numeric
-##' @author Timothée Flutre
+##' @author Timothee Flutre
 log10.weighted.sum <- function(x, weights=NULL){
   if(is.null(weights))
     weights <- rep(1/length(x), length(x))
@@ -113,7 +113,7 @@ log10.weighted.sum <- function(x, weights=NULL){
 ##' @title Pseudo-inverse
 ##' @param mat matrix
 ##' @return matrix
-##' @author Timothée Flutre
+##' @author Timothee Flutre
 mp.inv <- function(mat){
   mat.svd <- svd(mat)
   mat.svd$v %*% diag(1/mat.svd$d) %*% t(mat.svd$u)
@@ -162,7 +162,7 @@ getNbPCsMinimAvgSqPartCor <- function(X){
 ##' @param break.ties.rand break ties randomly (default=TRUE)
 ##' @param seed see for the pseudo-random number generator (default=1859)
 ##' @return vector
-##' @author Timothée Flutre
+##' @author Timothee Flutre
 quant.norm <- function(x, break.ties.rand=TRUE, seed=1859){
   stopifnot(is.vector(x), is.numeric(x), is.logical(break.ties.rand),
             is.numeric(seed))
@@ -187,7 +187,7 @@ quant.norm <- function(x, break.ties.rand=TRUE, seed=1859){
 ##' @param x correlation matrix
 ##' @param sd standard deviations
 ##' @return matrix
-##' @author Timothée Flutre
+##' @author Timothee Flutre
 cor2cov <- function(x, sd){
   ## D <- diag(sd); return(D %*% x %*% D)
   return(sweep(sweep(x, 1, sd, "*"), 2, sd, "*"))

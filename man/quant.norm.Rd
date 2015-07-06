@@ -20,6 +20,6 @@ vector
 TODO: add ref
 }
 \author{
-Timothée Flutre
+Timothee Flutre
 }
 

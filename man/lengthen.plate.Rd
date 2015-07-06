@@ -7,7 +7,7 @@
 lengthen.plate(plate.w)
 }
 \arguments{
-\item{plate}{matrix of a plate in the "wide" format}
+\item{plate.w}{matrix of a plate in the "wide" format}
 }
 \value{
 data.frame of a plate in the "long" format (1 well per row)
@@ -16,6 +16,6 @@ data.frame of a plate in the "long" format (1 well per row)
 Lengthen a "wide" plate into 3 columns for easier processing.
 }
 \author{
-Timothée Flutre
+Timothee Flutre
 }
 

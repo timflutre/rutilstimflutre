@@ -18,6 +18,6 @@ matrix
 Use sweep. https://en.wikipedia.org/wiki/Covariance_matrix#Correlation_matrix
 }
 \author{
-Timothée Flutre
+Timothee Flutre
 }
 

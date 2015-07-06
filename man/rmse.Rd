@@ -16,6 +16,6 @@ numeric
 Return the Root Mean Squared Error
 }
 \author{
-Timothée Flutre
+Timothee Flutre
 }
 

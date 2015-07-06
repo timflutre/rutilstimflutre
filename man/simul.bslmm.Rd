@@ -28,6 +28,6 @@ list
 See Zhou, Carbonetto & Stephens (2013).
 }
 \author{
-Timothée Flutre
+Timothee Flutre
 }
 

@@ -23,6 +23,6 @@ matrix
 The "related" package can be found here: http://frasierlab.wordpress.com/software/. The A matrix is also known as the numerator relationship matrix. It is calculated as explained in chapter 2 from Mrode (2005).
 }
 \author{
-Timothée Flutre
+Timothee Flutre
 }
 

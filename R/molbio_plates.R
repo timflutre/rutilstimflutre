@@ -8,7 +8,7 @@
 ##' @param ncol vector of number of columns for each plate
 ##' @param names vector of names for each plate
 ##' @return list of matrices, one per plate, in the "wide" format
-##' @author Timothée Flutre
+##' @author Timothee Flutre
 init.plates <- function(n, nrow, ncol, names){
   plates <- list()
 
@@ -27,7 +27,7 @@ init.plates <- function(n, nrow, ncol, names){
 ##' @param files vector of paths to csv file, one per plate
 ##' @param verbose verbosity level (0/default=1)
 ##' @return list of matrices, one per plate, in the "wide" format
-##' @author Timothée Flutre
+##' @author Timothee Flutre
 load.plates <- function(files, verbose=1){
   plates <- list()
 
@@ -55,7 +55,7 @@ load.plates <- function(files, verbose=1){
 ##' @param plate matrix
 ##' @param main string containing the text for the main title
 ##' @return nothing
-##' @author Timothée Flutre
+##' @author Timothee Flutre
 plot.plate <- function(plate, main="Plate"){
   stopifnot(is.matrix(plate))
 
@@ -76,9 +76,9 @@ plot.plate <- function(plate, main="Plate"){
 ##' Lengthen a "wide" plate into 3 columns for easier processing.
 ##'
 ##'
-##' @param plate matrix of a plate in the "wide" format
+##' @param plate.w matrix of a plate in the "wide" format
 ##' @return data.frame of a plate in the "long" format (1 well per row)
-##' @author Timothée Flutre
+##' @author Timothee Flutre
 lengthen.plate <- function(plate.w){
   stopifnot(is.matrix(plate.w),
             ! is.null(rownames(plate.w)),
@@ -107,7 +107,7 @@ lengthen.plate <- function(plate.w){
 ##'
 ##' @param plate.w matrix of a plate in the "wide" format
 ##' @return 2 column data.frame (row;col) corresponding to empty wells
-##' @author Timothée Flutre
+##' @author Timothee Flutre
 empty.wells <- function(plate.w){
   plate.l <- lengthen.plate(plate.w)
   empty.idx <- is.na(plate.l$sample)

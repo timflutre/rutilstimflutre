@@ -18,6 +18,6 @@ list with one component per chromosome
 Useful before estimating pairwise linkage disequilibrium.
 }
 \author{
-Timothée Flutre
+Timothee Flutre
 }
 

@@ -16,6 +16,6 @@ vector
 Requires the Biostrings package.
 }
 \author{
-Timothée Flutre
+Timothee Flutre
 }
 

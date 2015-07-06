@@ -18,6 +18,6 @@ list of matrices
 Requires the Biostrings package.
 }
 \author{
-Timothée Flutre
+Timothee Flutre
 }
 

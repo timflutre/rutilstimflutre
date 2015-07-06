@@ -5,13 +5,15 @@
 \title{Convert SNP genotype data from alleles (say, "AA" and "AT") to minor allele
 doses (here, 0 and 1 if "T" is the minor allele).}
 \usage{
-genotypes.alleles2dose(x, na.string = "--")
+genotypes.alleles2dose(x, na.string = "--", verbose = 1)
 }
 \arguments{
 \item{x}{data.frame with SNPs in rows and individuals in columns, the SNP
 identifiers being in the first column}
 
 \item{na.string}{a character to be interpreted as NA values}
+
+\item{verbose}{verbosity level (0/default=1)}
 }
 \value{
 list of a matrix (allele doses, SNPs in columns and individuals in
@@ -21,6 +23,6 @@ rows) and a vector (minor alleles)
 Not particularly efficient, but at least it exists.
 }
 \author{
-Timothée Flutre
+Timothee Flutre
 }
 

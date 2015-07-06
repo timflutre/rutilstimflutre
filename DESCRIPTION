@@ -1,6 +1,6 @@
 Package: rutilstimflutre
 Title: Timothee Flutre's personal R code
-Version: 0.1.0
+Version: 0.1.1
 Authors@R: person("Timothee", "Flutre", email = "timothee.flutre@supagro.inra.fr", role = c("aut", "cre"))
 Description: Miscellaneous R functions.
 Depends: R (>= 3.0.0)
@@ -8,4 +8,10 @@ License: GPL-3
 LazyData: true
 URL: https://github.com/timflutre/rutilstimflutre
 BugReports: https://github.com/timflutre/rutilstimflutre/issues
-Suggests: testthat
+Suggests:
+  Biostrings,
+  LDcorSV,
+  MASS,
+  Matrix,
+  scrm,
+  testthat

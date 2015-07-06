@@ -17,6 +17,6 @@ vector
 Missing values should be encoded as NA.
 }
 \author{
-Timothée Flutre
+Timothee Flutre
 }
 

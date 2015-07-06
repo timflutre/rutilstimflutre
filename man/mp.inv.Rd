@@ -16,6 +16,6 @@ matrix
 Return the Moore-Penrose pseudo-inverse of a matrix
 }
 \author{
-Timothée Flutre
+Timothee Flutre
 }
 
