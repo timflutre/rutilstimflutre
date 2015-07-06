@@ -7,10 +7,11 @@
 ##' @param x data.frame with SNPs in rows and individuals in columns, the SNP
 ##' identifiers being in the first column
 ##' @param na.string a character to be interpreted as NA values
+##' @param verbose verbosity level (0/default=1)
 ##' @return list of a matrix (allele doses, SNPs in columns and individuals in
 ##' rows) and a vector (minor alleles)
 ##' @author Timothée Flutre
-genotypes.alleles2dose <- function(x, na.string="--"){
+genotypes.alleles2dose <- function(x, na.string="--", verbose=1){
   stopifnot(is.data.frame(x),
             ! is.null(colnames(x)))
 
@@ -18,7 +19,10 @@ genotypes.alleles2dose <- function(x, na.string="--"){
   P <- length(snp.names)
   ind.names <- colnames(x)[-1]
   N <- length(ind.names)
-  message(paste0(P, " SNPs and ", N, " individuals"))
+  if(verbose > 0){
+    txt <- paste0(P, " SNPs and ", N, " individuals")
+    write(txt, stdout())
+  }
 
   geno.doses <- matrix(data=NA, nrow=N, ncol=P,
                        dimnames=list(ind=ind.names, snp=snp.names))
@@ -74,7 +78,7 @@ genotypes.alleles2dose <- function(x, na.string="--"){
 plotGridMissGenos <- function(x, main="Missing genotypes", xlab="Individuals",
                               ylab="SNPs"){
   if(ncol(x) < nrow(x))
-    message("did you put SNPs in columns and individuals in rows?")
+    warning("did you put SNPs in columns and individuals in rows?")
   image(1:nrow(x), 1:ncol(x), is.na(x), col=c("white","black"),
         main=main, xlab=xlab, ylab=ylab)
 }
@@ -115,12 +119,13 @@ maf.from.dose <- function(X){
 ##' @param border
 ##' @param las
 ##' @param breaks
+##' @param verbose verbosity level (0/default=1)
 ##' @param ...
 ##' @return nothing
 ##' @author Timothée Flutre
 plotHistMinAllelFreq <- function(X=NULL, maf=NULL, main="", xlim=c(0,0.5),
                                  col="grey", border="white", las=1,
-                                 breaks="FD", ...){
+                                 breaks="FD", verbose=1, ...){
   stopifnot(! is.null(X) || ! is.null(maf))
 
   if(! is.null(X) & is.null(maf)){
@@ -128,7 +133,10 @@ plotHistMinAllelFreq <- function(X=NULL, maf=NULL, main="", xlim=c(0,0.5),
     P <- ncol(X)
     if(P < N)
       warning("input matrix doesn't seem to have SNPs in columns and individuals in rows")
-    message(paste0(P, " SNPs and ", N, " individuals"))
+    if(verbose > 0){
+      txt <- paste0(P, " SNPs and ", N, " individuals")
+      write(txt, stdout())
+    }
     maf <- maf.from.dose(X)
   }
 
@@ -410,8 +418,10 @@ estim.kinship <- function(X, mafs=NULL, thresh=0.01,
     any(is.na(x))
   })
   if(any(snps.na)){
-    if(verbose > 0)
-      message(paste0("skip ", sum(snps.na), " SNPs with missing data"))
+    if(verbose > 0){
+      txt <- paste0("skip ", sum(snps.na), " SNPs with missing data")
+      write(txt, stdout())
+    }
     idx.rm <- which(snps.na)
     X <- X[, -idx.rm]
     P <- ncol(X)
@@ -420,22 +430,26 @@ estim.kinship <- function(X, mafs=NULL, thresh=0.01,
   ## estimate MAFs
   if(is.null(mafs)){
     mafs <- maf.from.dose(X)
-    if(verbose > 1)
-      message(paste0("allele freqs: ",
-                     "min=", format(min(mafs), digits=2),
-                     " Q1=", format(quantile(mafs, 0.25), digits=2),
-                     " med=", format(median(mafs), digits=2),
-                     " mean=", format(mean(mafs), digits=2),
-                     " Q3=", format(quantile(mafs, 0.75), digits=2),
-                     " max=", format(max(mafs), digits=2)))
+    if(verbose > 1){
+      txt <- paste0("allele freqs: ",
+                    "min=", format(min(mafs), digits=2),
+                    " Q1=", format(quantile(mafs, 0.25), digits=2),
+                    " med=", format(median(mafs), digits=2),
+                    " mean=", format(mean(mafs), digits=2),
+                    " Q3=", format(quantile(mafs, 0.75), digits=2),
+                    " max=", format(max(mafs), digits=2))
+      write(txt, stdout())
+    }
   }
 
   ## discard SNPs with low MAFs
   if(! is.null(thresh)){
     snps.low <- mafs < thresh
     if(any(snps.low)){
-      if(verbose > 0)
-        message(paste0("skip ", sum(snps.low), " SNPs with freq below ", thresh))
+      if(verbose > 0){
+        txt <- paste0("skip ", sum(snps.low), " SNPs with freq below ", thresh)
+        write(txt, stdout())
+      }
       idx.rm <- which(snps.low)
       X <- X[, -idx.rm]
       P <- ncol(X)
