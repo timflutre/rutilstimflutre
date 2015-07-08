@@ -35,6 +35,8 @@ load.plates <- function(files, verbose=1){
     plate.name <- strsplit(x=basename(files[i]), split="\\.")[[1]][1]
     plate <- read.csv(file=files[i], stringsAsFactors=FALSE,
                       row.names=1)
+    if(ncol(plate) == 0)
+      stop(paste0(plate.name, ": 0 columns"))
     plate <- as.matrix(plate)
     colnames(plate) <- as.character(1:ncol(plate))
     plate[plate == ""] <- NA
