@@ -2,7 +2,7 @@
 % Please edit documentation in R/molbio_plates.R
 \name{load.plates}
 \alias{load.plates}
-\title{Read each file into a matrix and gather them into a list.}
+\title{Load plate(s)}
 \usage{
 load.plates(files, verbose = 1)
 }

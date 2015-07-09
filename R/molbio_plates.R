@@ -21,15 +21,46 @@ init.plates <- function(n, nrow, ncol, names){
   return(plates)
 }
 
+##' Describe plate
+##'
+##' Describe the given plate.
+##' @param plate matrix
+##' @param plate.name string
+##' @param verbose verbosity level (0/default=1)
+##' @return invisible named vector
+##' @author Timothée Flutre
+desc.plate <- function(plate, plate.name, verbose=1){
+  out <- setNames(object=rep(NA, 3),
+                  nm=c("nb.wells", "nb.empty.wells", "nb.samples"))
+
+  out["nb.wells"] <- nrow(plate) * ncol(plate)
+  out["nb.empty.wells"] <- sum(is.na(plate))
+  samples <- c(plate)
+  samples <- unique(samples[! is.na(samples)])
+  out["nb.samples"] <- length(samples)
+
+  if(verbose > 0)
+    write(paste0(plate.name,
+                 " ", out["nb.wells"],
+                 " ", out["nb.empty.wells"],
+                 " ", out["nb.samples"]),
+          stdout())
+
+  invisible(out)
+}
+
+##' Load plate(s)
+##'
 ##' Read each file into a matrix and gather them into a list.
-##'
-##'
 ##' @param files vector of paths to csv file, one per plate
 ##' @param verbose verbosity level (0/default=1)
 ##' @return list of matrices, one per plate, in the "wide" format
 ##' @author Timothee Flutre
 load.plates <- function(files, verbose=1){
   plates <- list()
+
+  if(verbose > 0)
+    write("plate nb.wells nb.empty.wells nb.samples", stdout())
 
   for(i in seq_along(files)){
     plate.name <- strsplit(x=basename(files[i]), split="\\.")[[1]][1]
@@ -40,11 +71,8 @@ load.plates <- function(files, verbose=1){
     plate <- as.matrix(plate)
     colnames(plate) <- as.character(1:ncol(plate))
     plate[plate == ""] <- NA
-    if(verbose > 0){
-      write(paste0(plate.name, ": ", sum(is.na(plate)),
-                   " missing data"),
-            stdout())
-    }
+    if(verbose > 0)
+      desc.plate(plate=plate, plate.name=plate.name, verbose=1)
     plates[[plate.name]] <- plate
   }
 
