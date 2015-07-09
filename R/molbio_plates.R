@@ -1,8 +1,8 @@
 ## Contains functions handling plates as often used in molecular biology.
 
+##' Initialize plate(s)
+##'
 ##' Initialize plates as matrices with missing data.
-##'
-##'
 ##' @param n number of plates
 ##' @param nrow vector of number of rows for each plate
 ##' @param ncol vector of number of columns for each plate
@@ -79,9 +79,9 @@ load.plates <- function(files, verbose=1){
   return(plates)
 }
 
-##' Plot the arrangement of samples on a given plate.
+##' Plot plate
 ##'
-##'
+##' Plot the arrangement of samples on the given plate.
 ##' @param plate matrix
 ##' @param main string containing the text for the main title
 ##' @return nothing
@@ -103,9 +103,9 @@ plot.plate <- function(plate, main="Plate"){
        c(plate))
 }
 
+##' Lengthen plate
+##'
 ##' Lengthen a "wide" plate into 3 columns for easier processing.
-##'
-##'
 ##' @param plate.w matrix of a plate in the "wide" format
 ##' @return data.frame of a plate in the "long" format (1 well per row)
 ##' @author Timothee Flutre
@@ -132,9 +132,9 @@ lengthen.plate <- function(plate.w){
   return(plate.l)
 }
 
-##' Identify empty wells, if any, in a plate.
+##' Find empty wells
 ##'
-##'
+##' Identify empty wells, if any, in the given plate.
 ##' @param plate.w matrix of a plate in the "wide" format
 ##' @return 2 column data.frame (row;col) corresponding to empty wells
 ##' @author Timothee Flutre
@@ -142,4 +142,49 @@ empty.wells <- function(plate.w){
   plate.l <- lengthen.plate(plate.w)
   empty.idx <- is.na(plate.l$sample)
   return(plate.l[empty.idx, c("row", "col")])
+}
+
+##' Randomize plate
+##'
+##' Randomize the given plate.
+##' @param plate matrix
+##' @param rand.scheme string
+##' @param seed integer
+##' @param file path to file in which to write the randomised plate
+##' @return matrix
+##' @author Timothee Flutre
+rand.plate <- function(plate, rand.scheme="1x96", seed=NULL, file=NULL){
+  stopifnot(is.matrix(plate),
+            ! is.null(dimnames(plate)),
+            nrow(plate) * ncol(plate) == 96,
+            rand.scheme %in% c("1x96", "2x48"))
+
+  if(! is.null(seed))
+    set.seed(seed)
+
+  out <- matrix(data=NA, nrow=nrow(plate), ncol=ncol(plate), byrow=FALSE,
+                dimnames=dimnames(plate))
+
+  if(rand.scheme == "1x96"){
+    indices <- seq(from=1, to=96, by=1)
+    rand.indices <- sample(x=indices, size=length(indices), replace=FALSE)
+    out[indices] <- plate[rand.indices]
+  } else if(rand.scheme == "2x48"){
+    indices1 <- seq(from=1, to=48, by=1)
+    rand.indices1 <- sample(x=indices1, size=length(indices1), replace=FALSE)
+    out[indices1] <- plate[rand.indices1]
+    indices2 <- seq(from=49, to=96, by=1)
+    rand.indices2 <- sample(x=indices2, size=length(indices2), replace=FALSE)
+    out[indices2] <- plate[rand.indices2]
+  }
+
+  if(! is.null(file)){
+    write(x=paste0("#seed=", seed), file=file, append=FALSE)
+    write.table(x=t(c("", colnames(out))), file=file, append=TRUE,
+                quote=FALSE, sep="\t", row.names=FALSE, col.names=FALSE)
+    write.table(x=out, file=file, append=TRUE, quote=FALSE, sep="\t",
+                row.names=TRUE, col.names=FALSE)
+  }
+
+  return(out)
 }

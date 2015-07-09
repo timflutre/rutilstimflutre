@@ -2,7 +2,7 @@
 % Please edit documentation in R/molbio_plates.R
 \name{empty.wells}
 \alias{empty.wells}
-\title{Identify empty wells, if any, in a plate.}
+\title{Find empty wells}
 \usage{
 empty.wells(plate.w)
 }
@@ -13,7 +13,7 @@ empty.wells(plate.w)
 2 column data.frame (row;col) corresponding to empty wells
 }
 \description{
-Identify empty wells, if any, in a plate.
+Identify empty wells, if any, in the given plate.
 }
 \author{
 Timothee Flutre

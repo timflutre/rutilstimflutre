@@ -2,7 +2,7 @@
 % Please edit documentation in R/molbio_plates.R
 \name{plot.plate}
 \alias{plot.plate}
-\title{Plot the arrangement of samples on a given plate.}
+\title{Plot plate}
 \usage{
 \method{plot}{plate}(plate, main = "Plate")
 }
@@ -15,7 +15,7 @@
 nothing
 }
 \description{
-Plot the arrangement of samples on a given plate.
+Plot the arrangement of samples on the given plate.
 }
 \author{
 Timothee Flutre

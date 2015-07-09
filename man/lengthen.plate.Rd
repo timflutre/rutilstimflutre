@@ -2,7 +2,7 @@
 % Please edit documentation in R/molbio_plates.R
 \name{lengthen.plate}
 \alias{lengthen.plate}
-\title{Lengthen a "wide" plate into 3 columns for easier processing.}
+\title{Lengthen plate}
 \usage{
 lengthen.plate(plate.w)
 }

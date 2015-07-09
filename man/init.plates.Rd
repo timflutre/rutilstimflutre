@@ -2,7 +2,7 @@
 % Please edit documentation in R/molbio_plates.R
 \name{init.plates}
 \alias{init.plates}
-\title{Initialize plates as matrices with missing data.}
+\title{Initialize plate(s)}
 \usage{
 init.plates(n, nrow, ncol, names)
 }
