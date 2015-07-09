@@ -52,7 +52,7 @@ desc.plate <- function(plate, plate.name, verbose=1){
 ##' Load plate(s)
 ##'
 ##' Read each file into a matrix and gather them into a list.
-##' @param files vector of paths to csv file, one per plate
+##' @param files vector of paths to file(s), one per plate, in csv (sep=",") or other format (sep="<tab>")
 ##' @param verbose verbosity level (0/default=1)
 ##' @return list of matrices, one per plate, in the "wide" format
 ##' @author Timothee Flutre
@@ -63,9 +63,15 @@ load.plates <- function(files, verbose=1){
     write("plate nb.wells nb.empty.wells nb.samples", stdout())
 
   for(i in seq_along(files)){
+    plate <- NULL
     plate.name <- strsplit(x=basename(files[i]), split="\\.")[[1]][1]
-    plate <- read.csv(file=files[i], stringsAsFactors=FALSE,
-                      row.names=1)
+    file.ext <- rev(strsplit(x=basename(files[i]), split="\\.")[[1]])[1]
+    if(file.ext == "csv"){
+      plate <- read.csv(file=files[i], stringsAsFactors=FALSE,
+                        row.names=1)
+    } else
+      plate <- read.table(file=files[i], header=TRUE, sep="\t",
+                          row.names=1, stringsAsFactors=FALSE)
     if(ncol(plate) == 0)
       stop(paste0(plate.name, ": 0 columns"))
     plate <- as.matrix(plate)

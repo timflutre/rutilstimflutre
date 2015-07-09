@@ -7,7 +7,7 @@
 load.plates(files, verbose = 1)
 }
 \arguments{
-\item{files}{vector of paths to csv file, one per plate}
+\item{files}{vector of paths to file(s), one per plate, in csv (sep=",") or other format (sep="<tab>")}
 
 \item{verbose}{verbosity level (0/default=1)}
 }
