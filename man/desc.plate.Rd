@@ -20,6 +20,6 @@ invisible named vector
 Describe the given plate.
 }
 \author{
-Timothée Flutre
+Timothee Flutre
 }
 
