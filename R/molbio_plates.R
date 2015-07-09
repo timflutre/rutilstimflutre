@@ -28,7 +28,7 @@ init.plates <- function(n, nrow, ncol, names){
 ##' @param plate.name string
 ##' @param verbose verbosity level (0/default=1)
 ##' @return invisible named vector
-##' @author Timothée Flutre
+##' @author Timothee Flutre
 desc.plate <- function(plate, plate.name, verbose=1){
   out <- setNames(object=rep(NA, 3),
                   nm=c("nb.wells", "nb.empty.wells", "nb.samples"))
