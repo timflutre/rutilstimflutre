@@ -92,6 +92,60 @@ stats.all.pair.aligns <- function(aligns, nb.sequences){
 							nmismatchs=nmismatchs, ninss=ninss, ndels=ndels))
 }
 
+##' Bar plot of insert sizes
+##'
+##' Creates a bar plot with vertical bars of insert sizes from histogram data as calculated by Picard CollectInsertSizeMetrics.
+##' @param file path to the output file from Picard CollectInsertSizeMetrics
+##' @param main overall title for the plot
+##' @param add.text add total count, as well as Q25, median and Q75 for insert sizes, to the topright of the plot
+##' @return invisible data frame of the content of the file
+##' @author Timothee Flutre
+barplot.insert.sizes <- function(file, main=NULL, add.text=FALSE){
+  stopifnot(file.exists(file))
+
+  dat <- read.table(file=file, skip=10, header=TRUE)
+  if(! ncol(dat) == 2)
+    stop(paste0("file ", file, " doesn't seem to come from",
+                " Picard CollectInsertSizeMetrics"))
+  colnames(dat) <- c("insert.size", "count")
+
+  tot.count <- sum(dat$count)
+  q25.insert.size <- rev(dat$insert.size[cumsum(dat$count) <=
+                                           0.25 * tot.count])[1]
+  med.insert.size <- rev(dat$insert.size[cumsum(dat$count) <=
+                                           0.5 * tot.count])[1]
+  q75.insert.size <- rev(dat$insert.size[cumsum(dat$count) <=
+                                           0.75 * tot.count])[1]
+
+  bp <- barplot(height=dat$count, width=1,
+                xlab="Insert size (in bp)",
+                ylab="Counts",
+                main=main)
+  axis(side=1, at=c(0, bp[seq(100, max(dat$insert.size), 100)]),
+       labels=c(0, seq(100, max(dat$insert.size), 100)))
+
+  abline(v=bp[q25.insert.size], lty=2)
+  abline(v=bp[med.insert.size], lty=2)
+  abline(v=bp[q75.insert.size], lty=2)
+
+  if(add.text){
+    text(x=bp[floor(0.6*max(dat$insert.size))],
+         y=0.6*max(dat$count), adj=0,
+         labels=paste0("Q25 = ", format(q25.insert.size, digits=2), " bp"))
+    text(x=bp[floor(0.6*max(dat$insert.size))],
+         y=0.7*max(dat$count), adj=0,
+         labels=paste0("median = ", format(med.insert.size, digits=2), " bp"))
+    text(x=bp[floor(0.6*max(dat$insert.size))],
+         y=0.8*max(dat$count), adj=0,
+         labels=paste0("Q75 = ", format(q75.insert.size, digits=2), " bp"))
+    text(x=bp[floor(0.6*max(dat$insert.size))],
+         y=0.9*max(dat$count), adj=0,
+         labels=paste0("total count = ", format(tot.count, digits=2)))
+  }
+
+  invisible(dat)
+}
+
 ##' Plot the covered fraction of regions as a function of depth.
 ##'
 ##' Need to first run bedtools coverage as in http://www.gettinggeneticsdone.com/2014/03/visualize-coverage-exome-targeted-ngs-bedtools.html by Stephen Turner

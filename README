@@ -13,8 +13,9 @@ The content of this directory is versioned using git, the central
 repository being hosted on GitHub:
 https://github.com/timflutre/rutilstimflutre
 
-When editing the content of this repo, a few things need to be done:
+When editing the content of this repo, increment the version of the package in
+the DESCRIPTION file and execute the following commands:
 R> setwd("<path_to_rutilstimflutre>"); library(devtools); devtools::document()
 $ R CMD build rutilstimflutre
-$ R CMD check rutilstimflutre_0.1.0.tar.gz
-$ R CMD INSTALL rutilstimflutre_0.1.0.tar.gz
+$ R CMD check rutilstimflutre_<version>.tar.gz
+$ R CMD INSTALL rutilstimflutre_<version>.tar.gz
