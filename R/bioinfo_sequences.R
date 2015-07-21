@@ -146,6 +146,127 @@ barplot.insert.sizes <- function(file, main=NULL, add.text=FALSE){
   invisible(dat)
 }
 
+##' Read bedtools-coverage-hist as data.table.
+##'
+##' Read output files from bedtools coverage with -hist into a list of data.tables. All lines starting by "all" must have been discarded beforehand.
+##' @param files character vector of relative or absolute filepaths (e.g. from Sys.glob).
+##' @param verbose verbosity level (0/default=1)
+##' @return list of data.tables
+##' @author Timothee Flutre
+fread.bedtools.coverage.hist <- function(files, verbose=1){
+  colClasses <- sapply(read.table(files[1], nrows=5), class)
+  ldat <-
+    lapply(1:length(files), function (i, verbose){
+             if(verbose > 0){
+               txt <- paste0(i, "/", length(files))
+               write(txt, stdout())
+             }
+             f <- files[i]
+             nrows <- as.numeric(system(paste("zcat", f, "| wc -l"),
+                                        intern=TRUE))
+             dat <- fread(paste("zcat", f),
+                          sep="\t",
+                          nrows=nrows,
+                          colClasses=colClasses,
+                          data.table=TRUE)
+             setnames(x=dat, old=1:ncol(dat),
+                      new=c("chrom", "start", "end", "name", "depth", "nb.reads",
+                          "length", "fraction"))
+             dat
+           }, verbose)
+
+  return(ldat)
+}
+
+##' Depth per sample across regions
+##'
+##' Summarize the depth per sample across regions of a given length range.
+##' @param dat data.table (see fread.bedtools.coverage.hist)
+##' @param min.reg.len minimum length of a region to be considered
+##' @param max.reg.len maximum length of a region to be considered
+##' @param min.reg.dep minimum depth of a region when reporting the number of interesting regions
+##' @param max.reg.dep maximum depth of a region when reporting the number of interesting regions
+##' @param min.reg.frac minimum fraction of a region when reporting the number of interesting regions
+##' @return data.table
+##' @author Timothee Flutre
+depths.per.sample <- function(dat, min.reg.len=30, max.reg.len=500,
+                              min.reg.dep=10, max.reg.dep=200,
+                              min.reg.frac=0.25){
+  stopifnot(is.data.table(dat))
+  for(col in c("ind", "flowcell", "lane", "chrom", "start", "end", "name",
+               "depth", "fraction"))
+    stopifnot(col %in% colnames(dat))
+
+  ## http://stackoverflow.com/a/8096882/597069
+  ind=flowcell=lane=chrom=start=end=name=depth=fraction=NULL
+
+  setkey(dat, NULL)
+  setkeyv(x=dat, cols=c("ind", "flowcell", "lane"))
+
+  depths.sample <- dat[end - start >= min.reg.len &
+                         end - start <= max.reg.len,
+                       .(depth.n=.N,
+                         depth.min=min(.SD[,depth]),
+                         depth.med=as.double(median(.SD[,depth])),
+                         depth.mean=mean(.SD[,depth]),
+                         depth.max=max(.SD[,depth]),
+                         depth.q65=quantile(.SD[,depth], 0.65),
+                         depth.q70=quantile(.SD[,depth], 0.70),
+                         depth.q75=quantile(.SD[,depth], 0.75),
+                         depth.q80=quantile(.SD[,depth], 0.80),
+                         regions.ok=nrow(unique(.SD[depth >= min.reg.dep &
+                                                      depth <= max.reg.dep &
+                                                        fraction >= min.reg.frac,
+                             .(chrom,start,end,name)]))),
+                       by=.(ind,flowcell,lane)]
+
+  setkey(dat, NULL)
+
+  return(depths.sample)
+}
+
+
+##' Depth per region across samples
+##'
+##' Summarize the depth per region of a given length range across samples.
+##' @param dat data.table (see fread.bedtools.coverage.hist)
+##' @param min.reg.len minimum length of a region to be considered
+##' @param max.reg.len maximum length of a region to be considered
+##' @param min.reg.dep minimum depth of a region when reporting the number of interesting regions
+##' @param max.reg.dep maximum depth of a region when reporting the number of interesting regions
+##' @param min.reg.frac minimum fraction of a region when reporting the number of interesting regions
+##' @return data.table
+##' @author Timothee Flutre
+depths.per.region <- function(dat, min.reg.len=30, max.reg.len=500,
+                              min.reg.dep=10, max.reg.dep=200,
+                              min.reg.frac=0.25){
+  stopifnot(is.data.table(dat))
+  for(col in c("ind", "flowcell", "lane", "chrom", "start", "end", "name",
+               "depth", "fraction"))
+    stopifnot(col %in% colnames(dat))
+
+  ## http://stackoverflow.com/a/8096882/597069
+  ind=flowcell=lane=chrom=start=end=name=depth=fraction=NULL
+
+  setkey(dat, NULL)
+
+  depths.region <- dat[end - start >= min.reg.len &
+                         end - start <= max.reg.len,
+                       .(depth.n=.N,
+                         depth.min=min(.SD[,depth]),
+                         depth.med=as.double(median(.SD[,depth])),
+                         depth.max=max(.SD[,depth]),
+                         samples.ok=nrow(unique(.SD[depth >= min.reg.dep &
+                                                      depth <= max.reg.dep &
+                                                        fraction >= min.reg.frac,
+                             .(ind,flowcell,lane)]))),
+                       by=.(chrom,start,end,name)]
+
+  setkey(dat, NULL)
+
+  return(depths.region)
+}
+
 ##' Plot the covered fraction of regions as a function of depth.
 ##'
 ##' Need to first run bedtools coverage as in http://www.gettinggeneticsdone.com/2014/03/visualize-coverage-exome-targeted-ngs-bedtools.html by Stephen Turner
