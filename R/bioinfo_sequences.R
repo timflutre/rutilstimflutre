@@ -159,7 +159,7 @@ fread.bedtools.coverage.hist <- function(files, verbose=1){
     lapply(1:length(files), function (i, verbose){
              if(verbose > 0){
                txt <- paste0(i, "/", length(files))
-               write(txt, stdout())
+               write(txt, stdout()); flush(stdout())
              }
              f <- files[i]
              nrows <- as.numeric(system(paste("zcat", f, "| wc -l"),
@@ -170,7 +170,7 @@ fread.bedtools.coverage.hist <- function(files, verbose=1){
                           colClasses=colClasses,
                           data.table=TRUE)
              setnames(x=dat, old=1:ncol(dat),
-                      new=c("chrom", "start", "end", "name", "depth", "nb.reads",
+                      new=c("chrom", "start", "end", "name", "depth", "nb.bases",
                           "length", "fraction"))
              dat
            }, verbose)
