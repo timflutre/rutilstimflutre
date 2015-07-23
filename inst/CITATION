@@ -1,0 +1,11 @@
+citHeader("To cite rutilstimflutre in publications use:")
+
+citEntry(entry = "Misc",
+  title        = "Timothee Flutre's personal R code in {rutilstimflutre}",
+  author       = personList(as.person("Timothee Flutre")),
+  url          = "https://github.com/timflutre/rutilstimflutre",
+
+  textVersion  =
+  paste("Timothee Flutre's personal R code.",
+        "URL https://github.com/timflutre/rutilstimflutre.")
+)
