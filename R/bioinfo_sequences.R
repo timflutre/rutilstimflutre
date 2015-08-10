@@ -100,7 +100,7 @@ stats.all.pair.aligns <- function(aligns, nb.sequences){
 ##' @param add.text add total count, as well as Q25, median and Q75 for insert sizes, to the topright of the plot
 ##' @return invisible data frame of the content of the file
 ##' @author Timothee Flutre
-barplot.insert.sizes <- function(file, main=NULL, add.text=FALSE){
+barplotInsertSizes <- function(file, main=NULL, add.text=FALSE){
   stopifnot(file.exists(file))
 
   dat <- read.table(file=file, skip=10, header=TRUE)

@@ -111,8 +111,8 @@ hinton <- function(m, main="", max.sqrt.m=NULL){
 ##' @param xlim lim
 ##' @param ... arguments to be passed to plot()
 ##' @author Timothee Flutre
-plot.with.scale <- function(z, zlim, col = heat.colors(12),
-                            breaks, horiz=TRUE, ylim=NULL, xlim=NULL, ...){
+plotWithScale <- function(z, zlim, col = heat.colors(12),
+                          breaks, horiz=TRUE, ylim=NULL, xlim=NULL, ...){
   if(! missing(breaks))
     if(length(breaks) != (length(col)+1))
       stop("must have one more break than colour")
@@ -169,8 +169,8 @@ plot.with.scale <- function(z, zlim, col = heat.colors(12),
 ##' @param idx.colnames vector giving the indices of the column names of z to be added on top of the plot
 ##' @param breaks vector (default=seq(min(z), max(z), length.out=100))
 ##' @author Timothee Flutre
-image.with.scale <- function(z, main=NULL, idx.rownames=NULL, idx.colnames=NULL,
-                        breaks=NULL){
+imageWithScale <- function(z, main=NULL, idx.rownames=NULL, idx.colnames=NULL,
+                           breaks=NULL){
   if(! is.null(idx.rownames) & is.null(rownames(z)))
     stop("non-null idx.rownames requires z to have row names")
   if(! is.null(idx.colnames) & is.null(colnames(z)))
@@ -204,8 +204,8 @@ image.with.scale <- function(z, main=NULL, idx.rownames=NULL, idx.colnames=NULL,
 
   ## plot the scale
   par(mar=c(1,0,6,3))
-  plot.with.scale(z, col=col.pal(length(breaks)-1), breaks=breaks, horiz=FALSE,
-             yaxt="n")
+  plotWithScale(z, col=col.pal(length(breaks)-1), breaks=breaks, horiz=FALSE,
+                yaxt="n")
   axis(4, at=format(breaks[seq.int(from=1,to=100,length.out=5)], digits=2),
        las=2, lwd=0, lwd.ticks=1)
 }

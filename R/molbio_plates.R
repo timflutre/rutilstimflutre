@@ -92,7 +92,7 @@ load.plates <- function(files, verbose=1){
 ##' @param main string containing the text for the main title
 ##' @return nothing
 ##' @author Timothee Flutre
-plot.plate <- function(plate, main="Plate"){
+plotPlate <- function(plate, main="Plate"){
   stopifnot(is.matrix(plate))
 
   par(mar=c(3, 3, 5, 1) + 0.1)
