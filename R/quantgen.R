@@ -837,29 +837,38 @@ read.biomercator <- function(file){
 
 ##' Plot pedigree
 ##'
-##' Plot a pedigree using the "igraph" package. Inspired by plot.pedigree() from the "synbreed" package (under GPL-3). Add options for monoecious species.
+##' Plot a pedigree using the "igraph" package. Inspired by plot.pedigree() from the "synbreed" package (under GPL-3). Add options for monoecious species and auto-fecondation.
 ##' @param inds identifiers of the individuals
 ##' @param mothers identifiers of their mother; can be NA
 ##' @param fathers identifiers of their father; can be NA
-##' @param sexes "F" for female (circle), "M" for male (square) and "H" for hermaphrodite (triangle); can also be NA (no shape)
 ##' @param generations should start at 0
-##' @param edge.col.mother default="black"
-##' @param edge.col.father default="darkgrey"
-##' @param vertex.cols default="white"
-##' @param vertex.label.family default="Helvetica"
-##' @param mult.edge.curve default=0.25
-##' @param ... other plotting options; see plot.igraph()
+##' @param sexes "F" for female (circle), "M" for male (square) and "H" for hermaphrodite (triangle); can also be NA (no shape)
+##' @param edge.col.mother see ?igraph.plotting
+##' @param edge.col.father see ?igraph.plotting
+##' @param vertex.label.color see ?igraph.plotting
+##' @param vertex.color see ?igraph.plotting
+##' @param vertex.size see ?igraph.plotting
+##' @param vertex.shape see ?igraph.plotting
+##' @param vertex.label.family see ?igraph.plotting
+##' @param mult.edge.curve see ?igraph.plotting
+##' @param edge.arrow.width see ?igraph.plotting
+##' @param edge.arrow.size see ?igraph.plotting
+##' @param ... other plotting options; see ?plot.igraph and ?igraph.plotting
 ##' @return invisible pedigree as an "igraph" object
 ##' @author Timothee Flutre
-plotPedigree <- function(inds, mothers, fathers, sexes, generations,
+plotPedigree <- function(inds, mothers, fathers, generations, sexes=NULL,
                          edge.col.mother="black", edge.col.father="darkgrey",
-                         vertex.cols="white", vertex.label.family="Helvetica",
-                         mult.edge.curve=0.25, ...){
+                         vertex.label.color="darkblue", vertex.color="white",
+                         vertex.size=20, vertex.shape="none",
+                         vertex.label.family="Helvetica", mult.edge.curve=0.25,
+                         edge.arrow.width=0.75, edge.arrow.size=0.75,
+                         ...){
   stopifnot(is.vector(inds),
             is.vector(mothers),
             is.vector(fathers),
-            is.vector(sexes),
             is.vector(generations))
+  if(! is.null(sexes))
+    stopifnot(is.vector(sexes))
 
   ## check inds
   inds <- as.character(inds)
@@ -879,68 +888,31 @@ plotPedigree <- function(inds, mothers, fathers, sexes, generations,
   stopifnot(length(fathers) == length(inds),
             all(fathers[! is.na(fathers)] %in% inds))
 
-  ## check sexes
-  sexes <- as.character(sexes)
-  stopifnot(length(sexes) == length(inds))
-  sexes <- toupper(sexes)
-  uniq.sex <- unique(sexes)
-  if(any(! is.na(uniq.sex)))
-    stopifnot(all(uniq.sex[! is.na(uniq.sex)] %in% c("F","M","H")))
-
   ## check generations
   generations <- as.numeric(generations)
   stopifnot(length(generations) == length(inds))
   generations <- generations - min(generations)
 
-  ## make "igraph" object
-  relations <- rbind(cbind(mothers[! is.na(mothers)], inds[! is.na(mothers)]),
-                     cbind(fathers[! is.na(fathers)], inds[! is.na(fathers)]))
-  colnames(relations) <- c("parent","child")
-  ped.graph <- igraph::graph_from_data_frame(
-      relations, directed=TRUE,
-      vertices=data.frame(ind=inds,
-                          mother=mothers,
-                          father=fathers,
-                          sex=sexes,
-                          generation=generations,
-                          stringsAsFactors=FALSE))
-
-  ## check multiplicity
-  has.autof <- FALSE
-  if(igraph::has.multiple(ped.graph)){
-    has.autof <- TRUE
-    stopifnot(all(igraph::count_multiple(ped.graph) %in% c(1,2)))
+  ## check sexes
+  if(! is.null(sexes)){
+    sexes <- as.character(sexes)
+    stopifnot(length(sexes) == length(inds))
+    sexes <- toupper(sexes)
+    uniq.sex <- unique(sexes)
+    if(any(! is.na(uniq.sex)))
+      stopifnot(all(uniq.sex[! is.na(uniq.sex)] %in% c("F","M","H")))
   }
 
-  ## set plot coordinates for vertices
-  coords <- matrix(data=NA, nrow=length(inds), ncol=2,
-                   dimnames=list(inds, c("x", "y")))
-  coords[,2] <- max(generations) - generations
-  coords[,1] <- order(generations, partial=order(inds, decreasing=TRUE)) -
-    cumsum(c(0, table(generations)))[generations + 1]
-  coords[length(inds):1,1] <- unlist(tapply(coords[,1], coords[,2], function(x){
-    if(length(x) == 1){
-      x <- 0
-    } else
-      x <- unlist(scale(x))
-    return(x)
-  }))
+  ## sort according to generations
+  idx <- order(generations)
+  inds <- inds[idx]
+  mothers <- mothers[idx]
+  fathers <- fathers[idx]
+  generations <- generations[idx]
+  if(! is.null(sexes))
+    sexes <- sexes[idx]
 
-  ## set edge color depending on parental sex
-  nb.rel.mother <- sum(! is.na(mothers))
-  nb.rel.father <- sum(! is.na(fathers))
-  edge.cols <- c(rep("black", nb.rel.mother), rep("darkgrey", nb.rel.father))
-
-  ## tune curvature in case of auto-fecondation
-  edge.curvatures <- rep(0, igraph::ecount(ped.graph))
-  if(has.autof){
-    idx.mult <- which(igraph::count_multiple(ped.graph) > 1)
-    stopifnot(length(idx.mult) %% 2 == 0)
-    edge.curvatures[idx.mult[idx.mult <= nb.rel.mother]] <- mult.edge.curve
-    edge.curvatures[idx.mult[idx.mult > nb.rel.mother]] <- - mult.edge.curve
-  }
-
-  ## set vertex shape depending on sex
+  ## add "triangle" as shape
   mytriangle <- function(coords, v=NULL, params) {
     vertex.color <- params("vertex", "color")
     if(length(vertex.color) != 1 && !is.null(v))
@@ -954,23 +926,77 @@ plotPedigree <- function(inds, mothers, fathers, sexes, generations,
   }
   igraph::add_shape("triangle", clip=igraph::shapes("circle")$clip,
                     plot=mytriangle)
-  vertex.shapes <- rep("circle", length(inds)) # for "F"
-  vertex.shapes[sexes == "M"] <- "square"
-  vertex.shapes[sexes == "H"] <- "triangle"
-  vertex.shapes[is.na(sexes)] <- "none"
-  vertex.sizes <- rep(15, length(inds))
-  vertex.sizes[sexes == "H"] <- 20
 
-  ## set vertex color
-  ## TODO: allow it to depend on a phenotype
-  vertex.cols <- "white"
+  ## make "igraph" object
+  relations <- rbind(cbind(mothers[! is.na(mothers)], inds[! is.na(mothers)]),
+                     cbind(fathers[! is.na(fathers)], inds[! is.na(fathers)]))
+  colnames(relations) <- c("parent","child")
+  v.df <- data.frame(ind=inds,
+                     mother=mothers,
+                     father=fathers,
+                     generation=generations,
+                     stringsAsFactors=FALSE)
+  if(is.null(sexes)){
+    v.df[["label"]] <- inds
+  } else{
+    v.df[["sex"]] <- sexes
+    v.df[["label"]] <- paste0(inds, "\n(", sexes, ")")
+  }
+  v.df[["shape"]] <- rep(vertex.shape, length(inds))
+  v.df[["size"]] <- rep(vertex.size, length(inds))
+  v.df[["color"]] <- vertex.color
+  v.df[["label.color"]] <- vertex.label.color
+  v.df[["label.family"]] <- vertex.label.family
+  ped.graph <- igraph::graph_from_data_frame(d=relations,
+                                             directed=TRUE,
+                                             vertices=v.df)
+
+  ## check multiplicity corresponding to auto-fecondation
+  has.autof <- FALSE
+  if(igraph::has.multiple(ped.graph)){
+    has.autof <- TRUE
+    stopifnot(all(igraph::count_multiple(ped.graph) %in% c(1,2)))
+  }
+
+  ## set plot coordinates for vertices
+  coords <- matrix(data=NA, nrow=length(inds), ncol=2,
+                   dimnames=list(inds, c("x", "y")))
+  coords[,2] <- max(generations) - generations
+  ## coords[,1] <- order(generations, partial=order(inds, decreasing=TRUE)) -
+  ##   cumsum(c(0, table(generations)))[generations + 1]
+  coords[,1] <- order(generations) -
+    cumsum(c(0, table(generations)))[generations + 1]
+  coords[nrow(coords):1,1] <- unlist(tapply(coords[,1], coords[,2], function(x){
+    if(length(x) == 1){
+      x <- 0
+    } else
+      x <- rev(scale(x))
+    return(x)
+  }))
+
+  ## set edge color depending on parental sex
+  nb.rel.mother <- sum(! is.na(mothers))
+  nb.rel.father <- sum(! is.na(fathers))
+  edge.cols <- c(rep(edge.col.mother, nb.rel.mother),
+                 rep(edge.col.father, nb.rel.father))
+
+  ## tune curvature in case of auto-fecondation
+  edge.curvatures <- rep(0, igraph::ecount(ped.graph))
+  if(has.autof){
+    idx.mult <- which(igraph::count_multiple(ped.graph) > 1)
+    stopifnot(length(idx.mult) %% 2 == 0)
+    edge.curvatures[idx.mult[idx.mult <= nb.rel.mother]] <- mult.edge.curve
+    edge.curvatures[idx.mult[idx.mult > nb.rel.mother]] <- - mult.edge.curve
+  }
 
   ## plot, finally
-  igraph::plot.igraph(ped.graph, layout=coords, vertex.label=inds,
-                      edge.color=edge.cols, vertex.color=vertex.cols,
-                      vertex.shape=vertex.shapes, vertex.size=vertex.sizes,
-                      vertex.label.family=vertex.label.family,
-                      edge.curved=edge.curvatures, ...)
+  igraph::plot.igraph(x=ped.graph,
+                      layout=coords,
+                      edge.color=edge.cols,
+                      edge.curved=edge.curvatures,
+                      edge.arrow.width=edge.arrow.width,
+                      edge.arrow.size=edge.arrow.size,
+                      ...)
 
   invisible(ped.graph)
 }

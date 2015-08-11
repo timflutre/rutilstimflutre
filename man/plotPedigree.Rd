@@ -4,10 +4,12 @@
 \alias{plotPedigree}
 \title{Plot pedigree}
 \usage{
-plotPedigree(inds, mothers, fathers, sexes, generations,
+plotPedigree(inds, mothers, fathers, generations, sexes = NULL,
   edge.col.mother = "black", edge.col.father = "darkgrey",
-  vertex.cols = "white", vertex.label.family = "Helvetica",
-  mult.edge.curve = 0.25, ...)
+  vertex.label.color = "darkblue", vertex.color = "white",
+  vertex.size = 20, vertex.shape = "none",
+  vertex.label.family = "Helvetica", mult.edge.curve = 0.25,
+  edge.arrow.width = 0.75, edge.arrow.size = 0.75, ...)
 }
 \arguments{
 \item{inds}{identifiers of the individuals}
@@ -16,27 +18,37 @@ plotPedigree(inds, mothers, fathers, sexes, generations,
 
 \item{fathers}{identifiers of their father; can be NA}
 
-\item{sexes}{"F" for female (circle), "M" for male (square) and "H" for hermaphrodite (triangle); can also be NA (no shape)}
-
 \item{generations}{should start at 0}
 
-\item{edge.col.mother}{default="black"}
+\item{sexes}{"F" for female (circle), "M" for male (square) and "H" for hermaphrodite (triangle); can also be NA (no shape)}
 
-\item{edge.col.father}{default="darkgrey"}
+\item{edge.col.mother}{see ?igraph.plotting}
 
-\item{vertex.cols}{default="white"}
+\item{edge.col.father}{see ?igraph.plotting}
 
-\item{vertex.label.family}{default="Helvetica"}
+\item{vertex.label.color}{see ?igraph.plotting}
 
-\item{mult.edge.curve}{default=0.25}
+\item{vertex.color}{see ?igraph.plotting}
 
-\item{...}{other plotting options; see plot.igraph()}
+\item{vertex.size}{see ?igraph.plotting}
+
+\item{vertex.shape}{see ?igraph.plotting}
+
+\item{vertex.label.family}{see ?igraph.plotting}
+
+\item{mult.edge.curve}{see ?igraph.plotting}
+
+\item{edge.arrow.width}{see ?igraph.plotting}
+
+\item{edge.arrow.size}{see ?igraph.plotting}
+
+\item{...}{other plotting options; see ?plot.igraph and ?igraph.plotting}
 }
 \value{
 invisible pedigree as an "igraph" object
 }
 \description{
-Plot a pedigree using the "igraph" package. Inspired by plot.pedigree() from the "synbreed" package (under GPL-3). Add options for monoecious species.
+Plot a pedigree using the "igraph" package. Inspired by plot.pedigree() from the "synbreed" package (under GPL-3). Add options for monoecious species and auto-fecondation.
 }
 \author{
 Timothee Flutre
