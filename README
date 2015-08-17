@@ -18,8 +18,10 @@ it when using it for data analysis:
 R> citation("rutilstimflutre")
 See also citation() for citing R itself.
 
-For users, when retrieving the bundled package (package as a tar.gz), you can
-install it from the command-line via:
+For users, you can directly install the package from GitHub:
+R> library(devtools); install_github("timflutre/rutilstimflutre")
+Otherwise, when retrieving the bundled package (that is, as a tar.gz),
+you can install it from the command-line via:
 $ R CMD INSTALL rutilstimflutre_<version>.tar.gz
 or directly from inside R via:
 R> install.packages("path/to/rutilstimflutre_<version>.tar.gz")
