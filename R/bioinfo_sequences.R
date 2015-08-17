@@ -328,3 +328,227 @@ coverage.regions <- function(path=NULL, pattern=NULL, covrg=NULL, plot.it=TRUE,
 
   invisible(list(covrg=covrg, cumcovrg=cumcovrg))
 }
+
+##' Variant-level calls
+##'
+##' Return some information to help in hard-filtering variant-level calls. See GATK's Best Practices tutorial (\url{https://www.broadinstitute.org/gatk/guide/topic?name=tutorials#tutorials2806}).
+##' @param x data.frame, e.g. from "bcftools query --format '\%CHROM\\t\%POS\\t\%TYPE\\t...'"
+##' @param type variant type
+##' @param thresh.qual exclude variant if QUAL < threshold
+##' @param thresh.qd exclude variant if QD < threshold
+##' @param thresh.fs exclude variant if FS > threshold
+##' @param thresh.mq exclude variant if MQ < threshold
+##' @param thresh.mqrs exclude variant if MQRankSum < threshold (must be negative)
+##' @param thresh.rprs exclude variant if ReadPosRankSum < threshold (must be negative)
+##' @param thresh.hs exclude variant if HaplotypeScore > threshold (must be positive, \url{http://dx.doi.org/10.1038/sdata.2015.11})
+##' @param thresh.dp if NULL, exclude variant if DP > 3 * mean(DP) (\url{https://www.biostars.org/p/110670/#110671})
+##' @param thresh.crs exclude variant if ClippingRankSum < threshold (must be negative)
+##' @param thresh.pnb exclude variant if PercentNBase < threshold (must be in [0,100])
+##' @param thresh.bqrs exclude variant if BaseQRankSum < threshold (must be negative)
+##' @param thresh.gc exclude variant if GC > threshold (must be in [0,1])
+##' @param thresh.hw exclude variant if HW > threshold (must be positive)
+##' @param thresh.hr exclude variant if HRun > threshold (must be positive, \url{http://dx.doi.org/10.1038/sdata.2015.11})
+##' @param thresh.ic exclude variant if InbreedingCoeff > threshold
+##' @param thresh.lrs exclude variant if LikelihoodRankSum < threshold (must be negative)
+##' @param thresh.sor exclude variant if SOR > threshold (must be positive)
+##' @return list
+##' @author Timothee Flutre
+infoVariantCalls <- function(x, type="SNP", thresh.qual=20, thresh.qd=2,
+                             thresh.fs=60, thresh.mq=40, thresh.mqrs=-12.5,
+                             thresh.rprs=-8, thresh.hs=13,
+                             thresh.dp=NULL, thresh.crs=NULL,
+                             thresh.pnb=NULL, thresh.bqrs=NULL,
+                             thresh.gc=NULL, thresh.hw=7, thresh.hr=6,
+                             thresh.ic=NULL, thresh.lrs=NULL, thresh.sor=NULL){
+  stopifnot(is.data.frame(x),
+            "type" %in% colnames(x))
+
+  ## http://stackoverflow.com/a/32012103/597069
+  my_summary <- function(v){
+    if(! any(is.na(v))){
+      res <- c(summary(v), "NA's"=0)
+    } else{
+      res <- summary(v)
+    }
+    return(res)
+  }
+
+  info <- list()
+
+  idx <- which(x$type == type)
+  stopifnot(length(idx) != 0)
+  info[[paste0("nb.", type)]] <- length(idx)
+
+  if("qual" %in% colnames(x)){
+    info[["summary.qual"]] <- my_summary(x$qual[idx])
+    info[["thresh.qual"]] <- thresh.qual
+    info[["perc.excl.qual"]] <- 100 * sum(x$qual[idx] < info[["thresh.qual"]],
+                                          na.rm=TRUE) / sum(! is.na(x$qual[idx]))
+  }
+
+  if("qd" %in% colnames(x)){
+    info[["summary.qd"]] <- my_summary(x$qd[idx])
+    info[["thresh.qd"]] <- thresh.qd
+    info[["perc.excl.qd"]] <- 100 * sum(x$qd[idx] < info[["thresh.qd"]],
+                                        na.rm=TRUE) / sum(! is.na(x$qd[idx]))
+  }
+
+  if("fs" %in% colnames(x)){
+    info[["summary.fs"]] <- my_summary(x$fs[idx])
+    info[["thresh.fs"]] <- thresh.fs
+    info[["perc.excl.fs"]] <- 100 * sum(x$fs[idx] > info[["thresh.fs"]],
+                                        na.rm=TRUE) / sum(! is.na(x$fs[idx]))
+  }
+
+  if("mq" %in% colnames(x)){
+    info[["summary.mq"]] <- my_summary(x$mq[idx])
+    info[["thresh.mq"]] <- thresh.mq
+    info[["perc.excl.mq"]] <- 100 * sum(x$mq[idx] < info[["thresh.mq"]],
+                                        na.rm=TRUE) / sum(! is.na(x$mq[idx]))
+  }
+
+  if("mqrs" %in% colnames(x)){
+    info[["summary.mqrs"]] <- my_summary(x$mqrs[idx])
+    stopifnot(thresh.mqrs < 0)
+    info[["thresh.mqrs"]] <- thresh.mqrs
+    info[["perc.excl.mqrs"]] <- 100 * sum(x$mqrs[idx] < info[["thresh.mqrs"]],
+                                          na.rm=TRUE) / sum(! is.na(x$mqrs[idx]))
+  }
+
+  if("rprs" %in% colnames(x)){
+    info[["summary.rprs"]] <- my_summary(x$rprs[idx])
+    stopifnot(thresh.rprs < 0)
+    info[["thresh.rprs"]] <- thresh.rprs
+    info[["perc.excl.rprs"]] <- 100 * sum(x$rprs[idx] < info[["thresh.rprs"]],
+                                          na.rm=TRUE) / sum(! is.na(x$rprs[idx]))
+  }
+
+  if("hs" %in% colnames(x)){
+    if(! all(is.na(x$hs[idx]))){
+      info[["summary.hs"]] <- my_summary(x$hs[idx])
+      stopifnot(thresh.hs > 0)
+      info[["thresh.hs"]] <- thresh.hs
+      info[["perc.excl.hs"]] <- 100 * sum(x$hs[idx] < info[["thresh.hs"]],
+                                          na.rm=TRUE) / sum(! is.na(x$hs[idx]))
+    }
+  }
+
+  if("dp" %in% colnames(x)){
+    info[["summary.dp"]] <- my_summary(x$dp[idx])
+    if(is.null(thresh.dp))
+      info[["threshold.dp"]] <- 3 * mean(x$dp[idx])
+    info[["perc.excl.dp"]] <- 100 * sum(x$dp[idx] > info[["threshold.dp"]],
+                                        na.rm=TRUE) / sum(! is.na(x$dp[idx]))
+  }
+
+  if("an" %in% colnames(x)){
+    info[["summary.an"]] <- my_summary(x$an[idx])
+    ## if(is.null(thresh.an)){
+    ##   stopifnot(! is.null(nb.samples))
+    ##   info[["thresh.an"]] <- 0.8 * 2 * nb.samples # assume samples are diploids
+    ## } else
+    ##   info[["thresh.an"]] <- thresh.an
+    ## info[["perc.excl.an"]] <- 100 * sum(x$an[idx] > info[["thresh.an"]],
+    ##                                     na.rm=TRUE) / sum(! is.na(x$an[idx]))
+  }
+
+  if("crs" %in% colnames(x)){
+    info[["summary.crs"]] <- my_summary(x$crs[idx])
+    if(! is.null(thresh.crs)){
+      stopifnot(thresh.crs < 0)
+      info[["threshold.crs"]] <- thresh.crs
+      info[["perc.excl.crs"]] <- 100 * sum(x$crs[idx] < info[["threshold.crs"]],
+                                           na.rm=TRUE) / sum(! is.na(x$crs[idx]))
+    }
+  }
+
+  if("pnb" %in% colnames(x)){
+    info[["summary.pnb"]] <- my_summary(x$pnb[idx])
+    if(! is.null(thresh.pnb)){
+      stopifnot(thresh.pnb >= 0, thresh.pnb <= 100)
+      info[["threshold.pnb"]] <- thresh.pnb
+      info[["perc.excl.pnb"]] <- 100 * sum(x$pnb[idx] < info[["threshold.pnb"]],
+                                           na.rm=TRUE) / sum(! is.na(x$pnb[idx]))
+    }
+  }
+
+  if("bqrs" %in% colnames(x)){
+    info[["summary.bqrs"]] <- my_summary(x$bqrs[idx])
+    if(! is.null(thresh.bqrs)){
+      stopifnot(thresh.bqrs < 0)
+      info[["threshold.bqrs"]] <- thresh.bqrs
+      info[["perc.excl.bqrs"]] <- 100 * sum(x$bqrs[idx] < info[["threshold.bqrs"]],
+                                            na.rm=TRUE) / sum(! is.na(x$bqrs[idx]))
+    }
+  }
+
+  if("gc" %in% colnames(x)){
+    info[["summary.gc"]] <- my_summary(x$gc[idx])
+    if(! is.null(thresh.gc)){
+      stopifnot(thresh.gc >= 0, thresh.gc <= 1)
+      info[["threshold.gc"]] <- thresh.gc
+      info[["perc.excl.gc"]] <- 100 * sum(x$gc[idx] > info[["threshold.gc"]],
+                                          na.rm=TRUE) / sum(! is.na(x$gc[idx]))
+    }
+  }
+
+  if("hw" %in% colnames(x)){
+    info[["summary.hw"]] <- my_summary(x$hw[idx])
+    if(! is.null(thresh.hw)){
+      stopifnot(thresh.hw > 0)
+      info[["threshold.hw"]] <- thresh.hw
+      info[["perc.excl.hw"]] <- 100 * sum(x$hw[idx] > info[["threshold.hw"]],
+                                          na.rm=TRUE) / sum(! is.na(x$hw[idx]))
+    }
+  }
+
+  if("hr" %in% colnames(x)){
+    info[["summary.hr"]] <- my_summary(x$hr[idx])
+    if(! is.null(thresh.hr)){
+      stopifnot(thresh.hr > 0)
+      info[["threshold.hr"]] <- thresh.hr
+      info[["perc.excl.hr"]] <- 100 * sum(x$hr[idx] > info[["threshold.hr"]],
+                                          na.rm=TRUE) / sum(! is.na(x$hr[idx]))
+    }
+  }
+
+  if("ic" %in% colnames(x)){
+    info[["summary.ic"]] <- my_summary(x$ic[idx])
+    if(! is.null(thresh.ic)){
+      info[["threshold.ic"]] <- thresh.ic
+      info[["perc.excl.ic"]] <- 100 * sum(x$ic[idx] > info[["threshold.ic"]],
+                                          na.rm=TRUE) / sum(! is.na(x$ic[idx]))
+    }
+  }
+
+  if("lrs" %in% colnames(x)){
+    info[["summary.lrs"]] <- my_summary(x$lrs[idx])
+    if(! is.null(thresh.lrs)){
+      stopifnot(thresh.lrs < 0)
+      info[["threshold.lrs"]] <- thresh.lrs
+      info[["perc.excl.lrs"]] <- 100 * sum(x$lrs[idx] < info[["threshold.lrs"]],
+                                           na.rm=TRUE) / sum(! is.na(x$lrs[idx]))
+    }
+  }
+
+  if("sor" %in% colnames(x)){
+    info[["summary.sor"]] <- my_summary(x$sor[idx])
+    if(! is.null(thresh.sor)){
+      stopifnot(thresh.sor > 0)
+      info[["threshold.sor"]] <- thresh.sor
+      info[["perc.excl.sor"]] <- 100 * sum(x$sor[idx] < info[["threshold.sor"]],
+                                           na.rm=TRUE) / sum(! is.na(x$sor[idx]))
+    }
+  }
+
+  tmp <- list()
+  tmp[["summary"]] <- do.call(rbind, info[grepl("summary", names(info))])
+  tmp[["filters"]] <- cbind(do.call(rbind, info[grepl("thresh", names(info))]),
+                            do.call(rbind, info[grepl("perc", names(info))]))
+  colnames(tmp[["filters"]]) <- c("thresh", "perc.excl")
+  rownames(tmp[["filters"]]) <- sapply(strsplit(x=rownames(tmp[["filters"]]),
+                                                split="\\."),
+                                       function(x){x[2]})
+
+  return(tmp)
+}
