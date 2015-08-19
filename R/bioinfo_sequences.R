@@ -329,6 +329,41 @@ coverage.regions <- function(path=NULL, pattern=NULL, covrg=NULL, plot.it=TRUE,
   invisible(list(covrg=covrg, cumcovrg=cumcovrg))
 }
 
+##' Read SAM dict
+##'
+##' Reads a file in the "dict" format. See \url{https://broadinstitute.github.io/picard/command-line-overview.html#CreateSequenceDictionary}.
+##' @param file the name of the ".dict" file which the data are to be read from
+##' @return data.frame
+##' @author Timothee Flutre
+readSamDict <- function(file){
+  stopifnot(file.exists(file))
+
+  lines <- readLines(con=file)
+  list.lines <- strsplit(x=lines, split="\t")
+
+  if(length(unique(sapply(list.lines[-1], length)))  > 1){
+    msg <- paste0("all @SQ in '", file,
+                  "' should have the same number of tags")
+    stop(msg)
+  }
+  df <- do.call(rbind,
+                lapply(list.lines[-1], function(x){
+                         return(x[-1])
+                       }))
+
+  out <- as.data.frame(
+      apply(df[,-1], 2, function(x){
+              sapply(strsplit(x, ":"), function(y){
+                       paste(y[-1], collapse=":")
+                     })
+            }), stringsAsFactors=FALSE)
+  colnames(out) <- sapply(strsplit(df[1,-1], ":"), function(x){x[1]})
+  rownames(out) <- sapply(strsplit(df[,1], ":"), function(x){x[2]})
+  out$LN <- as.numeric(out$LN)
+
+  return(out)
+}
+
 ##' Variant-level calls
 ##'
 ##' Return some information to help in hard-filtering variant-level calls. See GATK's Best Practices tutorial (\url{https://www.broadinstitute.org/gatk/guide/topic?name=tutorials#tutorials2806}).
