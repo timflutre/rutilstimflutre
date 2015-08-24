@@ -4,8 +4,8 @@
 \alias{filterSnpCalls}
 \title{Filter SNP calls}
 \usage{
-filterSnpCalls(vcf.file, dict.file, genome, seqs = NULL, min.dp, max.dp,
-  min.af = 0.1, max.af = 0.9, verbose = 1)
+filterSnpCalls(vcf.file, dict.file, genome, seq, min.dp, max.dp, min.af = 0.1,
+  max.af = 0.9, verbose = 1)
 }
 \arguments{
 \item{vcf.file}{path to the VCF file (bgzip index should exist in same directory; should only contain SNPs and be already filtered for QD, FS, MQ, etc)}
@@ -14,7 +14,7 @@ filterSnpCalls(vcf.file, dict.file, genome, seqs = NULL, min.dp, max.dp,
 
 \item{genome}{genome identifier (e.g. "VITVI_12x2")}
 
-\item{seqs}{sequence identifier(s) (e.g. "chr2"), all by default}
+\item{seq}{sequence identifier to work on (e.g. "chr2")}
 
 \item{min.dp}{minimum depth ("INFO/DP" field in VCF)}
 

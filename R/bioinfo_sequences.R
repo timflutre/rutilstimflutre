@@ -594,7 +594,7 @@ infoVariantCalls <- function(x, type="SNP", thresh.qual=20, thresh.qd=2,
 ##' @param vcf.file path to the VCF file (bgzip index should exist in same directory; should only contain SNPs and be already filtered for QD, FS, MQ, etc)
 ##' @param dict.file path to the SAM dict file (see \url{https://broadinstitute.github.io/picard/command-line-overview.html#CreateSequenceDictionary})
 ##' @param genome genome identifier (e.g. "VITVI_12x2")
-##' @param seqs sequence identifier(s) (e.g. "chr2"), all by default
+##' @param seq sequence identifier to work on (e.g. "chr2")
 ##' @param min.dp minimum depth ("INFO/DP" field in VCF)
 ##' @param max.dp maximum depth
 ##' @param min.af minimum alternate allele frequency ("INFO/AF" field)
@@ -602,7 +602,7 @@ infoVariantCalls <- function(x, type="SNP", thresh.qual=20, thresh.qd=2,
 ##' @param verbose verbosity level (0/default=1)
 ##' @return CollapsedVCF from the VariantAnnotation package
 ##' @author Timothee Flutre
-filterSnpCalls <- function(vcf.file, dict.file, genome, seqs=NULL,
+filterSnpCalls <- function(vcf.file, dict.file, genome, seq,
                            min.dp, max.dp, min.af=0.1, max.af=0.9,
                            verbose=1){
   if(! requireNamespace("IRanges", quietly=TRUE))
@@ -624,60 +624,54 @@ filterSnpCalls <- function(vcf.file, dict.file, genome, seqs=NULL,
             file.exists(dict.file))
 
   dict <- readSamDict(file=dict.file)
+  if(! seq %in% rownames(dict)){
+    msg <- paste0("seq '", seq, "' not in '", dict.file, "'")
+    stop(msg)
+  }
 
   tabix.file <- Rsamtools::TabixFile(vcf.file)
+  rngs <- GenomicRanges::GRanges(seqnames=c(seq),
+                                 ranges=IRanges::IRanges(start=c(1),
+                                     end=c(dict$LN[rownames(dict) == seq])))
+  names(rngs) <- c(seq)
+  vcf.params <- VariantAnnotation::ScanVcfParam(which=rngs)
+  vcf <- VariantAnnotation::readVcf(file=tabix.file, genome=genome,
+                                    param=vcf.params)
+  if(verbose > 0){
+    msg <- paste0("seq '", seq, "': ", nrow(vcf), " variants x ",
+                  ncol(vcf), " samples")
+    write(msg, stdout())
+  }
 
-  if(is.null(seqs))
-    seqs <- Rsamtools::seqnamesTabix(tabix.file)
+  biallelic <- S4Vectors::elementLengths(VariantAnnotation::alt(vcf)) == 1
+  if(verbose > 0){
+    msg <- paste0("nb of bi-allelic variants: ", sum(biallelic))
+    write(msg, stdout())
+  }
 
-  for(seq in seqs){
-    if(! seq %in% rownames(dict)){
-      msg <- paste0("seq '", seq, "' not in '", dict.file, "'")
-      warning(msg)
-    }
-    rngs <- GenomicRanges::GRanges(seqnames=c(seq),
-                                   ranges=IRanges::IRanges(start=c(1),
-                                       end=c(dict$LN[rownames(dict) == seq])))
-    names(rngs) <- c(seq)
-    vcf.params <- VariantAnnotation::ScanVcfParam(which=rngs)
-    vcf <- VariantAnnotation::readVcf(file=tabix.file, genome=genome,
-                                      param=vcf.params)
-    if(verbose > 0){
-      msg <- paste0("seq '", seq, "': ", nrow(vcf), " variants x ",
-                    ncol(vcf), " samples")
-      write(msg, stdout())
-    }
+  good.dp <- VariantAnnotation::info(vcf)$DP >= min.dp &
+    VariantAnnotation::info(vcf)$DP < max.dp
+  if(verbose > 0){
+    msg <- paste0("nb of variants with DP in [", min.dp,",",
+                  max.dp, "]: ", sum(good.dp))
+    write(msg, stdout())
+  }
 
-    biallelic <- S4Vectors::elementLengths(VariantAnnotation::alt(vcf)) == 1
-    if(verbose > 0){
-      msg <- paste0("nb of bi-allelic variants: ", sum(biallelic))
-      write(msg, stdout())
-    }
+  vcf.filter <- vcf[biallelic & good.dp,]
+  if(verbose > 0){
+    msg <- paste0("nb of bi-allelic variants with DP in [", min.dp,",",
+                  max.dp, "]: ", nrow(vcf.filter))
+    write(msg, stdout())
+  }
 
-    good.dp <- VariantAnnotation::info(vcf)$DP >= min.dp &
-      VariantAnnotation::info(vcf)$DP < max.dp
-    if(verbose > 0){
-      msg <- paste0("nb of variants with DP in [", min.dp,",",
-                    max.dp, "]: ", sum(good.dp))
-      write(msg, stdout())
-    }
-
-    vcf.filter <- vcf[biallelic & good.dp,]
-    if(verbose > 0){
-      msg <- paste0("nb of bi-allelic variants with DP in [", min.dp,",",
-                    max.dp, "]: ", nrow(vcf.filter))
-      write(msg, stdout())
-    }
-
-    tmp <- unlist(VariantAnnotation::info(vcf.filter)$AF)
-    good.af <- tmp >= min.af & tmp <= max.af
-    vcf.filter <- vcf.filter[good.af,]
-    if(verbose > 0){
-      msg <- paste0("nb of bi-allelic variants with DP in [", min.dp,",",
-                    max.dp, "] and AF in [", min.af, ",", max.af, "]: ",
-                    nrow(vcf.filter))
-      write(msg, stdout())
-    }
+  tmp <- unlist(VariantAnnotation::info(vcf.filter)$AF)
+  good.af <- tmp >= min.af & tmp <= max.af
+  vcf.filter <- vcf.filter[good.af,]
+  if(verbose > 0){
+    msg <- paste0("nb of bi-allelic variants with DP in [", min.dp,",",
+                  max.dp, "] and AF in [", min.af, ",", max.af, "]: ",
+                  nrow(vcf.filter))
+    write(msg, stdout())
   }
 
   return(vcf.filter)
