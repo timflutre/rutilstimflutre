@@ -1,10 +1,11 @@
 Package: rutilstimflutre
 Title: Timothee Flutre's personal R code
-Version: 0.8.1
+Version: 0.9.0
 Authors@R: person("Timothee", "Flutre", email = "timothee.flutre@supagro.inra.fr", role = c("aut", "cre"))
 Description: Miscellaneous R functions.
 Depends: R (>= 3.0.0)
 License: GPL-3
+Copyright: Institut National de la Recherche Agronomique (INRA)
 LazyData: true
 URL: https://github.com/timflutre/rutilstimflutre
 BugReports: https://github.com/timflutre/rutilstimflutre/issues
@@ -19,6 +20,7 @@ Suggests:
   Rsamtools,
   S4Vectors,
   scrm,
+  snpStats,
   testthat,
   VariantAnnotation
 Imports: data.table

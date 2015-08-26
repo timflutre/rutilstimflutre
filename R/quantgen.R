@@ -303,7 +303,7 @@ simul.coalescent <- function(nb.inds=100,
                              mig.rate=5,
                              verbose=0){
   if(! requireNamespace("scrm", quietly=TRUE))
-    stop("Pkg needed for this function to work. Please install it.",
+    stop("Pkg scrm needed for this function to work. Please install it.",
          call.=FALSE)
   stopifnot(nb.inds > nb.pops)
 
@@ -375,7 +375,7 @@ simul.coalescent <- function(nb.inds=100,
 ##' @author Timothee Flutre
 snp.distances <- function(snp.coords, nb.cores=1){
   if(! requireNamespace("parallel", quietly=TRUE))
-    stop("Pkg needed for this function to work. Please install it.",
+    stop("Pkg parallel needed for this function to work. Please install it.",
          call.=FALSE)
   stopifnot(is.data.frame(snp.coords),
             colnames(snp.coords) == c("chr", "pos"),
@@ -498,7 +498,7 @@ estim.kinship <- function(X, mafs=NULL, thresh=0.01,
 estim.ld <- function(X, K=NULL, pops=NULL, snp.coords,
                      only.chr=NULL, only.pop=NULL, verbose=0){
   if(! requireNamespace("LDcorSV", quietly=TRUE))
-    stop("Pkg needed for this function to work. Please install it.",
+    stop("Pkg LDcorSV needed for this function to work. Please install it.",
          call.=FALSE)
   stopifnot(is.matrix(X),
             ! is.null(dimnames(X)),
@@ -584,10 +584,10 @@ estim.ld <- function(X, K=NULL, pops=NULL, snp.coords,
 simul.animal.model <- function(n=300, mu=4, P=1, b=2, nb.snps=1000, maf=0.3,
                                A=NULL, sigma2=5, lambda=3){
   if(! requireNamespace("MASS", quietly=TRUE))
-    stop("Pkg needed for this function to work. Please install it.",
+    stop("Pkg MASS needed for this function to work. Please install it.",
          call.=FALSE)
   if(! requireNamespace("Matrix", quietly=TRUE))
-    stop("Pkg needed for this function to work. Please install it.",
+    stop("Pkg Matrix needed for this function to work. Please install it.",
          call.=FALSE)
 
   animal.ids <- sprintf(fmt=paste0("ind%0", floor(log10(n))+1, "i"), 1:n)
@@ -634,7 +634,7 @@ simul.animal.model <- function(n=300, mu=4, P=1, b=2, nb.snps=1000, maf=0.3,
 ##' @author Timothee Flutre
 simul.bslmm <- function(X, Q=1, pi=NULL, h=NULL, rho=NULL, seed=NULL){
   if(! requireNamespace("MASS", quietly=TRUE))
-    stop("Pkg needed for this function to work. Please install it.",
+    stop("Pkg MASS needed for this function to work. Please install it.",
          call.=FALSE)
   stopifnot(xor(is.null(h) & is.null(rho), ! (is.null(h) & is.null(rho))),
             sum(is.na(X)) == 0,

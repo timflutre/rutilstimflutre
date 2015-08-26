@@ -8,7 +8,7 @@
 ##' @author Timothee Flutre
 gc.content <- function(x){
   if(! requireNamespace("Biostrings", quietly=TRUE))
-    stop("Pkg needed for this function to work. Please install it.",
+    stop("Pkg Biostrings needed for this function to work. Please install it.",
          call.=FALSE)
   stopifnot(is.character(x))
 
@@ -29,7 +29,7 @@ gc.content <- function(x){
 ##' @author Timothee Flutre
 all.pair.aligns <- function(x, type="global", ...){
   if(! requireNamespace("Biostrings", quietly=TRUE))
-    stop("Pkg needed for this function to work. Please install it.",
+    stop("Pkg Biostrings needed for this function to work. Please install it.",
          call.=FALSE)
 	stopifnot(is.character(x))
 
@@ -63,7 +63,7 @@ all.pair.aligns <- function(x, type="global", ...){
 ##' @author Timothee Flutre
 stats.all.pair.aligns <- function(aligns, nb.sequences){
   if(! requireNamespace("Biostrings", quietly=TRUE))
-    stop("Pkg needed for this function to work. Please install it.",
+    stop("Pkg Biostrings needed for this function to work. Please install it.",
          call.=FALSE)
 	stopifnot(is.list(aligns))
 
@@ -606,19 +606,19 @@ filterSnpCalls <- function(vcf.file, dict.file, genome, seq,
                            min.dp, max.dp, min.af=0.1, max.af=0.9,
                            verbose=1){
   if(! requireNamespace("IRanges", quietly=TRUE))
-    stop("Pkg needed for this function to work. Please install it.",
+    stop("Pkg IRanges needed for this function to work. Please install it.",
          call.=FALSE)
   if(! requireNamespace("GenomicRanges", quietly=TRUE))
-    stop("Pkg needed for this function to work. Please install it.",
+    stop("Pkg GenomicRanges needed for this function to work. Please install it.",
          call.=FALSE)
   if(! requireNamespace("VariantAnnotation", quietly=TRUE))
-    stop("Pkg needed for this function to work. Please install it.",
+    stop("Pkg VariantAnnotation needed for this function to work. Please install it.",
          call.=FALSE)
   if(! requireNamespace("Rsamtools", quietly=TRUE))
-    stop("Pkg needed for this function to work. Please install it.",
+    stop("Pkg Rsamtools needed for this function to work. Please install it.",
          call.=FALSE)
   if(! requireNamespace("S4Vectors", quietly=TRUE))
-    stop("Pkg needed for this function to work. Please install it.",
+    stop("Pkg S4Vectors needed for this function to work. Please install it.",
          call.=FALSE)
   stopifnot(file.exists(vcf.file),
             file.exists(dict.file))
@@ -675,4 +675,96 @@ filterSnpCalls <- function(vcf.file, dict.file, genome, seq,
   }
 
   return(vcf.filter)
+}
+
+##' Convert VCF to dose
+##'
+##' Convert genotypes from a VCF file into allele doses.
+##' @param vcf.file path to the VCF file (bgzip index should exist in same directory; should only contain SNPs and be already filtered for QD, FS, MQ, etc)
+##' @param dict.file path to the SAM dict file (see \url{https://broadinstitute.github.io/picard/command-line-overview.html#CreateSequenceDictionary})
+##' @param genome genome identifier (e.g. "VITVI_12x2")
+##' @param seqs sequence identifier(s) to work on (e.g. "chr2")
+##' @param gdose.file path to the output file to record genotypes as allele doses (will be gzipped)
+##' @param amap.file path to the output file to record SNP positions and alleles (will be gzipped)
+##' @param uncertain boolean indicating whether the genotypes to convert should come from the "GT" field (uncertain=FALSE) or the "GP" or "GL" field (uncertain=TRUE)
+##' @param verbose verbosity level (0/default=1)
+##' @return nothing
+##' @author Timothee Flutre
+vcf2dosage <- function(vcf.file, dict.file, genome, seqs=NULL, gdose.file,
+                       amap.file, uncertain=FALSE, verbose=1){
+  if(! requireNamespace("IRanges", quietly=TRUE))
+    stop("Pkg IRanges needed for this function to work. Please install it.",
+         call.=FALSE)
+  if(! requireNamespace("GenomicRanges", quietly=TRUE))
+    stop("Pkg GenomicRanges needed for this function to work. Please install it.",
+         call.=FALSE)
+  if(! requireNamespace("VariantAnnotation", quietly=TRUE))
+    stop("Pkg VariantAnnotation needed for this function to work. Please install it.",
+         call.=FALSE)
+  if(! requireNamespace("Rsamtools", quietly=TRUE))
+    stop("Pkg Rsamtools needed for this function to work. Please install it.",
+         call.=FALSE)
+  if(! requireNamespace("snpStats", quietly=TRUE))
+    stop("Pkg snpStats needed for this function to work. Please install it.",
+         call.=FALSE)
+  stopifnot(file.exists(vcf.file),
+            file.exists(dict.file),
+            ! file.exists(gdose.file),
+            ! file.exists(amap.file))
+
+  dict <- readSamDict(file=dict.file)
+
+  if(! file.exists(paste(vcf.file, "tbi", sep=".")))
+    Rsamtools::indexTabix(file=vcf.file, format="vcf")
+  tabix.file <- Rsamtools::TabixFile(vcf.file)
+  if(is.null(seqs)){
+    seqs <- Rsamtools::seqnamesTabix(tabix.file)
+  } else{
+    if(! seq %in% Rsamtools::seqnamesTabix(tabix.file)){
+      msg <- paste0("seq '", seq, "' not in '", vcf.file, "'")
+      stop(msg)
+    }
+  }
+
+  gdose.file <- gsub(".gz", "", gdose.file)
+  amap.file <- gsub(".gz", "", amap.file)
+  gdose.con <- file(gdose.file, open="a")
+  amap.con <- file(amap.file, open="a")
+
+  for(seq in seqs){
+    if(! seq %in% rownames(dict)){
+      msg <- paste0("seq '", seq, "' not in '", dict.file, "'")
+      stop(msg)
+    }
+
+    rngs <- GenomicRanges::GRanges(seqnames=c(seq),
+                                   ranges=IRanges::IRanges(start=c(1),
+                                       end=c(dict$LN[rownames(dict) == seq])))
+    names(rngs) <- c(seq)
+    vcf.params <- VariantAnnotation::ScanVcfParam(which=rngs)
+    if(verbose > 0){
+      msg <- paste0("read seq '", seq, "'...")
+      write(msg, stdout())
+    }
+    vcf <- VariantAnnotation::readVcf(file=tabix.file, genome=genome,
+                                      param=vcf.params)
+    if(verbose > 0){
+      msg <- paste0("seq '", seq, "': ", nrow(vcf), " variants x ",
+                    ncol(vcf), " samples")
+      write(msg, stdout())
+    }
+
+    res <- VariantAnnotation::genotypeToSnpMatrix(vcf)
+
+    snpStats::write.SnpMatrix(x=res$genotypes, file=gdose.con, append=TRUE,
+                              quote=FALSE, sep="\t", row.names=TRUE,
+                              col.names=TRUE)
+    write.table(x=res$map, file=amap.con, append=TRUE,
+                quote=FALSE, sep="\t", row.names=FALSE, col.names=TRUE)
+  }
+
+  close(gdose.con)
+  close(amap.con)
+  system(command=paste("gzip", gdose.file))
+  system(command=paste("gzip", amap.file))
 }
