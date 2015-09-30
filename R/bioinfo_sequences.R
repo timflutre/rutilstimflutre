@@ -720,9 +720,11 @@ vcf2dosage <- function(vcf.file, dict.file, genome, seqs=NULL, gdose.file,
   if(is.null(seqs)){
     seqs <- Rsamtools::seqnamesTabix(tabix.file)
   } else{
-    if(! seq %in% Rsamtools::seqnamesTabix(tabix.file)){
-      msg <- paste0("seq '", seq, "' not in '", vcf.file, "'")
-      stop(msg)
+    for(seq in seqs){
+      if(! seq %in% Rsamtools::seqnamesTabix(tabix.file)){
+        msg <- paste0("seq '", seq, "' not in '", vcf.file, "'")
+        stop(msg)
+      }
     }
   }
 
