@@ -11,7 +11,7 @@
 ##' @return list of a matrix (allele doses, SNPs in columns and individuals in
 ##' rows) and a vector (minor alleles)
 ##' @author Timothee Flutre
-genotypes.alleles2dose <- function(x, na.string="--", verbose=1){
+alleles2dose <- function(x, na.string="--", verbose=1){
   stopifnot(is.data.frame(x),
             ! is.null(colnames(x)))
 
@@ -90,7 +90,7 @@ plotGridMissGenos <- function(x, main="Missing genotypes", xlab="Individuals",
 ##' columns and individuals in rows
 ##' @return vector
 ##' @author Timothee Flutre
-maf.from.dose <- function(X){
+estimMaf <- function(X){
   stopifnot(is.matrix(X))
   N <- nrow(X)
   P <- ncol(X)
@@ -137,7 +137,7 @@ plotHistMinAllelFreq <- function(X=NULL, maf=NULL, main="", xlim=c(0,0.5),
       txt <- paste0(P, " SNPs and ", N, " individuals")
       write(txt, stdout())
     }
-    maf <- maf.from.dose(X)
+    maf <- estimMaf(X)
   }
 
   tmp <- hist(x=maf, xlab="Minor allele frequency", ylab="Number of SNPs",
@@ -156,7 +156,7 @@ plotHistMinAllelFreq <- function(X=NULL, maf=NULL, main="", xlim=c(0,0.5),
 ##' 'genotypes_bimbam.txt' or gzfile('genotypes_bimbam.txt.gz'))
 ##' @return data.frame
 ##' @author Timothee Flutre
-genotypes.dose2bimbam <- function(X=NULL, tX=NULL, alleles, file=NULL){
+dose2bimbam <- function(X=NULL, tX=NULL, alleles, file=NULL){
     stopifnot(xor(is.null(X), is.null(tX)),
               ! is.null(row.names(alleles)),
               colnames(alleles) == c("minor","major"))
@@ -224,7 +224,7 @@ coancestry2addrel <- function(x, estim.coancestry, estim.inbreeding=NULL,
 ##' @param seg.sites list returned by scrm()
 ##' @return matrix with diploid individuals in rows and SNPs in columns
 ##' @author Timothee Flutre
-seg.sites2all.doses <- function(seg.sites){
+segSites2allDoses <- function(seg.sites){
   stopifnot(is.list(seg.sites),
             length(unique(sapply(seg.sites, nrow))) == 1)
 
@@ -251,7 +251,7 @@ seg.sites2all.doses <- function(seg.sites){
 ##' @param snp.ids vector of identifiers (one per SNP)
 ##' @return data.frame with SNPs in rows and 2 columns (chr, pos)
 ##' @author Timothee Flutre
-seg.sites2snp.coords <- function(seg.sites, snp.ids){
+segSites2snpCoords <- function(seg.sites, snp.ids){
   stopifnot(is.list(seg.sites),
             length(unique(sapply(seg.sites, nrow))) == 1)
 
@@ -293,15 +293,15 @@ seg.sites2snp.coords <- function(seg.sites, snp.ids){
 ##' @param verbose verbosity level (default=0=nothing, 1=few, 2=more)
 ##' @return list with haplotypes (list), genotypes as allele doses (matrix) and SNP coordinates (data.frame)
 ##' @author Timothee Flutre
-simul.coalescent <- function(nb.inds=100,
-                             ind.ids=NULL,
-                             nb.reps=20,
-                             pop.mut.rate=50,
-                             pop.recomb.rate=5,
-                             chrom.len=10^3,
-                             nb.pops=1,
-                             mig.rate=5,
-                             verbose=0){
+simulCoalescent <- function(nb.inds=100,
+                            ind.ids=NULL,
+                            nb.reps=20,
+                            pop.mut.rate=50,
+                            pop.recomb.rate=5,
+                            chrom.len=10^3,
+                            nb.pops=1,
+                            mig.rate=5,
+                            verbose=0){
   if(! requireNamespace("scrm", quietly=TRUE))
     stop("Pkg scrm needed for this function to work. Please install it.",
          call.=FALSE)
@@ -342,7 +342,7 @@ simul.coalescent <- function(nb.inds=100,
   nb.snps <- sum(nb.snps.per.chr)
   snp.ids <- sprintf(fmt=paste0("snp%0", floor(log10(nb.snps))+1, "i"),
                      1:nb.snps)
-  snp.coords <- seg.sites2snp.coords(sum.stats$seg_sites, snp.ids)
+  snp.coords <- segSites2snpCoords(sum.stats$seg_sites, snp.ids)
   for(c in 1:nb.reps){
     colnames(sum.stats$seg_sites[[c]]) <-
       snp.ids[(ifelse(c == 1, 1, 1 + cumsum(nb.snps.per.chr)[c-1])):
@@ -352,7 +352,7 @@ simul.coalescent <- function(nb.inds=100,
   }
 
   ## make a matrix with genotypes as allele doses
-  X <- seg.sites2all.doses(sum.stats$seg_sites)
+  X <- segSites2allDoses(sum.stats$seg_sites)
   rownames(X) <- ind.ids
   colnames(X) <- snp.ids
   if(verbose > 0){
@@ -373,7 +373,7 @@ simul.coalescent <- function(nb.inds=100,
 ##' @param nb.cores the number of cores to use (default=1)
 ##' @return list with one component per chromosome
 ##' @author Timothee Flutre
-snp.distances <- function(snp.coords, nb.cores=1){
+snpDistances <- function(snp.coords, nb.cores=1){
   if(! requireNamespace("parallel", quietly=TRUE))
     stop("Pkg parallel needed for this function to work. Please install it.",
          call.=FALSE)
@@ -406,8 +406,8 @@ snp.distances <- function(snp.coords, nb.cores=1){
 ##' @param verbose verbosity level (default=1)
 ##' @return matrix
 ##' @author Timothee Flutre
-estim.genrel <- function(X, mafs=NULL, thresh=0.01, relationships="additive",
-                         method="astle-balding", verbose=1){
+estimGenRel <- function(X, mafs=NULL, thresh=0.01, relationships="additive",
+                        method="astle-balding", verbose=1){
   stopifnot(is.matrix(X),
             relationships %in% c("additive", "dominance"))
   if(relationships != "additive")
@@ -441,7 +441,7 @@ estim.genrel <- function(X, mafs=NULL, thresh=0.01, relationships="additive",
 
   ## estimate MAFs
   if(is.null(mafs)){
-    mafs <- maf.from.dose(X)
+    mafs <- estimMaf(X)
     if(verbose > 1){
       txt <- paste0("allele freqs: ",
                     "min=", format(min(mafs), digits=2),
@@ -508,8 +508,8 @@ estim.genrel <- function(X, mafs=NULL, thresh=0.01, relationships="additive",
 ##' @param verbose verbosity level (default=0/1)
 ##' @return data frame
 ##' @author Timothee Flutre
-estim.ld <- function(X, K=NULL, pops=NULL, snp.coords,
-                     only.chr=NULL, only.pop=NULL, verbose=0){
+estimLd <- function(X, K=NULL, pops=NULL, snp.coords,
+                    only.chr=NULL, only.pop=NULL, verbose=0){
   if(! requireNamespace("LDcorSV", quietly=TRUE))
     stop("Pkg LDcorSV needed for this function to work. Please install it.",
          call.=FALSE)
@@ -580,56 +580,73 @@ estim.ld <- function(X, K=NULL, pops=NULL, snp.coords,
 
 ##' Simulate a data set from a basic animal model.
 ##'
-##' y = mu 1_n + X b + Z u + e = W a + Z u + e
-##' y is n x 1; X is n x P; Z is n x Q; W is n x (P+1)
-##' u ~ Norm_Q(0, sigma_u^2 A); e ~ Norm_n(0, sigma^2 I_n)
-##' @param n number of individuals (default is 300)
-##' @param mu global mean (default is 4)
-##' @param P number of fixed effects (default is 1)
-##' @param b fixed effects (default is 2)
-##' @param nb.snps number of SNPs (default is 1000; ignored if A is given)
-##' @param maf minor allele frequency (default is 0.3; ignored if A is given)
-##' @param A matrix of additive relationships
-##' @param sigma2 variance component of the errors (default is 5)
-##' @param lambda ratio of variance components as sigma_u^2 /sigma^2 (default is 3)
+##' y = W a + Z u + e where y is N x 1; W is N x P; Z is N x Q
+##' u ~ Norm_Q(0, G=sigma_u^2 A); e ~ Norm_N(0, R=sigma^2 I_N); Cov(u,e)=0
+##' @param P number of years (default=3)
+##' @param mean.a mean of the prior on a (default=5)
+##' @param sd.a std dev of the prior on a (default=2)
+##' @param lambda ratio of variance components as sigma_u^2 /sigma^2 (default=3)
+##' @param sigmau2 genetic variance component  (e.g. 15)
+##' @param scale.halfCauchy scale of the half-Cauchy prior for sigma_u^2 (e.g. 5)
+##' @param A kinship matrix of additive relationships
 ##' @return list with all input variables and the data set ready to be analyzed
 ##' @author Timothee Flutre
-simul.animal.model <- function(n=300, mu=4, P=1, b=2, nb.snps=1000, maf=0.3,
-                               A=NULL, sigma2=5, lambda=3){
+simulAnimalModel <- function(P=3, mean.a=5, sd.a=2, lambda=3, sigmau2=NULL,
+                             scale.halfCauchy=NULL, A){
   if(! requireNamespace("MASS", quietly=TRUE))
     stop("Pkg MASS needed for this function to work. Please install it.",
          call.=FALSE)
   if(! requireNamespace("Matrix", quietly=TRUE))
     stop("Pkg Matrix needed for this function to work. Please install it.",
          call.=FALSE)
+  stopifnot(xor(is.null(sigmau2), is.null(scale.halfCauchy)),
+            is.matrix(A),
+            nrow(A) == ncol(A),
+            ! is.null(rownames(A)),
+            ! is.null(colnames(A)),
+            rownames(A) == colnames(A))
 
-  animal.ids <- sprintf(fmt=paste0("ind%0", floor(log10(n))+1, "i"), 1:n)
-  X <- matrix(data=rnorm(n=n), nrow=n, ncol=P)
-  b <- matrix(data=rep(b, P), nrow=P, ncol=1)
-  W <- cbind(rep(1, n), X)
-  a <- matrix(c(mu, b))
-  Q <- n
-  if(is.null(A)){
-    stopifnot(nrow(A) == n, ncol(A) == n)
-    snp.ids <- sprintf(fmt=paste0("snp%0", floor(log10(nb.snps))+1, "i"),
-                       1:nb.snps)
-    M <- matrix(data=rbinom(n=Q*nb.snps, size=2, prob=maf),
-                nrow=Q, ncol=nb.snps, dimnames=list(animal.ids, snp.ids))
-    A <- (1/nb.snps) * M %*% t(M)
-  }
-  Z <- diag(Q)
-  sigmau2 <- lambda * sigma2
-  h2 <- sigmau2 / (sigmau2 + sigma2)
+  Q <- nrow(A)
+  N <- P * Q
+
+  levels.years <- as.character(seq(from=2010, to=2010+P-1))
+  if(N %% P == 0){
+    years <- rep(levels.years, each=N / P)
+  } else
+    years <- sort(sample(x=levels.years, size=N, replace=TRUE))
+  years <- as.factor(years)
+  W <- model.matrix(~ years)
+  dat <- data.frame(year=years)
+
+  a <- matrix(data=rnorm(n=P, mean=mean.a, sd=sd.a), nrow=P, ncol=1)
+
+  levels.animals <- rownames(A)
+  animals <- rep(NA, N)
+  for(year in levels.years)
+    animals[years == year] <- levels.animals[1:sum(years == year)]
+  animals <- as.factor(animals)
+  Z <- Matrix::t(as(animals, Class="sparseMatrix"))
+  dat$animal <- animals
+
+  if(is.null(sigmau2))
+    sigmau2 <- abs(rcauchy(n=1, location=0, scale=scale.halfCauchy))
   G <- as.matrix(Matrix::nearPD(sigmau2 * A)$mat)
   u <- matrix(MASS::mvrnorm(n=1, mu=rep(0, Q), Sigma=G))
-  R <- sigma2 * diag(n)
-  e <- matrix(MASS::mvrnorm(n=1, mu=rep(0, n), Sigma=R))
+
+  sigma2 <- sigmau2 / lambda
+  h2 <- sigmau2 / (sigmau2 + sigma2)
+  R <- sigma2 * diag(N)
+  e <- matrix(MASS::mvrnorm(n=1, mu=rep(0, N), Sigma=R))
+
   y <- W %*% a + Z %*% u + e
-  dat <- data.frame(fix=W[,2],
-                    animal=factor(animal.ids),
-                    response=y[,1])
-  return(list(X=X, W=W, Z=Z, G=G, a=a, u=u, sigmau2=sigmau2, sigma2=sigma2,
-              h2=h2, dat=dat))
+  dat$response <- y[,1]
+
+  return(list(N=N, P=P, Q=Q,
+              W=W, a=a,
+              Z=Z, G=G, u=u, sigmau2=sigmau2,
+              sigma2=sigma2,
+              h2=h2,
+              dat=dat))
 }
 
 ##' Simulate phenotypes according to the BSLMM model.
@@ -645,7 +662,7 @@ simul.animal.model <- function(n=300, mu=4, P=1, b=2, nb.snps=1000, maf=0.3,
 ##' @param seed seed for the pseudo-random number generator
 ##' @return list
 ##' @author Timothee Flutre
-simul.bslmm <- function(X, Q=1, pi=NULL, h=NULL, rho=NULL, seed=NULL){
+simulBslmm <- function(X, Q=1, pi=NULL, h=NULL, rho=NULL, seed=NULL){
   if(! requireNamespace("MASS", quietly=TRUE))
     stop("Pkg MASS needed for this function to work. Please install it.",
          call.=FALSE)
@@ -731,10 +748,10 @@ simul.bslmm <- function(X, Q=1, pi=NULL, h=NULL, rho=NULL, seed=NULL){
 ##' @param col plotting color for the points (default is all points in black)
 ##' @param ... graphical parameters other than xlim, ylim, xlab, ylab, las and col
 ##' @author Timothee Flutre (inspired from an anonymous comment to http://gettinggeneticsdone.blogspot.fr/2009/11/qq-plots-of-p-values-in-r-using-ggplot2.html)
-qqplot.pval <- function(pvalues, plot.conf.int=TRUE,
-                        xlab=expression(Expected~~-log[10](italic(p)~values)),
-                        ylab=expression(Observed~~-log[10](italic(p)~values)),
-                        main=NULL, col=NULL){
+qqplotPval <- function(pvalues, plot.conf.int=TRUE,
+                       xlab=expression(Expected~~-log[10](italic(p)~values)),
+                       ylab=expression(Observed~~-log[10](italic(p)~values)),
+                       main=NULL, col=NULL){
   N <- length(pvalues)
   expected <- - log10(1:N / N)
   observed <- - log10(pvalues)
@@ -778,7 +795,7 @@ qqplot.pval <- function(pvalues, plot.conf.int=TRUE,
 ##' @param file the name of the file which the data are to be read from
 ##' @return list
 ##' @author Timothee Flutre
-read.biomercator <- function(file){
+readBiomercator <- function(file){
     stopifnot(file.exists(file))
 
     gmap <- list()

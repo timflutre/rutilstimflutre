@@ -28,6 +28,6 @@ R> install.packages("path/to/rutilstimflutre_<version>.tar.gz")
 
 For developpers, when editing the content of this repo, increment the version
 of the package in DESCRIPTION and execute the following commands:
-R> setwd("path/to/rutilstimflutre"); library(devtools); devtools::document()
+$ Rscript -e 'library(devtools); devtools::document()'
 $ R CMD build rutilstimflutre
 $ R CMD check rutilstimflutre_<version>.tar.gz
