@@ -394,23 +394,30 @@ snp.distances <- function(snp.coords, nb.cores=1){
   return(snp.dists)
 }
 
-##' Estimate kinship matrix from SNPs.
+##' Estimate genetic relationships between individuals from their SNP genotypes.
 ##'
 ##' SNPs with missing data are ignored.
-##' @param X matrix of SNP genotypes encoded as allele doses, with SNPs in
+##' @param X matrix of SNP genotypes encoded as allele doses ({0,1,2}), with SNPs in
 ##' columns and individuals in rows
 ##' @param mafs vector with minor allele frequencies (calculated with `maf.from.dose` if NULL)
 ##' @param thresh threshold on allele frequencies below which SNPs are ignored (default=0.01, NULL to skip this step)
-##' @param method default is "astle-balding"; "animal-model"; "center", "center-std"
+##' @param relationships genetic relationship to estimate (default=additive/dominance)
+##' @param method if additive relationships, can be "astle-balding" (default), "animal-model", "center" or "center-std"
 ##' @param verbose verbosity level (default=1)
 ##' @return matrix
 ##' @author Timothee Flutre
-estim.kinship <- function(X, mafs=NULL, thresh=0.01,
-                          method="astle-balding", verbose=1){
+estim.genrel <- function(X, mafs=NULL, thresh=0.01, relationships="additive",
+                         method="astle-balding", verbose=1){
   stopifnot(is.matrix(X),
-            method %in% c("astle-balding", "animal-model", "center", "center-std"))
+            relationships %in% c("additive", "dominance"))
+  if(relationships != "additive")
+    stop(paste0(relationships, " relationships is not (yet) implemented"))
+  stopifnot(method %in% c("astle-balding", "animal-model", "center", "center-std"))
   if(! is.null(thresh))
     stopifnot(thresh >= 0, thresh <= 0.5)
+
+  gen.rel <- NULL # to be filled and returned
+
   N <- nrow(X)
   P <- ncol(X)
   if(P < N)
@@ -462,25 +469,31 @@ estim.kinship <- function(X, mafs=NULL, thresh=0.01,
     }
   }
 
-  ## estimate kinship
-  if(method == "astle-balding"){
-    tmp <- sweep(x=X, MARGIN=2, STATS=2 * mafs, FUN="-")
-    tmp <- sweep(x=tmp, MARGIN=2, STATS=sqrt(4 * mafs * (1 - mafs)), FUN="/")
-    K <- tcrossprod(tmp, tmp) / P
-  } else if(method == "animal-model"){
-    K <- tcrossprod(X, X) / (2  * sum(mafs * (1 - mafs)))
-  } else if(method == "center"){
-    ## tmp <- sweep(x=X, MARGIN=2, STATS=colMeans(X), FUN="-")
-    tmp <- scale(x=X, center=TRUE, scale=FALSE)
-    K <- tcrossprod(tmp, tmp) / P
-  } else if(method == "center-std"){
-    ## X.cs <- sweep(x=X, MARGIN=2, STATS=colMeans(X), FUN="-")
-    ## tmp <- sweep(x=X.cs, MARGIN=2, STATS=apply(X=X.cs, MARGIN=2, sd), FUN="/")
-    tmp <- scale(x=X, center=TRUE, scale=TRUE)
-    K <- tcrossprod(tmp, tmp) / P
+
+  ## estimate genetic relationships
+  if(relationships == "additive"){
+    if(method == "astle-balding"){
+      tmp <- sweep(x=X, MARGIN=2, STATS=2 * mafs, FUN="-")
+      tmp <- sweep(x=tmp, MARGIN=2, STATS=sqrt(4 * mafs * (1 - mafs)), FUN="/")
+      gen.rel <- tcrossprod(tmp, tmp) / P
+    } else if(method == "animal-model"){
+      gen.rel <- tcrossprod(X, X) / (2  * sum(mafs * (1 - mafs)))
+    } else if(method == "center"){
+      ## tmp <- sweep(x=X, MARGIN=2, STATS=colMeans(X), FUN="-")
+      tmp <- scale(x=X, center=TRUE, scale=FALSE)
+      gen.rel <- tcrossprod(tmp, tmp) / P
+    } else if(method == "center-std"){
+      ## X.cs <- sweep(x=X, MARGIN=2, STATS=colMeans(X), FUN="-")
+      ## tmp <- sweep(x=X.cs, MARGIN=2, STATS=apply(X=X.cs, MARGIN=2, sd), FUN="/")
+      tmp <- scale(x=X, center=TRUE, scale=TRUE)
+      gen.rel <- tcrossprod(tmp, tmp) / P
+    }
+  } else if(relationships == "dominance"){
+    H <- matrix(data=NA, nrow=N, ncol=P) # <- TODO
+    gen.rel <- tcrossprod(H, H) / (2 * sum(mafs * (1 - mafs) * (1 - 2 * mafs * (1 - mafs))))
   }
 
-  return(K)
+  return(gen.rel)
 }
 
 ##' Return estimates of linkage disequilibrium between pairs of SNPs.
