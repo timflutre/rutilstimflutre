@@ -45,7 +45,7 @@ msd <- function(error){
 ##' @param called.nulls vector of booleans (TRUE if the null is accepted)
 ##' @return vector with names
 ##' @author Timothee Flutre
-binary.classif <- function(known.nulls, called.nulls){
+binaryClassif <- function(known.nulls, called.nulls){
   ## http://en.wikipedia.org/wiki/Sensitivity_and_specificity
   ##
   ##                                  CALLED
@@ -109,12 +109,12 @@ log10.weighted.sum <- function(x, weights=NULL){
 
 ##' Return the Moore-Penrose pseudo-inverse of a matrix
 ##'
-##'
+##' Golub & Van Loan, Matrix Computations, 3rd edition, ch5, p257
 ##' @title Pseudo-inverse
 ##' @param mat matrix
 ##' @return matrix
 ##' @author Timothee Flutre
-mp.inv <- function(mat){
+mpInv <- function(mat){
   mat.svd <- svd(mat)
   mat.svd$v %*% diag(1/mat.svd$d) %*% t(mat.svd$u)
 }
@@ -157,13 +157,13 @@ getNbPCsMinimAvgSqPartCor <- function(X){
 
 ##' Quantile-normalize a vector of numbers to a standard normal distribution.
 ##'
-##' TODO: add ref
+##' Bolstad et al, Bioinformatics, 2003
 ##' @param x vector of numeric data
 ##' @param break.ties.rand break ties randomly (default=TRUE)
 ##' @param seed see for the pseudo-random number generator (default=1859)
 ##' @return vector
 ##' @author Timothee Flutre
-quant.norm <- function(x, break.ties.rand=TRUE, seed=1859){
+quantNorm <- function(x, break.ties.rand=TRUE, seed=1859){
   stopifnot(is.vector(x), is.numeric(x), is.logical(break.ties.rand),
             is.numeric(seed))
 
@@ -191,4 +191,95 @@ quant.norm <- function(x, break.ties.rand=TRUE, seed=1859){
 cor2cov <- function(x, sd){
   ## D <- diag(sd); return(D %*% x %*% D)
   return(sweep(sweep(x, 1, sd, "*"), 2, sd, "*"))
+}
+
+##' MCMC diagnostics
+##'
+##' Plot the trace, autocorrelation, running average and density side by side for a single chain.
+##' TODO: show dark background for burn-in in traceplot
+##' @param res.mcmc object of class "mcmc" (not "mcmc.list"!)
+##' @param param.name parameter name in the columns of res.mcmc
+##' @param subplots vector indicating which sub-plot(s) to make (1 for trace, 2 for autocorrelation, 3 for running quantiles, 4 for density)
+##' @param pe point estimate (optional, but required if "hi" is given)
+##' @param hi half-interval (optional)
+##' @return nothing
+##' @author Timothee Flutre
+plotMcmcChain <- function(res.mcmc, param.name, subplots=1:4,
+                          pe=NULL, hi=NULL){
+  if(! requireNamespace("coda", quietly=TRUE))
+    stop("Pkg coda needed for this function to work. Please install it.",
+         call.=FALSE)
+  stopifnot(coda::is.mcmc(res.mcmc),
+            is.character(param.name),
+            param.name %in% colnames(res.mcmc),
+            is.vector(subplots), is.numeric(subplots))
+  if(! is.null(hi))
+    stopifnot(! is.null(pe))
+
+  changed.par <- FALSE
+  if(1 %in% subplots & 2 %in% subplots & 3 %in% subplots & 4 %in% subplots &
+     all(par("mfrow") == c(1, 1))){
+    par(mfrow=c(2,2))
+    changed.par <- TRUE
+  }
+
+  if(1 %in% subplots){
+    ## ts.plot(res.mcmc[, param.name],
+    coda::traceplot(res.mcmc[, param.name],
+                    ## xlab="Iterations",
+                    ylab="Trace",
+                    main=paste0(param.name))
+    if(! is.null(pe)){
+      abline(h=pe, col="red")
+      if(! is.null(hi)){
+        abline(h=pe + 2 * hi, col="red", lty=2)
+        abline(h=pe - 2 * hi, col="red", lty=2)
+      }
+    }
+  }
+
+  if(2 %in% subplots){
+    ## acf(res.mcmc[, param.name],
+    coda::autocorr.plot(res.mcmc[, param.name],
+                        main=paste0(param.name),
+                        ## xlab="Lag",
+                        ## ylab="Autocorrelation",
+                        auto.layout=FALSE,
+                        ask=FALSE)
+  }
+
+  if(3 %in% subplots){
+    ## ts.plot(cumsum(res.mcmc[, param.name]) / seq(along=res.mcmc[, param.name]),
+    coda::cumuplot(res.mcmc[, param.name],
+                   probs=c(0.025, 0.5, 0.975),
+                   main=paste0(param.name),
+                   ## xlab="Iterations",
+                   ylab="Running quantiles",
+                   auto.layout=FALSE,
+                   ask=FALSE)
+    if(! is.null(pe)){
+      abline(h=pe, col="red")
+      if(! is.null(hi)){
+        abline(h=pe + 2 * hi, col="red", lty=2)
+        abline(h=pe - 2 * hi, col="red", lty=2)
+      }
+    }
+  }
+
+  if(4 %in% subplots){
+    ## plot(density(res.mcmc[, param.name]), type="l",
+    coda::densplot(res.mcmc[, param.name],
+                   ylab="Density",
+                   main=paste0(param.name))
+    if(! is.null(pe)){
+      abline(v=pe, col="red")
+      if(! is.null(hi)){
+        abline(v=pe + 2 * hi, col="red", lty=2)
+        abline(v=pe - 2 * hi, col="red", lty=2)
+      }
+    }
+  }
+
+  if(changed.par)
+    par(mfrow=c(1,1))
 }
