@@ -2,7 +2,7 @@
 % Please edit documentation in R/bioinfo_sequences.R
 \name{coverage.regions}
 \alias{coverage.regions}
-\title{Plot the covered fraction of regions as a function of depth.}
+\title{Plot the covered fraction of regions as a function of depth}
 \usage{
 coverage.regions(path = NULL, pattern = NULL, covrg = NULL,
   plot.it = TRUE, xlim = NULL, ylim = c(0, 1), points.type = "l",

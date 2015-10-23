@@ -2,7 +2,7 @@
 % Please edit documentation in R/bioinfo_sequences.R
 \name{infoVariantCalls}
 \alias{infoVariantCalls}
-\title{Variant-level calls}
+\title{Information on variant-level calls}
 \usage{
 infoVariantCalls(x, type = "SNP", thresh.qual = 20, thresh.qd = 2,
   thresh.fs = 60, thresh.mq = 40, thresh.mqrs = -12.5, thresh.rprs = -8,

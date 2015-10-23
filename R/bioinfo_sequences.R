@@ -1,6 +1,6 @@
 ## Contains functions handling sequences often used in bioinformatics.
 
-##' Calculate the GC content of a set of sequences.
+##' Calculate the GC content of a set of sequences
 ##'
 ##' Requires the Biostrings package.
 ##' @param x vector of sequences (e.g. "AGGT"), possibly with names
@@ -18,7 +18,7 @@ gc.content <- function(x){
   })
 }
 
-##' Align each sequence against each other (and itself).
+##' Align each sequence against each other (and itself)
 ##'
 ##' Requires the Biostrings package.
 ##' @title All pairwise alignments
@@ -146,7 +146,7 @@ barplotInsertSizes <- function(file, main=NULL, add.text=FALSE){
   invisible(dat)
 }
 
-##' Read bedtools-coverage-hist as data.table.
+##' Read bedtools-coverage-hist as data.table
 ##'
 ##' Read output files from bedtools coverage with -hist into a list of data.tables. All lines starting by "all" must have been discarded beforehand.
 ##' @param files character vector of relative or absolute filepaths (e.g. from Sys.glob).
@@ -267,7 +267,7 @@ depths.per.region <- function(dat, min.reg.len=30, max.reg.len=500,
   return(depths.region)
 }
 
-##' Plot the covered fraction of regions as a function of depth.
+##' Plot the covered fraction of regions as a function of depth
 ##'
 ##' Need to first run bedtools coverage as in http://www.gettinggeneticsdone.com/2014/03/visualize-coverage-exome-targeted-ngs-bedtools.html by Stephen Turner
 ##' @param path string
@@ -364,7 +364,7 @@ readSamDict <- function(file){
   return(out)
 }
 
-##' Variant-level calls
+##' Information on variant-level calls
 ##'
 ##' Return some information to help in hard-filtering variant-level calls. See GATK's Best Practices tutorial (\url{https://www.broadinstitute.org/gatk/guide/topic?name=tutorials#tutorials2806}).
 ##' @param x data.frame, e.g. from "bcftools query --format '\%CHROM\\t\%POS\\t\%TYPE\\t...'"
@@ -588,23 +588,81 @@ infoVariantCalls <- function(x, type="SNP", thresh.qual=20, thresh.qd=2,
   return(tmp)
 }
 
-##' Filter SNP calls
+##' Confidence in one variant's genotypes
 ##'
-##' Return subset of calls from VCF file corresponding to bi-allelic SNPs with proper depth and allele frequency.
-##' @param vcf.file path to the VCF file (bgzip index should exist in same directory; should only contain SNPs and be already filtered for QD, FS, MQ, etc)
-##' @param dict.file path to the SAM dict file (see \url{https://broadinstitute.github.io/picard/command-line-overview.html#CreateSequenceDictionary})
-##' @param genome genome identifier (e.g. "VITVI_12x2")
-##' @param seq sequence identifier to work on (e.g. "chr2")
-##' @param min.dp minimum depth ("INFO/DP" field in VCF)
-##' @param max.dp maximum depth
-##' @param min.af minimum alternate allele frequency ("INFO/AF" field)
-##' @param max.af maximum alternate allele frequency
-##' @param verbose verbosity level (0/default=1)
-##' @return CollapsedVCF from the VariantAnnotation package
+##' Provide measure of confidence in the genotypes at a given variant.
+##' @param x CollapsedVCF corresponding to a SNV (see pkg VariantAnnotation)
+##' @param plot.it plot GQ=f(DP) if TRUE
+##' @return invisible data.frame
 ##' @author Timothee Flutre
-filterSnpCalls <- function(vcf.file, dict.file, genome, seq,
-                           min.dp, max.dp, min.af=0.1, max.af=0.9,
-                           verbose=1){
+confidenceGenoOneVar <- function(x, plot.it=FALSE){
+  if(! requireNamespace("VariantAnnotation", quietly=TRUE))
+    stop("Pkg VariantAnnotation needed for this function to work. Please install it.",
+         call.=FALSE)
+  stopifnot(class(x) == "CollapsedVCF",
+            nrow(x) == 1,
+            VariantAnnotation::isSNV(x))
+
+  genos <- VariantAnnotation::geno(x)
+  stopifnot("GQ" %in% names(genos))
+
+  out <- data.frame(GT=genos[["GT"]][1,],
+                    GQ=genos[["GQ"]][1,],
+                    stringsAsFactors=FALSE)
+  if("DP" %in% names(genos))
+    out$DP <- genos[["DP"]][1,]
+  if("AD" %in% names(genos)){
+    out$AD.0 <- do.call(rbind, genos[["AD"]][1,])[,1]
+    out$AD.1 <- do.call(rbind, genos[["AD"]][1,])[,2]
+  }
+  if("PL" %in% names(genos)){
+    out$PL.00 <- do.call(rbind, genos[["PL"]])[,1]
+    out$PL.01 <- do.call(rbind, genos[["PL"]])[,2]
+    out$PL.11=do.call(rbind, genos[["PL"]])[,3]
+  }
+
+  if("DP" %in% names(genos) && plot.it)
+    plot(x=genos[["DP"]][1,], y=genos[["GQ"]][1,],
+         xlab="DP", ylab="GQ", main=names(x))
+
+  invisible(out)
+}
+
+##' Filter variant calls
+##'
+##' Return subset of calls from VCF file corresponding to bi-allelic single nucleotide variants with proper overall depth and allele frequency.
+##' @param vcf.file path to the VCF file (bgzip index should exist in same directory; should be already filtered for INFO tags such as QD, FS, MQ, etc)
+##' @param genome genome identifier (e.g. "VITVI_12x2")
+##' @param out.file path to the output VCF file (a bgzip index will be created in the same directory)
+##' @param yieldSize number of records to yield each time the file is read from (see ?TabixFile) if seq.id is NULL
+##' @param dict.file path to the SAM dict file (see \url{https://broadinstitute.github.io/picard/command-line-overview.html#CreateSequenceDictionary}) if seq.id is specified with no start/end
+##' @param seq.id sequence identifier to work on (e.g. "chr2")
+##' @param seq.start start of the sequence to work on (if NULL, whole seq)
+##' @param seq.end end of the sequence to work on (if NULL, whole seq)
+##' @param is.snv if not NULL but TRUE, filter out the variants which are not SNVs
+##' @param is.biall if not NULL but TRUE, filter out the variants with more than one alternative allele
+##' @param min.var.dp minimum variant-level DP below which variants are filtered out
+##' @param max.var.dp maximum variant-level DP above which variants are filtered out
+##' @param min.alt.af minimum variant-level AF below which variants are filtered out
+##' @param max.alt.af maximum variant-level AF above which variants are filtered out
+##' @param min.spl.dp minimum sample-level DP
+##' @param max.prop.spl.dp.low maximum proportion of samples with DP below threshold
+##' @param min.spl.gq minimum sample-level GQ
+##' @param max.prop.spl.gq.low maximum proportion of samples with GQ below threshold
+##' @param max.prop.gt.na maximum proportion of samples with missing GT
+##' @param verbose verbosity level (0/default=1)
+##' @return nothing
+##' @author Timothee Flutre
+filterVariantCalls <- function(vcf.file, genome, out.file,
+                               yieldSize=NA_integer_, dict.file=NULL,
+                               seq.id=NULL, seq.start=NULL, seq.end=NULL,
+                               is.snv=NULL, is.biall=NULL,
+                               min.var.dp=NULL, max.var.dp=NULL,
+                               min.alt.af=NULL, max.alt.af=NULL,
+                               min.spl.dp=NULL, max.prop.spl.dp.low=NULL,
+                               min.spl.gq=NULL, max.prop.spl.gq.low=NULL,
+                               max.prop.gt.na=NULL,
+                               verbose=1){
   if(! requireNamespace("IRanges", quietly=TRUE))
     stop("Pkg IRanges needed for this function to work. Please install it.",
          call.=FALSE)
@@ -620,61 +678,136 @@ filterSnpCalls <- function(vcf.file, dict.file, genome, seq,
   if(! requireNamespace("S4Vectors", quietly=TRUE))
     stop("Pkg S4Vectors needed for this function to work. Please install it.",
          call.=FALSE)
-  stopifnot(file.exists(vcf.file),
-            file.exists(dict.file))
+  stopifnot(file.exists(vcf.file))
+  if(! is.null(seq.id) & is.null(seq.start) & is.null(seq.end))
+    stopifnot(! is.null(dict),
+              file.exists(dict.file))
 
-  dict <- readSamDict(file=dict.file)
-  if(! seq %in% rownames(dict)){
-    msg <- paste0("seq '", seq, "' not in '", dict.file, "'")
-    stop(msg)
+  ##' @return TRUE if MNV (multiple nucleotide variant)
+  filterSnv <- function(x){
+    (! VariantAnnotation::isSNV(x))
   }
 
-  tabix.file <- Rsamtools::TabixFile(vcf.file)
-  rngs <- GenomicRanges::GRanges(seqnames=c(seq),
-                                 ranges=IRanges::IRanges(start=c(1),
-                                     end=c(dict$LN[rownames(dict) == seq])))
-  names(rngs) <- c(seq)
-  vcf.params <- VariantAnnotation::ScanVcfParam(which=rngs)
-  vcf <- VariantAnnotation::readVcf(file=tabix.file, genome=genome,
-                                    param=vcf.params)
-  if(verbose > 0){
-    msg <- paste0("seq '", seq, "': ", nrow(vcf), " variants x ",
-                  ncol(vcf), " samples")
-    write(msg, stdout())
+  ##' @return TRUE if more than one alternate allele
+  filterBiall <- function(x){
+    (S4Vectors::elementLengths(VariantAnnotation::alt(x)) > 1)
   }
 
-  biallelic <- S4Vectors::elementLengths(VariantAnnotation::alt(vcf)) == 1
-  if(verbose > 0){
-    msg <- paste0("nb of bi-allelic variants: ", sum(biallelic))
-    write(msg, stdout())
+  ##' @return TRUE if variant-level DP outside of given range
+  filterVariantDp <- function(x, min.dp=min.var.dp, max.dp=max.var.dp){
+    if(nrow(x) == 0){
+      logical(0)
+    } else{
+      dp <- VariantAnnotation::info(x)$DP
+      (dp < min.dp) || (dp > max.dp)
+    }
   }
 
-  good.dp <- VariantAnnotation::info(vcf)$DP >= min.dp &
-    VariantAnnotation::info(vcf)$DP < max.dp
-  if(verbose > 0){
-    msg <- paste0("nb of variants with DP in [", min.dp,",",
-                  max.dp, "]: ", sum(good.dp))
-    write(msg, stdout())
+  ##' @return TRUE if allele frequency outside of given range
+  filterAf <- function(x, min.af=min.alt.af, max.af=max.alt.af){
+    if(nrow(x) == 0){
+      logical(0)
+    } else{
+      af <- unlist(VariantAnnotation::info(x)$AF)
+      (af < min.af) & (af > max.af)
+    }
   }
 
-  vcf.filter <- vcf[biallelic & good.dp,]
-  if(verbose > 0){
-    msg <- paste0("nb of bi-allelic variants with DP in [", min.dp,",",
-                  max.dp, "]: ", nrow(vcf.filter))
-    write(msg, stdout())
+  ##' @return TRUE if too high a proportion of samples with DP below threshold
+  filterSampleDp <- function(x, min.dp=min.spl.dp,
+                             max.prop.dp.low=max.prop.spl.dp.low){
+    if(nrow(x) == 0){
+      logical(0)
+    } else{
+      dp <- VariantAnnotation::geno(x)$DP
+      (rowSums(dp < min.dp) / ncol(dp) > max.prop.dp.low)
+    }
   }
 
-  tmp <- unlist(VariantAnnotation::info(vcf.filter)$AF)
-  good.af <- tmp >= min.af & tmp <= max.af
-  vcf.filter <- vcf.filter[good.af,]
-  if(verbose > 0){
-    msg <- paste0("nb of bi-allelic variants with DP in [", min.dp,",",
-                  max.dp, "] and AF in [", min.af, ",", max.af, "]: ",
-                  nrow(vcf.filter))
-    write(msg, stdout())
+  ##' @return TRUE if too high a proportion of samples with GQ below threshold
+  filterSampleGq <- function(x, min.gq=min.spl.gq,
+                             max.prop.gq.low=max.prop.spl.gq.low){
+    if(nrow(x) == 0){
+      logical(0)
+    } else{
+      gq <- VariantAnnotation::geno(x)$GQ
+      (rowSums(gq < min.gq) / ncol(gq) > max.prop.gq.low)
+    }
   }
 
-  return(vcf.filter)
+  ##' @return TRUE if too high a proportion of samples with missing genotypes
+  filterGt <- function(x, max.prop.gt.na=max.prop.gt.na){
+    if(nrow(x) == 0){
+      logical(0)
+    } else{
+      gt <- VariantAnnotation::geno(x)$GT
+      (rowSums(is.na(gt)) / ncol(gt) > max.prop.gt.na)
+    }
+  }
+
+  ## set the filters
+  tmp <- list()
+  if(! is.null(is.snv)){
+    stopifnot(is.logical(is.snv))
+    if(is.snv)
+      tmp[["filterSnv"]] <- filterSnv
+  }
+  if(! is.null(is.biall)){
+    stopifnot(is.logical(is.biall))
+    if(is.biall)
+      tmp[["filterBiall"]] <- filterBiall
+  }
+  if(! is.null(min.var.dp) & ! is.null(max.var.dp)){
+    tmp[["filterVariantDp"]] <- filterVariantDp
+  }
+  if(! is.null(min.alt.af) & ! is.null(max.alt.af)){
+    tmp[["filterAf"]] <- filterAf
+  }
+  if(! is.null(min.spl.dp) & ! is.null(max.prop.spl.dp.low)){
+    tmp[["filterSampleDp"]] <- filterSampleDp
+  }
+  if(! is.null(min.spl.gq) & ! is.null(max.prop.spl.gq.low)){
+    tmp[["filterSampleGq"]] <- filterSampleGq
+  }
+  if(! is.null(max.prop.gt.na)){
+    tmp[["filterGt"]] <- filterGt
+  }
+
+  if(length(tmp) > 0){
+    filters <- S4Vectors::FilterRules(tmp)
+    print(filters)
+
+    ## filter the VCF file
+    tabix.file <- Rsamtools::TabixFile(file=vcf.file,
+                                       yieldSize=yieldSize)
+    if(! is.null(seq.id)){
+      if(is.null(seq.start) & is.null(seq.end)){
+        dict <- readSamDict(file=dict.file)
+        if(! seq.id %in% rownames(dict)){
+          msg <- paste0("seq '", seq.id, "' not in '", dict.file, "'")
+          stop(msg)
+        }
+        rngs <- GenomicRanges::GRanges(seqnames=c(seq.id),
+                                       ranges=IRanges::IRanges(start=c(1),
+                                           end=c(dict$LN[rownames(dict) == seq.id])))
+      } else
+        rngs <- GenomicRanges::GRanges(seqnames=c(seq.id),
+                                       ranges=IRanges::IRanges(start=c(seq.start),
+                                           end=c(seq.end)))
+      names(rngs) <- c(seq.id)
+      vcf.params <- VariantAnnotation::ScanVcfParam(which=rngs)
+      VariantAnnotation::filterVcf(file=tabix.file, genome=genome,
+                                   destination=out.file, index=TRUE,
+                                   verbose=(verbose > 0),
+                                   filters=filters,
+                                   param=vcf.params)
+    } else{
+      VariantAnnotation::filterVcf(file=tabix.file, genome=genome,
+                                   destination=out.file, index=TRUE,
+                                   verbose=(verbose > 0),
+                                   filters=filters)
+    }
+  }
 }
 
 ##' Convert VCF to dose

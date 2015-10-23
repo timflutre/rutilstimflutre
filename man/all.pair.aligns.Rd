@@ -17,7 +17,7 @@
 list of instances of class PairwiseAlignments
 }
 \description{
-Align each sequence against each other (and itself).
+Align each sequence against each other (and itself)
 }
 \details{
 Requires the Biostrings package.

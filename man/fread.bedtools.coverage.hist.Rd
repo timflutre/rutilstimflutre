@@ -2,7 +2,7 @@
 % Please edit documentation in R/bioinfo_sequences.R
 \name{fread.bedtools.coverage.hist}
 \alias{fread.bedtools.coverage.hist}
-\title{Read bedtools-coverage-hist as data.table.}
+\title{Read bedtools-coverage-hist as data.table}
 \usage{
 fread.bedtools.coverage.hist(files, verbose = 1)
 }

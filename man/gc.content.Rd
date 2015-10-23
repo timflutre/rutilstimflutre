@@ -2,7 +2,7 @@
 % Please edit documentation in R/bioinfo_sequences.R
 \name{gc.content}
 \alias{gc.content}
-\title{Calculate the GC content of a set of sequences.}
+\title{Calculate the GC content of a set of sequences}
 \usage{
 gc.content(x)
 }
