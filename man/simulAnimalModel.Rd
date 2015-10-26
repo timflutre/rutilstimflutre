@@ -5,29 +5,33 @@
 \title{Simulate a data set from a basic animal model.}
 \usage{
 simulAnimalModel(P = 3, mean.a = 5, sd.a = 2, lambda = 3,
-  sigmau2 = NULL, scale.halfCauchy = NULL, A)
+  sigmau2 = NULL, scale.halfCauchy = NULL, A, perc.NA = 0, err.df = Inf)
 }
 \arguments{
-\item{P}{number of years (default=3)}
+\item{P}{number of years}
 
-\item{mean.a}{mean of the prior on a (default=5)}
+\item{mean.a}{mean of the prior on a}
 
-\item{sd.a}{std dev of the prior on a (default=2)}
+\item{sd.a}{std dev of the prior on a}
 
-\item{lambda}{ratio of variance components as sigma_u^2 /sigma^2 (default=3)}
+\item{lambda}{ratio of variance components as sigma_u^2 /sigma^2}
 
 \item{sigmau2}{genetic variance component  (e.g. 15)}
 
 \item{scale.halfCauchy}{scale of the half-Cauchy prior for sigma_u^2 (e.g. 5)}
 
 \item{A}{kinship matrix of additive relationships}
+
+\item{perc.NA}{percentage of missing phenotypes, at random}
+
+\item{err.df}{degrees of freedom of errors' Student's t-distribution}
 }
 \value{
 list with all input variables and the data set ready to be analyzed
 }
 \description{
 y = W a + Z u + e where y is N x 1; W is N x P; Z is N x Q
-u ~ Norm_Q(0, G=sigma_u^2 A); e ~ Norm_N(0, R=sigma^2 I_N); Cov(u,e)=0
+u ~ Norm_Q(0, G=sigma_u^2 A); e_i ~ Student(nu, 0); Cov(u,e)=0
 }
 \author{
 Timothee Flutre

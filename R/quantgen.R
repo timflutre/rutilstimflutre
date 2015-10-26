@@ -581,18 +581,20 @@ estimLd <- function(X, K=NULL, pops=NULL, snp.coords,
 ##' Simulate a data set from a basic animal model.
 ##'
 ##' y = W a + Z u + e where y is N x 1; W is N x P; Z is N x Q
-##' u ~ Norm_Q(0, G=sigma_u^2 A); e ~ Norm_N(0, R=sigma^2 I_N); Cov(u,e)=0
-##' @param P number of years (default=3)
-##' @param mean.a mean of the prior on a (default=5)
-##' @param sd.a std dev of the prior on a (default=2)
-##' @param lambda ratio of variance components as sigma_u^2 /sigma^2 (default=3)
+##' u ~ Norm_Q(0, G=sigma_u^2 A); e_i ~ Student(nu, 0); Cov(u,e)=0
+##' @param P number of years
+##' @param mean.a mean of the prior on a
+##' @param sd.a std dev of the prior on a
+##' @param lambda ratio of variance components as sigma_u^2 /sigma^2
 ##' @param sigmau2 genetic variance component  (e.g. 15)
 ##' @param scale.halfCauchy scale of the half-Cauchy prior for sigma_u^2 (e.g. 5)
 ##' @param A kinship matrix of additive relationships
+##' @param perc.NA percentage of missing phenotypes, at random
+##' @param err.df degrees of freedom of errors' Student's t-distribution
 ##' @return list with all input variables and the data set ready to be analyzed
 ##' @author Timothee Flutre
 simulAnimalModel <- function(P=3, mean.a=5, sd.a=2, lambda=3, sigmau2=NULL,
-                             scale.halfCauchy=NULL, A){
+                             scale.halfCauchy=NULL, A, perc.NA=0, err.df=Inf){
   if(! requireNamespace("MASS", quietly=TRUE))
     stop("Pkg MASS needed for this function to work. Please install it.",
          call.=FALSE)
@@ -635,10 +637,16 @@ simulAnimalModel <- function(P=3, mean.a=5, sd.a=2, lambda=3, sigmau2=NULL,
 
   sigma2 <- sigmau2 / lambda
   h2 <- sigmau2 / (sigmau2 + sigma2)
-  R <- sigma2 * diag(N)
-  e <- matrix(MASS::mvrnorm(n=1, mu=rep(0, N), Sigma=R))
+  if(is.infinite(err.df)){
+    e <- rnorm(n=N, mean=0, sd=sigma2)
+  } else
+    e <- rt(n=N, df=err.df, ncp=0)
 
   y <- W %*% a + Z %*% u + e
+  if(perc.NA > 0){
+    idx <- sample.int(n=N, size=floor(perc.NA/100 * N))
+    y[idx] <- NA
+  }
   dat$response <- y[,1]
 
   return(list(N=N, P=P, Q=Q,
