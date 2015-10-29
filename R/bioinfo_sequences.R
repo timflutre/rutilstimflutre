@@ -628,9 +628,103 @@ confidenceGenoOneVar <- function(x, plot.it=FALSE){
   invisible(out)
 }
 
+##' Set GT to NA
+##'
+##' Set genotypes (GT field) to missing (".") if the genotype quality (GQ field) isn't high enough.
+##' @param vcf.file path to the VCF file (bgzip index should exist in same directory; should be already filtered for INFO tags such as QD, FS, MQ, etc)
+##' @param genome genome identifier (e.g. "VITVI_12x2")
+##' @param out.file path to the output VCF file (a bgzip index will be created in the same directory)
+##' @param yieldSize number of records to yield each time the file is read from (see ?TabixFile) if seq.id is NULL
+##' @param dict.file path to the SAM dict file (see \url{https://broadinstitute.github.io/picard/command-line-overview.html#CreateSequenceDictionary}) if seq.id is specified with no start/end
+##' @param seq.id sequence identifier to work on (e.g. "chr2")
+##' @param seq.start start of the sequence to work on (if NULL, whole seq)
+##' @param seq.end end of the sequence to work on (if NULL, whole seq)
+##' @param min.gq minimum GQ below which GT is set to "."
+##' @param verbose verbosity level (0/default=1)
+##' @return nothing
+##' @author Timothee Flutre
+setGt2Na <- function(vcf.file, genome, out.file,
+                     yieldSize=NA_integer_, dict.file=NULL,
+                     seq.id=NULL, seq.start=NULL, seq.end=NULL,
+                     min.gq=90, verbose=1){
+  if(! requireNamespace("IRanges", quietly=TRUE))
+    stop("Pkg IRanges needed for this function to work. Please install it.",
+         call.=FALSE)
+  if(! requireNamespace("GenomicRanges", quietly=TRUE))
+    stop("Pkg GenomicRanges needed for this function to work. Please install it.",
+         call.=FALSE)
+  if(! requireNamespace("VariantAnnotation", quietly=TRUE))
+    stop("Pkg VariantAnnotation needed for this function to work. Please install it.",
+         call.=FALSE)
+  if(! requireNamespace("Rsamtools", quietly=TRUE))
+    stop("Pkg Rsamtools needed for this function to work. Please install it.",
+         call.=FALSE)
+  if(! requireNamespace("S4Vectors", quietly=TRUE))
+    stop("Pkg S4Vectors needed for this function to work. Please install it.",
+         call.=FALSE)
+  stopifnot(file.exists(vcf.file),
+            xor(is.na(yieldSize), is.null(seq.id)))
+  if(! is.null(seq.id) & is.null(seq.start) & is.null(seq.end))
+    stopifnot(! is.null(dict),
+              file.exists(dict.file))
+  out.file <- sub("\\.gz$", "", out.file)
+  out.file <- sub("\\.bgz$", "", out.file)
+
+  tabix.file <- Rsamtools::TabixFile(file=vcf.file,
+                                     yieldSize=yieldSize)
+  if(! is.null(seq.id)){
+    if(is.null(seq.start) & is.null(seq.end)){
+      dict <- readSamDict(file=dict.file)
+      if(! seq.id %in% rownames(dict)){
+        msg <- paste0("seq '", seq.id, "' not in '", dict.file, "'")
+        stop(msg)
+      }
+      rngs <- GenomicRanges::GRanges(seqnames=c(seq.id),
+                                     ranges=IRanges::IRanges(start=c(1),
+                                         end=c(dict$LN[rownames(dict) == seq.id])))
+    } else
+      rngs <- GenomicRanges::GRanges(seqnames=c(seq.id),
+                                     ranges=IRanges::IRanges(start=c(seq.start),
+                                         end=c(seq.end)))
+    names(rngs) <- c(seq.id)
+    vcf.params <- VariantAnnotation::ScanVcfParam(which=rngs)
+    vcf <- VariantAnnotation::readVcf(file=tabix.file, genome=genome,
+                                      param=vcf.params)
+    nb.records <- nrow(vcf)
+
+    idx <- (VariantAnnotation::geno(vcf)[["GQ"]] < min.gq)
+    VariantAnnotation::geno(vcf)[["GT"]][idx] <- "."
+
+    VariantAnnotation::writeVcf(obj=vcf, filename=out.file, index=TRUE)
+  } else{
+    open(tabix.file)
+    if(file.exists(out.file))
+      file.remove(out.file)
+    con <- file(out.file, open="a")
+    nb.records <- 0
+    while(nrow(vcf <- VariantAnnotation::readVcf(file=tabix.file,
+                                                 genome=genome))){
+      nb.records <- nb.records + nrow(vcf)
+      idx <- (VariantAnnotation::geno(vcf)[["GQ"]] < min.gq)
+      VariantAnnotation::geno(vcf)[["GT"]][idx] <- "."
+      VariantAnnotation::writeVcf(obj=vcf, filename=con)
+    }
+    close(con)
+    close(tabix.file)
+    Rsamtools::bgzip(file=out.file, overwrite=TRUE)
+    Rsamtools::indexTabix(file=paste0(out.file, ".bgz"), format="vcf")
+    file.remove(out.file)
+  }
+
+  if(verbose > 0){
+    msg <- paste0("nb of records: ", nb.records)
+    write(msg, stdout())
+  }
+}
+
 ##' Filter variant calls
 ##'
-##' Return subset of calls from VCF file corresponding to bi-allelic single nucleotide variants with proper overall depth and allele frequency.
+##' Filter out variant calls from VCF file according to several criteria (bi-allelic, single nucleotide variant, proper amount of missing genotypes, overall depth and allele frequency).
 ##' @param vcf.file path to the VCF file (bgzip index should exist in same directory; should be already filtered for INFO tags such as QD, FS, MQ, etc)
 ##' @param genome genome identifier (e.g. "VITVI_12x2")
 ##' @param out.file path to the output VCF file (a bgzip index will be created in the same directory)
@@ -682,6 +776,8 @@ filterVariantCalls <- function(vcf.file, genome, out.file,
   if(! is.null(seq.id) & is.null(seq.start) & is.null(seq.end))
     stopifnot(! is.null(dict),
               file.exists(dict.file))
+  out.file <- sub("\\.gz$", "", out.file)
+  out.file <- sub("\\.bgz$", "", out.file)
 
   ##' @return TRUE if MNV (multiple nucleotide variant)
   filterSnv <- function(x){

@@ -56,7 +56,7 @@ filterVariantCalls(vcf.file, genome, out.file, yieldSize = NA_integer_,
 nothing
 }
 \description{
-Return subset of calls from VCF file corresponding to bi-allelic single nucleotide variants with proper overall depth and allele frequency.
+Filter out variant calls from VCF file according to several criteria (bi-allelic, single nucleotide variant, proper amount of missing genotypes, overall depth and allele frequency).
 }
 \author{
 Timothee Flutre
