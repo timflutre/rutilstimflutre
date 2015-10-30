@@ -8,8 +8,8 @@ filterVariantCalls(vcf.file, genome, out.file, yieldSize = NA_integer_,
   dict.file = NULL, seq.id = NULL, seq.start = NULL, seq.end = NULL,
   is.snv = NULL, is.biall = NULL, min.var.dp = NULL, max.var.dp = NULL,
   min.alt.af = NULL, max.alt.af = NULL, min.spl.dp = NULL,
-  max.prop.spl.dp.low = NULL, min.spl.gq = NULL,
-  max.prop.spl.gq.low = NULL, max.prop.gt.na = NULL, verbose = 1)
+  min.prop.spl.dp = NULL, min.spl.gq = NULL, min.prop.spl.gq = NULL,
+  max.nb.gt.na = NULL, max.prop.gt.na = NULL, verbose = 1)
 }
 \arguments{
 \item{vcf.file}{path to the VCF file (bgzip index should exist in same directory; should be already filtered for INFO tags such as QD, FS, MQ, etc)}
@@ -42,11 +42,13 @@ filterVariantCalls(vcf.file, genome, out.file, yieldSize = NA_integer_,
 
 \item{min.spl.dp}{minimum sample-level DP}
 
-\item{max.prop.spl.dp.low}{maximum proportion of samples with DP below threshold}
+\item{min.prop.spl.dp}{minimum proportion of samples with DP above threshold}
 
 \item{min.spl.gq}{minimum sample-level GQ}
 
-\item{max.prop.spl.gq.low}{maximum proportion of samples with GQ below threshold}
+\item{min.prop.spl.gq}{minimum proportion of samples with GQ above threshold}
+
+\item{max.nb.gt.na}{maximum number of samples with missing GT}
 
 \item{max.prop.gt.na}{maximum proportion of samples with missing GT}
 

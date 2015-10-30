@@ -740,9 +740,10 @@ setGt2Na <- function(vcf.file, genome, out.file,
 ##' @param min.alt.af minimum variant-level AF below which variants are filtered out
 ##' @param max.alt.af maximum variant-level AF above which variants are filtered out
 ##' @param min.spl.dp minimum sample-level DP
-##' @param max.prop.spl.dp.low maximum proportion of samples with DP below threshold
+##' @param min.prop.spl.dp minimum proportion of samples with DP above threshold
 ##' @param min.spl.gq minimum sample-level GQ
-##' @param max.prop.spl.gq.low maximum proportion of samples with GQ below threshold
+##' @param min.prop.spl.gq minimum proportion of samples with GQ above threshold
+##' @param max.nb.gt.na maximum number of samples with missing GT
 ##' @param max.prop.gt.na maximum proportion of samples with missing GT
 ##' @param verbose verbosity level (0/default=1)
 ##' @return nothing
@@ -753,9 +754,9 @@ filterVariantCalls <- function(vcf.file, genome, out.file,
                                is.snv=NULL, is.biall=NULL,
                                min.var.dp=NULL, max.var.dp=NULL,
                                min.alt.af=NULL, max.alt.af=NULL,
-                               min.spl.dp=NULL, max.prop.spl.dp.low=NULL,
-                               min.spl.gq=NULL, max.prop.spl.gq.low=NULL,
-                               max.prop.gt.na=NULL,
+                               min.spl.dp=NULL, min.prop.spl.dp=NULL,
+                               min.spl.gq=NULL, min.prop.spl.gq=NULL,
+                               max.nb.gt.na=NULL, max.prop.gt.na=NULL,
                                verbose=1){
   if(! requireNamespace("IRanges", quietly=TRUE))
     stop("Pkg IRanges needed for this function to work. Please install it.",
@@ -779,65 +780,75 @@ filterVariantCalls <- function(vcf.file, genome, out.file,
   out.file <- sub("\\.gz$", "", out.file)
   out.file <- sub("\\.bgz$", "", out.file)
 
-  ##' @return TRUE if MNV (multiple nucleotide variant)
+  ##' @return TRUE if SNV (single nucleotide variant)
   filterSnv <- function(x){
-    (! VariantAnnotation::isSNV(x))
+    (VariantAnnotation::isSNV(x))
   }
 
-  ##' @return TRUE if more than one alternate allele
+  ##' @return TRUE if at most one alternate allele
   filterBiall <- function(x){
-    (S4Vectors::elementLengths(VariantAnnotation::alt(x)) > 1)
+    (S4Vectors::elementLengths(VariantAnnotation::alt(x)) <= 1)
   }
 
-  ##' @return TRUE if variant-level DP outside of given range
+  ##' @return TRUE if variant-level DP inside of given range
   filterVariantDp <- function(x, min.dp=min.var.dp, max.dp=max.var.dp){
     if(nrow(x) == 0){
       logical(0)
     } else{
       dp <- VariantAnnotation::info(x)$DP
-      (dp < min.dp) || (dp > max.dp)
+      (dp >= min.dp) || (dp <= max.dp)
     }
   }
 
-  ##' @return TRUE if allele frequency outside of given range
+  ##' @return TRUE if allele frequency inside of given range
   filterAf <- function(x, min.af=min.alt.af, max.af=max.alt.af){
     if(nrow(x) == 0){
       logical(0)
     } else{
       af <- unlist(VariantAnnotation::info(x)$AF)
-      (af < min.af) & (af > max.af)
+      (af >= min.af) & (af <= max.af)
     }
   }
 
-  ##' @return TRUE if too high a proportion of samples with DP below threshold
+  ##' @return TRUE if high-enough proportion of samples with DP above threshold
   filterSampleDp <- function(x, min.dp=min.spl.dp,
-                             max.prop.dp.low=max.prop.spl.dp.low){
+                             min.prop.dp=min.prop.spl.dp){
     if(nrow(x) == 0){
       logical(0)
     } else{
       dp <- VariantAnnotation::geno(x)$DP
-      (rowSums(dp < min.dp) / ncol(dp) > max.prop.dp.low)
+      (rowSums(dp >= min.dp) / ncol(dp) >= min.prop.dp)
     }
   }
 
-  ##' @return TRUE if too high a proportion of samples with GQ below threshold
+  ##' @return TRUE if high-enough proportion of samples with GQ above threshold
   filterSampleGq <- function(x, min.gq=min.spl.gq,
-                             max.prop.gq.low=max.prop.spl.gq.low){
+                             min.prop.gq=min.prop.spl.gq){
     if(nrow(x) == 0){
       logical(0)
     } else{
       gq <- VariantAnnotation::geno(x)$GQ
-      (rowSums(gq < min.gq) / ncol(gq) > max.prop.gq.low)
+      (rowSums(gq >= min.gq) / ncol(gq) >= min.prop.gq)
     }
   }
 
-  ##' @return TRUE if too high a proportion of samples with missing genotypes
-  filterGt <- function(x, max.prop.gt.na=max.prop.gt.na){
+  ##' @return TRUE if high-enough number of samples without missing genotypes
+  filterGtNb <- function(x, max.nb.gt.na=max.nb.gt.na){
     if(nrow(x) == 0){
       logical(0)
     } else{
       gt <- VariantAnnotation::geno(x)$GT
-      (rowSums(is.na(gt)) / ncol(gt) > max.prop.gt.na)
+      (rowSums(is.na(gt)) <= max.nb.gt.na)
+    }
+  }
+
+  ##' @return TRUE if high-enough proportion of samples without missing genotypes
+  filterGtProp <- function(x, max.prop.gt.na=max.prop.gt.na){
+    if(nrow(x) == 0){
+      logical(0)
+    } else{
+      gt <- VariantAnnotation::geno(x)$GT
+      (rowSums(is.na(gt)) / ncol(gt) <= max.prop.gt.na)
     }
   }
 
@@ -859,14 +870,17 @@ filterVariantCalls <- function(vcf.file, genome, out.file,
   if(! is.null(min.alt.af) & ! is.null(max.alt.af)){
     tmp[["filterAf"]] <- filterAf
   }
-  if(! is.null(min.spl.dp) & ! is.null(max.prop.spl.dp.low)){
+  if(! is.null(min.spl.dp) & ! is.null(min.prop.spl.dp)){
     tmp[["filterSampleDp"]] <- filterSampleDp
   }
-  if(! is.null(min.spl.gq) & ! is.null(max.prop.spl.gq.low)){
+  if(! is.null(min.spl.gq) & ! is.null(min.prop.spl.gq)){
     tmp[["filterSampleGq"]] <- filterSampleGq
   }
+  if(! is.null(max.nb.gt.na)){
+    tmp[["filterGtNb"]] <- filterGtNb
+  }
   if(! is.null(max.prop.gt.na)){
-    tmp[["filterGt"]] <- filterGt
+    tmp[["filterGtProp"]] <- filterGtProp
   }
 
   if(length(tmp) > 0){
