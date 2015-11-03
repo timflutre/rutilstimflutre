@@ -938,6 +938,64 @@ filterVariantCalls <- function(vcf.file, genome, out.file,
   invisible(dest)
 }
 
+##' Summary of GQ per variant
+##'
+##' Compute the min, Q1, med, mean, Q3, max of the genotype qualities per variant.
+##' @param vcf.file path to the VCF file
+##' @param genome genome identifier (e.g. "VITVI_12x2")
+##' @param yieldSize number of records to yield each time the file is read from (see ?TabixFile)
+##' @param verbose verbosity level (0/default=1)
+##' @return matrix with one row per variant
+##' @author Timothee Flutre
+summaryGq <- function(vcf.file, genome, yieldSize=10^4, verbose=1){
+  stopifnot(file.exists(vcf.file))
+
+  all.smry.gq <- list(min=c(),
+                      q1=c(),
+                      med=c(),
+                      mean=c(),
+                      q3=c(),
+                      max=c(),
+                      na=c())
+  var.names <- c()
+  tabix.file <- Rsamtools::TabixFile(file=vcf.file,
+                                     yieldSize=yieldSize)
+  open(tabix.file)
+  while(nrow(vcf <- VariantAnnotation::readVcf(file=tabix.file,
+                                               genome=genome))){
+    gq <- VariantAnnotation::geno(vcf)[["GQ"]]
+    all.smry.gq$min <- append(all.smry.gq$min,
+                              suppressWarnings(apply(gq, 1, min, na.rm=TRUE)))
+    all.smry.gq$q1 <- append(all.smry.gq$q1,
+                             suppressWarnings(apply(gq, 1, quantile,
+                                                    probs=0.25, na.rm=TRUE)))
+    all.smry.gq$med <- append(all.smry.gq$med,
+                              suppressWarnings(apply(gq, 1, median, na.rm=TRUE)))
+    all.smry.gq$mean <- append(all.smry.gq$mean,
+                               suppressWarnings(apply(gq, 1, mean, na.rm=TRUE)))
+    all.smry.gq$q3 <- append(all.smry.gq$q3,
+                             suppressWarnings(apply(gq, 1, quantile,
+                                                    probs=0.75, na.rm=TRUE)))
+    all.smry.gq$max <- append(all.smry.gq$max,
+                              suppressWarnings(apply(gq, 1, max, na.rm=TRUE)))
+    all.smry.gq$na <- append(all.smry.gq$na, rowSums(t(apply(gq, 1, is.na))))
+    var.names <- append(var.names, rownames(gq))
+  }
+  close(tabix.file)
+
+  if(verbose > 0){
+    msg <- paste0("nb of records: ", length(var.names))
+    write(msg, stdout())
+  }
+
+  all.smry.gq <- matrix(data=do.call(cbind, all.smry.gq),
+                        nrow=length(var.names),
+                        ncol=length(all.smry.gq),
+                        dimnames=list(var.names,
+                            names(all.smry.gq)))
+  return(all.smry.gq)
+}
+
 ##' Convert VCF to dose
 ##'
 ##' Convert genotypes from a VCF file into allele doses.

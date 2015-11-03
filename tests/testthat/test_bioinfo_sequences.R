@@ -72,3 +72,38 @@ test_that("filterVariantCalls", {
 
   .expected_equal_VCFfile(observed, expected)
 })
+
+test_that("summaryGq", {
+  genome <- "fakeGenomeV0"
+  yieldSize <- 100
+
+  vcf.init.file <- system.file("extdata", "example.vcf",
+                               package="rutilstimflutre")
+  vcf.init.file.bgz <- Rsamtools::bgzip(file=vcf.init.file,
+                                        overwrite=TRUE)
+  vcf.init.file.bgz.idx <- Rsamtools::indexTabix(file=vcf.init.file.bgz,
+                                                 format="vcf")
+  vcf.init <- VariantAnnotation::readVcf(file=vcf.init.file.bgz,
+                                         genome=genome)
+  expected <- matrix(data=NA,
+                     nrow=nrow(vcf.init),
+                     ncol=7,
+                     dimnames=list(rownames(vcf.init),
+                         c("min","q1","med","mean","q3","max","na")))
+  gq <- VariantAnnotation::geno(vcf.init)[["GQ"]]
+  for(i in 1:nrow(vcf.init))
+    expected[i,] <- c(min(gq[i,]),
+                      quantile(gq[i,], 0.25),
+                      median(gq[i,]),
+                      mean(gq[i,]),
+                      quantile(gq[i,], 0.75),
+                      max(gq[i,]),
+                      sum(is.na(gq[i,])))
+
+  observed <- summaryGq(vcf.file=vcf.init.file.bgz,
+                        genome=genome,
+                        yieldSize=yieldSize,
+                        verbose=0)
+
+  expect_equal(observed, expected)
+})
