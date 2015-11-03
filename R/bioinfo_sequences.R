@@ -641,7 +641,7 @@ confidenceGenoOneVar <- function(x, plot.it=FALSE){
 ##' @param seq.end end of the sequence to work on (if NULL, whole seq)
 ##' @param min.gq minimum GQ below which GT is set to "."
 ##' @param verbose verbosity level (0/default=1)
-##' @return nothing
+##' @return the destination file path as a character(1)
 ##' @author Timothee Flutre
 setGt2Na <- function(vcf.file, genome, out.file,
                      yieldSize=NA_integer_, dict.file=NULL,
@@ -670,6 +670,8 @@ setGt2Na <- function(vcf.file, genome, out.file,
   out.file <- sub("\\.gz$", "", out.file)
   out.file <- sub("\\.bgz$", "", out.file)
 
+  dest <- NULL
+
   tabix.file <- Rsamtools::TabixFile(file=vcf.file,
                                      yieldSize=yieldSize)
   if(! is.null(seq.id)){
@@ -695,7 +697,7 @@ setGt2Na <- function(vcf.file, genome, out.file,
     idx <- (VariantAnnotation::geno(vcf)[["GQ"]] < min.gq)
     VariantAnnotation::geno(vcf)[["GT"]][idx] <- "."
 
-    VariantAnnotation::writeVcf(obj=vcf, filename=out.file, index=TRUE)
+    dest <- VariantAnnotation::writeVcf(obj=vcf, filename=out.file, index=TRUE)
   } else{
     open(tabix.file)
     if(file.exists(out.file))
@@ -711,8 +713,8 @@ setGt2Na <- function(vcf.file, genome, out.file,
     }
     close(con)
     close(tabix.file)
-    Rsamtools::bgzip(file=out.file, overwrite=TRUE)
-    Rsamtools::indexTabix(file=paste0(out.file, ".bgz"), format="vcf")
+    dest <- Rsamtools::bgzip(file=out.file, overwrite=TRUE)
+    Rsamtools::indexTabix(file=dest, format="vcf")
     file.remove(out.file)
   }
 
@@ -720,6 +722,8 @@ setGt2Na <- function(vcf.file, genome, out.file,
     msg <- paste0("nb of records: ", nb.records)
     write(msg, stdout())
   }
+
+  invisible(dest)
 }
 
 ##' Filter variant calls
@@ -743,10 +747,10 @@ setGt2Na <- function(vcf.file, genome, out.file,
 ##' @param min.prop.spl.dp minimum proportion of samples with DP above threshold
 ##' @param min.spl.gq minimum sample-level GQ
 ##' @param min.prop.spl.gq minimum proportion of samples with GQ above threshold
-##' @param max.nb.gt.na maximum number of samples with missing GT
-##' @param max.prop.gt.na maximum proportion of samples with missing GT
+##' @param max.var.nb.gt.na maximum number of samples with missing GT
+##' @param max.var.prop.gt.na maximum proportion of samples with missing GT
 ##' @param verbose verbosity level (0/default=1)
-##' @return nothing
+##' @return the destination file path as a character(1)
 ##' @author Timothee Flutre
 filterVariantCalls <- function(vcf.file, genome, out.file,
                                yieldSize=NA_integer_, dict.file=NULL,
@@ -756,7 +760,7 @@ filterVariantCalls <- function(vcf.file, genome, out.file,
                                min.alt.af=NULL, max.alt.af=NULL,
                                min.spl.dp=NULL, min.prop.spl.dp=NULL,
                                min.spl.gq=NULL, min.prop.spl.gq=NULL,
-                               max.nb.gt.na=NULL, max.prop.gt.na=NULL,
+                               max.var.nb.gt.na=NULL, max.var.prop.gt.na=NULL,
                                verbose=1){
   if(! requireNamespace("IRanges", quietly=TRUE))
     stop("Pkg IRanges needed for this function to work. Please install it.",
@@ -777,6 +781,17 @@ filterVariantCalls <- function(vcf.file, genome, out.file,
   if(! is.null(seq.id) & is.null(seq.start) & is.null(seq.end))
     stopifnot(! is.null(dict),
               file.exists(dict.file))
+  if(! is.null(min.prop.spl.dp))
+    stopifnot(min.prop.spl.dp >= 0, min.prop.spl.dp <= 1)
+  if(! is.null(min.prop.spl.gq))
+    stopifnot(min.prop.spl.gq >= 0, min.prop.spl.gq <= 1)
+  if(! is.null(max.var.nb.gt.na))
+    stopifnot(max.var.nb.gt.na >= 0)
+  if(! is.null(max.var.prop.gt.na))
+    stopifnot(max.var.prop.gt.na >= 0, max.var.prop.gt.na <= 1)
+
+  dest <- NULL
+
   out.file <- sub("\\.gz$", "", out.file)
   out.file <- sub("\\.bgz$", "", out.file)
 
@@ -833,22 +848,22 @@ filterVariantCalls <- function(vcf.file, genome, out.file,
   }
 
   ##' @return TRUE if high-enough number of samples without missing genotypes
-  filterGtNb <- function(x, max.nb.gt.na=max.nb.gt.na){
+  filterGtNb <- function(x, max.nb.gt.na=max.var.nb.gt.na){
     if(nrow(x) == 0){
       logical(0)
     } else{
       gt <- VariantAnnotation::geno(x)$GT
-      (rowSums(is.na(gt)) <= max.nb.gt.na)
+      (rowSums(gt == ".") <= max.nb.gt.na)
     }
   }
 
   ##' @return TRUE if high-enough proportion of samples without missing genotypes
-  filterGtProp <- function(x, max.prop.gt.na=max.prop.gt.na){
+  filterGtProp <- function(x, max.prop.gt.na=max.var.prop.gt.na){
     if(nrow(x) == 0){
       logical(0)
     } else{
       gt <- VariantAnnotation::geno(x)$GT
-      (rowSums(is.na(gt)) / ncol(gt) <= max.prop.gt.na)
+      (rowSums(gt == ".") / ncol(gt) <= max.prop.gt.na)
     }
   }
 
@@ -876,16 +891,17 @@ filterVariantCalls <- function(vcf.file, genome, out.file,
   if(! is.null(min.spl.gq) & ! is.null(min.prop.spl.gq)){
     tmp[["filterSampleGq"]] <- filterSampleGq
   }
-  if(! is.null(max.nb.gt.na)){
+  if(! is.null(max.var.nb.gt.na)){
     tmp[["filterGtNb"]] <- filterGtNb
   }
-  if(! is.null(max.prop.gt.na)){
+  if(! is.null(max.var.prop.gt.na)){
     tmp[["filterGtProp"]] <- filterGtProp
   }
 
   if(length(tmp) > 0){
     filters <- S4Vectors::FilterRules(tmp)
-    print(filters)
+    if(verbose > 0)
+      print(filters)
 
     ## filter the VCF file
     tabix.file <- Rsamtools::TabixFile(file=vcf.file,
@@ -906,18 +922,20 @@ filterVariantCalls <- function(vcf.file, genome, out.file,
                                            end=c(seq.end)))
       names(rngs) <- c(seq.id)
       vcf.params <- VariantAnnotation::ScanVcfParam(which=rngs)
-      VariantAnnotation::filterVcf(file=tabix.file, genome=genome,
-                                   destination=out.file, index=TRUE,
-                                   verbose=(verbose > 0),
-                                   filters=filters,
-                                   param=vcf.params)
+      dest <- VariantAnnotation::filterVcf(file=tabix.file, genome=genome,
+                                           destination=out.file, index=TRUE,
+                                           verbose=(verbose > 0),
+                                           filters=filters,
+                                           param=vcf.params)
     } else{
-      VariantAnnotation::filterVcf(file=tabix.file, genome=genome,
-                                   destination=out.file, index=TRUE,
-                                   verbose=(verbose > 0),
-                                   filters=filters)
+      dest <- VariantAnnotation::filterVcf(file=tabix.file, genome=genome,
+                                           destination=out.file, index=TRUE,
+                                           verbose=(verbose > 0),
+                                           filters=filters)
     }
   }
+
+  invisible(dest)
 }
 
 ##' Convert VCF to dose
