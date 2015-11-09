@@ -4,16 +4,18 @@
 \alias{simulAnimalModel}
 \title{Simulate phenotypes from a basic "animal model" (LMM).}
 \usage{
-simulAnimalModel(Q = 3, mean.a = 5, sd.a = 2, A, lambda = 3,
+simulAnimalModel(Q = 3, mu = 50, mean.a = 5, sd.a = 2, A, lambda = 3,
   sigma.u2 = NULL, scale.halfCauchy = NULL, perc.NA = 0, err.df = Inf,
   seed = NULL)
 }
 \arguments{
 \item{Q}{number of years}
 
-\item{mean.a}{mean of the prior on a}
+\item{mu}{overall mean}
 
-\item{sd.a}{std dev of the prior on a}
+\item{mean.a}{mean of the prior on alpha[2:Q]}
+
+\item{sd.a}{std dev of the prior on alpha[2:Q]}
 
 \item{A}{matrix of additive genetic relationships}
 

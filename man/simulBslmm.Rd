@@ -4,15 +4,17 @@
 \alias{simulBslmm}
 \title{Simulate phenotypes according to the BSLMM model.}
 \usage{
-simulBslmm(Q = 3, mean.a = 5, sd.a = 2, X, pi = NULL, h = NULL,
-  rho = NULL, perc.NA = 0, err.df = Inf, seed = NULL)
+simulBslmm(Q = 3, mu = 50, mean.a = 5, sd.a = 2, X, pi = NULL,
+  h = NULL, rho = NULL, perc.NA = 0, err.df = Inf, seed = NULL)
 }
 \arguments{
 \item{Q}{number of years}
 
-\item{mean.a}{mean of the prior on a}
+\item{mu}{overall mean}
 
-\item{sd.a}{std dev of the prior on a}
+\item{mean.a}{mean of the prior on alpha[2:Q]}
+
+\item{sd.a}{std dev of the prior on alpha[2:Q]}
 
 \item{X}{matrix of SNP genotypes encoded as allele doses, with SNPs in
 columns and individuals in rows (SNPs with missing values or low MAF

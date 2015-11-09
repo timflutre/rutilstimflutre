@@ -584,8 +584,9 @@ estimLd <- function(X, K=NULL, pops=NULL, snp.coords,
 ##' where y is N x 1; W is N x Q; Z is N x I
 ##' u ~ Norm_I(0, G=sigma_u^2 A); epsilon_n ~ Student(nu, 0); Cov(u,e)=0
 ##' @param Q number of years
-##' @param mean.a mean of the prior on a
-##' @param sd.a std dev of the prior on a
+##' @param mu overall mean
+##' @param mean.a mean of the prior on alpha[2:Q]
+##' @param sd.a std dev of the prior on alpha[2:Q]
 ##' @param lambda ratio of variance components as sigma_u^2 /sigma^2
 ##' @param sigma.u2 genetic variance component  (e.g. 15)
 ##' @param scale.halfCauchy scale of the half-Cauchy prior for sigma_u^2 (e.g. 5)
@@ -595,7 +596,7 @@ estimLd <- function(X, K=NULL, pops=NULL, snp.coords,
 ##' @param seed seed for the pseudo-random number generator
 ##' @return list
 ##' @author Timothee Flutre
-simulAnimalModel <- function(Q=3, mean.a=5, sd.a=2,
+simulAnimalModel <- function(Q=3, mu=50, mean.a=5, sd.a=2,
                              A, lambda=3, sigma.u2=NULL, scale.halfCauchy=NULL,
                              perc.NA=0, err.df=Inf,
                              seed=NULL){
@@ -626,14 +627,16 @@ simulAnimalModel <- function(Q=3, mean.a=5, sd.a=2,
   W <- model.matrix(~ years)
   dat <- data.frame(year=years)
 
-  alpha <- matrix(data=rnorm(n=Q, mean=mean.a, sd=sd.a), nrow=Q, ncol=1)
+  alpha <- matrix(data=c(mu, rnorm(n=Q-1, mean=mean.a, sd=sd.a)),
+                  nrow=Q, ncol=1)
 
   levels.inds <- rownames(A)
   inds <- rep(NA, N)
   for(year in levels.years)
     inds[years == year] <- levels.inds[1:sum(years == year)]
   inds <- as.factor(inds)
-  Z <- Matrix::t(as(inds, Class="sparseMatrix"))
+  ## Z <- as.matrix(Matrix::t(as(inds, Class="sparseMatrix")))
+  Z <- model.matrix(~ inds - 1)
   dat$ind <- inds
 
   if(is.null(sigma.u2))
@@ -672,8 +675,9 @@ simulAnimalModel <- function(Q=3, mean.a=5, sd.a=2,
 ##' epsilon ~ Norm_N(0, sigma^2 I)
 ##' See Zhou, Carbonetto & Stephens (2013).
 ##' @param Q number of years
-##' @param mean.a mean of the prior on a
-##' @param sd.a std dev of the prior on a
+##' @param mu overall mean
+##' @param mean.a mean of the prior on alpha[2:Q]
+##' @param sd.a std dev of the prior on alpha[2:Q]
 ##' @param X matrix of SNP genotypes encoded as allele doses, with SNPs in
 ##' columns and individuals in rows (SNPs with missing values or low MAF
 ##' should be discarded beforehand)
@@ -685,12 +689,15 @@ simulAnimalModel <- function(Q=3, mean.a=5, sd.a=2,
 ##' @param seed seed for the pseudo-random number generator
 ##' @return list
 ##' @author Timothee Flutre
-simulBslmm <- function(Q=3, mean.a=5, sd.a=2,
+simulBslmm <- function(Q=3, mu=50, mean.a=5, sd.a=2,
                        X, pi=NULL, h=NULL, rho=NULL,
                        perc.NA=0, err.df=Inf,
                        seed=NULL){
   if(! requireNamespace("MASS", quietly=TRUE))
     stop("Pkg MASS needed for this function to work. Please install it.",
+         call.=FALSE)
+  if(! requireNamespace("Matrix", quietly=TRUE))
+    stop("Pkg Matrix needed for this function to work. Please install it.",
          call.=FALSE)
   stopifnot(xor(is.null(h) & is.null(rho), ! (is.null(h) & is.null(rho))),
             sum(is.na(X)) == 0,
@@ -713,14 +720,16 @@ simulBslmm <- function(Q=3, mean.a=5, sd.a=2,
   years <- as.factor(years)
   W <- model.matrix(~ years)
 
-  alpha <- matrix(data=rnorm(n=Q, mean=mean.a, sd=sd.a), nrow=Q, ncol=1)
+  alpha <- matrix(data=c(mu, rnorm(n=Q-1, mean=mean.a, sd=sd.a)),
+                  nrow=Q, ncol=1)
 
   levels.inds <- rownames(X)
   inds <- rep(NA, N)
   for(year in levels.years)
     inds[years == year] <- levels.inds[1:sum(years == year)]
   inds <- as.factor(inds)
-  Z <- Matrix::t(as(inds, Class="sparseMatrix"))
+  ## Z <- as.matrix(Matrix::t(as(inds, Class="sparseMatrix")))
+  Z <- model.matrix(~ inds - 1)
   X.c <- scale(x=X, center=TRUE, scale=FALSE)
   A <- tcrossprod(X.c, X.c) / P
 
