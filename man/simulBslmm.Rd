@@ -4,14 +4,19 @@
 \alias{simulBslmm}
 \title{Simulate phenotypes according to the BSLMM model.}
 \usage{
-simulBslmm(X, Q = 1, pi = NULL, h = NULL, rho = NULL, seed = NULL)
+simulBslmm(Q = 3, mean.a = 5, sd.a = 2, X, pi = NULL, h = NULL,
+  rho = NULL, perc.NA = 0, err.df = Inf, seed = NULL)
 }
 \arguments{
+\item{Q}{number of years}
+
+\item{mean.a}{mean of the prior on a}
+
+\item{sd.a}{std dev of the prior on a}
+
 \item{X}{matrix of SNP genotypes encoded as allele doses, with SNPs in
 columns and individuals in rows (SNPs with missing values or low MAF
 should be discarded beforehand)}
-
-\item{Q}{number of covariates (including the intercept)}
 
 \item{pi}{proportion of beta-tilde values that are non-zero}
 
@@ -19,12 +24,21 @@ should be discarded beforehand)}
 
 \item{rho}{approximation to E[PGE]}
 
+\item{perc.NA}{percentage of missing phenotypes, at random}
+
+\item{err.df}{degrees of freedom of errors' Student's t-distribution}
+
 \item{seed}{seed for the pseudo-random number generator}
 }
 \value{
 list
 }
 \description{
+y = W alpha + Z X tilde{beta} + Z u + epsilon
+where y is N x 1; W is N x Q; Z is N x I; X is I x P
+tilde{beta}_p ~ pi Norm_1(0, sigma_beta^2/sigma^2) + (1 - pi) delta_0
+u ~ Norm_I(0, (sigma_u^2/sigma^2) A)
+epsilon ~ Norm_N(0, sigma^2 I)
 See Zhou, Carbonetto & Stephens (2013).
 }
 \author{

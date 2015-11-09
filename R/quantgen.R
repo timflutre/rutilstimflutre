@@ -578,80 +578,86 @@ estimLd <- function(X, K=NULL, pops=NULL, snp.coords,
   return(ld)
 }
 
-##' Simulate a data set from a basic animal model.
+##' Simulate phenotypes from a basic "animal model" (LMM).
 ##'
-##' y = W a + Z u + e where y is N x 1; W is N x P; Z is N x Q
-##' u ~ Norm_Q(0, G=sigma_u^2 A); e_i ~ Student(nu, 0); Cov(u,e)=0
-##' @param P number of years
+##' y = W alpha + Z u + epsilon
+##' where y is N x 1; W is N x Q; Z is N x I
+##' u ~ Norm_I(0, G=sigma_u^2 A); epsilon_n ~ Student(nu, 0); Cov(u,e)=0
+##' @param Q number of years
 ##' @param mean.a mean of the prior on a
 ##' @param sd.a std dev of the prior on a
 ##' @param lambda ratio of variance components as sigma_u^2 /sigma^2
-##' @param sigmau2 genetic variance component  (e.g. 15)
+##' @param sigma.u2 genetic variance component  (e.g. 15)
 ##' @param scale.halfCauchy scale of the half-Cauchy prior for sigma_u^2 (e.g. 5)
-##' @param A kinship matrix of additive relationships
+##' @param A matrix of additive genetic relationships
 ##' @param perc.NA percentage of missing phenotypes, at random
 ##' @param err.df degrees of freedom of errors' Student's t-distribution
-##' @return list with all input variables and the data set ready to be analyzed
+##' @param seed seed for the pseudo-random number generator
+##' @return list
 ##' @author Timothee Flutre
-simulAnimalModel <- function(P=3, mean.a=5, sd.a=2, lambda=3, sigmau2=NULL,
-                             scale.halfCauchy=NULL, A, perc.NA=0, err.df=Inf){
+simulAnimalModel <- function(Q=3, mean.a=5, sd.a=2,
+                             A, lambda=3, sigma.u2=NULL, scale.halfCauchy=NULL,
+                             perc.NA=0, err.df=Inf,
+                             seed=NULL){
   if(! requireNamespace("MASS", quietly=TRUE))
     stop("Pkg MASS needed for this function to work. Please install it.",
          call.=FALSE)
   if(! requireNamespace("Matrix", quietly=TRUE))
     stop("Pkg Matrix needed for this function to work. Please install it.",
          call.=FALSE)
-  stopifnot(xor(is.null(sigmau2), is.null(scale.halfCauchy)),
+  stopifnot(xor(is.null(sigma.u2), is.null(scale.halfCauchy)),
             is.matrix(A),
             nrow(A) == ncol(A),
             ! is.null(rownames(A)),
             ! is.null(colnames(A)),
             rownames(A) == colnames(A))
+  if(! is.null(seed))
+    set.seed(seed)
 
-  Q <- nrow(A)
-  N <- P * Q
+  I <- nrow(A)
+  N <- Q * I
 
-  levels.years <- as.character(seq(from=2010, to=2010+P-1))
-  if(N %% P == 0){
-    years <- rep(levels.years, each=N / P)
+  levels.years <- as.character(seq(from=2010, to=2010+Q-1))
+  if(N %% Q == 0){
+    years <- rep(levels.years, each=N / Q)
   } else
     years <- sort(sample(x=levels.years, size=N, replace=TRUE))
   years <- as.factor(years)
   W <- model.matrix(~ years)
   dat <- data.frame(year=years)
 
-  a <- matrix(data=rnorm(n=P, mean=mean.a, sd=sd.a), nrow=P, ncol=1)
+  alpha <- matrix(data=rnorm(n=Q, mean=mean.a, sd=sd.a), nrow=Q, ncol=1)
 
-  levels.animals <- rownames(A)
-  animals <- rep(NA, N)
+  levels.inds <- rownames(A)
+  inds <- rep(NA, N)
   for(year in levels.years)
-    animals[years == year] <- levels.animals[1:sum(years == year)]
-  animals <- as.factor(animals)
-  Z <- Matrix::t(as(animals, Class="sparseMatrix"))
-  dat$animal <- animals
+    inds[years == year] <- levels.inds[1:sum(years == year)]
+  inds <- as.factor(inds)
+  Z <- Matrix::t(as(inds, Class="sparseMatrix"))
+  dat$ind <- inds
 
-  if(is.null(sigmau2))
-    sigmau2 <- abs(rcauchy(n=1, location=0, scale=scale.halfCauchy))
-  G <- as.matrix(Matrix::nearPD(sigmau2 * A)$mat)
-  u <- matrix(MASS::mvrnorm(n=1, mu=rep(0, Q), Sigma=G))
+  if(is.null(sigma.u2))
+    sigma.u2 <- abs(rcauchy(n=1, location=0, scale=scale.halfCauchy))
+  G <- as.matrix(Matrix::nearPD(sigma.u2 * A)$mat)
+  u <- matrix(MASS::mvrnorm(n=1, mu=rep(0, I), Sigma=G))
 
-  sigma2 <- sigmau2 / lambda
-  h2 <- sigmau2 / (sigmau2 + sigma2)
+  sigma2 <- sigma.u2 / lambda
+  h2 <- sigma.u2 / (sigma.u2 + sigma2)
   if(is.infinite(err.df)){
-    e <- rnorm(n=N, mean=0, sd=sigma2)
+    epsilon <- rnorm(n=N, mean=0, sd=sigma2)
   } else
-    e <- rt(n=N, df=err.df, ncp=0)
+    epsilon <- rt(n=N, df=err.df, ncp=0)
 
-  y <- W %*% a + Z %*% u + e
+  y <- W %*% alpha + Z %*% u + epsilon
   if(perc.NA > 0){
     idx <- sample.int(n=N, size=floor(perc.NA/100 * N))
     y[idx] <- NA
   }
   dat$response <- y[,1]
 
-  return(list(N=N, P=P, Q=Q,
-              W=W, a=a,
-              Z=Z, G=G, u=u, sigmau2=sigmau2,
+  return(list(y=y,
+              W=W, alpha=alpha,
+              Z=Z, G=G, u=u, sigma.u2=sigma.u2,
               sigma2=sigma2,
               h2=h2,
               dat=dat))
@@ -659,18 +665,30 @@ simulAnimalModel <- function(P=3, mean.a=5, sd.a=2, lambda=3, sigmau2=NULL,
 
 ##' Simulate phenotypes according to the BSLMM model.
 ##'
+##' y = W alpha + Z X tilde{beta} + Z u + epsilon
+##' where y is N x 1; W is N x Q; Z is N x I; X is I x P
+##' tilde{beta}_p ~ pi Norm_1(0, sigma_beta^2/sigma^2) + (1 - pi) delta_0
+##' u ~ Norm_I(0, (sigma_u^2/sigma^2) A)
+##' epsilon ~ Norm_N(0, sigma^2 I)
 ##' See Zhou, Carbonetto & Stephens (2013).
+##' @param Q number of years
+##' @param mean.a mean of the prior on a
+##' @param sd.a std dev of the prior on a
 ##' @param X matrix of SNP genotypes encoded as allele doses, with SNPs in
 ##' columns and individuals in rows (SNPs with missing values or low MAF
 ##' should be discarded beforehand)
-##' @param Q number of covariates (including the intercept)
 ##' @param pi proportion of beta-tilde values that are non-zero
 ##' @param h approximation to E[PVE] (h and rho should be NULL or not together)
 ##' @param rho approximation to E[PGE]
+##' @param perc.NA percentage of missing phenotypes, at random
+##' @param err.df degrees of freedom of errors' Student's t-distribution
 ##' @param seed seed for the pseudo-random number generator
 ##' @return list
 ##' @author Timothee Flutre
-simulBslmm <- function(X, Q=1, pi=NULL, h=NULL, rho=NULL, seed=NULL){
+simulBslmm <- function(Q=3, mean.a=5, sd.a=2,
+                       X, pi=NULL, h=NULL, rho=NULL,
+                       perc.NA=0, err.df=Inf,
+                       seed=NULL){
   if(! requireNamespace("MASS", quietly=TRUE))
     stop("Pkg MASS needed for this function to work. Please install it.",
          call.=FALSE)
@@ -681,57 +699,75 @@ simulBslmm <- function(X, Q=1, pi=NULL, h=NULL, rho=NULL, seed=NULL){
   if(! is.null(seed))
     set.seed(seed)
 
-  ## genetic incidence/design matrices and kinship matrix
-  N <- nrow(X)
+  I <- nrow(X)
   P <- ncol(X)
-  if(P < N)
+  if(P < I)
     warning("input matrix doesn't seem to have SNPs in columns and individuals in rows")
-  X.c <- scale(x=X, center=TRUE, scale=FALSE)
-  Z <- diag(N)
-  K <- tcrossprod(X.c, X.c) / P
+  N <- Q * I
 
-  ## non-genetic covariates
-  W <- matrix(data=rep(1, N), nrow=N, ncol=1,
-              dimnames=list(rownames(X), c("mu")))
-  if(Q > 1)
-    W <- cbind(W, matrix(data=rnorm(n=N*(Q-1), mean=0, sd=1), nrow=N, ncol=Q-1,
-                         dimnames=list(rownames(X), paste0("c", 1:(Q-1)))))
-  alpha <- rnorm(n=Q, mean=50, sd=5)
+  levels.years <- as.character(seq(from=2010, to=2010+Q-1))
+  if(N %% Q == 0){
+    years <- rep(levels.years, each=N / Q)
+  } else
+    years <- sort(sample(x=levels.years, size=N, replace=TRUE))
+  years <- as.factor(years)
+  W <- model.matrix(~ years)
+
+  alpha <- matrix(data=rnorm(n=Q, mean=mean.a, sd=sd.a), nrow=Q, ncol=1)
+
+  levels.inds <- rownames(X)
+  inds <- rep(NA, N)
+  for(year in levels.years)
+    inds[years == year] <- levels.inds[1:sum(years == year)]
+  inds <- as.factor(inds)
+  Z <- Matrix::t(as(inds, Class="sparseMatrix"))
+  X.c <- scale(x=X, center=TRUE, scale=FALSE)
+  A <- tcrossprod(X.c, X.c) / P
 
   ## hyper-parameters
   s.a <- (1 / (N*P)) * sum(colSums(X.c^2))
-  s.b <- (1/N)  * sum(diag(K))
+  s.b <- (1/N)  * sum(diag(A))
   if(is.null(pi))
     pi <- exp(runif(n=1, min=log(1/P), max=log(1)))
   if(is.null(h))
     h <- runif(n=1, min=0, max=1)
   if(is.null(rho))
     rho <- runif(n=1, min=0, max=1)
-  sigma.a2 <- (h * rho) / ((1 - h) * P * pi * s.a)
-  sigma.b2 <- (h * (1 - rho)) / ((1 - h) * s.b)
+  sigma.betat2 <- (h * rho) / ((1 - h) * P * pi * s.a)
+  if(is.nan(sigma.betat2))
+    sigma.betat2 <- 0
+  sigma.u2 <- (h * (1 - rho)) / ((1 - h) * s.b)
   tau <- 1
 
   ## sparse genetic effects
   betat <- setNames(object=rep(0, P), nm=colnames(X))
   gamma <- setNames(object=rbinom(n=P, size=1, prob=pi), nm=colnames(X))
   betat[gamma == 1] <- rnorm(n=sum(gamma == 1), mean=0,
-            sd=sqrt(sigma.a2 * tau^(-1)))
+            sd=sqrt(sigma.betat2 * tau^(-1)))
 
   ## polygenic effects
-  u <- setNames(object=MASS::mvrnorm(n=1, mu=rep(0, N),
-                    Sigma=sigma.b2 * tau^(-1) * K),
+  u <- setNames(object=MASS::mvrnorm(n=1, mu=rep(0, I),
+                    Sigma=sigma.u2 * tau^(-1) * A),
                 nm=rownames(X))
 
   ## errors
-  epsilon <- setNames(object=matrix(rnorm(n=N, mean=0, sd=sqrt(tau^(-1)))),
-                      nm=rownames(X))
+  if(is.infinite(err.df)){
+    epsilon <- matrix(rnorm(n=N, mean=0, sd=sqrt(tau^(-1))))
+  } else
+    epsilon <- matrix(rt(n=N, df=err.df, ncp=0))
 
   ## phenotypes
-  y <- setNames(object=W %*% alpha + X.c %*% betat + Z %*% u + epsilon,
-                nm=rownames(X))
+  y <- W %*% alpha + Z %*% X.c %*% betat + Z %*% u + epsilon
+  if(perc.NA > 0){
+    idx <- sample.int(n=N, size=floor(perc.NA/100 * N))
+    y[idx] <- NA
+  }
 
-  return(list(y=y, W=W, alpha=alpha, X.c=X.c, s.a=s.a, s.b=s.b, pi=pi, h=h,
-              rho=rho, sigma.a2=sigma.a2, sigma.b2=sigma.b2, tau=tau,
+  return(list(y=y,
+              W=W, alpha=alpha,
+              Z=Z, X.c=X.c, s.a=s.a, s.b=s.b, A=A,
+              pi=pi, h=h, rho=rho,
+              sigma.betat2=sigma.betat2, sigma.u2=sigma.u2, tau=tau,
               betat=betat, u=u))
 }
 
