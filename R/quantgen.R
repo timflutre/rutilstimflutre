@@ -587,9 +587,9 @@ estimLd <- function(X, K=NULL, pops=NULL, snp.coords,
 ##' @param mu overall mean
 ##' @param mean.a mean of the prior on alpha[2:Q]
 ##' @param sd.a std dev of the prior on alpha[2:Q]
-##' @param lambda ratio of variance components as sigma_u^2 /sigma^2
-##' @param sigma.u2 genetic variance component  (e.g. 15)
-##' @param scale.halfCauchy scale of the half-Cauchy prior for sigma_u^2 (e.g. 5)
+##' @param lambda ratio of variances (sigma_u^2 /sigma^2)
+##' @param sigma.u2 genetic variance (e.g. 15)
+##' @param scale.halfCauchy scale of the half-Cauchy prior for sigma_u (e.g. 5)
 ##' @param A matrix of additive genetic relationships
 ##' @param perc.NA percentage of missing phenotypes, at random
 ##' @param err.df degrees of freedom of errors' Student's t-distribution
@@ -627,6 +627,7 @@ simulAnimalModel <- function(Q=3, mu=50, mean.a=5, sd.a=2,
   W <- model.matrix(~ years)
   dat <- data.frame(year=years)
 
+  ## "fixed" effects
   alpha <- matrix(data=c(mu, rnorm(n=Q-1, mean=mean.a, sd=sd.a)),
                   nrow=Q, ncol=1)
 
@@ -639,18 +640,24 @@ simulAnimalModel <- function(Q=3, mu=50, mean.a=5, sd.a=2,
   Z <- model.matrix(~ inds - 1)
   dat$ind <- inds
 
-  if(is.null(sigma.u2))
-    sigma.u2 <- abs(rcauchy(n=1, location=0, scale=scale.halfCauchy))
+  ## additive genetic component
+  if(is.null(sigma.u2)){
+    sigma.u <- abs(rcauchy(n=1, location=0, scale=scale.halfCauchy))
+    sigma.u2 <- sigma.u^2
+  }
   G <- as.matrix(Matrix::nearPD(sigma.u2 * A)$mat)
-  u <- matrix(MASS::mvrnorm(n=1, mu=rep(0, I), Sigma=G))
+  u <- setNames(object=MASS::mvrnorm(n=1, mu=rep(0, I), Sigma=G),
+                nm=rownames(A))
 
+  ## errors
   sigma2 <- sigma.u2 / lambda
   h2 <- sigma.u2 / (sigma.u2 + sigma2)
   if(is.infinite(err.df)){
-    epsilon <- rnorm(n=N, mean=0, sd=sigma2)
+    epsilon <- rnorm(n=N, mean=0, sd=sqrt(sigma2))
   } else
     epsilon <- rt(n=N, df=err.df, ncp=0)
 
+  ## phenotypes
   y <- W %*% alpha + Z %*% u + epsilon
   if(perc.NA > 0){
     idx <- sample.int(n=N, size=floor(perc.NA/100 * N))
@@ -696,9 +703,9 @@ simulBslmm <- function(Q=3, mu=50, mean.a=5, sd.a=2,
   if(! requireNamespace("MASS", quietly=TRUE))
     stop("Pkg MASS needed for this function to work. Please install it.",
          call.=FALSE)
-  if(! requireNamespace("Matrix", quietly=TRUE))
-    stop("Pkg Matrix needed for this function to work. Please install it.",
-         call.=FALSE)
+  ## if(! requireNamespace("Matrix", quietly=TRUE))
+  ##   stop("Pkg Matrix needed for this function to work. Please install it.",
+  ##        call.=FALSE)
   stopifnot(xor(is.null(h) & is.null(rho), ! (is.null(h) & is.null(rho))),
             sum(is.na(X)) == 0,
             ! is.null(rownames(X)),
@@ -720,6 +727,7 @@ simulBslmm <- function(Q=3, mu=50, mean.a=5, sd.a=2,
   years <- as.factor(years)
   W <- model.matrix(~ years)
 
+  ## "fixed" effects
   alpha <- matrix(data=c(mu, rnorm(n=Q-1, mean=mean.a, sd=sd.a)),
                   nrow=Q, ncol=1)
 
@@ -756,7 +764,7 @@ simulBslmm <- function(Q=3, mu=50, mean.a=5, sd.a=2,
 
   ## polygenic effects
   u <- setNames(object=MASS::mvrnorm(n=1, mu=rep(0, I),
-                    Sigma=sigma.u2 * tau^(-1) * A),
+                                     Sigma=sigma.u2 * tau^(-1) * A),
                 nm=rownames(X))
 
   ## errors
@@ -776,7 +784,7 @@ simulBslmm <- function(Q=3, mu=50, mean.a=5, sd.a=2,
               W=W, alpha=alpha,
               Z=Z, X.c=X.c, s.a=s.a, s.b=s.b, A=A,
               pi=pi, h=h, rho=rho,
-              sigma.betat2=sigma.betat2, sigma.u2=sigma.u2, tau=tau,
+              sigma.betat2=sigma.betat2, sigma.u2=sigma.u2, sigma2=1/tau,
               betat=betat, u=u))
 }
 

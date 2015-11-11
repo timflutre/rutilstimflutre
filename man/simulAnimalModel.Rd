@@ -19,11 +19,11 @@ simulAnimalModel(Q = 3, mu = 50, mean.a = 5, sd.a = 2, A, lambda = 3,
 
 \item{A}{matrix of additive genetic relationships}
 
-\item{lambda}{ratio of variance components as sigma_u^2 /sigma^2}
+\item{lambda}{ratio of variances (sigma_u^2 /sigma^2)}
 
-\item{sigma.u2}{genetic variance component  (e.g. 15)}
+\item{sigma.u2}{genetic variance (e.g. 15)}
 
-\item{scale.halfCauchy}{scale of the half-Cauchy prior for sigma_u^2 (e.g. 5)}
+\item{scale.halfCauchy}{scale of the half-Cauchy prior for sigma_u (e.g. 5)}
 
 \item{perc.NA}{percentage of missing phenotypes, at random}
 
