@@ -703,10 +703,10 @@ setGt2Na <- function(vcf.file, genome, out.file,
     if(file.exists(out.file))
       file.remove(out.file)
     con <- file(out.file, open="a")
-    nb.records <- 0
+    nb.variants <- 0
     while(nrow(vcf <- VariantAnnotation::readVcf(file=tabix.file,
                                                  genome=genome))){
-      nb.records <- nb.records + nrow(vcf)
+      nb.variants <- nb.variants + nrow(vcf)
       idx <- (VariantAnnotation::geno(vcf)[["GQ"]] < min.gq)
       VariantAnnotation::geno(vcf)[["GT"]][idx] <- "."
       VariantAnnotation::writeVcf(obj=vcf, filename=con)
@@ -719,7 +719,7 @@ setGt2Na <- function(vcf.file, genome, out.file,
   }
 
   if(verbose > 0){
-    msg <- paste0("nb of records: ", nb.records)
+    msg <- paste0("nb of variants: ", nb.variants)
     write(msg, stdout())
   }
 
@@ -945,7 +945,7 @@ filterVariantCalls <- function(vcf.file, genome, out.file,
 ##' @param genome genome identifier (e.g. "VITVI_12x2")
 ##' @param yieldSize number of records to yield each time the file is read from (see ?TabixFile)
 ##' @param verbose verbosity level (0/default=1)
-##' @return matrix with one row per variant
+##' @return matrix with one row per variant and 7 columns (min, q1, med, mean, q3, max, na)
 ##' @author Timothee Flutre
 summaryGq <- function(vcf.file, genome, yieldSize=10^4, verbose=1){
   stopifnot(file.exists(vcf.file))
@@ -984,7 +984,7 @@ summaryGq <- function(vcf.file, genome, yieldSize=10^4, verbose=1){
   close(tabix.file)
 
   if(verbose > 0){
-    msg <- paste0("nb of records: ", length(var.names))
+    msg <- paste0("nb of variants: ", length(var.names))
     write(msg, stdout())
   }
 

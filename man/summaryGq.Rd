@@ -16,7 +16,7 @@ summaryGq(vcf.file, genome, yieldSize = 10^4, verbose = 1)
 \item{verbose}{verbosity level (0/default=1)}
 }
 \value{
-matrix with one row per variant
+matrix with one row per variant and 7 columns (min, q1, med, mean, q3, max, na)
 }
 \description{
 Compute the min, Q1, med, mean, Q3, max of the genotype qualities per variant.
