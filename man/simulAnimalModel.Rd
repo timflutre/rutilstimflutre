@@ -2,36 +2,42 @@
 % Please edit documentation in R/quantgen.R
 \name{simulAnimalModel}
 \alias{simulAnimalModel}
-\title{Simulate a data set from a basic animal model.}
+\title{Simulate phenotypes from a basic "animal model" (LMM).}
 \usage{
-simulAnimalModel(P = 3, mean.a = 5, sd.a = 2, lambda = 3,
-  sigmau2 = NULL, scale.halfCauchy = NULL, A, perc.NA = 0, err.df = Inf)
+simulAnimalModel(Q = 3, mu = 50, mean.a = 5, sd.a = 2, A, lambda = 3,
+  sigma.u2 = NULL, scale.halfCauchy = NULL, perc.NA = 0, err.df = Inf,
+  seed = NULL)
 }
 \arguments{
-\item{P}{number of years}
+\item{Q}{number of years}
 
-\item{mean.a}{mean of the prior on a}
+\item{mu}{overall mean}
 
-\item{sd.a}{std dev of the prior on a}
+\item{mean.a}{mean of the prior on alpha[2:Q]}
 
-\item{lambda}{ratio of variance components as sigma_u^2 /sigma^2}
+\item{sd.a}{std dev of the prior on alpha[2:Q]}
 
-\item{sigmau2}{genetic variance component  (e.g. 15)}
+\item{A}{matrix of additive genetic relationships}
 
-\item{scale.halfCauchy}{scale of the half-Cauchy prior for sigma_u^2 (e.g. 5)}
+\item{lambda}{ratio of variances (sigma_u^2 /sigma^2)}
 
-\item{A}{kinship matrix of additive relationships}
+\item{sigma.u2}{genetic variance (e.g. 15)}
+
+\item{scale.halfCauchy}{scale of the half-Cauchy prior for sigma_u (e.g. 5)}
 
 \item{perc.NA}{percentage of missing phenotypes, at random}
 
 \item{err.df}{degrees of freedom of errors' Student's t-distribution}
+
+\item{seed}{seed for the pseudo-random number generator}
 }
 \value{
-list with all input variables and the data set ready to be analyzed
+list
 }
 \description{
-y = W a + Z u + e where y is N x 1; W is N x P; Z is N x Q
-u ~ Norm_Q(0, G=sigma_u^2 A); e_i ~ Student(nu, 0); Cov(u,e)=0
+y = W alpha + Z u + epsilon
+where y is N x 1; W is N x Q; Z is N x I
+u ~ Norm_I(0, G=sigma_u^2 A); epsilon_n ~ Student(nu, 0); Cov(u,e)=0
 }
 \author{
 Timothee Flutre
