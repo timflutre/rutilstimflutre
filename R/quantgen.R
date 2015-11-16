@@ -788,6 +788,163 @@ simulBslmm <- function(Q=3, mu=50, mean.a=5, sd.a=2,
               betat=betat, u=u))
 }
 
+##' Launch GEMMA
+##'
+##' @param model name of the model to fit (default=ulmm/bslmm)
+##' @param y vector of phenotypes
+##' @param X matrix of SNP genotypes encoded as allele doses, with SNPs in
+##' columns and individuals in rows
+##' @param snp.coords data.frame with 3 columns: chromosomes' identifiers,
+##' coordinates of SNPs on the chromosome and SNPs names
+##' @param alleles data.frame with SNPs in rows (names as row names) and
+##' alleles in columns (first is "minor", second is "major")
+##' @param K.c kinship centered matrix of SNPs
+##' @param W matrix of covariates with individuals in rows (names as row names), a first column of 1 and a second column of covariates values
+##' @param out.dir directory in which the output files will be saved
+##' @param task.id identifier of the task (used in output file names)
+##' @param verbose verbosity level (default=1)
+##' @param clean remove temporary files
+##' @param burnin number of iterations to discard as burn-in
+##' @param nb.iters number of iterations
+##' @param thin thining
+##' @return invisible data.frame
+##' @author Timothee Flutre [cre,aut], Dalel Ahmed [ctb]
+gemma <- function(model="ulmm", y, X, snp.coords, alleles, K.c=NULL, W,
+                  out.dir, task.id="", verbose=1, clean=FALSE,
+                  burnin=1000, nb.iters=7000, thin=10){
+  stopifnot(model %in% c("ulmm", "bslmm"),
+            is.vector(y),
+            is.matrix(X),
+            ! is.null(colnames(X)),
+            anyDuplicated(colnames(X)) == 0,
+            ! is.null(row.names(alleles)),
+            colnames(alleles) == c("minor","major"),
+            "chr" %in% colnames(snp.coords),
+            "snp" %in% colnames(snp.coords),
+            all(snp.coords$snp == colnames(X)),
+            all(snp.coords$snp == rownames(alleles)),
+            file.exists(out.dir))
+
+  ## prepare input files
+  X.bimbam <- dose2bimbam(X=X, alleles=alleles,
+                          file=gzfile(paste0(out.dir,
+                              "/genos_bimbam_", task.id, ".txt.gz")))
+  write.table(x=snp.coords,
+              file=paste0(out.dir, "/snp_coordinates_", task.id, ".txt"),
+              quote=FALSE, sep="\t", row.names=FALSE, col.names=FALSE)
+  if(is.null(K.c))
+    K.c <- estimGenRel(X=X, method="center")
+  write.table(x=K.c,
+              file=paste0(out.dir, "/kinship-center_", task.id, ".txt"),
+              quote=FALSE, sep="\t", row.names=FALSE, col.names=FALSE)
+  write.table(x=W,
+              file=paste0(out.dir, "/covar_gemma_", task.id, ".txt"),
+              quote=FALSE, sep="\t", row.names=FALSE, col.names=FALSE)
+  write.table(x=y,
+              file=gzfile(paste0(out.dir, "/phenotypes_", task.id, ".txt.gz")),
+              quote=FALSE, sep="\t", row.names=FALSE, col.names=FALSE)
+
+  ## prepare cmd-line and execute it
+  cmd <- paste0("cd ", out.dir,
+                "; gemma",
+                " -g genos_bimbam_", task.id, ".txt.gz",
+                " -p phenotypes_", task.id, ".txt.gz",
+                " -a snp_coordinates_", task.id, ".txt",
+                " -o results_simul_", task.id)
+  if(model == "ulmm"){
+    cmd <- paste0(cmd, " -k kinship-center_", task.id, ".txt",
+                  " -c covar_gemma_", task.id, ".txt",
+                  " -lmm 4")
+  } else if(model == "bslmm"){
+    cmd <- paste0(cmd, " -bslmm 1",
+                  " -w ", format(x=burnin, scientific=FALSE),
+                  " -s ", format(x=nb.iters, scientific=FALSE),
+                  " -rpace ", thin)
+  }
+  if(verbose == 0)
+    cmd <- paste0(cmd, " >& stdouterr_gemma_", task.id, ".txt")
+  system(cmd)
+
+  ## load output files
+  if(model == "ulmm"){
+    output <- read.table(file=paste0(out.dir, "/output/results_simul_",
+                             task.id, ".assoc.txt"), sep="\t",
+                         header=TRUE, stringsAsFactors=FALSE)
+    rownames(output) <- output$rs
+  } else if(model == "bslmm"){
+    output <- list()
+    output[["hyperparams"]] <- read.table(file=paste0(out.dir,
+                                              "/output/results_simul_",
+                                              task.id, ".hyp.txt"), sep="\t",
+                                          skip=1, stringsAsFactors=FALSE,
+                                          header=FALSE,
+                                          col.names=c("h", "pve", "rho", "pge",
+                                              "pi", "n_gamma", ""))
+    output[["hyperparams"]][7] <- NULL
+    output[["params"]] <- read.table(file=paste0(out.dir,
+                                         "/output/results_simul_",
+                                         task.id, ".param.txt"), sep="\t", skip=1,
+                                     stringsAsFactors=FALSE, header=FALSE,
+                                     col.names=c("chr", "rs", "ps", "n_miss",
+                                         "alpha", "beta", "gamma"))
+  }
+
+  invisible(output)
+}
+
+##' Launch GEMMA uLMM chromosome per chromosome
+##'
+##' @param y vector of phenotypes
+##' @param X matrix of SNP genotypes encoded as allele doses, with SNPs in
+##' columns and individuals in rows
+##' @param snp.coords data.frame with 3 columns (chr, snp, coord)
+##' @param alleles data.frame with SNPs in rows (names as row names) and
+##' @param chr.ids set of chromosome identifiers to analyze (optional, all by default)
+##' @param W matrix of covariates with individuals in rows (names as row names), a first column of 1 and a second column of covariates values
+##' @param out.dir directory in which the data files will be found
+##' @param task.id identifier of the task (used in output file names)
+##' @param clean remove temporary files
+##' @param verbose verbosity level (default=1)
+##' @return a list of the GEMMA outputs for all chromosomes
+##' @author Timothee Flutre [cre,aut], Dalel Ahmed [ctb]
+gemmaUlmmPerChr <- function(y, X, snp.coords, alleles, chr.ids=NULL, W, out.dir,
+                            task.id="", clean=FALSE, verbose=1){
+  stopifnot(is.vector(y),
+            is.matrix(X),
+            ! is.null(colnames(X)),
+            anyDuplicated(colnames(X)) == 0,
+            ! is.null(row.names(alleles)),
+            colnames(alleles) == c("minor","major"),
+            "chr" %in% colnames(snp.coords),
+            "snp" %in% colnames(snp.coords),
+            all(snp.coords$snp == colnames(X)),
+            all(snp.coords$snp == rownames(alleles)),
+            file.exists(out.dir))
+
+  out <- list()
+  if(is.null(chr.ids))
+    chr.ids <- unique(snp.coords$chr)
+
+  for(chr.id in chr.ids){
+    subset.snp.ids <- (snp.coords$chr == chr.id)
+    if(verbose > 0)
+      message(paste0(chr.id, ": ", sum(subset.snp.ids), " SNPs"))
+      K.c <- estimGenRel(X=X[, ! subset.snp.ids], method="center")
+    out[[chr.id]] <- gemma(model="ulmm",
+                           y=y,
+                           X=X[, subset.snp.ids],
+                           snp.coords=snp.coords[subset.snp.ids,],
+                           alleles=alleles[subset.snp.ids,],
+                           K.c=K.c, W=W, out.dir=out.dir,
+                           task.id=paste0(task.id, "-", chr.id),
+                           verbose=verbose-1, clean=clean)
+  }
+  out <- do.call(rbind, out)
+  rownames(out) <- out$rs
+
+  return(out)
+}
+
 ##' Produce a quantile-quantile plot for p values and display its confidence
 ##' interval
 ##'
