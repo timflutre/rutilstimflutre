@@ -641,7 +641,7 @@ confidenceGenoOneVar <- function(x, plot.it=FALSE){
 ##' @param seq.end end of the sequence to work on (if NULL, whole seq)
 ##' @param min.gq minimum GQ below which GT is set to "."
 ##' @param verbose verbosity level (0/default=1)
-##' @return the destination file path as a character(1)
+##' @return the destination file path as an invisible character(1)
 ##' @author Timothee Flutre
 setGt2Na <- function(vcf.file, genome, out.file,
                      yieldSize=NA_integer_, dict.file=NULL,
@@ -692,7 +692,7 @@ setGt2Na <- function(vcf.file, genome, out.file,
     vcf.params <- VariantAnnotation::ScanVcfParam(which=rngs)
     vcf <- VariantAnnotation::readVcf(file=tabix.file, genome=genome,
                                       param=vcf.params)
-    nb.records <- nrow(vcf)
+    nb.variants <- nrow(vcf)
 
     idx <- (VariantAnnotation::geno(vcf)[["GQ"]] < min.gq)
     VariantAnnotation::geno(vcf)[["GT"]][idx] <- "."
@@ -996,21 +996,88 @@ summaryGq <- function(vcf.file, genome, yieldSize=10^4, verbose=1){
   return(all.smry.gq)
 }
 
+##' Convert GT to dosage
+##'
+##' From Martin Morgan (see http://grokbase.com/t/r/bioconductor/135b460s2b/bioc-how-to-convert-genotype-snp-matrix-to-nucleotide-genotypes)
+##' @param vcf CollapsedVCF (see pkg VariantAnnotation)
+##' @return matrix with variants in rows and samples in columns
+##' @author Timothee Flutre
+gtVcf2dose <- function(vcf){
+  if(! requireNamespace("S4Vectors", quietly=TRUE))
+    stop("Pkg S4Vectors needed for this function to work. Please install it.",
+         call.=FALSE)
+  if(! requireNamespace("VariantAnnotation", quietly=TRUE))
+    stop("Pkg VariantAnnotation needed for this function to work. Please install it.",
+         call.=FALSE)
+  idx <- S4Vectors::elementLengths(VariantAnnotation::alt(vcf)) == 1L
+  if(!all(idx)) {
+    warning("only coercing single-element 'alt' records")
+  }
+  vcf <- vcf[idx]
+  gt <- sub("\\|", "/", VariantAnnotation::geno(vcf)$GT) # ignore phasing
+  gt[which(gt == "0/0")] <- 0
+  gt[which(gt == "0/1")] <- 1
+  gt[which(gt == "1/1")] <- 2
+  gt[which(gt == ".")] <- NA
+  mode(gt) <- "integer"
+  return(gt)
+}
+
+##' Convert ranges to data.frame
+##'
+##'
+##' @param vcf CollapsedVCF (see pkg VariantAnnotation)
+##' @return data.frame
+##' @author Timothee Flutre
+rngVcf2df <- function(vcf){
+  if(! requireNamespace("S4Vectors", quietly=TRUE))
+    stop("Pkg S4Vectors needed for this function to work. Please install it.",
+         call.=FALSE)
+  if(! requireNamespace("VariantAnnotation", quietly=TRUE))
+    stop("Pkg VariantAnnotation needed for this function to work. Please install it.",
+         call.=FALSE)
+  if(! requireNamespace("GenomeInfoDb", quietly=TRUE))
+    stop("Pkg GenomeInfoDb needed for this function to work. Please install it.",
+         call.=FALSE)
+  if(! requireNamespace("BiocGenerics", quietly=TRUE))
+    stop("Pkg BiocGenerics needed for this function to work. Please install it.",
+         call.=FALSE)
+  idx <- S4Vectors::elementLengths(VariantAnnotation::alt(vcf)) == 1L
+  if(!all(idx)) {
+    warning("only coercing single-element 'alt' records")
+  }
+  vcf <- vcf[idx]
+  tmp <- GenomicRanges::rowRanges(vcf)
+  out <- data.frame(chrom=as.character(GenomeInfoDb::seqnames(tmp)),
+                    start=BiocGenerics::start(tmp) - 1,
+                    end=BiocGenerics::end(tmp),
+                    name=names(tmp),
+                    allele1=as.character(tmp$REF),
+                    allele2=as.character(BiocGenerics::unlist(tmp$ALT)),
+                    stringsAsFactors=FALSE)
+  return(out)
+}
+
 ##' Convert VCF to dose
 ##'
-##' Convert genotypes from a VCF file into allele doses.
+##' Convert genotypes at bi-allelic variants from a VCF file into allele doses.
 ##' @param vcf.file path to the VCF file (bgzip index should exist in same directory; should only contain SNPs and be already filtered for QD, FS, MQ, etc)
-##' @param dict.file path to the SAM dict file (see \url{https://broadinstitute.github.io/picard/command-line-overview.html#CreateSequenceDictionary})
 ##' @param genome genome identifier (e.g. "VITVI_12x2")
-##' @param seqs sequence identifier(s) to work on (e.g. "chr2")
 ##' @param gdose.file path to the output file to record genotypes as allele doses (will be gzipped)
 ##' @param amap.file path to the output file to record SNP positions and alleles (will be gzipped)
+##' @param yieldSize number of records to yield each time the file is read from (see ?TabixFile) if seq.id is NULL
+##' @param dict.file path to the SAM dict file (see \url{https://broadinstitute.github.io/picard/command-line-overview.html#CreateSequenceDictionary}) if seq.id is specified with no start/end
+##' @param seq.id sequence identifier to work on (e.g. "chr2")
+##' @param seq.start start of the sequence to work on (if NULL, whole seq)
+##' @param seq.end end of the sequence to work on (if NULL, whole seq)
 ##' @param uncertain boolean indicating whether the genotypes to convert should come from the "GT" field (uncertain=FALSE) or the "GP" or "GL" field (uncertain=TRUE)
 ##' @param verbose verbosity level (0/default=1)
-##' @return nothing
+##' @return an invisible list with both output file paths
 ##' @author Timothee Flutre
-vcf2dosage <- function(vcf.file, dict.file, genome, seqs=NULL, gdose.file,
-                       amap.file, uncertain=FALSE, verbose=1){
+vcf2dosage <- function(vcf.file, genome, gdose.file, amap.file,
+                       yieldSize=NA_integer_, dict.file=NULL,
+                       seq.id=NULL, seq.start=NULL, seq.end=NULL,
+                       uncertain=FALSE, verbose=1){
   if(! requireNamespace("IRanges", quietly=TRUE))
     stop("Pkg IRanges needed for this function to work. Please install it.",
          call.=FALSE)
@@ -1027,65 +1094,83 @@ vcf2dosage <- function(vcf.file, dict.file, genome, seqs=NULL, gdose.file,
     stop("Pkg snpStats needed for this function to work. Please install it.",
          call.=FALSE)
   stopifnot(file.exists(vcf.file),
-            file.exists(dict.file),
-            ! file.exists(gdose.file),
-            ! file.exists(amap.file))
+            xor(is.na(yieldSize), is.null(seq.id)))
+  if(! is.null(seq.id) & is.null(seq.start) & is.null(seq.end))
+    stopifnot(! is.null(dict),
+              file.exists(dict.file))
 
-  dict <- readSamDict(file=dict.file)
-
-  if(! file.exists(paste(vcf.file, "tbi", sep=".")))
-    Rsamtools::indexTabix(file=vcf.file, format="vcf")
-  tabix.file <- Rsamtools::TabixFile(vcf.file)
-  if(is.null(seqs)){
-    seqs <- Rsamtools::seqnamesTabix(tabix.file)
-  } else{
-    for(seq in seqs){
-      if(! seq %in% Rsamtools::seqnamesTabix(tabix.file)){
-        msg <- paste0("seq '", seq, "' not in '", vcf.file, "'")
-        stop(msg)
-      }
-    }
-  }
-
-  gdose.file <- gsub(".gz", "", gdose.file)
-  amap.file <- gsub(".gz", "", amap.file)
+  for(out.file in c(gdose.file, amap.file))
+    if(file.exists(out.file))
+      file.remove(out.file)
+  gdose.file <- sub("\\.gz$", "", gdose.file)
+  amap.file <- sub("\\.gz$", "", amap.file)
   gdose.con <- file(gdose.file, open="a")
   amap.con <- file(amap.file, open="a")
+  cat("chrom\tstart\tend\tname\tallele1\tallele2\n", file=amap.con, append=TRUE)
 
-  for(seq in seqs){
-    if(! seq %in% rownames(dict)){
-      msg <- paste0("seq '", seq, "' not in '", dict.file, "'")
-      stop(msg)
-    }
-
-    rngs <- GenomicRanges::GRanges(seqnames=c(seq),
-                                   ranges=IRanges::IRanges(start=c(1),
-                                       end=c(dict$LN[rownames(dict) == seq])))
-    names(rngs) <- c(seq)
+  tabix.file <- Rsamtools::TabixFile(file=vcf.file,
+                                     yieldSize=yieldSize)
+  if(! is.null(seq.id)){
+    if(is.null(seq.start) & is.null(seq.end)){
+      dict <- readSamDict(file=dict.file)
+      if(! seq.id %in% rownames(dict)){
+        msg <- paste0("seq '", seq.id, "' not in '", dict.file, "'")
+        stop(msg)
+      }
+      rngs <- GenomicRanges::GRanges(seqnames=c(seq.id),
+                                     ranges=IRanges::IRanges(start=c(1),
+                                         end=c(dict$LN[rownames(dict) == seq.id])))
+    } else
+      rngs <- GenomicRanges::GRanges(seqnames=c(seq.id),
+                                     ranges=IRanges::IRanges(start=c(seq.start),
+                                         end=c(seq.end)))
+    names(rngs) <- c(seq.id)
     vcf.params <- VariantAnnotation::ScanVcfParam(which=rngs)
-    if(verbose > 0){
-      msg <- paste0("read seq '", seq, "'...")
-      write(msg, stdout())
-    }
     vcf <- VariantAnnotation::readVcf(file=tabix.file, genome=genome,
                                       param=vcf.params)
-    if(verbose > 0){
-      msg <- paste0("seq '", seq, "': ", nrow(vcf), " variants x ",
-                    ncol(vcf), " samples")
-      write(msg, stdout())
+    nb.variants <- nrow(vcf)
+    gtmp <- gtVcf2dose(vcf)
+    atmp <- rngVcf2df(vcf)
+    cat(paste(colnames(gtmp), collapse="\t"), file=gdose.con,
+        append=TRUE, sep="\n")
+    write.table(x=gtmp,
+                file=gdose.con, append=TRUE,
+                quote=FALSE, sep="\t", row.names=TRUE,
+                col.names=FALSE)
+    write.table(x=atmp, file=amap.con, append=TRUE,
+                quote=FALSE, sep="\t", row.names=FALSE, col.names=FALSE)
+  } else{
+    open(tabix.file)
+    nb.variants <- 0
+    while(nrow(vcf <- VariantAnnotation::readVcf(file=tabix.file,
+                                                 genome=genome))){
+      gtmp <- gtVcf2dose(vcf)
+      atmp <- rngVcf2df(vcf)
+      if(nb.variants == 0)
+        cat(paste(colnames(gtmp), collapse="\t"), file=gdose.con,
+            append=TRUE, sep="\n")
+      nb.variants <- nb.variants + nrow(vcf)
+      write.table(x=gtmp, file=gdose.con, append=TRUE,
+                  quote=FALSE, sep="\t", row.names=TRUE, col.names=FALSE)
+      write.table(x=atmp, file=amap.con, append=TRUE,
+                  quote=FALSE, sep="\t", row.names=FALSE, col.names=FALSE)
     }
+    close(tabix.file)
+  }
 
-    res <- VariantAnnotation::genotypeToSnpMatrix(vcf)
-
-    snpStats::write.SnpMatrix(x=res$genotypes, file=gdose.con, append=TRUE,
-                              quote=FALSE, sep="\t", row.names=TRUE,
-                              col.names=TRUE)
-    write.table(x=res$map, file=amap.con, append=TRUE,
-                quote=FALSE, sep="\t", row.names=FALSE, col.names=TRUE)
+  if(verbose > 0){
+    msg <- paste0("nb of variants: ", nb.variants)
+    write(msg, stdout())
   }
 
   close(gdose.con)
   close(amap.con)
+  for(gz.out.file in c(paste0(gdose.file, ".gz"), paste0(amap.file, ".gz")))
+    if(file.exists(gz.out.file))
+      file.remove(gz.out.file)
   system(command=paste("gzip", gdose.file))
   system(command=paste("gzip", amap.file))
+
+  invisible(list(gdose.file=paste0(gdose.file, ".gz"),
+                 amap.file=paste0(amap.file, ".gz")))
 }

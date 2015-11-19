@@ -4,31 +4,38 @@
 \alias{vcf2dosage}
 \title{Convert VCF to dose}
 \usage{
-vcf2dosage(vcf.file, dict.file, genome, seqs = NULL, gdose.file, amap.file,
+vcf2dosage(vcf.file, genome, gdose.file, amap.file, yieldSize = NA_integer_,
+  dict.file = NULL, seq.id = NULL, seq.start = NULL, seq.end = NULL,
   uncertain = FALSE, verbose = 1)
 }
 \arguments{
 \item{vcf.file}{path to the VCF file (bgzip index should exist in same directory; should only contain SNPs and be already filtered for QD, FS, MQ, etc)}
 
-\item{dict.file}{path to the SAM dict file (see \url{https://broadinstitute.github.io/picard/command-line-overview.html#CreateSequenceDictionary})}
-
 \item{genome}{genome identifier (e.g. "VITVI_12x2")}
-
-\item{seqs}{sequence identifier(s) to work on (e.g. "chr2")}
 
 \item{gdose.file}{path to the output file to record genotypes as allele doses (will be gzipped)}
 
 \item{amap.file}{path to the output file to record SNP positions and alleles (will be gzipped)}
+
+\item{yieldSize}{number of records to yield each time the file is read from (see ?TabixFile) if seq.id is NULL}
+
+\item{dict.file}{path to the SAM dict file (see \url{https://broadinstitute.github.io/picard/command-line-overview.html#CreateSequenceDictionary}) if seq.id is specified with no start/end}
+
+\item{seq.id}{sequence identifier to work on (e.g. "chr2")}
+
+\item{seq.start}{start of the sequence to work on (if NULL, whole seq)}
+
+\item{seq.end}{end of the sequence to work on (if NULL, whole seq)}
 
 \item{uncertain}{boolean indicating whether the genotypes to convert should come from the "GT" field (uncertain=FALSE) or the "GP" or "GL" field (uncertain=TRUE)}
 
 \item{verbose}{verbosity level (0/default=1)}
 }
 \value{
-nothing
+an invisible list with both output file paths
 }
 \description{
-Convert genotypes from a VCF file into allele doses.
+Convert genotypes at bi-allelic variants from a VCF file into allele doses.
 }
 \author{
 Timothee Flutre

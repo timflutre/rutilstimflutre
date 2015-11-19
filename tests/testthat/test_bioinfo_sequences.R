@@ -1,7 +1,7 @@
 library(rutilstimflutre)
 context("VCF")
 
-.expected_equal_VCFfile <- function(observed, expected){
+.expect_equal_VCFfile <- function(observed, expected){
   ## see https://support.bioconductor.org/p/74013/
   expect_equal(VariantAnnotation::info(observed),
                VariantAnnotation::info(expected))
@@ -41,7 +41,7 @@ test_that("setGt2Na", {
   observed <- VariantAnnotation::readVcf(file=vcf.obs.file.bgz,
                                          genome=genome)
 
-  .expected_equal_VCFfile(observed, expected)
+  .expect_equal_VCFfile(observed, expected)
 })
 
 test_that("filterVariantCalls", {
@@ -70,7 +70,7 @@ test_that("filterVariantCalls", {
   observed <- VariantAnnotation::readVcf(file=vcf.obs.file.bgz,
                                          genome=genome)
 
-  .expected_equal_VCFfile(observed, expected)
+  .expect_equal_VCFfile(observed, expected)
 })
 
 test_that("summaryGq", {
@@ -104,6 +104,40 @@ test_that("summaryGq", {
                         genome=genome,
                         yieldSize=yieldSize,
                         verbose=0)
+
+  expect_equal(observed, expected)
+})
+
+test_that("vcf2dosage", {
+  genome <- "fakeGenomeV0"
+  yieldSize <- 100
+
+  vcf.init.file <- system.file("extdata", "example.vcf",
+                               package="rutilstimflutre")
+  vcf.init.file.bgz <- Rsamtools::bgzip(file=vcf.init.file,
+                                        overwrite=TRUE)
+  vcf.init.file.bgz.idx <- Rsamtools::indexTabix(file=vcf.init.file.bgz,
+                                                 format="vcf")
+  vcf.init <- VariantAnnotation::readVcf(file=vcf.init.file.bgz,
+                                         genome=genome)
+  vcf.init <- vcf.init[S4Vectors::elementLengths(VariantAnnotation::alt(vcf.init)) == 1L]
+  expected <- list(genotypes=gtVcf2dose(vcf.init),
+                   map=rngVcf2df(vcf.init))
+
+  pre.obs.files <- tempfile()
+  gdose.file <- paste0(pre.obs.files, "_genos-dose.txt.gz")
+  amap.file <- paste0(pre.obs.files, "_alleles-map.txt.gz")
+  library(IRanges) # see https://support.bioconductor.org/p/73957/#73962
+  obs.files <- vcf2dosage(vcf.file=vcf.init.file.bgz,
+                          genome=genome,
+                          yieldSize=yieldSize,
+                          gdose.file=gdose.file,
+                          amap.file=amap.file,
+                          verbose=0)
+  gtmp <- read.table(file=gdose.file, row.names=1)
+  atmp <- read.table(file=amap.file, header=TRUE, stringsAsFactors=FALSE)
+  observed <- list(genotypes=as.matrix(gtmp),
+                   map=atmp)
 
   expect_equal(observed, expected)
 })

@@ -30,7 +30,7 @@ setGt2Na(vcf.file, genome, out.file, yieldSize = NA_integer_,
 \item{verbose}{verbosity level (0/default=1)}
 }
 \value{
-the destination file path as a character(1)
+the destination file path as an invisible character(1)
 }
 \description{
 Set genotypes (GT field) to missing (".") if the genotype quality (GQ field) isn't high enough.
