@@ -15,7 +15,8 @@ cor2cov(x, sd)
 matrix
 }
 \description{
-Use sweep. https://en.wikipedia.org/wiki/Covariance_matrix#Correlation_matrix
+Use sweep.
+See \url{https://en.wikipedia.org/wiki/Covariance_matrix#Correlation_matrix}.
 }
 \author{
 Timothee Flutre

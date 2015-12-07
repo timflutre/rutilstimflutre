@@ -94,17 +94,21 @@ binaryClassif <- function(known.nulls, called.nulls){
 
 ##' Stable computation of \eqn{log_{10}(\sum_i w_i 10^x_i)}
 ##'
-##' Use equal weights if not specified
+##' Use equal weights if not specified.
 ##' @title Log of weighted sum
 ##' @param x vector
 ##' @param weights weights
 ##' @return numeric
 ##' @author Timothee Flutre
-log10.weighted.sum <- function(x, weights=NULL){
-  if(is.null(weights))
+log10WeightedSum <- function(x, weights=NULL){
+  stopifnot(is.numeric(x), is.vector(x))
+  if(! is.null(weights)){
+    stopifnot(is.vector(weights),
+              length(weights) == length(x))
+  } else
     weights <- rep(1/length(x), length(x))
-  max <- max(x)
-  max + log10(sum(weights * 10^(x - max)))
+  m <- max(x)
+  m + log10(sum(weights * 10^(x - m)))
 }
 
 ##' Return the Moore-Penrose pseudo-inverse of a matrix
@@ -183,7 +187,8 @@ quantNorm <- function(x, break.ties.rand=TRUE, seed=1859){
 
 ##' Scales a correlation matrix into the corresponding covariance matrix efficiently.
 ##'
-##' Use sweep. https://en.wikipedia.org/wiki/Covariance_matrix#Correlation_matrix
+##' Use sweep.
+##' See \url{https://en.wikipedia.org/wiki/Covariance_matrix#Correlation_matrix}.
 ##' @param x correlation matrix
 ##' @param sd standard deviations
 ##' @return matrix
@@ -192,6 +197,48 @@ cor2cov <- function(x, sd){
   ## D <- diag(sd); return(D %*% x %*% D)
   return(sweep(sweep(x, 1, sd, "*"), 2, sd, "*"))
 }
+
+##' The matrix-variate Normal distribution
+##'
+##' Random generation for the matrix-variate Normal distribution.
+##' See \url{https://en.wikipedia.org/wiki/Matrix_normal_distribution}.
+##' @param n number of observations
+##' @param M mean matrix
+##' @param U between-row covariance matrix
+##' @param V between-column covariance matrix
+##' @return array
+##' @author Timothee Flutre
+rmatnorm <- function(n=1, M, U, V){
+  stopifnot(nrow(M) == nrow(U),
+            ncol(M) == nrow(V),
+            nrow(U) == ncol(U),
+            nrow(V) == ncol(V))
+
+  ## chol returns upper triangular factor of Cholesky decomp
+  chol.tU <- chol(t(U)) # A
+  chol.V <- chol(V) # B
+
+  ## for X ~ MN(M, AA', B'B): draw Z ~ MN(0, I, I), then X = M + A Z B
+  tmp <- lapply(1:n, function(i){
+    Z <- matrix(data=rnorm(n=nrow(M) * ncol(M), mean=0, sd=1),
+                nrow=nrow(M), ncol=ncol(M))
+    matrix(data=M + chol.tU %*% Z %*% chol.V,
+           nrow=nrow(M), ncol=ncol(M))
+  })
+
+  return(array(data=do.call(c, tmp),
+               dim=c(nrow(M), ncol(M), n)))
+}
+
+## to check rmatnorm above:
+## Sigma <- matrix(c(3,2,2,4), nrow=2, ncol=2)
+## rho <- Sigma[2,1] / prod(sqrt(diag(Sigma)))
+## samples <- rmatnorm(n=100, M=matrix(0, nrow=10^3, ncol=2),
+##                     U=diag(10^3), V=Sigma)
+## tmp <- t(apply(samples, 3, function(mat){
+##   c(var(mat[,1]), var(mat[,2]), cor(mat[,1], mat[,2]))
+## }))
+## summary(tmp) # corresponds well to Sigma
 
 ##' MCMC diagnostics
 ##'

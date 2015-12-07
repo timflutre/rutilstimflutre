@@ -109,7 +109,6 @@ estimMaf <- function(X){
 ##' Plot the histogram of the minor allele frequency per SNP
 ##'
 ##' Missing values (encoded as NA) are discarded.
-##' @title Histogram of minor allele frequencies
 ##' @param X matrix of SNP genotypes encoded as allele doses, with SNPs in
 ##' columns and individuals in rows (optional if maf is not null)
 ##' @param maf vector of minor allele frequencies (optional if X is not null)
@@ -1005,6 +1004,124 @@ qqplotPval <- function(pvalues, plot.conf.int=TRUE,
        las=1, col=col[order(observed)],
        xlab=xlab, ylab=ylab, main=main)
   abline(0, 1, col="red")
+}
+
+##' Asymptotic Bayes factor
+##'
+##' Calculate the asymptotic Bayes factor proposed by Wakefield in Genetic Epidemiology 33:79-86 (2009, \url{http://dx.doi.org/10.1002/gepi.20359}).
+##' @param theta.hat MLE of the additive genetic effect
+##' @param V variance of theta.hat
+##' @param W variance of the prior on theta
+##' @param log10 to return the log10 of the ABF (default=TRUE)
+##' @return numeric
+##' @author Timothee Flutre
+calcAsymptoticBayesFactorWakefield <- function(theta.hat, V, W, log10=TRUE){
+  z2 <- theta.hat^2 / V # Wald statistic
+
+  log10.ABF <- 0.5 * log10(V) - 0.5 * log10(V + W) +
+    (0.5 * z2 * W / (V + W)) / log(10)
+
+  if(log10)
+    return(log10.ABF)
+  else
+    return(10^log10.ABF)
+}
+
+##' Exact Bayes factor
+##'
+##' Calculate the exact Bayes factor proposed by Servin and Stephens in PLoS Genetics 3,7 (2007, \url{http://dx.doi.org/10.1371/journal.pgen.0030114}).
+##' @param G vector of genotypes
+##' @param Y vector of phenotypes
+##' @param sigma.a variance of the prior on the additive genetic effect
+##' @param sigma.d variance of the prior on the dominance genetic effect
+##' @param log10 to return the log10 of the ABF (default=TRUE)
+##' @return numeric
+##' @author Bertrand Servin [cre,aut], Timothee Flutre [ctb]
+calcExactBayesFactorServinStephens <- function(G, Y, sigma.a, sigma.d,
+                                               log10=TRUE){
+  stopifnot(is.vector(G), is.vector(Y))
+
+  subset <- complete.cases(Y) & complete.cases(G)
+  Y <- Y[subset]
+  G <- G[subset]
+  stopifnot(length(Y) == length(G))
+
+  N <- length(G)
+  X <- cbind(rep(1,N), G, G == 1)
+  inv.Sigma.B <- diag(c(0, 1/sigma.a^2, 1/sigma.d^2))
+  inv.Omega <- inv.Sigma.B + t(X) %*% X
+  inv.Omega0 <- N
+  tY.Y <- t(Y) %*% Y
+  log10.BF <- as.numeric(0.5 * log10(inv.Omega0) -
+                           0.5 * log10(det(inv.Omega)) -
+                           log10(sigma.a) - log10(sigma.d) -
+                           (N/2) * (log10(tY.Y - t(Y) %*% X %*% solve(inv.Omega)
+                                          %*% t(X) %*% cbind(Y)) -
+                                    log10(tY.Y - N*mean(Y)^2)))
+
+  if(log10)
+    return(log10.BF)
+  else
+    return(10^log10.BF)
+}
+
+##' Approximate Bayes factor
+##'
+##' Calculate the log10(ABF) of Wen & Stephens in Annals of Applied Statistics (2014, \url{http://dx.doi.org/10.1214/13-AOAS695}) according to the "exchangeable standardized effects" model.
+##' @param sstats matrix of summary statistics with one row per subgroup and three columns, "bhat", "sebhat" and "t"
+##' @param phi2 prior variance of the \eqn{b_s} given \eqn{\bar{b}}; controls the prior expected degree of heterogeneity among subgroups
+##' @param oma2 prior variance of \eqn{\bar{b}}; controls the prior expected size of the average effect across subgroups
+##' @return numeric
+##' @author Xiaoquan Wen [cre,aut], Timothee Flutre [ctb]
+calcL10ApproximateBayesFactorWenStephens <- function(sstats, phi2, oma2){
+  stopifnot(is.matrix(sstats),
+            all(colnames(sstats) == c("bhat","sebhat","t")),
+            is.numeric(phi2), length(phi2) == 1,
+            is.numeric(oma2), length(oma2) == 1)
+
+  l10abf <- NA
+
+  bbarhat.num <- 0
+  bbarhat.denom <- 0
+  varbbarhat <- 0
+  l10abfs.single <- c()
+  for(i in 1:nrow(sstats)){ # for each subgroup
+    if(sum(is.na(sstats[i,])) == length(sstats[i,]))
+      next
+    bhat <- sstats[i,"bhat"]
+    varbhat <- sstats[i,"sebhat"]^2
+    t <- sstats[i,"t"]
+    if(abs(t) > 10^(-8)){
+      bbarhat.num <- bbarhat.num + bhat / (varbhat + phi2)
+      bbarhat.denom <- bbarhat.denom + 1 / (varbhat + phi2)
+      varbbarhat <- varbbarhat + 1 / (varbhat + phi2)
+      tmp <- 0.5 * log10(varbhat) -
+        0.5 * log10(varbhat + phi2) +
+          (0.5 * t^2 * phi2 / (varbhat + phi2)) / log(10)
+    } else
+      tmp <- 0
+    l10abfs.single <- c(l10abfs.single, tmp)
+  }
+
+  if(length(l10abfs.single) != 0){
+    bbarhat <- ifelse(bbarhat.denom != 0, bbarhat.num / bbarhat.denom, 0)
+    varbbarhat <- ifelse(varbbarhat != 0, 1 / varbbarhat, Inf)
+    if(bbarhat != 0 & ! is.infinite(varbbarhat)){
+      T2 <- bbarhat^2 / varbbarhat
+      l10abf.bbar <- ifelse(T2 != 0,
+                            0.5 * log10(varbbarhat) -
+                              0.5 * log10(varbbarhat + oma2) +
+                              (0.5 * T2 * oma2 / (varbbarhat + oma2)) /
+                              log(10),
+                            0)
+      l10abf <- l10abf.bbar
+      for(i in 1:length(l10abfs.single))
+        l10abf <- l10abf + l10abfs.single[i]
+    } else
+      l10abf <- 0
+  }
+
+  return(as.numeric(l10abf))
 }
 
 ##' Returns the genetic map contained in a BioMercator TXT file.

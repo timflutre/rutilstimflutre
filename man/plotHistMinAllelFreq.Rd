@@ -2,7 +2,7 @@
 % Please edit documentation in R/quantgen.R
 \name{plotHistMinAllelFreq}
 \alias{plotHistMinAllelFreq}
-\title{Histogram of minor allele frequencies}
+\title{Plot the histogram of the minor allele frequency per SNP}
 \usage{
 plotHistMinAllelFreq(X = NULL, maf = NULL, main = "", xlim = c(0, 0.5),
   col = "grey", border = "white", las = 1, breaks = "FD", verbose = 1,
@@ -34,9 +34,6 @@ columns and individuals in rows (optional if maf is not null)}
 nothing
 }
 \description{
-Plot the histogram of the minor allele frequency per SNP
-}
-\details{
 Missing values (encoded as NA) are discarded.
 }
 \author{
