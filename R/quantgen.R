@@ -672,6 +672,76 @@ simulAnimalModel <- function(Q=3, mu=50, mean.a=5, sd.a=2,
               dat=dat))
 }
 
+##' Fit a basic "animal model" with lme4
+##'
+##' y = W alpha + Z u + epsilon
+##' where y is N x 1; W is N x Q; Z is N x I
+##' u ~ Norm_I(0, G=sigma_u^2 A); epsilon_n ~ N(0, sigma^2 I); Cov(u,e)=0
+##' See http://stackoverflow.com/q/19327088/597069.
+##' Still problems: see https://github.com/lme4/lme4/issues/340.
+##' @param formula formula
+##' @param data data.frame containing the data corresponding to formula and relmat
+##' @param relmat list containing the matrix of additive genetic relationships (should use the same name as the colname in data)
+##' @param REML default is TRUE, but use FALSE to compare models with different fixed effects
+##' @param verbose verbosity level (0/default=1)
+##' @return merMod object
+##' @author Timothee Flutre
+lmerAM <- function(formula, data, relmat, REML=TRUE, verbose=1){
+  if(! requireNamespace("lme4", quietly=TRUE))
+    stop("Pkg lme4 needed for this function to work. Please install it.",
+         call.=FALSE)
+  if(! requireNamespace("Matrix", quietly=TRUE))
+    stop("Pkg Matrix needed for this function to work. Please install it.",
+         call.=FALSE)
+  for(i in seq_along(relmat))
+    stopifnot(is.matrix(relmat[[i]]),
+              names(relmat)[i] %in% colnames(data))
+
+  if(verbose > 0)
+    write("parse the formula", stdout())
+  parsedFormula <- lme4::lFormula(formula=formula,
+                                  data=data,
+                                  control=lme4::lmerControl(
+                                      check.nobs.vs.nlev="ignore",
+                                      check.nobs.vs.nRE="ignore"),
+                                  REML=REML)
+  if(verbose > 0)
+    write("structure the design and covariance matrices of the random effects",
+          stdout())
+  relfac <- relmat
+  flist <- parsedFormula$reTrms[["flist"]] # list of grouping factors
+  Ztlist <- parsedFormula$reTrms[["Ztlist"]] # list of transpose of the sparse model matrices
+  stopifnot(all(names(relmat) %in% names(flist)))
+  asgn <- attr(flist, "assign")
+  for(i in seq_along(relmat)) {
+    tn <- which(match(names(relmat)[i], names(flist)) == asgn)
+    if(length(tn) > 1)
+      stop("a relationship matrix must be associated",
+           " with only one random effects term", call.=FALSE)
+    relmat[[i]] <- Matrix::Matrix(relmat[[i]], sparse=TRUE)
+    relfac[[i]] <- chol(relmat[[i]])
+    Ztlist[[i]] <- relfac[[i]] %*% Ztlist[[i]]
+  }
+  parsedFormula$reTrms[["Ztlist"]] <- Ztlist
+  parsedFormula$reTrms[["Zt"]] <- do.call(Matrix::rBind, Ztlist)
+
+  if(verbose > 0)
+    write("make the deviance function", stdout())
+  devianceFunction <- do.call(lme4::mkLmerDevfun, parsedFormula)
+
+  if(verbose > 0)
+    write("optimize the deviance function", stdout())
+  optimizerOutput <- lme4::optimizeLmer(devianceFunction)
+
+  if(verbose > 0)
+    write("make the output", stdout())
+  fit <- lme4::mkMerMod(rho=environment(devianceFunction),
+                        opt=optimizerOutput,
+                        reTrms=parsedFormula$reTrms,
+                        fr=parsedFormula$fr)
+  return(fit)
+}
+
 ##' Simulate phenotypes according to the BSLMM model.
 ##'
 ##' y = W alpha + Z X tilde{beta} + Z u + epsilon
