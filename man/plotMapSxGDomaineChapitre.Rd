@@ -4,20 +4,30 @@
 \alias{plotMapSxGDomaineChapitre}
 \title{Plot the map of SxG}
 \usage{
-plotMapSxGDomaineChapitre(map, lang = "FR", show.plant.types = TRUE,
-  col.block = setNames(c("grey81", "bisque1"), c("A", "B")))
+plotMapSxGDomaineChapitre(map, main = "default", lang = "FR",
+  col.block = setNames(c("grey81", "bisque1"), c("A", "B")),
+  show.plant.types = TRUE, show.pu.type = FALSE, x.off = 4, mar = c(5,
+  4, 4, 1))
 }
 \arguments{
 \item{map}{data.frame with columns rank, location, x and y}
 
+\item{main}{main title (there is one by default in both languages)}
+
 \item{lang}{language for the title and legend (default=FR/EN)}
+
+\item{col.block}{vector with block colors (set to NULL to ignore)}
 
 \item{show.plant.types}{show the plants corresponding to F1, parents and controls}
 
-\item{col.block}{vector with block colors (set to NULL to ignore)}
+\item{show.pu.type}{show the "parcelles unitaires" corresponding to F1, parents and controls}
+
+\item{x.off}{offset on the x-axis to let some space for the legend}
+
+\item{mar}{margins (see the "mar" option of "par()")}
 }
 \value{
-nothing
+the "map" data.frame as an invisible object
 }
 \description{
 reciprocal cross Syrah x Grenache at the Domaine du Chapitre (near Montpellier, France)
