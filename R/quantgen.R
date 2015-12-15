@@ -91,7 +91,9 @@ plotGridMissGenos <- function(x, main="Missing genotypes", xlab="Individuals",
 ##' @return vector
 ##' @author Timothee Flutre
 estimMaf <- function(X){
-  stopifnot(is.matrix(X))
+  stopifnot(is.matrix(X),
+            sum(X < 0, na.rm=TRUE) == 0,
+            sum(X > 2, na.rm=TRUE) == 0)
   N <- nrow(X)
   P <- ncol(X)
   if(P < N)
