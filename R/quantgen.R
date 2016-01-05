@@ -788,24 +788,38 @@ simulBslmm <- function(Q=3, mu=50, mean.a=5, sd.a=2,
   P <- ncol(X)
   if(P < I)
     warning("input matrix doesn't seem to have SNPs in columns and individuals in rows")
-  N <- Q * I
-
-  levels.years <- as.character(seq(from=2010, to=2010+Q-1))
-  if(N %% Q == 0){
-    years <- rep(levels.years, each=N / Q)
+  if(Q > 0){
+    N <- Q * I
   } else
-    years <- sort(sample(x=levels.years, size=N, replace=TRUE))
-  years <- as.factor(years)
-  W <- model.matrix(~ years)
+    N <- I
+
+  ## incidence matrix of the non-genetic predictors having "fixed effects"
+  if(Q > 0){
+    levels.years <- as.character(seq(from=2010, to=2010+Q-1))
+    if(N %% Q == 0){
+      years <- rep(levels.years, each=N / Q)
+    } else
+      years <- sort(sample(x=levels.years, size=N, replace=TRUE))
+    years <- as.factor(years)
+    W <- model.matrix(~ years)
+  } else
+    W <- matrix(data=0, nrow=N, ncol=1)
 
   ## "fixed" effects
-  alpha <- matrix(data=c(mu, rnorm(n=Q-1, mean=mean.a, sd=sd.a)),
-                  nrow=Q, ncol=1)
+  if(Q > 0){
+    alpha <- matrix(data=c(mu, rnorm(n=Q-1, mean=mean.a, sd=sd.a)),
+                    nrow=Q, ncol=1)
+  } else
+    alpha <- matrix(data=0, nrow=1, ncol=1)
 
+  ## incidence matrices of the genetic predictors
   levels.inds <- rownames(X)
   inds <- rep(NA, N)
-  for(year in levels.years)
-    inds[years == year] <- levels.inds[1:sum(years == year)]
+  if(Q > 0){
+    for(year in levels.years)
+      inds[years == year] <- levels.inds[1:sum(years == year)]
+  } else
+    inds <- levels.inds
   inds <- as.factor(inds)
   ## Z <- as.matrix(Matrix::t(as(inds, Class="sparseMatrix")))
   Z <- model.matrix(~ inds - 1)
