@@ -11,13 +11,13 @@ estimGenRel(X, mafs = NULL, thresh = 0.01, relationships = "additive",
 \item{X}{matrix of SNP genotypes encoded as allele doses ({0,1,2}), with SNPs in
 columns and individuals in rows}
 
-\item{mafs}{vector with minor allele frequencies (calculated with `maf.from.dose` if NULL)}
+\item{mafs}{vector with minor allele frequencies (calculated with `estimMaf` if NULL)}
 
 \item{thresh}{threshold on allele frequencies below which SNPs are ignored (default=0.01, NULL to skip this step)}
 
 \item{relationships}{genetic relationship to estimate (default=additive/dominance)}
 
-\item{method}{if additive relationships, can be "astle-balding" (default), "animal-model", "center" or "center-std"}
+\item{method}{if additive relationships, can be "astle-balding" (default; see equation 2.2 in Astle & Balding, 2009), "animal-model", "center" or "center-std"}
 
 \item{verbose}{verbosity level (default=1)}
 }

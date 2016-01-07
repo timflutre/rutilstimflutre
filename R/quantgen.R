@@ -400,10 +400,10 @@ snpDistances <- function(snp.coords, nb.cores=1){
 ##' SNPs with missing data are ignored.
 ##' @param X matrix of SNP genotypes encoded as allele doses ({0,1,2}), with SNPs in
 ##' columns and individuals in rows
-##' @param mafs vector with minor allele frequencies (calculated with `maf.from.dose` if NULL)
+##' @param mafs vector with minor allele frequencies (calculated with `estimMaf` if NULL)
 ##' @param thresh threshold on allele frequencies below which SNPs are ignored (default=0.01, NULL to skip this step)
 ##' @param relationships genetic relationship to estimate (default=additive/dominance)
-##' @param method if additive relationships, can be "astle-balding" (default), "animal-model", "center" or "center-std"
+##' @param method if additive relationships, can be "astle-balding" (default; see equation 2.2 in Astle & Balding, 2009), "animal-model", "center" or "center-std"
 ##' @param verbose verbosity level (default=1)
 ##' @return matrix
 ##' @author Timothee Flutre
@@ -419,8 +419,8 @@ estimGenRel <- function(X, mafs=NULL, thresh=0.01, relationships="additive",
 
   gen.rel <- NULL # to be filled and returned
 
-  N <- nrow(X)
-  P <- ncol(X)
+  N <- nrow(X) # nb of individuals
+  P <- ncol(X) # nb of SNPs
   if(P < N)
     warning("input matrix doesn't seem to have SNPs in columns and individuals in rows")
 
@@ -469,7 +469,6 @@ estimGenRel <- function(X, mafs=NULL, thresh=0.01, relationships="additive",
       mafs <- mafs[-idx.rm]
     }
   }
-
 
   ## estimate genetic relationships
   if(relationships == "additive"){
