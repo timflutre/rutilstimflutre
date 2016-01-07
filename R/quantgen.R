@@ -403,7 +403,7 @@ snpDistances <- function(snp.coords, nb.cores=1){
 ##' @param mafs vector with minor allele frequencies (calculated with `estimMaf` if NULL)
 ##' @param thresh threshold on allele frequencies below which SNPs are ignored (default=0.01, NULL to skip this step)
 ##' @param relationships genetic relationship to estimate (default=additive/dominance)
-##' @param method if additive relationships, can be "astle-balding" (default; see equation 2.2 in Astle & Balding, 2009), "animal-model", "center" or "center-std"
+##' @param method if additive relationships, can be "astle-balding" (default; see equation 2.2 in Astle & Balding, 2009), "vanraden1" (first method in VanRaden, 2008), "habier" (similar to 'vanraden1' without giving more importance to rare alleles; from Habier et al, 2007), "zhou" (centering the genotypes and not assuming that rare variants have larger effects; from Zhou et al, 2013) or "center-std"
 ##' @param verbose verbosity level (default=1)
 ##' @return matrix
 ##' @author Timothee Flutre
@@ -413,7 +413,7 @@ estimGenRel <- function(X, mafs=NULL, thresh=0.01, relationships="additive",
             relationships %in% c("additive", "dominance"))
   if(relationships != "additive")
     stop(paste0(relationships, " relationships is not (yet) implemented"))
-  stopifnot(method %in% c("astle-balding", "animal-model", "center", "center-std"))
+  stopifnot(method %in% c("astle-balding", "vanraden1", "habier", "zhou", "center-std"))
   if(! is.null(thresh))
     stopifnot(thresh >= 0, thresh <= 0.5)
 
@@ -476,9 +476,14 @@ estimGenRel <- function(X, mafs=NULL, thresh=0.01, relationships="additive",
       tmp <- sweep(x=X, MARGIN=2, STATS=2 * mafs, FUN="-")
       tmp <- sweep(x=tmp, MARGIN=2, STATS=sqrt(4 * mafs * (1 - mafs)), FUN="/")
       gen.rel <- tcrossprod(tmp, tmp) / P
-    } else if(method == "animal-model"){
+    } else if(method == "vanraden1"){
+      M <- X - 1
+      Pmat <- matrix(rep(1,N)) %*% (2 * (mafs - 0.5))
+      Z <- M - Pmat
+      gen.rel <- tcrossprod(Z, Z) / (2  * sum(mafs * (1 - mafs)))
+    } else if(method == "habier"){
       gen.rel <- tcrossprod(X, X) / (2  * sum(mafs * (1 - mafs)))
-    } else if(method == "center"){
+    } else if(method == "zhou"){
       ## tmp <- sweep(x=X, MARGIN=2, STATS=colMeans(X), FUN="-")
       tmp <- scale(x=X, center=TRUE, scale=FALSE)
       gen.rel <- tcrossprod(tmp, tmp) / P

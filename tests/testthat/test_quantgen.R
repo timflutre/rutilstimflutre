@@ -13,7 +13,7 @@ test_that("estimMaf", {
   expect_equal(observed, expected)
 })
 
-test_that("estimGenRel", {
+test_that("estimGenRel_astle-balding", {
   N <- 2 # individuals
   P <- 4 # SNPs
   X <- matrix(c(1,1, 1,0, 2,1, 1,0), nrow=N, ncol=P)

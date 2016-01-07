@@ -17,7 +17,7 @@ columns and individuals in rows}
 
 \item{relationships}{genetic relationship to estimate (default=additive/dominance)}
 
-\item{method}{if additive relationships, can be "astle-balding" (default; see equation 2.2 in Astle & Balding, 2009), "animal-model", "center" or "center-std"}
+\item{method}{if additive relationships, can be "astle-balding" (default; see equation 2.2 in Astle & Balding, 2009), "vanraden1" (first method in VanRaden, 2008), "habier" (similar to 'vanraden1' without giving more importance to rare alleles; from Habier et al, 2007), "zhou" (centering the genotypes and not assuming that rare variants have larger effects; from Zhou et al, 2013) or "center-std"}
 
 \item{verbose}{verbosity level (default=1)}
 }
