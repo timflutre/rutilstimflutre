@@ -92,6 +92,107 @@ stats.all.pair.aligns <- function(aligns, nb.sequences){
 							nmismatchs=nmismatchs, ninss=ninss, ndels=ndels))
 }
 
+##' Load read counts
+##'
+##' Load read counts per individual and lane
+##' @param lanes.dir vector of paths to directories "lane_..." from "demultiplex.py --step 2"
+##' @return data.frame with (individual,lane) in rows and counts in columns
+##' @author Timothee Flutre
+loadReadCountsPerIndAndLane <- function(lanes.dir){
+  stopifnot(is.vector(lanes.dir),
+            length(lanes.dir) > 0)
+
+  reads <- list()
+
+  for(lane.dir in lanes.dir){
+    lane <- gsub("lane_", "", basename(lane.dir))
+    lane.file <- paste0(lane.dir, "/demultiplex/",
+                        lane, "_stats-demultiplex.txt.gz")
+    stopifnot(file.exists(lane.file))
+    reads[[lane]] <- read.table(lane.file, header=TRUE)
+    if(! all(colnames(reads[[lane]] %in% c("ind","barcode","assigned","lane"))))
+      warning(paste0("look at header line of file '", lane.file, "'"))
+  }
+
+  reads <- do.call(rbind, reads)
+  reads$lane <- as.factor(sapply(strsplit(rownames(reads), "\\."),
+                                 function(x){x[1]}))
+
+  return(reads)
+}
+
+##' Reformat read counts per lane
+##'
+##' Reformat the data.frame from \code{\link{loadReadCountsPerIndAndLane}} in a matrix of counts
+##' @param x data.frame
+##' @return matrix
+##' @author Timothee Flutre
+formatReadCountsPerLane <- function(x){
+  stopifnot(is.data.frame(x),
+            "lane" %in% colnames(x),
+            "ind" %in% colnames(x),
+            "assigned" %in% colnames(x))
+
+  counts <- matrix(data=0, nrow=length(unique(x$lane)),
+                   ncol=length(unique(x$ind)),
+                   dimnames=list(unique(x$lane), unique(x$ind)))
+
+  for(j in 1:ncol(counts)){
+    ind <- colnames(counts)[j]
+    for(lane in rownames(counts)){
+      if(ind %in% x$ind[x$lane == lane])
+        counts[lane, ind] <- x$assigned[x$ind == ind &
+                                          x$lane == lane]
+    }
+  }
+  counts <- counts[, order(apply(counts, 2, sum))]
+
+  return(counts)
+}
+
+##' Stacked barplot of read counts
+##'
+##' Make a stacked barplot from the output of \code{\link{formatReadCountsPerLane}}.
+##' @param counts matrix
+##' @param xlab a title for the x axis
+##' @param ylab a title for the y axis
+##' @param main an overall title for the plot
+##' @param lines.h the y-value(s) for horizontal line(s)
+##' @param mar see \code{par}
+##' @param xlab.line see \code{line} from \code{mtext}
+##' @return nothing
+##' @author Timothee Flutre
+barplotReadCounts <- function(counts,
+                              xlab=paste0("Individuals (", ncol(counts), ")"),
+                              ylab="Number of read pairs",
+                              main="Read pairs per individual",
+                              lines.h=c(10^5, 10^6, 5*10^6),
+                              mar=c(4, 4, 4, 1),
+                              xlab.line=3){
+  stopifnot(is.matrix(counts))
+
+  if(! is.null(mar)){
+    stopifnot(length(mar) == 4)
+    par(mar=mar)
+  }
+
+  bp <- barplot(counts, xaxt="n", col=1:nrow(counts),
+                legend.text=TRUE,
+                args.legend=list(x="left", bty="n", border=nrow(counts):1),
+                ylab=ylab,
+                xlab="",
+                main=main)
+  axis(1, at=bp, labels=FALSE)
+  text(x=bp, y=par("usr")[3], srt=45, adj=c(1.2,2),
+       labels=colnames(counts), xpd=TRUE)
+  mtext(text=xlab, side=1, line=xlab.line)
+
+  if(! is.null(lines.h)){
+    for(h in lines.h)
+      abline(h=h, lty=2)
+  }
+}
+
 ##' Bar plot of insert sizes
 ##'
 ##' Creates a bar plot with vertical bars of insert sizes from histogram data as calculated by Picard CollectInsertSizeMetrics.
