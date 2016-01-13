@@ -250,9 +250,10 @@ segSites2allDoses <- function(seg.sites){
 ##' SFS stands for site frequency spectrum
 ##' @param seg.sites list returned by scrm()
 ##' @param snp.ids vector of identifiers (one per SNP)
+##' @param prefix character string
 ##' @return data.frame with SNPs in rows and 2 columns (chr, pos)
 ##' @author Timothee Flutre
-segSites2snpCoords <- function(seg.sites, snp.ids){
+segSites2snpCoords <- function(seg.sites, snp.ids, prefix="chr"){
   stopifnot(is.list(seg.sites),
             length(unique(sapply(seg.sites, nrow))) == 1)
 
@@ -263,7 +264,7 @@ segSites2snpCoords <- function(seg.sites, snp.ids){
   snp.coords <- data.frame(chr=rep(NA, nb.snps),
                            pos=-1,
                            row.names=snp.ids)
-  snp.coords$chr <- rep(paste0("chr", 1:nb.chrs), nb.snps.per.chr)
+  snp.coords$chr <- rep(paste0(prefix, 1:nb.chrs), nb.snps.per.chr)
   snp.coords$pos <- as.numeric(do.call(c, lapply(seg.sites, colnames)))
 
   ## convert genomic positions from float to integer
@@ -339,11 +340,13 @@ simulCoalescent <- function(nb.inds=100,
     print(str(sum.stats))
 
   ## make a data.frame with SNP coordinates
+  prefix <- "chr"
+  names(sum.stats$seg_sites) <- paste0(prefix, 1:nb.reps)
   nb.snps.per.chr <- sapply(sum.stats$seg_sites, ncol)
   nb.snps <- sum(nb.snps.per.chr)
   snp.ids <- sprintf(fmt=paste0("snp%0", floor(log10(nb.snps))+1, "i"),
                      1:nb.snps)
-  snp.coords <- segSites2snpCoords(sum.stats$seg_sites, snp.ids)
+  snp.coords <- segSites2snpCoords(sum.stats$seg_sites, snp.ids, prefix)
   for(c in 1:nb.reps){
     colnames(sum.stats$seg_sites[[c]]) <-
       snp.ids[(ifelse(c == 1, 1, 1 + cumsum(nb.snps.per.chr)[c-1])):
@@ -365,6 +368,255 @@ simulCoalescent <- function(nb.inds=100,
   return(list(haplos=sum.stats$seg_sites,
               genos=X,
               snp.coords=snp.coords))
+}
+
+##' Individual names
+##'
+##' Return the identifiers of all individuals
+##' @param haplos list of matrices (one per chromosome, with individuals in rows)
+##' @return vector
+##' @author Timothee Flutre
+getIndNamesFromHaplos <- function(haplos){
+  stopifnot(is.list(haplos))
+
+  ind.names <- unique(do.call(c, lapply(haplos, rownames)))
+  ind.names <- lapply(strsplit(ind.names, "_"), function(ind.name){
+    paste(ind.name[1:(length(ind.name)-1)], collapse="_")
+  })
+  ind.names <- unique(do.call(c, ind.names))
+
+  return(ind.names)
+}
+
+##' Haplotypes of an individual
+##'
+##' Retrieve both haplotypes for all chromosomes of a given individual.
+##' @param haplos list with one matrix per chromosome, with haplotype in rows and SNPs in columns, as returned by \code{\link{simulCoalescent}}
+##' @param ind.name identifier of the individual to retrieve
+##' @return list similar to "haplos"
+##' @author Timothee Flutre
+getHaplosInd <- function(haplos, ind.name){
+  stopifnot(is.list(haplos),
+            is.character(ind.name))
+
+  ## for each chromosome, retrieve both haplotypes of the given individual
+  haplos.ind <- lapply(haplos, function(haplos.chr){
+    idx <- grep(ind.name, rownames(haplos.chr))
+    if(length(idx) == 2){
+      haplos.chr[idx, , drop=FALSE]
+    } else{
+      msg <- paste0("can't find haplotypes for '", ind.name, "'")
+      stop(msg)
+    }
+  })
+
+  return(haplos.ind)
+}
+
+##' Haplotypes of several individuals
+##'
+##' Retrieve both haplotypes for all chromosomes of certain individuals.
+##' @param haplos list with one matrix per chromosome, with haplotype in rows and SNPs in columns, as returned by \code{\link{simulCoalescent}}
+##' @param ind.names identifier of the individuals to retrieve
+##' @return list similar to "haplos"
+##' @author Timothee Flutre
+getHaplosInds <- function(haplos, ind.names){
+  stopifnot(is.list(haplos),
+            length(unique(sapply(haplos, class))) == 1,
+            unique(sapply(haplos, class)) == "matrix",
+            length(unique(sapply(haplos, nrow))) == 1, # same nb of individuals
+            all(sapply(haplos, function(x){! is.null(rownames(x))})), # has row names
+            is.character(ind.names))
+
+  ## for each chromosome, retrieve both haplotypes of the given individuals
+  haplos.inds <- lapply(haplos, function(haplos.chr){
+    idx <- do.call(c, lapply(ind.names, grep, rownames(haplos.chr)))
+    if(length(idx) == 0){
+      msg <- paste0("can't find haplotypes for the given individuals")
+      stop(msg)
+    } else{
+      haplos.chr[idx, , drop=FALSE]
+    }
+  })
+
+  return(haplos.inds)
+}
+
+##' Gamete
+##'
+##' Make a gamete for a given chromosome by recombining two parental haplotypes (always starting with the first haplotype).
+##' @param haplos.par.chr matrix containing both haplotypes of a parent for a given chromosome (must have dimnames, such as "ind37_h1" in rows and "snp00265" in columns)
+##' @param loc.crossovers positions of the crossing overs (the coordinate of the first nucleotide is assumed to be 1, and crossing-overs are assumed to occur right after the given localization)
+##' @return vector
+##' @author Timothee Flutre
+makeGameteSingleIndSingleChrom <- function(haplos.par.chr, loc.crossovers){
+  stopifnot(is.matrix(haplos.par.chr),
+            ! is.null(dimnames(haplos.par.chr)),
+            is.vector(loc.crossovers))
+
+  nb.snps <- ncol(haplos.par.chr)
+  loc.crossovers <- sort(loc.crossovers)
+  stopifnot(max(loc.crossovers) < ncol(haplos.par.chr))
+
+  ind.name <- strsplit(rownames(haplos.par.chr)[1],
+                       "_")[[1]]
+  ind.name <- paste(ind.name[1:(length(ind.name)-1)], collapse="_")
+  gam.chr <- matrix(rep(NA, nb.snps), nrow=1,
+                    dimnames=list(ind.name, colnames(haplos.par.chr)))
+
+  ## always start with the first haplotype
+  if(loc.crossovers[1] != 0)
+    loc.crossovers <- c(0, loc.crossovers)
+  for(l in 2:length(loc.crossovers))
+    gam.chr[(loc.crossovers[l-1]+1):loc.crossovers[l]] <-
+      haplos.par.chr[ifelse(l %% 2 == 0, 1, 2),
+      (loc.crossovers[l-1]+1):loc.crossovers[l]]
+
+  ## if necessary, fill the gamete until the end
+  if(loc.crossovers[length(loc.crossovers)] < nb.snps)
+    gam.chr[(loc.crossovers[length(loc.crossovers)]+1):nb.snps] <-
+    haplos.par.chr[ifelse((length(loc.crossovers)+1) %% 2 == 0, 1, 2),
+    (loc.crossovers[length(loc.crossovers)]+1):nb.snps]
+
+  stopifnot(sum(is.na(gam.chr)) == 0)
+
+  return(gam.chr)
+}
+
+##' Gamete
+##'
+##' Make a gamete for all chromosomes by recombining two parental haplotypes.
+##' @param haplos.par list of matrices containing both haplotypes of a parent for each chromosome
+##' @param loc.crossovers list of vectors with positions of the crossing overs (the coordinate of the first nucleotide is assumed to be 1, and crossing-overs are assumed to occur right after the given localization)
+##' @return list of vectors (one per chromosome)
+##' @author Timothee Flutre
+makeGameteSingleInd <- function(haplos.par, loc.crossovers){
+  stopifnot(is.list(haplos.par),
+            is.list(loc.crossovers))
+
+  gam <- Map(makeGameteSingleIndSingleChrom, haplos.par, loc.crossovers)
+
+  return(gam)
+}
+
+##' Fecundation
+##'
+##' Perform fecundation by uniting the two gametes.
+##' @param gam1 list of 1-row matrices (one per chromosome)
+##' @param gam2 list of 1-row matrices (one per chromosome)
+##' @param child.name identifier of the child (if NULL, <parent1>"_x_"<parent2>)
+##' @return list of 2-row matrices (one per chromosome)
+##' @author Timothee Flutre
+fecundation <- function(gam1, gam2, child.name=NULL){
+  stopifnot(is.list(gam1),
+            is.list(gam2),
+            length(gam1) == length(gam2))
+
+  nb.chroms <- length(gam1)
+  if(is.null(child.name)){
+    parent1 <- unique(sapply(gam1, rownames))
+    parent2 <- unique(sapply(gam2, rownames))
+    child.name <- paste0(parent1, "_x_", parent2)
+  }
+
+  child <- lapply(1:nb.chroms, function(c){
+    tmp <- rbind(gam1[[c]], gam2[[c]])
+    rownames(tmp) <- c(paste0(child.name, "_h1"), paste0(child.name, "_h2"))
+    tmp
+  })
+  names(child) <- names(gam1)
+
+  return(child)
+}
+
+##' Doubled haploids
+##'
+##' Make a doubled haploid from all chromosomes of the individual under consideration.
+##' @param haplos.ind list of matrices (one per chromosome)
+##' @param loc.crossovers list of vectors (one per chromosome)
+##' @param child.name identifier of the child (if NULL, <parent1>"_x_"<parent2>)
+##' @return list of matrices
+##' @author Timothee Flutre
+makeDoubledHaploidsSingleInd <- function(haplos.ind, loc.crossovers,
+                                         child.name=NULL){
+  stopifnot(is.list(haplos.ind),
+            is.list(loc.crossovers),
+            all(names(haplos.ind) == names(loc.crossovers)))
+
+  gam <- makeGameteSingleInd(haplos.ind, loc.crossovers)
+  fecundation(gam, gam, child.name)
+}
+
+##' Doubled haploids
+##'
+##' Make a doubled haploid for each individual under consideration.
+##' @param haplos list of matrices (one per chromosome)
+##' @param ind.names identifiers of the individuals to handle (if NULL, all individuals)
+##' @param loc.crossovers list of lists (one per chromosome, then one per individual); if NULL, draw many crossing-overs localizations at once (as Poisson with parameter 2, assuming all chromosomes roughly have the same length)
+##' @param child.names identifiers of the children (if NULL, <ind>"_x_"<ind>)
+##' @param nb.cores the number of cores to use, i.e. at most how many child processes will be run simultaneously (not on Windows)
+##' @return list of matrices
+##' @author Timothee Flutre
+makeDoubledHaploids <- function(haplos, ind.names=NULL, loc.crossovers=NULL,
+                                child.names=NULL, nb.cores=1){
+  stopifnot(is.list(haplos),
+            length(unique(sapply(haplos, class))) == 1,
+            unique(sapply(haplos, class)) == "matrix",
+            length(unique(sapply(haplos, nrow))) == 1) # same nb of individuals
+  haplos.ind.names <- getIndNamesFromHaplos(haplos)
+  if(! is.null(ind.names))
+    stopifnot(is.vector(ind.names),
+              is.character(ind.names),
+              all(ind.names %in% haplos.ind.names))
+  if(! is.null(loc.crossovers))
+    stopifnot(is.list(loc.crossovers),
+              all(names(loc.crossovers) == ind.names),
+              length(loc.crossovers[[1]]) == length(haplos)) # same nb of chromosomes
+  if(Sys.info()["sysname"] == "Windows")
+    nb.cores <- 1
+
+  if(is.null(ind.names)){
+    ind.names <- haplos.ind.names
+  } else if(length(ind.names) < nrow(haplos[[1]])){
+    haplos <- getHaplosInds(haplos, ind.names)
+  }
+
+  if(is.null(child.names))
+    child.names <- paste0(ind.names, "_x_", ind.names)
+
+  nb.chroms <- length(haplos)
+  nb.inds <- length(ind.names)
+
+  ## if required, draw locations of crossing-overs
+  if(is.null(loc.crossovers)){
+    nb.crossovers <- rpois(n=nb.inds * nb.chroms, lambda=2) # 2 per chromosome
+    nb.crossovers[nb.crossovers == 0] <- 1 # at least 1 per chromosome
+    loc.crossovers <- lapply(1:nb.inds, function(i){
+      tmp <- lapply(1:nb.chroms, function(c){
+        sort(sample.int(n=ncol(haplos[[c]]) - 1,
+                        size=nb.crossovers[(i-1)*nb.chroms + c]))
+      })
+      names(tmp) <- nrow(haplos)
+      tmp
+    })
+    names(loc.crossovers) <- ind.names
+  }
+
+  ## make haplodiploidization for each individual
+  tmp <- parallel::mclapply(1:nb.inds, function(i){
+    ind.name <- ind.names[i]
+    haplos.ind <- getHaplosInd(haplos, ind.name)
+    child.name <- child.names[i]
+    makeDoubledHaploidsSingleInd(haplos.ind, loc.crossovers[[i]], child.name)
+  }, mc.cores=nb.cores)
+
+  ## gather all individuals per chromosome
+  dbl.hpd <- lapply(1:nb.chroms, function(c){
+    do.call(rbind, parallel::mclapply(tmp, `[[`, c, mc.cores=nb.cores))
+  })
+  names(dbl.hpd) <- names(haplos)
+
+  return(dbl.hpd)
 }
 
 ##' Calculate the distances between SNPs, assuming they are sorted.

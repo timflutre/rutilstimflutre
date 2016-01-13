@@ -4,12 +4,14 @@
 \alias{segSites2snpCoords}
 \title{Make a data.frame of SNP coordinates from the SFS of independent replicates}
 \usage{
-segSites2snpCoords(seg.sites, snp.ids)
+segSites2snpCoords(seg.sites, snp.ids, prefix = "chr")
 }
 \arguments{
 \item{seg.sites}{list returned by scrm()}
 
 \item{snp.ids}{vector of identifiers (one per SNP)}
+
+\item{prefix}{character string}
 }
 \value{
 data.frame with SNPs in rows and 2 columns (chr, pos)
