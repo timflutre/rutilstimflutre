@@ -230,8 +230,8 @@ segSites2allDoses <- function(seg.sites){
             length(unique(sapply(seg.sites, nrow))) == 1)
 
   nb.inds <- nrow(seg.sites[[1]]) / 2 # nb of diploid individuals
-  nb.chrs <- sum(sapply(seg.sites, ncol)) # nb of SNPs
-  X <- matrix(data=NA, nrow=nb.inds, ncol=nb.chrs)
+  nb.snps <- sum(sapply(seg.sites, ncol)) # nb of SNPs
+  X <- matrix(data=NA, nrow=nb.inds, ncol=nb.snps)
 
   j <- 1
   for(x in seq_along(seg.sites)){
