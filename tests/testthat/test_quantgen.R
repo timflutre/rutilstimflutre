@@ -185,3 +185,17 @@ test_that("makeDoubledHaploids", {
 
   expect_equal(observed, expected)
 })
+
+test_that("distSnpPairs", {
+  pair.snps <- data.frame(loc1=c("snp1", "snp1", "snp2"),
+                          loc2=c("snp2", "snp3", "snp3"))
+  snp.coords <- data.frame(chr=rep("chr1", 3),
+                           pos=c(1, 9, 13))
+  rownames(snp.coords) <- paste0("snp", 1:3)
+
+  expected <- c(7, 11, 3)
+
+  observed <- distSnpPairs(pair.snps, snp.coords)
+
+  expect_equal(observed, expected)
+})

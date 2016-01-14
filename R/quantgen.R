@@ -619,32 +619,64 @@ makeDoubledHaploids <- function(haplos, ind.names=NULL, loc.crossovers=NULL,
   return(dbl.hpd)
 }
 
-##' Calculate the distances between SNPs, assuming they are sorted.
+##' Distance between SNP pairs
 ##'
-##' Useful before estimating pairwise linkage disequilibrium.
-##' @param snp.coords data.frame with SNP identifiers as row names, and with two columns "chr" and "pos"
-##' @param nb.cores the number of cores to use (default=1)
-##' @return list with one component per chromosome
+##' For each SNP pair, return the number of "blocks" (i.e. nucleotides) between both SNPs via the \code{\link[GenomicRanges]{distance}} function.
+##' @param snp.pairs data.frame with two columns "loc1" and "loc2"
+##' @param snp.coords data.frame with SNP identifiers as row names, and two columns, "chr" and "pos" or "coord"
+##' @param nb.cores the number of cores to use
+##' @param verbose verbosity level (default=0/1)
+##' @return vector
 ##' @author Timothee Flutre
-snpDistances <- function(snp.coords, nb.cores=1){
-  if(! requireNamespace("parallel", quietly=TRUE))
-    stop("Pkg parallel needed for this function to work. Please install it.",
+distSnpPairs <- function(snp.pairs, snp.coords, nb.cores=1, verbose=0){
+  if(! requireNamespace("GenomicRanges", quietly=TRUE))
+    stop("Pkg GenomicRanges needed for this function to work. Please install it.",
          call.=FALSE)
-  stopifnot(is.data.frame(snp.coords),
-            colnames(snp.coords) == c("chr", "pos"),
-            ! is.null(rownames(snp.coords)))
+  if(! requireNamespace("S4Vectors", quietly=TRUE))
+    stop("Pkg S4Vectors needed for this function to work. Please install it.",
+         call.=FALSE)
+  if(! requireNamespace("IRanges", quietly=TRUE))
+    stop("Pkg IRanges needed for this function to work. Please install it.",
+         call.=FALSE)
+  stopifnot(is.data.frame(snp.pairs),
+            ncol(snp.pairs) >= 2,
+            all(c("loc1", "loc2") %in% colnames(snp.pairs)),
+            is.data.frame(snp.coords),
+            ! is.null(rownames(snp.coords)),
+            ncol(snp.coords) >= 2,
+            "chr" %in% colnames(snp.coords))
+  snp.pairs$loc1 <- as.character(snp.pairs$loc1)
+  snp.pairs$loc2 <- as.character(snp.pairs$loc2)
+  stopifnot(all(unique(do.call(c, snp.pairs[, c("loc1", "loc2")])) %in%
+                rownames(snp.coords)))
+  if(! "pos" %in% colnames(snp.coords)){
+    if(! "coord" %in% colnames(snp.coords))
+      stop("colnames of snp.coords contain neither 'pos' nor 'coord'")
+    colnames(snp.coords)[colnames(snp.coords) == "coord"] <- "pos"
+  }
 
-  chr.names <- unique(snp.coords$chr)
-  snp.dists <- parallel::mclapply(chr.names, function(chr.name){
-    pos <- snp.coords$pos[snp.coords$chr == chr.name]
-    names(pos) <- rownames(snp.coords)[snp.coords$chr == chr.name]
-    dis <- pos[2:length(pos)] - pos[1:(length(pos)-1)]
-    names(dis) <- paste(names(dis), names(pos)[-length(pos)], sep="-")
-    dis
-  }, mc.cores=nb.cores)
-  names(snp.dists) <- chr.names
+  if(verbose > 0)
+    message("make GRanges ...")
+  snp.granges <- GenomicRanges::GRanges(seqnames=S4Vectors::Rle(snp.coords$chr),
+                                        ranges=IRanges::IRanges(start=snp.coords$pos,
+                                                                end=snp.coords$pos))
+  names(snp.granges) <- rownames(snp.coords)
 
-  return(snp.dists)
+  if(verbose > 0)
+    message("calculate distances ...")
+  dist.loc <- do.call(c, parallel::mclapply(unique(snp.pairs$loc1), function(loc1){
+    if(verbose > 1)
+      print(loc1)
+    idx <- which(snp.pairs$loc1 == loc1)
+    if(length(idx) > 1 &
+       any(abs(idx[1:(length(idx)-1)] - idx[2:length(idx)]) > 1))
+      stop(paste("for a given, distinct value in snp.pairs$loc1,",
+                 "all of its instances should be present in successive rows"))
+    GenomicRanges::distance(x=snp.granges[loc1],
+                            y=snp.granges[snp.pairs$loc2[snp.pairs$loc1 == loc1]])
+  }, mc.cores=nb.cores, mc.silent=ifelse(nb.cores > 1, TRUE, FALSE)))
+
+  return(dist.loc)
 }
 
 ##' Estimate genetic relationships between individuals from their SNP genotypes.
