@@ -529,22 +529,72 @@ fecundation <- function(gam1, gam2, child.name=NULL){
   return(child)
 }
 
-##' Doubled haploids
+##' Cross
 ##'
-##' Make a doubled haploid from all chromosomes of the individual under consideration.
-##' @param haplos.ind list of matrices (one per chromosome)
-##' @param loc.crossovers list of vectors (one per chromosome)
+##' Make a cross. If two different individuals are given, then a fecundation is made with one gamete from each individual. If the same individual is given twice, an autofecondation is made with two different gametes from this individual. If a single individual is given, a haplodiploidization is made with a single gamete from this individual.
+##' @param haplos.par1 list of matrices (one per chromosome) for the first parent
+##' @param loc.crossovers.par1 list of vectors (one per chromosome) for the first parent
+##' @param haplos.par2 list of matrices (one per chromosome) for the second parent
+##' @param loc.crossovers.par2 list of vectors (one per chromosome) for the second parent
 ##' @param child.name identifier of the child (if NULL, <parent1>"_x_"<parent2>)
-##' @return list of matrices
+##' @param verbose verbosity level (default=0/1)
+##' @return list of matrices (one per chromosome) for the child
 ##' @author Timothee Flutre
-makeDoubledHaploidsSingleInd <- function(haplos.ind, loc.crossovers,
-                                         child.name=NULL){
-  stopifnot(is.list(haplos.ind),
-            is.list(loc.crossovers),
-            all(names(haplos.ind) == names(loc.crossovers)))
+makeCross <- function(haplos.par1,
+                      loc.crossovers.par1,
+                      haplos.par2=NULL,
+                      loc.crossovers.par2=NULL,
+                      child.name=NULL,
+                      verbose=0){
+  stopifnot(is.list(haplos.par1),
+            is.list(loc.crossovers.par1),
+            all(names(haplos.par1) == names(loc.crossovers.par1)))
+  if(! is.null(haplos.par2))
+    stopifnot(is.list(haplos.par2),
+              is.list(loc.crossovers.par2),
+              all(names(haplos.par2) == names(loc.crossovers.par2)))
 
-  gam <- makeGameteSingleInd(haplos.ind, loc.crossovers)
-  fecundation(gam, gam, child.name)
+  haplos.child <- NULL
+
+  ## find which type of cross is wanted
+  cross.type <- NULL
+  name.par1 <- getIndNamesFromHaplos(haplos.par1)
+  stopifnot(length(name.par1) == 1)
+  if(! is.null(haplos.par2)){
+    name.par2 <- getIndNamesFromHaplos(haplos.par2)
+    stopifnot(length(name.par2) == 1)
+    if(name.par2 == name.par1){
+      cross.type <- "autofecondation"
+      if(verbose > 0){
+        msg <- paste0("make an autofecondation of '", name.par1, "'")
+        write(msg, stdout())
+      }
+    } else{
+      cross.type <- "fecondation"
+      if(verbose > 0){
+        msg <- paste0("make a fecondation of '", name.par1, "' and '",
+                      name.par2, "'")
+        write(msg, stdout())
+      }
+    }
+  } else{
+    cross.type <- "haplodiploidization"
+    if(verbose > 0){
+      msg <- paste0("make a haplodiploidization of '", name.par1, "'")
+      write(msg, stdout())
+      }
+  }
+
+  ## make the gamete(s) and then the cross
+  gam.par1 <- makeGameteSingleInd(haplos.par1, loc.crossovers.par1)
+  if(cross.type == "haplodiploidization"){
+    haplos.child <- fecundation(gam.par1, gam.par1, child.name)
+  } else{
+    gam.par2 <- makeGameteSingleInd(haplos.par2, loc.crossovers.par2)
+    haplos.child <- fecundation(gam.par1, gam.par2, child.name)
+  }
+
+  return(haplos.child)
 }
 
 ##' Doubled haploids
@@ -555,10 +605,11 @@ makeDoubledHaploidsSingleInd <- function(haplos.ind, loc.crossovers,
 ##' @param loc.crossovers list of lists (one per chromosome, then one per individual); if NULL, draw many crossing-overs localizations at once (as Poisson with parameter 2, assuming all chromosomes roughly have the same length)
 ##' @param child.names identifiers of the children (if NULL, <ind>"_x_"<ind>)
 ##' @param nb.cores the number of cores to use, i.e. at most how many child processes will be run simultaneously (not on Windows)
+##' @param verbose verbosity level (default=0/1)
 ##' @return list of matrices
 ##' @author Timothee Flutre
 makeDoubledHaploids <- function(haplos, ind.names=NULL, loc.crossovers=NULL,
-                                child.names=NULL, nb.cores=1){
+                                child.names=NULL, nb.cores=1, verbose=1){
   stopifnot(is.list(haplos),
             length(unique(sapply(haplos, class))) == 1,
             unique(sapply(haplos, class)) == "matrix",
@@ -587,8 +638,11 @@ makeDoubledHaploids <- function(haplos, ind.names=NULL, loc.crossovers=NULL,
   nb.chroms <- length(haplos)
   nb.inds <- length(ind.names)
 
-  ## if required, draw locations of crossing-overs
   if(is.null(loc.crossovers)){
+    if(verbose > 0){
+      msg <- "draw locations of crossing-overs ..."
+      write(msg, stdout())
+    }
     nb.crossovers <- rpois(n=nb.inds * nb.chroms, lambda=2) # 2 per chromosome
     nb.crossovers[nb.crossovers == 0] <- 1 # at least 1 per chromosome
     loc.crossovers <- lapply(1:nb.inds, function(i){
@@ -602,15 +656,22 @@ makeDoubledHaploids <- function(haplos, ind.names=NULL, loc.crossovers=NULL,
     names(loc.crossovers) <- ind.names
   }
 
-  ## make haplodiploidization for each individual
+  if(verbose > 0){
+    msg <- "make haplodiploidization for each individual ..."
+    write(msg, stdout())
+  }
   tmp <- parallel::mclapply(1:nb.inds, function(i){
     ind.name <- ind.names[i]
     haplos.ind <- getHaplosInd(haplos, ind.name)
     child.name <- child.names[i]
-    makeDoubledHaploidsSingleInd(haplos.ind, loc.crossovers[[i]], child.name)
+    makeCross(haplos.par1=haplos.ind, loc.crossovers.par1=loc.crossovers[[i]],
+              child.name=child.name, verbose=verbose-1)
   }, mc.cores=nb.cores)
 
-  ## gather all individuals per chromosome
+  if(verbose > 0){
+    msg <- "gather all individuals per chromosome ..."
+    write(msg, stdout())
+  }
   dbl.hpd <- lapply(1:nb.chroms, function(c){
     do.call(rbind, parallel::mclapply(tmp, `[[`, c, mc.cores=nb.cores))
   })

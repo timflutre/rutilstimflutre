@@ -5,7 +5,7 @@
 \title{Doubled haploids}
 \usage{
 makeDoubledHaploids(haplos, ind.names = NULL, loc.crossovers = NULL,
-  child.names = NULL, nb.cores = 1)
+  child.names = NULL, nb.cores = 1, verbose = 1)
 }
 \arguments{
 \item{haplos}{list of matrices (one per chromosome)}
@@ -17,6 +17,8 @@ makeDoubledHaploids(haplos, ind.names = NULL, loc.crossovers = NULL,
 \item{child.names}{identifiers of the children (if NULL, <ind>"_x_"<ind>)}
 
 \item{nb.cores}{the number of cores to use, i.e. at most how many child processes will be run simultaneously (not on Windows)}
+
+\item{verbose}{verbosity level (default=0/1)}
 }
 \value{
 list of matrices

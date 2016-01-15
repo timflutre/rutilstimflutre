@@ -163,10 +163,12 @@ test_that("fecundation", {
 test_that("makeDoubledHaploids", {
   N <- 2 # individuals
   P <- 8 # SNPs
-  haplos <- list(chr1=matrix(data=c(1,1,1,0, 1,1,0,1, 1,1,1,0, 1,1,1,0), nrow=2*N, ncol=P/2,
+  haplos <- list(chr1=matrix(data=c(1,1,1,0, 1,1,0,1, 1,1,1,0, 1,1,1,0),
+                             nrow=2*N, ncol=P/2,
                              dimnames=list(c("ind1_h1", "ind1_h2", "ind2_h1", "ind2_h2"),
                                            paste0("snp", 1:(P/2)))),
-                 chr2=matrix(data=c(0,0,1,0, 0,0,0,1, 0,0,1,1, 0,0,1,0), nrow=2*N, ncol=P/2,
+                 chr2=matrix(data=c(0,0,1,0, 0,0,0,1, 0,0,1,1, 0,0,1,0),
+                             nrow=2*N, ncol=P/2,
                              dimnames=list(c("ind1_h1", "ind1_h2", "ind2_h1", "ind2_h2"),
                                            paste0("snp", (P/2+1):P))))
   ind.names <- c("ind2")
@@ -181,7 +183,7 @@ test_that("makeDoubledHaploids", {
                                              paste0("snp", (P/2+1):P))))
 
   observed <- makeDoubledHaploids(haplos, ind.names, loc.crossovers,
-                                  child.names)
+                                  child.names, verbose=0)
 
   expect_equal(observed, expected)
 })
