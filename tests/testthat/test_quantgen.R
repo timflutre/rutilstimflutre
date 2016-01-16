@@ -266,3 +266,15 @@ test_that("distSnpPairs", {
 
   expect_equal(observed, expected)
 })
+
+test_that("calcAvgPwDiffBtwHaplos", {
+  ## figure 1.4 from Wakeley (2008)
+  haplos.chr <- matrix(data=c(1,1,1,0,0, 1,1,0,1,1, 1,0,0,0,0, 1,1,0,0,0),
+                       nrow=5, ncol=4)
+
+  expected <- 2
+
+  observed <- calcAvgPwDiffBtwHaplos(haplos.chr)
+
+  expect_equal(observed, expected)
+})

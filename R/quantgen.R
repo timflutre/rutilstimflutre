@@ -382,6 +382,32 @@ simulCoalescent <- function(nb.inds=100,
               snp.coords=snp.coords))
 }
 
+##' Pi
+##'
+##' Calculate the average number of differences between pairs of sequences, named pi in the population genetics literature (Tajima, 1983; Wakeley, 2008).
+##' @param haplos.chr matrix with haplotypes in rows and sites in columns
+##' @return numeric(1)
+##' @author Timothee Flutre
+calcAvgPwDiffBtwHaplos <- function(haplos.chr){
+  pi <- 0
+
+  n <- nrow(haplos.chr)
+  k <- as.matrix(dist(haplos.chr, "manhattan"))
+  k[lower.tri(k)] <- 0
+
+  ## naive implementation:
+  ## for(i in 1:(n-1))
+  ##   for(j in (i+1):n)
+  ##     pi <- pi + k[i,j]
+
+  ## faster implementation:
+  pi <- sum(rowSums(k))
+
+  pi <- pi / choose(n, 2)
+
+  return(pi)
+}
+
 ##' Individual names
 ##'
 ##' Return the identifiers of all individuals
