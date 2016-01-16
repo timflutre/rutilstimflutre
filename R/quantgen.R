@@ -259,22 +259,24 @@ segSites2allDoses <- function(seg.sites, ind.ids=NULL, snp.ids=NULL){
   return(X)
 }
 
-##' Make a data.frame of SNP coordinates from the SFS of independent replicates
+##' Site frequency spectrum
 ##'
-##' SFS stands for site frequency spectrum
+##' Make a data.frame of SNP coordinates from the SFS of independent replicates.
 ##' @param seg.sites list returned by scrm()
 ##' @param snp.ids vector of identifiers (one per SNP)
+##' @param chrom.len chromosome length (same for all)
 ##' @param prefix character string
 ##' @return data.frame with SNPs in rows and 2 columns (chr, pos)
 ##' @author Timothee Flutre
-segSites2snpCoords <- function(seg.sites, snp.ids, prefix="chr"){
+segSites2snpCoords <- function(seg.sites, snp.ids, chrom.len, prefix="chr"){
   stopifnot(is.list(seg.sites),
             length(unique(sapply(seg.sites, nrow))) == 1)
 
-  nb.chrs <- length(seg.sites) # nb of chromosomes
+  nb.chrs <- length(seg.sites)
   nb.snps.per.chr <- sapply(seg.sites, ncol)
-  nb.snps <- sum(nb.snps.per.chr) # nb of SNPs
+  nb.snps <- sum(nb.snps.per.chr)
 
+  ## fill up the output data.frame
   snp.coords <- data.frame(chr=rep(NA, nb.snps),
                            pos=-1,
                            row.names=snp.ids)
@@ -282,15 +284,13 @@ segSites2snpCoords <- function(seg.sites, snp.ids, prefix="chr"){
   snp.coords$pos <- as.numeric(do.call(c, lapply(seg.sites, colnames)))
 
   ## convert genomic positions from float to integer
-  i <- 0
-  while(TRUE){
-    tmp <- c(by(floor(snp.coords$pos * 10^i), factor(snp.coords$chr),
-                function(x){anyDuplicated(x)}))
-    if(! any(tmp))
-      break
-    i <- i + 1
+  snp.coords$pos <- floor(snp.coords$pos)
+  for(chr in levels(snp.coords$chr)){
+    tmp <- snp.coords$pos[snp.coords$chr == chr]
+    stopifnot(anyDuplicated(tmp) == 0,
+              min(tmp) > 0,
+              max(tmp) <= chrom.len)
   }
-  snp.coords$pos <- floor(snp.coords$pos * 10^i)
 
   return(snp.coords)
 }
@@ -306,6 +306,8 @@ segSites2snpCoords <- function(seg.sites, snp.ids, prefix="chr"){
 ##' @param chrom.len in bp
 ##' @param nb.pops number of populations
 ##' @param mig.rate migration rate = 4 N0 m (symmetric)
+##' @param get.trees get gene genealogies in the Newick format
+##' @param get.tmrca get time to most recent common ancestor and local tree lengths
 ##' @param verbose verbosity level (default=0=nothing, 1=few, 2=more)
 ##' @return list with haplotypes (list), genotypes as allele doses (matrix) and SNP coordinates (data.frame)
 ##' @author Timothee Flutre
@@ -317,11 +319,15 @@ simulCoalescent <- function(nb.inds=100,
                             chrom.len=10^3,
                             nb.pops=1,
                             mig.rate=5,
+                            get.trees=FALSE,
+                            get.tmrca=FALSE,
                             verbose=0){
   if(! requireNamespace("scrm", quietly=TRUE))
     stop("Pkg scrm needed for this function to work. Please install it.",
          call.=FALSE)
   stopifnot(nb.inds > nb.pops)
+
+  out <- list()
 
   if(is.null(ind.ids))
     ind.ids <- sprintf(fmt=paste0("ind%0", floor(log10(nb.inds))+1, "i"),
@@ -332,8 +338,10 @@ simulCoalescent <- function(nb.inds=100,
   cmd <- paste0(nb.samples, " ", nb.reps)
   cmd <- paste0(cmd, " -t ", pop.mut.rate)
   cmd <- paste0(cmd, " -r ", pop.recomb.rate, " ", chrom.len)
-  cmd <- paste0(cmd, " -T") # print genealogies in newick
-  cmd <- paste0(cmd, " -L") # print TMRCA and local tree lengths
+  if(get.trees)
+    cmd <- paste0(cmd, " -T")
+  if(get.tmrca)
+    cmd <- paste0(cmd, " -L")
   cmd <- paste0(cmd, " -SC abs") # absolute seq positions in bp
   cmd <- paste0(cmd, " -oSFS") # print site freq spectrum, requires -t
   if(nb.pops > 1){
@@ -353,14 +361,17 @@ simulCoalescent <- function(nb.inds=100,
   if(verbose > 1)
     print(str(sum.stats))
 
-  ## make a data.frame with SNP coordinates
   prefix <- "chr"
   names(sum.stats$seg_sites) <- paste0(prefix, 1:nb.reps)
+  out[["haplos"]] <- sum.stats$seg_sites
+
+  ## make a data.frame with SNP coordinates
   nb.snps.per.chr <- sapply(sum.stats$seg_sites, ncol)
   nb.snps <- sum(nb.snps.per.chr)
   snp.ids <- sprintf(fmt=paste0("snp%0", floor(log10(nb.snps))+1, "i"),
                      1:nb.snps)
-  snp.coords <- segSites2snpCoords(sum.stats$seg_sites, snp.ids, prefix)
+  snp.coords <- segSites2snpCoords(sum.stats$seg_sites, snp.ids, chrom.len,
+                                   prefix)
   for(c in 1:nb.reps){
     colnames(sum.stats$seg_sites[[c]]) <-
       snp.ids[(ifelse(c == 1, 1, 1 + cumsum(nb.snps.per.chr)[c-1])):
@@ -368,18 +379,23 @@ simulCoalescent <- function(nb.inds=100,
     rownames(sum.stats$seg_sites[[c]]) <-
       paste0(rep(ind.ids, each=2), rep(c("_h1", "_h2"), nb.inds))
   }
+  out[["snp.coords"]] <- snp.coords
 
-  ## make a matrix with genotypes as allele doses
+  ## make a matrix with genotypes encoded as allele dose
   X <- segSites2allDoses(sum.stats$seg_sites, ind.ids, snp.ids)
   if(verbose > 0){
     txt <- paste0("nb of SNPs: ", nb.snps)
     write(txt, stdout())
     print(sapply(sum.stats$seg_sites, ncol))
   }
+  out[["genos"]] <- X
 
-  return(list(haplos=sum.stats$seg_sites,
-              genos=X,
-              snp.coords=snp.coords))
+  if(get.trees)
+    out[["trees"]] <- sum.stats$trees
+  if(get.tmrca)
+    out[["tmrca"]] <- sum.stats$tmrca
+
+  return(out)
 }
 
 ##' Pi

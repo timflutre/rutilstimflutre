@@ -6,7 +6,7 @@
 \usage{
 simulCoalescent(nb.inds = 100, ind.ids = NULL, nb.reps = 20,
   pop.mut.rate = 50, pop.recomb.rate = 5, chrom.len = 10^3, nb.pops = 1,
-  mig.rate = 5, verbose = 0)
+  mig.rate = 5, get.trees = FALSE, get.tmrca = FALSE, verbose = 0)
 }
 \arguments{
 \item{nb.inds}{diploids (thus nb of haplotypes is 2 * nb.inds)}
@@ -24,6 +24,10 @@ simulCoalescent(nb.inds = 100, ind.ids = NULL, nb.reps = 20,
 \item{nb.pops}{number of populations}
 
 \item{mig.rate}{migration rate = 4 N0 m (symmetric)}
+
+\item{get.trees}{get gene genealogies in the Newick format}
+
+\item{get.tmrca}{get time to most recent common ancestor and local tree lengths}
 
 \item{verbose}{verbosity level (default=0=nothing, 1=few, 2=more)}
 }

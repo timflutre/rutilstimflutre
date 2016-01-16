@@ -2,14 +2,16 @@
 % Please edit documentation in R/quantgen.R
 \name{segSites2snpCoords}
 \alias{segSites2snpCoords}
-\title{Make a data.frame of SNP coordinates from the SFS of independent replicates}
+\title{Site frequency spectrum}
 \usage{
-segSites2snpCoords(seg.sites, snp.ids, prefix = "chr")
+segSites2snpCoords(seg.sites, snp.ids, chrom.len, prefix = "chr")
 }
 \arguments{
 \item{seg.sites}{list returned by scrm()}
 
 \item{snp.ids}{vector of identifiers (one per SNP)}
+
+\item{chrom.len}{chromosome length (same for all)}
 
 \item{prefix}{character string}
 }
@@ -17,7 +19,7 @@ segSites2snpCoords(seg.sites, snp.ids, prefix = "chr")
 data.frame with SNPs in rows and 2 columns (chr, pos)
 }
 \description{
-SFS stands for site frequency spectrum
+Make a data.frame of SNP coordinates from the SFS of independent replicates.
 }
 \author{
 Timothee Flutre
