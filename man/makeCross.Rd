@@ -16,7 +16,7 @@ makeCross(haplos.par1, loc.crossovers.par1, haplos.par2 = NULL,
 
 \item{loc.crossovers.par2}{list of vectors (one per chromosome) for the second parent}
 
-\item{child.name}{identifier of the child (if NULL, <parent1>"_x_"<parent2>)}
+\item{child.name}{identifier of the child (if NULL, <parent1>"-x-"<parent2> or <parent1>"-hd")}
 
 \item{verbose}{verbosity level (default=0/1)}
 }

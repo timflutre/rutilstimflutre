@@ -4,14 +4,14 @@
 \alias{fecundation}
 \title{Fecundation}
 \usage{
-fecundation(gam1, gam2, child.name = NULL)
+fecundation(gam1, gam2, child.name)
 }
 \arguments{
 \item{gam1}{list of 1-row matrices (one per chromosome)}
 
 \item{gam2}{list of 1-row matrices (one per chromosome)}
 
-\item{child.name}{identifier of the child (if NULL, <parent1>"_x_"<parent2>)}
+\item{child.name}{identifier of the child}
 }
 \value{
 list of 2-row matrices (one per chromosome)

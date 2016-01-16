@@ -223,15 +223,29 @@ coancestry2addrel <- function(x, estim.coancestry, estim.inbreeding=NULL,
 ##'
 ##' SFS stands for site frequency spectrum
 ##' @param seg.sites list returned by scrm()
+##' @param ind.ids vector with the identifiers of the individuals
+##' @param snp.ids vector with the identifiers of the SNPs
 ##' @return matrix with diploid individuals in rows and SNPs in columns
 ##' @author Timothee Flutre
-segSites2allDoses <- function(seg.sites){
+segSites2allDoses <- function(seg.sites, ind.ids=NULL, snp.ids=NULL){
   stopifnot(is.list(seg.sites),
             length(unique(sapply(seg.sites, nrow))) == 1)
+  if(! is.null(ind.ids))
+    stopifnot(is.vector(ind.ids),
+              is.character(ind.ids),
+              length(ind.ids) == nrow(seg.sites[[1]]) / 2)
+  if(! is.null(snp.ids))
+    stopifnot(is.vector(snp.ids),
+              is.character(snp.ids),
+              length(snp.ids) == sum(sapply(seg.sites, ncol)))
 
   nb.inds <- nrow(seg.sites[[1]]) / 2 # nb of diploid individuals
   nb.snps <- sum(sapply(seg.sites, ncol)) # nb of SNPs
   X <- matrix(data=NA, nrow=nb.inds, ncol=nb.snps)
+  if(! is.null(ind.ids))
+    rownames(X) <- ind.ids
+  if(! is.null(snp.ids))
+    colnames(X) <- snp.ids
 
   j <- 1
   for(x in seq_along(seg.sites)){
@@ -356,9 +370,7 @@ simulCoalescent <- function(nb.inds=100,
   }
 
   ## make a matrix with genotypes as allele doses
-  X <- segSites2allDoses(sum.stats$seg_sites)
-  rownames(X) <- ind.ids
-  colnames(X) <- snp.ids
+  X <- segSites2allDoses(sum.stats$seg_sites, ind.ids, snp.ids)
   if(verbose > 0){
     txt <- paste0("nb of SNPs: ", nb.snps)
     write(txt, stdout())
@@ -504,20 +516,15 @@ makeGameteSingleInd <- function(haplos.par, loc.crossovers){
 ##' Perform fecundation by uniting the two gametes.
 ##' @param gam1 list of 1-row matrices (one per chromosome)
 ##' @param gam2 list of 1-row matrices (one per chromosome)
-##' @param child.name identifier of the child (if NULL, <parent1>"_x_"<parent2>)
+##' @param child.name identifier of the child
 ##' @return list of 2-row matrices (one per chromosome)
 ##' @author Timothee Flutre
-fecundation <- function(gam1, gam2, child.name=NULL){
+fecundation <- function(gam1, gam2, child.name){
   stopifnot(is.list(gam1),
             is.list(gam2),
             length(gam1) == length(gam2))
 
   nb.chroms <- length(gam1)
-  if(is.null(child.name)){
-    parent1 <- unique(sapply(gam1, rownames))
-    parent2 <- unique(sapply(gam2, rownames))
-    child.name <- paste0(parent1, "_x_", parent2)
-  }
 
   child <- lapply(1:nb.chroms, function(c){
     tmp <- rbind(gam1[[c]], gam2[[c]])
@@ -536,7 +543,7 @@ fecundation <- function(gam1, gam2, child.name=NULL){
 ##' @param loc.crossovers.par1 list of vectors (one per chromosome) for the first parent
 ##' @param haplos.par2 list of matrices (one per chromosome) for the second parent
 ##' @param loc.crossovers.par2 list of vectors (one per chromosome) for the second parent
-##' @param child.name identifier of the child (if NULL, <parent1>"_x_"<parent2>)
+##' @param child.name identifier of the child (if NULL, <parent1>"-x-"<parent2> or <parent1>"-hd")
 ##' @param verbose verbosity level (default=0/1)
 ##' @return list of matrices (one per chromosome) for the child
 ##' @author Timothee Flutre
@@ -588,96 +595,150 @@ makeCross <- function(haplos.par1,
   ## make the gamete(s) and then the cross
   gam.par1 <- makeGameteSingleInd(haplos.par1, loc.crossovers.par1)
   if(cross.type == "haplodiploidization"){
+    if(is.null(child.name))
+      child.name <- paste0(name.par1, "-hd")
     haplos.child <- fecundation(gam.par1, gam.par1, child.name)
   } else{
     gam.par2 <- makeGameteSingleInd(haplos.par2, loc.crossovers.par2)
+    if(is.null(child.name))
+      child.name <- paste0(name.par1, "-x-", name.par2)
     haplos.child <- fecundation(gam.par1, gam.par2, child.name)
   }
 
   return(haplos.child)
 }
 
-##' Doubled haploids
+##' Crossing-overs
 ##'
-##' Make a doubled haploid for each individual under consideration.
+##' Draw the number and location of crossing-overs per gamete.
+##' @param crosses data.frame with three columns, parent1, parent2, child; if parent 1 and 2 are the same, it will be an autofecondation; if parent2 is NA, it will be a haplodiploidization
+##' @param nb.snps vector with the nb of SNPs per chromosome, which names are chromosome names
+##' @param lambda mean number of crossing-overs (parameter of a Poisson)
+##' @return list of lists (one per cross, then one per parent, then one per chromosome) whose names are crosses$child, in the same order
+##' @author Timothee Flutre
+drawLocCrossovers <- function(crosses, nb.snps, lambda=2){
+  stopifnot(is.data.frame(crosses),
+            ncol(crosses) >= 3,
+            all(c("parent1", "parent2", "child") %in% colnames(crosses)),
+            sum(is.na(crosses$parent1)) == 0,
+            sum(is.na(crosses$child)) == 0,
+            is.vector(nb.snps),
+            ! is.null(names(nb.snps)))
+
+  loc.crossovers <- list()
+
+  ## draw the number of crossing-overs for each gamete
+  parent.names <- c(crosses$parent1, crosses$parent2)
+  parent.names <- parent.names[! is.na(parent.names)]
+  nb.gametes <- length(parent.names)
+  nb.chroms <- length(nb.snps)
+  nb.crossovers <- rpois(nb.gametes * nb.chroms, lambda)
+  nb.crossovers[nb.crossovers == 0] <- 1 # at least 1 per chromosome
+
+  ## draw the location of each crossing-over
+  nb.crosses <- nrow(crosses)
+  chrom.names <- names(nb.snps)
+  cross.idx <- 0
+  gam.idx <- 0
+  while(cross.idx < nb.crosses){
+    cross.idx <- cross.idx + 1
+    child <- list()
+    gam.idx <- gam.idx + 1
+    gam.par1 <- lapply(1:nb.chroms, function(c){
+      sort(sample.int(n=nb.snps[c] - 1,
+                      size=nb.crossovers[(gam.idx-1)*nb.chroms + c]))
+    })
+    names(gam.par1) <- chrom.names
+    child[[crosses$parent1[cross.idx]]] <- gam.par1
+    if(! is.na(crosses$parent2[cross.idx])){ # (auto)fecondation
+      gam.idx <- gam.idx + 1
+      gam.par2 <- lapply(1:nb.chroms, function(c){
+        sort(sample.int(n=nb.snps[c] - 1,
+                        size=nb.crossovers[(gam.idx-1)*nb.chroms + c]))
+      })
+      names(gam.par2) <- chrom.names
+      child[[crosses$parent2[cross.idx]]] <- gam.par2
+    }
+    loc.crossovers[[crosses$child[cross.idx]]] <- child
+  }
+
+  return(loc.crossovers)
+}
+
+##' Crosses
+##'
+##' Make crosses (fecundation, autofecondation, haplodiploidization).
 ##' @param haplos list of matrices (one per chromosome)
-##' @param ind.names identifiers of the individuals to handle (if NULL, all individuals)
-##' @param loc.crossovers list of lists (one per chromosome, then one per individual); if NULL, draw many crossing-overs localizations at once (as Poisson with parameter 2, assuming all chromosomes roughly have the same length)
-##' @param child.names identifiers of the children (if NULL, <ind>"_x_"<ind>)
+##' @param crosses data.frame with three columns, parent1, parent2, child; if parent 1 and 2 are the same, it will be an autofecondation; if parent2 is NA, it will be a haplodiploidization
+##' @param loc.crossovers list of lists (one per cross, then one per parent, then one per chromosome) whose names are crosses$child, in the same order; if NULL, draw many crossing-overs localizations at once (as Poisson with parameter 2, assuming all chromosomes have the same length)
 ##' @param nb.cores the number of cores to use, i.e. at most how many child processes will be run simultaneously (not on Windows)
 ##' @param verbose verbosity level (default=0/1)
-##' @return list of matrices
+##' @return list of matrices (one per chromosome) with child haplotypes in rows and SNPs in columns
 ##' @author Timothee Flutre
-makeDoubledHaploids <- function(haplos, ind.names=NULL, loc.crossovers=NULL,
-                                child.names=NULL, nb.cores=1, verbose=1){
+makeCrosses <- function(haplos, crosses, loc.crossovers=NULL,
+                        nb.cores=1, verbose=1){
   stopifnot(is.list(haplos),
             length(unique(sapply(haplos, class))) == 1,
             unique(sapply(haplos, class)) == "matrix",
-            length(unique(sapply(haplos, nrow))) == 1) # same nb of individuals
+            length(unique(sapply(haplos, nrow))) == 1, # same nb of individuals
+            is.data.frame(crosses),
+            ncol(crosses) >= 3,
+            all(c("parent1", "parent2", "child") %in% colnames(crosses)),
+            sum(is.na(crosses$parent1)) == 0,
+            sum(is.na(crosses$child)) == 0)
   haplos.ind.names <- getIndNamesFromHaplos(haplos)
-  if(! is.null(ind.names))
-    stopifnot(is.vector(ind.names),
-              is.character(ind.names),
-              all(ind.names %in% haplos.ind.names))
+  parent.names <- c(crosses$parent1, crosses$parent2)
+  parent.names <- parent.names[! is.na(parent.names)]
+  stopifnot(all(parent.names %in% haplos.ind.names))
   if(! is.null(loc.crossovers))
     stopifnot(is.list(loc.crossovers),
-              all(names(loc.crossovers) == ind.names),
-              length(loc.crossovers[[1]]) == length(haplos)) # same nb of chromosomes
+              all(names(loc.crossovers) == crosses$child))
+
   if(Sys.info()["sysname"] == "Windows")
     nb.cores <- 1
 
-  if(is.null(ind.names)){
-    ind.names <- haplos.ind.names
-  } else if(length(ind.names) < nrow(haplos[[1]])){
-    haplos <- getHaplosInds(haplos, ind.names)
-  }
-
-  if(is.null(child.names))
-    child.names <- paste0(ind.names, "_x_", ind.names)
-
+  nb.crosses <- nrow(crosses)
   nb.chroms <- length(haplos)
-  nb.inds <- length(ind.names)
+  chrom.names <- names(haplos)
 
   if(is.null(loc.crossovers)){
     if(verbose > 0){
       msg <- "draw locations of crossing-overs ..."
       write(msg, stdout())
     }
-    nb.crossovers <- rpois(n=nb.inds * nb.chroms, lambda=2) # 2 per chromosome
-    nb.crossovers[nb.crossovers == 0] <- 1 # at least 1 per chromosome
-    loc.crossovers <- lapply(1:nb.inds, function(i){
-      tmp <- lapply(1:nb.chroms, function(c){
-        sort(sample.int(n=ncol(haplos[[c]]) - 1,
-                        size=nb.crossovers[(i-1)*nb.chroms + c]))
-      })
-      names(tmp) <- nrow(haplos)
-      tmp
-    })
-    names(loc.crossovers) <- ind.names
+    nb.snps <- sapply(haplos, ncol) # per chromosome
+    loc.crossovers <- drawLocCrossovers(crosses, nb.snps)
   }
 
   if(verbose > 0){
-    msg <- "make haplodiploidization for each individual ..."
+    msg <- "make all crosses ..."
     write(msg, stdout())
   }
-  tmp <- parallel::mclapply(1:nb.inds, function(i){
-    ind.name <- ind.names[i]
-    haplos.ind <- getHaplosInd(haplos, ind.name)
-    child.name <- child.names[i]
-    makeCross(haplos.par1=haplos.ind, loc.crossovers.par1=loc.crossovers[[i]],
-              child.name=child.name, verbose=verbose-1)
+  tmp <- parallel::mclapply(1:nb.crosses, function(i){
+    if(is.na(crosses$parent2[i])){ # haplodiploidization
+      makeCross(haplos.par1=getHaplosInd(haplos, crosses$parent1[i]),
+                loc.crossovers.par1=loc.crossovers[[i]][[crosses$parent1[i]]],
+                child.name=crosses$child[i],
+                verbose=verbose-1)
+    } else #(auto)fecondation
+      makeCross(haplos.par1=getHaplosInd(haplos, crosses$parent1[i]),
+                loc.crossovers.par1=loc.crossovers[[i]][[crosses$parent1[i]]],
+                haplos.par2=getHaplosInd(haplos, crosses$parent2[i]),
+                loc.crossovers.par2=loc.crossovers[[i]][[crosses$parent2[i]]],
+                child.name=crosses$child[i],
+                verbose=verbose-1)
   }, mc.cores=nb.cores)
 
   if(verbose > 0){
-    msg <- "gather all individuals per chromosome ..."
+    msg <- "gather all children's haplotypes per chromosome ..."
     write(msg, stdout())
   }
-  dbl.hpd <- lapply(1:nb.chroms, function(c){
+  haplos.children <- lapply(1:nb.chroms, function(c){
     do.call(rbind, parallel::mclapply(tmp, `[[`, c, mc.cores=nb.cores))
   })
-  names(dbl.hpd) <- names(haplos)
+  names(haplos.children) <- chrom.names
 
-  return(dbl.hpd)
+  return(haplos.children)
 }
 
 ##' Distance between SNP pairs

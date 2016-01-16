@@ -4,10 +4,14 @@
 \alias{segSites2allDoses}
 \title{Convert the SFS of independent replicates into a matrix of allele dosage.}
 \usage{
-segSites2allDoses(seg.sites)
+segSites2allDoses(seg.sites, ind.ids = NULL, snp.ids = NULL)
 }
 \arguments{
 \item{seg.sites}{list returned by scrm()}
+
+\item{ind.ids}{vector with the identifiers of the individuals}
+
+\item{snp.ids}{vector with the identifiers of the SNPs}
 }
 \value{
 matrix with diploid individuals in rows and SNPs in columns
