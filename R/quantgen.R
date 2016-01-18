@@ -1087,6 +1087,64 @@ estimLd <- function(X, K=NULL, pops=NULL, snp.coords,
   return(ld)
 }
 
+##' Pairwise linkage disequilibrium
+##'
+##' Plots the linkage disequilibrium between pairs of SNPs, as a blue density or black points, with a red loess.
+##' @param x vector of distances between SNPs (see \code{\link{distSnpPairs}})
+##' @param y vector of LD estimates (see \code{\link{estimLd}})
+##' @param main main title
+##' @param use.density if TRUE, uses smoothScatter; otherwise, use scatter.smooth
+##' @param xlab label for the x axis
+##' @param ylab label for the y axis
+##' @param span the parameter alpha which controls the degree of smoothing (see \code{\link[stats]{loess}})
+##' @param degree the degree of the polynomials to be used (see \code{\link[stats]{loess}})
+##' @param evaluation number of points at which to evaluate the smooth curve (see \code{\link[stats]{loess.smooth}})
+##' @param sample.size nb of sampled haplotypes, n, used to estimate the pairwise LD; if not NULL, n is used to calculate the r value above which the null hypothesis "D=0" is rejected, where r = D / sqrt(f_A f_a f_B f_b) and X^2 = n r^2 is the test statistic asymptotically following a Chi2(df=1) (see McVean, Handbook of Statistical Genetics, 2007, and Pritchard and Przewoski, AJHG, 2001)
+##' @return nothing
+##' @author Timothee Flutre
+plotLd <- function(x, y, main,
+                   use.density=TRUE,
+                   xlab="physical distance (bp)",
+                   ylab="linkage disequilibrium (r2)",
+                   span=1/10, degree=1, evaluation=50,
+                   sample.size=NULL){
+  stopifnot(is.vector(x),
+            is.vector(y),
+            is.character(main))
+  if(! is.null(sample.size))
+    stopifnot(is.numeric(sample.size))
+
+  lpars <- list(col="red")
+  if(use.density){
+    smoothScatter(x, y,
+                  main=main,
+                  xlab=xlab,
+                  ylab=ylab,
+                  las=1)
+    pred <- loess.smooth(x, y, span=span, degree=degree, evaluation=evaluation)
+    do.call(lines, c(list(pred), lpars))
+  } else{
+    scatter.smooth(x, y, lpars=lpars,
+                   main=main, xlab=xlab, ylab=ylab, las=1,
+                   span=span, degree=degree, evaluation=evaluation)
+  }
+  if(is.null(sample.size)){
+    legend("topright", legend="loess", col="red", lty=1, bty="n")
+  } else{
+    ## reject H0:"D=0" at 5% if X2 = n x hat(r^2) >= Chi2(1)
+    X2 <- qchisq(p=0.05, df=1, lower.tail=FALSE)
+    abline(h=sqrt(X2 / sample.size),
+           col=ifelse(use.density, "black", "blue"),
+           lty=2)
+    legend("topright",
+           legend=c("loess",
+                    as.expression(bquote(paste("r | D=0, n=", .(sample.size),
+                                               ", ", alpha, "=5%")))),
+           col=c("red", ifelse(use.density, "black", "blue")),
+           lty=c(1,2), bty="n")
+  }
+}
+
 ##' Simulate phenotypes from a basic "animal model" (LMM).
 ##'
 ##' y = W alpha + Z u + epsilon
