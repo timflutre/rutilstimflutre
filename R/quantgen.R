@@ -363,7 +363,6 @@ simulCoalescent <- function(nb.inds=100,
 
   prefix <- "chr"
   names(sum.stats$seg_sites) <- paste0(prefix, 1:nb.reps)
-  out[["haplos"]] <- sum.stats$seg_sites
 
   ## make a data.frame with SNP coordinates
   nb.snps.per.chr <- sapply(sum.stats$seg_sites, ncol)
@@ -372,6 +371,9 @@ simulCoalescent <- function(nb.inds=100,
                      1:nb.snps)
   snp.coords <- segSites2snpCoords(sum.stats$seg_sites, snp.ids, chrom.len,
                                    prefix)
+  out[["snp.coords"]] <- snp.coords
+
+  ## set row and column names of haplotypes
   for(c in 1:nb.reps){
     colnames(sum.stats$seg_sites[[c]]) <-
       snp.ids[(ifelse(c == 1, 1, 1 + cumsum(nb.snps.per.chr)[c-1])):
@@ -379,7 +381,7 @@ simulCoalescent <- function(nb.inds=100,
     rownames(sum.stats$seg_sites[[c]]) <-
       paste0(rep(ind.ids, each=2), rep(c("_h1", "_h2"), nb.inds))
   }
-  out[["snp.coords"]] <- snp.coords
+  out[["haplos"]] <- sum.stats$seg_sites
 
   ## make a matrix with genotypes encoded as allele dose
   X <- segSites2allDoses(sum.stats$seg_sites, ind.ids, snp.ids)
@@ -422,6 +424,31 @@ calcAvgPwDiffBtwHaplos <- function(haplos.chr){
   pi <- pi / choose(n, 2)
 
   return(pi)
+}
+
+##' Haplotypes
+##'
+##' Plot haplotypes as an image.
+##' @param haplos matrix of haplotypes with haplotypes (2 per individual) in rows and sites in columns
+##' @param main main title
+##' @return nothing
+##' @author Timothee Flutre
+plotHaplosMatrix <- function(haplos, main="Haplotypes"){
+  stopifnot(is.matrix(haplos),
+            ! is.null(dimnames(haplos)))
+
+  opar <- par(mar=c(1,6,5,2))
+
+  image(t(haplos)[,nrow(haplos):1], axes=FALSE, col=c("white","black"))
+
+  title(main=main, line=3)
+  axis(side=3, at=seq(1, ncol(haplos), length.out=7) / ncol(haplos),
+       labels=colnames(haplos)[seq(1, ncol(haplos), length.out=7)])
+  axis(side=2, at=rev(seq(1, nrow(haplos), length.out=10) / nrow(haplos)),
+       labels=rownames(haplos)[seq(1, nrow(haplos), length.out=10)],
+       las=1, padj=0)
+
+  on.exit(par(opar))
 }
 
 ##' Individual names
@@ -811,7 +838,7 @@ distSnpPairs <- function(snp.pairs, snp.coords, nb.cores=1, verbose=0){
             "chr" %in% colnames(snp.coords))
   snp.pairs$loc1 <- as.character(snp.pairs$loc1)
   snp.pairs$loc2 <- as.character(snp.pairs$loc2)
-  stopifnot(all(unique(do.call(c, snp.pairs[, c("loc1", "loc2")])) %in%
+  stopifnot(all(unique(unlist(snp.pairs[, c("loc1", "loc2")])) %in%
                 rownames(snp.coords)))
   if(! "pos" %in% colnames(snp.coords)){
     if(! "coord" %in% colnames(snp.coords))
@@ -821,24 +848,16 @@ distSnpPairs <- function(snp.pairs, snp.coords, nb.cores=1, verbose=0){
 
   if(verbose > 0)
     message("make GRanges ...")
-  snp.granges <- GenomicRanges::GRanges(seqnames=S4Vectors::Rle(snp.coords$chr),
-                                        ranges=IRanges::IRanges(start=snp.coords$pos,
-                                                                end=snp.coords$pos))
+  snp.granges <-
+    GenomicRanges::GRanges(seqnames=S4Vectors::Rle(snp.coords$chr),
+                           ranges=IRanges::IRanges(start=snp.coords$pos,
+                                                   end=snp.coords$pos))
   names(snp.granges) <- rownames(snp.coords)
 
   if(verbose > 0)
-    message("calculate distances ...")
-  dist.loc <- do.call(c, parallel::mclapply(unique(snp.pairs$loc1), function(loc1){
-    if(verbose > 1)
-      print(loc1)
-    idx <- which(snp.pairs$loc1 == loc1)
-    if(length(idx) > 1 &
-       any(abs(idx[1:(length(idx)-1)] - idx[2:length(idx)]) > 1))
-      stop(paste("for a given, distinct value in snp.pairs$loc1,",
-                 "all of its instances should be present in successive rows"))
-    GenomicRanges::distance(x=snp.granges[loc1],
-                            y=snp.granges[snp.pairs$loc2[snp.pairs$loc1 == loc1]])
-  }, mc.cores=nb.cores, mc.silent=ifelse(nb.cores > 1, TRUE, FALSE)))
+    message("calculate pairwise distances ...")
+  dist.loc <- GenomicRanges::distance(x=snp.granges[snp.pairs$loc1],
+                                      y=snp.granges[snp.pairs$loc2])
 
   return(dist.loc)
 }
@@ -949,21 +968,23 @@ estimGenRel <- function(X, mafs=NULL, thresh=0.01, relationships="additive",
   return(gen.rel)
 }
 
-##' Return estimates of linkage disequilibrium between pairs of SNPs.
+##' Pairwise linkage disequilibrium
 ##'
-##' Requires package LDcorSV
+##' Estimates linkage disequilibrium between pairs of SNPs when the observations are the genotypes of individuals, not their gametes (i.e. the gametic phases are unknown). When ignoring kinship and population structure, the estimator of Rogers and Huff (Genetics, 2009) can be used. When kinship and/or population structure are controlled for, the estimator of Mangin et al (Heredity, 2012) is used via their LDcorSV package.
 ##' @param X matrix of SNP genotypes encoded as allele doses, with SNPs in columns and individuals in rows
 ##' @param K matrix of kinship
 ##' @param pops vector of characters indicating the population of each individual
 ##' @param snp.coords data.frame with SNP identifiers as row names, and two columns, "chr" and "pos"
 ##' @param only.chr identifier of a given chromosome
 ##' @param only.pop identifier of a given population
+##' @param use.ldcorsv required if K and/or pops are not NULL; otherwise use the square of \code{\link{cor}}
 ##' @param verbose verbosity level (default=0/1)
 ##' @return data frame
 ##' @author Timothee Flutre
 estimLd <- function(X, K=NULL, pops=NULL, snp.coords,
-                    only.chr=NULL, only.pop=NULL, verbose=0){
-  if(! requireNamespace("LDcorSV", quietly=TRUE))
+                    only.chr=NULL, only.pop=NULL,
+                    use.ldcorsv=FALSE, verbose=0){
+  if(use.ldcorsv & ! requireNamespace("LDcorSV", quietly=TRUE))
     stop("Pkg LDcorSV needed for this function to work. Please install it.",
          call.=FALSE)
   stopifnot(is.matrix(X),
@@ -972,7 +993,8 @@ estimLd <- function(X, K=NULL, pops=NULL, snp.coords,
             is.data.frame(snp.coords),
             colnames(snp.coords) == c("chr", "pos"))
   if(! is.null(K))
-    stopifnot(is.matrix(K),
+    stopifnot(use.ldcorsv,
+              is.matrix(K),
               nrow(K) == ncol(K),
               nrow(K) == nrow(X),
               ! is.null(dimnames(K)),
@@ -980,7 +1002,8 @@ estimLd <- function(X, K=NULL, pops=NULL, snp.coords,
               all(rownames(K) == rownames(X)))
   W.s <- NA
   if(! is.null(pops)){
-    stopifnot(length(pops) == nrow(X),
+    stopifnot(use.ldcorsv,
+              length(pops) == nrow(X),
               ! is.null(names(pops)),
               names(pops) == rownames(X))
     W.s <- model.matrix(~ as.factor(pops))[, -1]
@@ -996,36 +1019,69 @@ estimLd <- function(X, K=NULL, pops=NULL, snp.coords,
   ld <- NULL
 
   subset.snps <- 1:ncol(X)
-  if(! is.null(only.chr))
-    subset.snps <- which(snp.coords$chr == only.chr)
   subset.inds <- 1:nrow(X)
-  if(! is.null(only.pop))
-    subset.inds <- which(pops == only.pop)
+  if(! is.null(only.chr) | ! is.null(only.pop)){
+    if(verbose > 0)
+      write("extract relevant individuals and SNPs ...", stdout())
+    if(! is.null(only.chr))
+      subset.snps <- which(snp.coords$chr == only.chr)
+    if(! is.null(only.pop))
+      subset.inds <- which(pops == only.pop)
+  }
+  X <- X[subset.inds, subset.snps]
+  if(! is.null(K))
+    K <- K[subset.inds, subset.inds]
 
   if(verbose > 0)
     write("estimate pairwise LD ...", stdout())
   if(is.null(K)){
-    if(is.null(only.pop)){
-      ld <- LDcorSV::LD.Measures(donnees=X[subset.inds, subset.snps],
-                                 V=NA,
-                                 S=W.s,
-                                 data="G", supinfo=FALSE, na.presence=FALSE)
-    } else
-      ld <- LDcorSV::LD.Measures(donnees=X[subset.inds, subset.snps],
-                                 V=NA,
+    if(is.null(pops)){
+      if(use.ldcorsv){
+        ld <- LDcorSV::LD.Measures(donnees=X,
+                                   V=NA,
+                                   S=NA,
+                                   data="G", supinfo=FALSE, na.presence=FALSE)
+      } else{
+        tmp <- cor(X)^2
+        tmp[upper.tri(tmp)] <- NA
+        diag(tmp) <- NA
+        ld <- data.frame(t(combn(colnames(X), 2)),
+                         tmp[! is.na(tmp)],
+                         stringsAsFactors=TRUE)
+        colnames(ld) <- c("loc1", "loc2", "cor2")
+      }
+    } else{ # if(is.null(K) & ! is.null(pops))
+      if(! is.null(only.pop)){
+        ld <- LDcorSV::LD.Measures(donnees=X,
+                                   V=NA,
+                                   S=NA,
+                                   data="G", supinfo=FALSE, na.presence=FALSE)
+      } else{
+        ld <- LDcorSV::LD.Measures(donnees=X,
+                                   V=NA,
+                                   S=W.s,
+                                   data="G", supinfo=FALSE, na.presence=FALSE)
+      }
+    }
+  } else{ # if(! is.null(K))
+    if(is.null(pops)){
+      ld <- LDcorSV::LD.Measures(donnees=X,
+                                 V=K,
                                  S=NA,
                                  data="G", supinfo=FALSE, na.presence=FALSE)
-  } else{
-    if(is.null(only.pop)){
-      ld <- LDcorSV::LD.Measures(donnees=X[subset.inds, subset.snps],
-                                 V=K[subset.inds, subset.inds],
-                                 S=W.s,
-                                 data="G", supinfo=FALSE, na.presence=FALSE)
-    } else
-      ld <- LDcorSV::LD.Measures(donnees=X[subset.inds, subset.snps],
-                                 V=K[subset.inds, subset.inds],
-                                 S=NA,
-                                 data="G", supinfo=FALSE, na.presence=FALSE)
+    } else{ # if(! is.null(K) & ! is.null(pops))
+      if(! is.null(only.pop)){
+        ld <- LDcorSV::LD.Measures(donnees=X,
+                                   V=K,
+                                   S=NA,
+                                   data="G", supinfo=FALSE, na.presence=FALSE)
+      } else{
+        ld <- LDcorSV::LD.Measures(donnees=X,
+                                   V=K,
+                                   S=W.s,
+                                   data="G", supinfo=FALSE, na.presence=FALSE)
+      }
+    }
   }
 
   return(ld)

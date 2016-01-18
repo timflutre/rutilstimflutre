@@ -2,10 +2,10 @@
 % Please edit documentation in R/quantgen.R
 \name{estimLd}
 \alias{estimLd}
-\title{Return estimates of linkage disequilibrium between pairs of SNPs.}
+\title{Pairwise linkage disequilibrium}
 \usage{
 estimLd(X, K = NULL, pops = NULL, snp.coords, only.chr = NULL,
-  only.pop = NULL, verbose = 0)
+  only.pop = NULL, use.ldcorsv = FALSE, verbose = 0)
 }
 \arguments{
 \item{X}{matrix of SNP genotypes encoded as allele doses, with SNPs in columns and individuals in rows}
@@ -20,13 +20,15 @@ estimLd(X, K = NULL, pops = NULL, snp.coords, only.chr = NULL,
 
 \item{only.pop}{identifier of a given population}
 
+\item{use.ldcorsv}{required if K and/or pops are not NULL; otherwise use the square of \code{\link{cor}}}
+
 \item{verbose}{verbosity level (default=0/1)}
 }
 \value{
 data frame
 }
 \description{
-Requires package LDcorSV
+Estimates linkage disequilibrium between pairs of SNPs when the observations are the genotypes of individuals, not their gametes (i.e. the gametic phases are unknown). When ignoring kinship and population structure, the estimator of Rogers and Huff (Genetics, 2009) can be used. When kinship and/or population structure are controlled for, the estimator of Mangin et al (Heredity, 2012) is used via their LDcorSV package.
 }
 \author{
 Timothee Flutre

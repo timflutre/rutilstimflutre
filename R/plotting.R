@@ -70,8 +70,8 @@ hinton <- function(m, main="", max.sqrt.m=NULL){
     ylab <- names(dimnames(m))[1]
   }
 
-  par(mar=c(ifelse(xlab == "", 1, 3),
-        ifelse(ylab == "", 1, 3), 5, 1) + 0.1)
+  opar <- par(mar=c(ifelse(xlab == "", 1, 3),
+                    ifelse(ylab == "", 1, 3), 5, 1) + 0.1)
 
   plot(0, xlim=c(0.25,cols+0.75), ylim=c(-rows-0.75, -0.25),
        type="n", xaxt="n", yaxt="n", xlab="", ylab="")
@@ -96,6 +96,8 @@ hinton <- function(m, main="", max.sqrt.m=NULL){
     mtext(xlab, side=1, line=1)
   if(ylab != "")
     mtext(ylab, side=2, line=2)
+
+  on.exit(par(opar))
 }
 
 ##' Plot a scale, e.g. to add on the side of image()
@@ -189,7 +191,7 @@ imageWithScale <- function(z, main=NULL, idx.rownames=NULL, idx.colnames=NULL,
       custom.mar[2] <- 1
   if(is.null(idx.colnames))
       custom.mar[3] <- 3
-  par(mar=custom.mar)
+  opar <- par(mar=custom.mar)
   image(t(z)[,nrow(z):1], axes=FALSE, col=col.pal(length(breaks)-1))
   if(! is.null(main))
     mtext(text=main, side=3, line=ifelse(is.null(idx.colnames), 1, 4),
@@ -201,11 +203,13 @@ imageWithScale <- function(z, main=NULL, idx.rownames=NULL, idx.colnames=NULL,
       mtext(text=rev(rownames(z)[idx.rownames]), side=2, line=1,
             at=seq(0,1,length.out=length(idx.rownames)),
             las=2)
+  on.exit(par(opar))
 
   ## plot the scale
-  par(mar=c(1,0,6,3))
+  opar <- par(mar=c(1,0,6,3))
   plotWithScale(z, col=col.pal(length(breaks)-1), breaks=breaks, horiz=FALSE,
                 yaxt="n")
   axis(4, at=format(breaks[seq.int(from=1,to=100,length.out=5)], digits=2),
        las=2, lwd=0, lwd.ticks=1)
+  on.exit(par(opar))
 }
