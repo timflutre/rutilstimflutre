@@ -1089,9 +1089,10 @@ estimLd <- function(X, K=NULL, pops=NULL, snp.coords,
 
 ##' Pairwise linkage disequilibrium
 ##'
-##' Plots the linkage disequilibrium between pairs of SNPs, as a blue density or black points, with a red loess.
+##' Plots the linkage disequilibrium between pairs of SNPs, as a blue density or black points, with a red loess. Possibility to add two analytical approximations of E[r^2] at equilibrium (see McVean, Handbook of Stat Gen, 2007): 1 / (1 + 4 Ne c x) by Sved (1971) and (10 + 4 Ne c x) / (22 + 13 * 4 Ne c x + (4 Ne c x)^2) by Ohta and Kimura (1971).
 ##' @param x vector of distances between SNPs (see \code{\link{distSnpPairs}})
 ##' @param y vector of LD estimates (see \code{\link{estimLd}})
+##' @param estim estimator of pairwise LD corresponding to the values in y (default=r2/r)
 ##' @param main main title
 ##' @param use.density if TRUE, uses smoothScatter; otherwise, use scatter.smooth
 ##' @param xlab label for the x axis
@@ -1100,21 +1101,26 @@ estimLd <- function(X, K=NULL, pops=NULL, snp.coords,
 ##' @param degree the degree of the polynomials to be used (see \code{\link[stats]{loess}})
 ##' @param evaluation number of points at which to evaluate the smooth curve (see \code{\link[stats]{loess.smooth}})
 ##' @param sample.size nb of sampled haplotypes, n, used to estimate the pairwise LD; if not NULL, n is used to calculate the r value above which the null hypothesis "D=0" is rejected, where r = D / sqrt(f_A f_a f_B f_b) and X^2 = n r^2 is the test statistic asymptotically following a Chi2(df=1) (see McVean, Handbook of Statistical Genetics, 2007, and Pritchard and Przewoski, AJHG, 2001)
+##' @param Ne effective population size
+##' @param c recomb rate in events per base per generation
 ##' @return nothing
 ##' @author Timothee Flutre
-plotLd <- function(x, y, main,
+plotLd <- function(x, y, estim="r2", main,
                    use.density=TRUE,
                    xlab="physical distance (bp)",
-                   ylab="linkage disequilibrium (r2)",
+                   ylab=paste0("linkage disequilibrium (", estim, ")"),
                    span=1/10, degree=1, evaluation=50,
-                   sample.size=NULL){
+                   sample.size=NULL,
+                   Ne=NULL, c=NULL){
   stopifnot(is.vector(x),
             is.vector(y),
+            estim %in% c("r2","r"),
             is.character(main))
   if(! is.null(sample.size))
     stopifnot(is.numeric(sample.size))
 
-  lpars <- list(col="red")
+  ## plot the pairwise estimates of LD
+  lpars <- list(col="red", cex=2)
   if(use.density){
     smoothScatter(x, y,
                   main=main,
@@ -1128,21 +1134,65 @@ plotLd <- function(x, y, main,
                    main=main, xlab=xlab, ylab=ylab, las=1,
                    span=span, degree=degree, evaluation=evaluation)
   }
-  if(is.null(sample.size)){
-    legend("topright", legend="loess", col="red", lty=1, bty="n")
-  } else{
-    ## reject H0:"D=0" at 5% if X2 = n x hat(r^2) >= Chi2(1)
+
+  ## add the "significance" horizontal line
+  ## reject H0:"D=0" at 5% if X2 = n x hat(r^2) >= Chi2(1)
+  if(! is.null(sample.size)){
     X2 <- qchisq(p=0.05, df=1, lower.tail=FALSE)
-    abline(h=sqrt(X2 / sample.size),
+    tmp <- X2 / sample.size
+    if(estim == "r")
+      tmp <- sqrt(tmp)
+    abline(h=tmp,
            col=ifelse(use.density, "black", "blue"),
-           lty=2)
-    legend("topright",
-           legend=c("loess",
-                    as.expression(bquote(paste("r | D=0, n=", .(sample.size),
-                                               ", ", alpha, "=5%")))),
-           col=c("red", ifelse(use.density, "black", "blue")),
-           lty=c(1,2), bty="n")
+           lty=2, lwd=2)
   }
+
+  ## add analytical approximations
+  if(all(c(! is.null(Ne), ! is.null(c)))){
+    scaled.dist <- 4 * Ne * c * x
+
+    ok <- (10 + scaled.dist) / (22 + 13 * scaled.dist + scaled.dist^2)
+    if(estim == "r")
+      ok <- sqrt(ok)
+    points(x, ok, pch=".", col="purple", cex=1.2)
+
+    sved <- 1 / (1 + scaled.dist)
+    if(estim == "r")
+      sved <- sqrt(sved)
+    points(x, sved, pch=".", col="green", cex=1.2)
+  }
+
+  ## add the legend
+  legs <- "loess"
+  cols <- "red"
+  lty <- 1
+  lwds <- c(2)
+  if(is.null(sample.size)){
+    if(all(! c(is.null(Ne), ! is.null(c)))){
+      legs <- c("loess", "Ohta & Kimura (1971)", "Sved (1971)")
+      cols <- c("red", "purple", "green")
+      lty <- c(1, 1, 1)
+      lwds <- c(2, 2, 2)
+    }
+  } else{
+    if(any(c(is.null(Ne), is.null(c)))){
+      legs <- c("loess",
+                as.expression(bquote(paste("r | D=0, n=", .(sample.size),
+                                           ", ", alpha, "=5%"))))
+      cols <- c("red", ifelse(use.density, "black", "blue"))
+      ltys <- c(1, 2)
+      lwds <- c(2, 2)
+    } else{
+      legs <- c("loess",
+                as.expression(bquote(paste("r | D=0, n=", .(sample.size),
+                                           ", ", alpha, "=5%"))),
+                "Ohta & Kimura (1971)", "Sved (1971)")
+      cols <- c("red", ifelse(use.density, "black", "blue"), "purple", "green")
+      ltys <- c(1, 2, 1, 1)
+      lwds <- c(2, 2, 2, 2)
+    }
+  }
+  legend("topright", legend=legs, col=cols, lty=ltys, lwd=lwds, bty="n")
 }
 
 ##' Simulate phenotypes from a basic "animal model" (LMM).

@@ -4,14 +4,17 @@
 \alias{plotLd}
 \title{Pairwise linkage disequilibrium}
 \usage{
-plotLd(x, y, main, use.density = TRUE, xlab = "physical distance (bp)",
-  ylab = "linkage disequilibrium (r2)", span = 1/10, degree = 1,
-  evaluation = 50, sample.size = NULL)
+plotLd(x, y, estim = "r2", main, use.density = TRUE,
+  xlab = "physical distance (bp)", ylab = paste0("linkage disequilibrium (",
+  estim, ")"), span = 1/10, degree = 1, evaluation = 50,
+  sample.size = NULL, Ne = NULL, c = NULL)
 }
 \arguments{
 \item{x}{vector of distances between SNPs (see \code{\link{distSnpPairs}})}
 
 \item{y}{vector of LD estimates (see \code{\link{estimLd}})}
+
+\item{estim}{estimator of pairwise LD corresponding to the values in y (default=r2/r)}
 
 \item{main}{main title}
 
@@ -28,12 +31,16 @@ plotLd(x, y, main, use.density = TRUE, xlab = "physical distance (bp)",
 \item{evaluation}{number of points at which to evaluate the smooth curve (see \code{\link[stats]{loess.smooth}})}
 
 \item{sample.size}{nb of sampled haplotypes, n, used to estimate the pairwise LD; if not NULL, n is used to calculate the r value above which the null hypothesis "D=0" is rejected, where r = D / sqrt(f_A f_a f_B f_b) and X^2 = n r^2 is the test statistic asymptotically following a Chi2(df=1) (see McVean, Handbook of Statistical Genetics, 2007, and Pritchard and Przewoski, AJHG, 2001)}
+
+\item{Ne}{effective population size}
+
+\item{c}{recomb rate in events per base per generation}
 }
 \value{
 nothing
 }
 \description{
-Plots the linkage disequilibrium between pairs of SNPs, as a blue density or black points, with a red loess.
+Plots the linkage disequilibrium between pairs of SNPs, as a blue density or black points, with a red loess. Possibility to add two analytical approximations of E[r^2] at equilibrium (see McVean, Handbook of Stat Gen, 2007): 1 / (1 + 4 Ne c x) by Sved (1971) and (10 + 4 Ne c x) / (22 + 13 * 4 Ne c x + (4 Ne c x)^2) by Ohta and Kimura (1971).
 }
 \author{
 Timothee Flutre
