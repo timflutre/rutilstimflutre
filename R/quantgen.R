@@ -869,20 +869,30 @@ distSnpPairs <- function(snp.pairs, snp.coords, nb.cores=1, verbose=0){
 ##' columns and individuals in rows
 ##' @param mafs vector with minor allele frequencies (calculated with `estimMaf` if NULL)
 ##' @param thresh threshold on allele frequencies below which SNPs are ignored (default=0.01, NULL to skip this step)
-##' @param relationships genetic relationship to estimate (default=additive/dominance)
+##' @param relationships genetic relationship to estimate (default=additive/dominance/gauss) where "gauss" corresponds to the Gaussian kernel from Endelman (2011)
 ##' @param method if additive relationships, can be "astle-balding" (default; see equation 2.2 in Astle & Balding, 2009), "vanraden1" (first method in VanRaden, 2008), "habier" (similar to 'vanraden1' without giving more importance to rare alleles; from Habier et al, 2007), "zhou" (centering the genotypes and not assuming that rare variants have larger effects; from Zhou et al, 2013) or "center-std"
+##' @param theta smoothing parameter for "gauss" (default=0.5)
 ##' @param verbose verbosity level (default=1)
 ##' @return matrix
 ##' @author Timothee Flutre
 estimGenRel <- function(X, mafs=NULL, thresh=0.01, relationships="additive",
-                        method="astle-balding", verbose=1){
+                        method="astle-balding", theta=0.5, verbose=1){
   stopifnot(is.matrix(X),
-            relationships %in% c("additive", "dominance"))
-  if(relationships != "additive")
+            all(X >= 0),
+            relationships %in% c("additive", "dominance", "gauss"))
+  if(relationships == "dominance")
     stop(paste0(relationships, " relationships is not (yet) implemented"))
-  stopifnot(method %in% c("astle-balding", "vanraden1", "habier", "zhou", "center-std"))
+  if(relationships == "additive")
+    stopifnot(method %in% c("astle-balding", "vanraden1", "habier", "zhou", "center-std"))
   if(! is.null(thresh))
     stopifnot(thresh >= 0, thresh <= 0.5)
+  if(relationships == "gauss"){
+    stopifnot(! is.null(theta),
+              is.numeric(theta),
+              length(theta) == 1,
+              theta > 0,
+              theta <= 1)
+  }
 
   gen.rel <- NULL # to be filled and returned
 
@@ -963,6 +973,10 @@ estimGenRel <- function(X, mafs=NULL, thresh=0.01, relationships="additive",
   } else if(relationships == "dominance"){
     H <- matrix(data=NA, nrow=N, ncol=P) # <- TODO
     gen.rel <- tcrossprod(H, H) / (2 * sum(mafs * (1 - mafs) * (1 - 2 * mafs * (1 - mafs))))
+  } else if(relationships == "gauss"){
+    M <- X - 1 # recode genotypes as {-1,0,1}
+    gen.dist <- as.matrix(dist(M)) / (2 * sqrt(P))
+    gen.rel <- exp(-(gen.dist / theta)^2)
   }
 
   return(gen.rel)
