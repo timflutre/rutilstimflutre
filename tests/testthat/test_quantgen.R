@@ -13,6 +13,22 @@ test_that("estimMaf", {
   expect_equal(observed, expected)
 })
 
+test_that("estimGenRel_vanraden1", {
+  N <- 3 # individuals
+  P <- 4 # SNPs
+  X <- matrix(c(0,0,2, 1,1,0, 0,1,0, 1,0,0), nrow=N, ncol=P)
+
+  mafs <- c(0.383, 0.244, 0.167, 0.067)
+  tmp <- matrix(rep(2*(mafs-0.5), N), nrow=N, ncol=P, byrow=TRUE)
+  Z <- X - 1 - tmp
+  expected <- (Z %*% t(Z)) / (2 * sum(mafs * (1 - mafs)))
+
+  observed <- estimGenRel(X=X, mafs=mafs, thresh=0, relationships="additive",
+                          method="vanraden1", verbose=0)
+
+  expect_equal(observed, expected)
+})
+
 test_that("estimGenRel_astle-balding", {
   N <- 2 # individuals
   P <- 4 # SNPs
@@ -25,10 +41,38 @@ test_that("estimGenRel_astle-balding", {
     expected <- expected +
       (matrix(X[,p] - 2 * mafs[p]) %*% t(X[,p] - 2 * mafs[p])) /
       (4 * mafs[p] * (1 - mafs[p]))
-  expected <- expected / P
+  expected <- 2 * (1/P) * expected
 
   observed <- estimGenRel(X=X, mafs=NULL, thresh=0, relationships="additive",
                           method="astle-balding", verbose=0)
+
+  expect_equal(observed, expected)
+})
+
+test_that("estimGenRel_yang", {
+  N <- 2 # individuals
+  P <- 4 # SNPs
+  X <- matrix(c(1,1, 1,0, 2,1, 1,1), nrow=N, ncol=P)
+
+  mafs <- estimMaf(X=X)
+
+  expected <- matrix(data=0, nrow=N, ncol=N)
+  for(i in 1:N){
+    summands <- rep(NA, P)
+    for(p in 1:P)
+      summands[p] <- (X[i,p]^2 - (1 + 2 * mafs[p]) * X[i,p] + 2 * mafs[p]^2) /
+        (2 * mafs[p] * (1 - mafs[p]))
+    expected[i,i] <- 1 + (1/P) * sum(summands)
+  }
+  summands <- rep(NA, P)
+  for(p in 1:P)
+    summands[p] <- ((X[1,p] - 2 * mafs[p]) * (X[2,p] - 2 * mafs[p])) /
+      (2 * mafs[p] * (1 - mafs[p]))
+  expected[1,2] <- (1/P) * sum(summands)
+  expected[2,1] <- expected[1,2]
+
+  observed <- estimGenRel(X=X, mafs=NULL, thresh=0, relationships="additive",
+                          method="yang", verbose=0)
 
   expect_equal(observed, expected)
 })

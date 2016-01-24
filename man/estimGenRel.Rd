@@ -2,22 +2,21 @@
 % Please edit documentation in R/quantgen.R
 \name{estimGenRel}
 \alias{estimGenRel}
-\title{Estimate genetic relationships between individuals from their SNP genotypes.}
+\title{Genomic relatedness}
 \usage{
 estimGenRel(X, mafs = NULL, thresh = 0.01, relationships = "additive",
-  method = "astle-balding", theta = 0.5, verbose = 1)
+  method = "vanraden1", theta = 0.5, verbose = 1)
 }
 \arguments{
-\item{X}{matrix of SNP genotypes encoded as allele doses ({0,1,2}), with SNPs in
-columns and individuals in rows}
+\item{X}{matrix of SNP genotypes encoded as allele doses ({0,1,2}), with SNPs in columns and individuals in rows; SNPs with missing data are ignored}
 
 \item{mafs}{vector with minor allele frequencies (calculated with `estimMaf` if NULL)}
 
 \item{thresh}{threshold on allele frequencies below which SNPs are ignored (default=0.01, NULL to skip this step)}
 
-\item{relationships}{genetic relationship to estimate (default=additive/dominance/gauss) where "gauss" corresponds to the Gaussian kernel from Endelman (2011)}
+\item{relationships}{relationship to estimate (default=additive/dominance/gauss) where "gauss" corresponds to the Gaussian kernel from Endelman (2011)}
 
-\item{method}{if additive relationships, can be "astle-balding" (default; see equation 2.2 in Astle & Balding, 2009), "vanraden1" (first method in VanRaden, 2008), "habier" (similar to 'vanraden1' without giving more importance to rare alleles; from Habier et al, 2007), "zhou" (centering the genotypes and not assuming that rare variants have larger effects; from Zhou et al, 2013) or "center-std"}
+\item{method}{if additive relationships, can be "vanraden1" (first method in VanRaden, 2008), "habier" (similar to 'vanraden1' without giving more importance to rare alleles; from Habier et al, 2007), "astle-balding" (two times equation 2.2 in Astle & Balding, 2009), "yang" (similar to 'astle-balding' but without ignoring sampling error per SNP; from Yang et al, 2010), "zhou" (centering the genotypes and not assuming that rare variants have larger effects; from Zhou et al, 2013) or "center-std"}
 
 \item{theta}{smoothing parameter for "gauss" (default=0.5)}
 
@@ -27,7 +26,7 @@ columns and individuals in rows}
 matrix
 }
 \description{
-SNPs with missing data are ignored.
+Estimate genetic relationships between individuals from their SNP genotypes. Note that "relationships" are estimated, and not "coancestries" (2 x relationhips).
 }
 \author{
 Timothee Flutre

@@ -170,18 +170,20 @@ dose2bimbam <- function(X=NULL, tX=NULL, alleles, file=NULL){
     return(tmp)
 }
 
-##' Return the additive relationship matrix, A, from the output of the coancestry() function in the "related" package.
+##' Genetic relatedness
 ##'
-##' The "related" package can be found here: http://frasierlab.wordpress.com/software/. The A matrix is also known as the numerator relationship matrix. It is calculated as explained in chapter 2 from Mrode (2005).
-##' @param x list returned by coancestry()
-##' @param estim.coancestry name of the coancestry estimator (e.g. "dyadml")
-##' @param estim.inbreeding name of the inbreeding estimator (e.g. "LR")
+##' Reformat the output of \code{\link[related]{coancestry}} (http://frasierlab.wordpress.com/software/) into a matrix. By default, off-diagonal elements  correspond to coancestry coefficients between two individuals, and each diagonal element corresponds to (1 + f) / 2 where f corresponds to the inbreeding coefficient of the given individual. To learn more about genetic relatedness, see Weir et al (2006), Astle & Balding (2009) and Legarra (2016).
+##' @param x list returned by \code{\link[related]{coancestry}}
+##' @param estim.coancestry name of the coancestry estimator (e.g. "dyadml") as used in \code{\link[related]{coancestry}}
+##' @param estim.inbreeding name of the inbreeding estimator (e.g. "LR") as used in \code{\link[related]{coancestry}}
+##' @param rel.type type of relatedness, "coancestries" or "relationships" (i.e. 2 x coancestries)
 ##' @param debug boolean (TRUE to check the output matrix is indeed symmetric)
 ##' @return matrix
 ##' @author Timothee Flutre
-coancestry2addrel <- function(x, estim.coancestry, estim.inbreeding=NULL,
-                              debug=FALSE){
-  stopifnot(estim.coancestry %in% colnames(x$relatedness))
+coancestry2relmat <- function(x, estim.coancestry, estim.inbreeding=NULL,
+                              rel.type="coancestries", debug=FALSE){
+  stopifnot(estim.coancestry %in% colnames(x$relatedness),
+            rel.type %in% c("coancestries", "relationships"))
   if(! is.null(estim.inbreeding)){
     stopifnot("inbreeding" %in% names(x))
     stopifnot(estim.inbreeding %in% colnames(x$inbreeding))
@@ -190,33 +192,36 @@ coancestry2addrel <- function(x, estim.coancestry, estim.inbreeding=NULL,
   ind.ids <- unique(c(x$relatedness$ind1.id,
                       x$relatedness$ind2.id))
   nb.inds <- length(ind.ids)
-  A <- matrix(NA, nrow=nb.inds, ncol=nb.inds,
+  mat <- matrix(NA, nrow=nb.inds, ncol=nb.inds,
               dimnames=list(ind.ids, ind.ids))
 
-  diag(A) <- 1
+  diag(mat) <- 1 / 2
   if(! is.null(estim.inbreeding)){
     stopifnot(nrow(x$inbreeding) == nb.inds)
     for(i in 1:nrow(x$inbreeding))
-      A[x$inbreeding$ind.id[i], x$inbreeding$ind.id[i]] <-
-        1 + x$inbreeding[[estim.inbreeding]][i]
+      mat[x$inbreeding$ind.id[i], x$inbreeding$ind.id[i]] <-
+        (1 + x$inbreeding[[estim.inbreeding]][i]) / 2
   }
 
   for(i in 1:nrow(x$relatedness))
-    A[x$relatedness$ind1.id[i], x$relatedness$ind2.id[i]] <-
+    mat[x$relatedness$ind1.id[i], x$relatedness$ind2.id[i]] <-
       x$relatedness[[estim.coancestry]][i]
-  idx.na.upper <- which(upper.tri(A) & is.na(A))
-  idx.equiv.lower <- which(lower.tri(t(A)) & is.na(t(A)))
-  A[idx.na.upper] <- A[idx.equiv.lower]
-  A[lower.tri(A)] <- t(A)[lower.tri(A)]
+  idx.na.upper <- which(upper.tri(mat) & is.na(mat))
+  idx.equiv.lower <- which(lower.tri(t(mat)) & is.na(t(mat)))
+  mat[idx.na.upper] <- mat[idx.equiv.lower]
+  mat[lower.tri(mat)] <- t(mat)[lower.tri(mat)]
 
   if(debug){ # check that the matrix is symmetric
-    for(i in 1:(nrow(A)-1))
-      for(j in (i+1):ncol(A))
-        if(A[i,j] != A[j,i])
-          stop(paste0("matrix not symmetric at (", i, ",", j, ")"))
+    for(i in 1:(nrow(mat)-1))
+      for(j in (i+1):ncol(mat))
+        if(mat[i,j] != mat[j,i])
+          stop(paste0("matrix not symmetric at row=", i, ", col=", j))
   }
 
-  return(A)
+  if(rel.type == "relationships")
+    mat <- 2 * mat
+
+  return(mat)
 }
 
 ##' Convert the SFS of independent replicates into a matrix of allele dosage.
@@ -862,28 +867,28 @@ distSnpPairs <- function(snp.pairs, snp.coords, nb.cores=1, verbose=0){
   return(dist.loc)
 }
 
-##' Estimate genetic relationships between individuals from their SNP genotypes.
+##' Genomic relatedness
 ##'
-##' SNPs with missing data are ignored.
-##' @param X matrix of SNP genotypes encoded as allele doses ({0,1,2}), with SNPs in
-##' columns and individuals in rows
+##' Estimate genetic relationships between individuals from their SNP genotypes. Note that "relationships" are estimated, and not "coancestries" (2 x relationhips).
+##' @param X matrix of SNP genotypes encoded as allele doses ({0,1,2}), with SNPs in columns and individuals in rows; SNPs with missing data are ignored
 ##' @param mafs vector with minor allele frequencies (calculated with `estimMaf` if NULL)
 ##' @param thresh threshold on allele frequencies below which SNPs are ignored (default=0.01, NULL to skip this step)
-##' @param relationships genetic relationship to estimate (default=additive/dominance/gauss) where "gauss" corresponds to the Gaussian kernel from Endelman (2011)
-##' @param method if additive relationships, can be "astle-balding" (default; see equation 2.2 in Astle & Balding, 2009), "vanraden1" (first method in VanRaden, 2008), "habier" (similar to 'vanraden1' without giving more importance to rare alleles; from Habier et al, 2007), "zhou" (centering the genotypes and not assuming that rare variants have larger effects; from Zhou et al, 2013) or "center-std"
+##' @param relationships relationship to estimate (default=additive/dominance/gauss) where "gauss" corresponds to the Gaussian kernel from Endelman (2011)
+##' @param method if additive relationships, can be "vanraden1" (first method in VanRaden, 2008), "habier" (similar to 'vanraden1' without giving more importance to rare alleles; from Habier et al, 2007), "astle-balding" (two times equation 2.2 in Astle & Balding, 2009), "yang" (similar to 'astle-balding' but without ignoring sampling error per SNP; from Yang et al, 2010), "zhou" (centering the genotypes and not assuming that rare variants have larger effects; from Zhou et al, 2013) or "center-std"
 ##' @param theta smoothing parameter for "gauss" (default=0.5)
 ##' @param verbose verbosity level (default=1)
 ##' @return matrix
 ##' @author Timothee Flutre
 estimGenRel <- function(X, mafs=NULL, thresh=0.01, relationships="additive",
-                        method="astle-balding", theta=0.5, verbose=1){
+                        method="vanraden1", theta=0.5, verbose=1){
   stopifnot(is.matrix(X),
             all(X >= 0),
             relationships %in% c("additive", "dominance", "gauss"))
   if(relationships == "dominance")
     stop(paste0(relationships, " relationships is not (yet) implemented"))
   if(relationships == "additive")
-    stopifnot(method %in% c("astle-balding", "vanraden1", "habier", "zhou", "center-std"))
+    stopifnot(method %in% c("astle-balding", "vanraden1", "habier", "yang",
+                            "zhou", "center-std"))
   if(! is.null(thresh))
     stopifnot(thresh >= 0, thresh <= 0.5)
   if(relationships == "gauss"){
@@ -898,8 +903,11 @@ estimGenRel <- function(X, mafs=NULL, thresh=0.01, relationships="additive",
 
   N <- nrow(X) # nb of individuals
   P <- ncol(X) # nb of SNPs
-  if(P < N)
-    warning("input matrix doesn't seem to have SNPs in columns and individuals in rows")
+  if(P < N){
+    msg <- paste0("input matrix doesn't seem to have SNPs",
+                  " in columns and individuals in rows")
+    warning(msg)
+  }
 
   idx.rm <- c()
 
@@ -947,26 +955,31 @@ estimGenRel <- function(X, mafs=NULL, thresh=0.01, relationships="additive",
     }
   }
 
-  ## estimate genetic relationships
+  ## estimate relationships (not coancestries)
   if(relationships == "additive"){
-    if(method == "astle-balding"){
-      tmp <- sweep(x=X, MARGIN=2, STATS=2 * mafs, FUN="-")
-      tmp <- sweep(x=tmp, MARGIN=2, STATS=sqrt(4 * mafs * (1 - mafs)), FUN="/")
-      gen.rel <- tcrossprod(tmp, tmp) / P
-    } else if(method == "vanraden1"){
+    if(method == "vanraden1"){
       M <- X - 1
       Pmat <- matrix(rep(1,N)) %*% (2 * (mafs - 0.5))
       Z <- M - Pmat
-      gen.rel <- tcrossprod(Z, Z) / (2  * sum(mafs * (1 - mafs)))
+      gen.rel <- tcrossprod(Z, Z) / (2 * sum(mafs * (1 - mafs)))
     } else if(method == "habier"){
-      gen.rel <- tcrossprod(X, X) / (2  * sum(mafs * (1 - mafs)))
+      gen.rel <- tcrossprod(X, X) / (2 * sum(mafs * (1 - mafs)))
+    } else if(method == "astle-balding"){
+      tmp1 <- sweep(x=X, MARGIN=2, STATS=2*mafs, FUN="-")
+      tmp2 <- sweep(x=tmp1, MARGIN=2, STATS=2*mafs*(1-mafs), FUN="/")
+      gen.rel <- (1/P) * tcrossprod(tmp1, tmp2)
+    } else if(method == "yang"){
+      tmp1 <- sweep(x=X, MARGIN=2, STATS=2*mafs, FUN="-")
+      tmp2 <- sweep(x=tmp1, MARGIN=2, STATS=2*mafs*(1-mafs), FUN="/")
+      gen.rel <- (1/P) * tcrossprod(tmp1, tmp2)
+      tmp3 <- X^2 - sweep(x=X, MARGIN=2, STATS=1+2*mafs, FUN="*")
+      tmp4 <- sweep(x=tmp3, MARGIN=2, STATS=2*mafs^2, FUN="+")
+      tmp5 <- sweep(x=tmp4, MARGIN=2, STATS=2*mafs*(1-mafs), FUN="/")
+      diag(gen.rel) <- 1 + (1/P) * rowSums(tmp5)
     } else if(method == "zhou"){
-      ## tmp <- sweep(x=X, MARGIN=2, STATS=colMeans(X), FUN="-")
       tmp <- scale(x=X, center=TRUE, scale=FALSE)
       gen.rel <- tcrossprod(tmp, tmp) / P
     } else if(method == "center-std"){
-      ## X.cs <- sweep(x=X, MARGIN=2, STATS=colMeans(X), FUN="-")
-      ## tmp <- sweep(x=X.cs, MARGIN=2, STATS=apply(X=X.cs, MARGIN=2, sd), FUN="/")
       tmp <- scale(x=X, center=TRUE, scale=TRUE)
       gen.rel <- tcrossprod(tmp, tmp) / P
     }
@@ -975,7 +988,7 @@ estimGenRel <- function(X, mafs=NULL, thresh=0.01, relationships="additive",
     gen.rel <- tcrossprod(H, H) / (2 * sum(mafs * (1 - mafs) * (1 - 2 * mafs * (1 - mafs))))
   } else if(relationships == "gauss"){
     M <- X - 1 # recode genotypes as {-1,0,1}
-    gen.dist <- as.matrix(dist(M)) / (2 * sqrt(P))
+    gen.dist <- as.matrix(dist(x=M, method="euclidean")) / (2 * sqrt(P))
     gen.rel <- exp(-(gen.dist / theta)^2)
   }
 
