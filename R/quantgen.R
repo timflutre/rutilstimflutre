@@ -300,9 +300,9 @@ segSites2snpCoords <- function(seg.sites, snp.ids, chrom.len, prefix="chr"){
   return(snp.coords)
 }
 
-##' Simulate according to an approximation to the coalescent with recombination named the Sequential Coalescent with Recombination Model.
+##' Coalescent with recombination
 ##'
-##' Requires the scrm package (Staab et al, 2014).
+##' Simulate haplotypes according to an approximation to the coalescent with recombination named the Sequential Coalescent with Recombination Model. Requires the scrm package (Staab et al, 2014).
 ##' @param nb.inds diploids (thus nb of haplotypes is 2 * nb.inds)
 ##' @param ind.ids vector of identifiers (one per individual)
 ##' @param nb.reps number of independent loci that will be produced (could be seen as distinct chromosomes)
@@ -378,8 +378,10 @@ simulCoalescent <- function(nb.inds=100,
                                    prefix)
   out[["snp.coords"]] <- snp.coords
 
-  ## set row and column names of haplotypes
+  ## randomize haplotypes to make diploid individuals, and set names
+  tmp.idx <- sample.int(nb.samples)
   for(c in 1:nb.reps){
+    sum.stats$seg_sites[[c]] <- sum.stats$seg_sites[[c]][tmp.idx,]
     colnames(sum.stats$seg_sites[[c]]) <-
       snp.ids[(ifelse(c == 1, 1, 1 + cumsum(nb.snps.per.chr)[c-1])):
                 (cumsum(nb.snps.per.chr)[c])]
@@ -408,10 +410,13 @@ simulCoalescent <- function(nb.inds=100,
 ##' Pi
 ##'
 ##' Calculate the average number of differences between pairs of sequences, named pi in the population genetics literature (Tajima, 1983; Wakeley, 2008).
-##' @param haplos.chr matrix with haplotypes in rows and sites in columns
+##' @param haplos.chr matrix of 0's and 1's with haplotypes in rows and sites in columns
 ##' @return numeric(1)
 ##' @author Timothee Flutre
 calcAvgPwDiffBtwHaplos <- function(haplos.chr){
+  stopifnot(is.matrix(haplos.chr),
+            all(haplos.chr %in% c(0,1)))
+
   pi <- 0
 
   n <- nrow(haplos.chr)
@@ -743,7 +748,7 @@ drawLocCrossovers <- function(crosses, nb.snps, lambda=2){
 ##'
 ##' Make crosses (fecundation, autofecondation, haplodiploidization).
 ##' @param haplos list of matrices (one per chromosome)
-##' @param crosses data.frame with three columns, parent1, parent2, child; if parent 1 and 2 are the same, it will be an autofecondation; if parent2 is NA, it will be a haplodiploidization
+##' @param crosses data.frame with three columns, parent1, parent2, child (no duplicate); if parent 1 and 2 are the same, it will be an autofecondation; if parent2 is NA, it will be a haplodiploidization
 ##' @param loc.crossovers list of lists (one per cross, then one per parent, then one per chromosome) whose names are crosses$child, in the same order; if NULL, draw many crossing-overs localizations at once (as Poisson with parameter 2, assuming all chromosomes have the same length)
 ##' @param nb.cores the number of cores to use, i.e. at most how many child processes will be run simultaneously (not on Windows)
 ##' @param verbose verbosity level (default=0/1)
@@ -759,7 +764,8 @@ makeCrosses <- function(haplos, crosses, loc.crossovers=NULL,
             ncol(crosses) >= 3,
             all(c("parent1", "parent2", "child") %in% colnames(crosses)),
             sum(is.na(crosses$parent1)) == 0,
-            sum(is.na(crosses$child)) == 0)
+            sum(is.na(crosses$child)) == 0,
+            anyDuplicated(crosses$child) == 0)
   haplos.ind.names <- getIndNamesFromHaplos(haplos)
   parent.names <- c(crosses$parent1, crosses$parent2)
   parent.names <- parent.names[! is.na(parent.names)]

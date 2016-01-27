@@ -10,7 +10,7 @@ makeCrosses(haplos, crosses, loc.crossovers = NULL, nb.cores = 1,
 \arguments{
 \item{haplos}{list of matrices (one per chromosome)}
 
-\item{crosses}{data.frame with three columns, parent1, parent2, child; if parent 1 and 2 are the same, it will be an autofecondation; if parent2 is NA, it will be a haplodiploidization}
+\item{crosses}{data.frame with three columns, parent1, parent2, child (no duplicate); if parent 1 and 2 are the same, it will be an autofecondation; if parent2 is NA, it will be a haplodiploidization}
 
 \item{loc.crossovers}{list of lists (one per cross, then one per parent, then one per chromosome) whose names are crosses$child, in the same order; if NULL, draw many crossing-overs localizations at once (as Poisson with parameter 2, assuming all chromosomes have the same length)}
 

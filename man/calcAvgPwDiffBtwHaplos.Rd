@@ -7,7 +7,7 @@
 calcAvgPwDiffBtwHaplos(haplos.chr)
 }
 \arguments{
-\item{haplos.chr}{matrix with haplotypes in rows and sites in columns}
+\item{haplos.chr}{matrix of 0's and 1's with haplotypes in rows and sites in columns}
 }
 \value{
 numeric(1)

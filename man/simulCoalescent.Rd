@@ -2,7 +2,7 @@
 % Please edit documentation in R/quantgen.R
 \name{simulCoalescent}
 \alias{simulCoalescent}
-\title{Simulate according to an approximation to the coalescent with recombination named the Sequential Coalescent with Recombination Model.}
+\title{Coalescent with recombination}
 \usage{
 simulCoalescent(nb.inds = 100, ind.ids = NULL, nb.reps = 20,
   pop.mut.rate = 50, pop.recomb.rate = 5, chrom.len = 10^3, nb.pops = 1,
@@ -35,7 +35,7 @@ simulCoalescent(nb.inds = 100, ind.ids = NULL, nb.reps = 20,
 list with haplotypes (list), genotypes as allele doses (matrix) and SNP coordinates (data.frame)
 }
 \description{
-Requires the scrm package (Staab et al, 2014).
+Simulate haplotypes according to an approximation to the coalescent with recombination named the Sequential Coalescent with Recombination Model. Requires the scrm package (Staab et al, 2014).
 }
 \author{
 Timothee Flutre
