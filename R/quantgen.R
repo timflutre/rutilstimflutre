@@ -880,7 +880,7 @@ distSnpPairs <- function(snp.pairs, snp.coords, nb.cores=1, verbose=0){
 ##' @param mafs vector with minor allele frequencies (calculated with `estimMaf` if NULL)
 ##' @param thresh threshold on allele frequencies below which SNPs are ignored (default=0.01, NULL to skip this step)
 ##' @param relationships relationship to estimate (default=additive/dominance/gauss) where "gauss" corresponds to the Gaussian kernel from Endelman (2011)
-##' @param method if additive relationships, can be "vanraden1" (first method in VanRaden, 2008), "habier" (similar to 'vanraden1' without giving more importance to rare alleles; from Habier et al, 2007), "astle-balding" (two times equation 2.2 in Astle & Balding, 2009), "yang" (similar to 'astle-balding' but without ignoring sampling error per SNP; from Yang et al, 2010), "zhou" (centering the genotypes and not assuming that rare variants have larger effects; from Zhou et al, 2013) or "center-std"
+##' @param method if additive relationships, can be "vanraden1" (first method in VanRaden, 2008), "habier" (similar to 'vanraden1' without giving more importance to rare alleles; from Habier et al, 2007), "astle-balding" (two times equation 2.2 in Astle & Balding, 2009), "yang" (similar to 'astle-balding' but without ignoring sampling error per SNP; from Yang et al, 2010), "zhou" (centering the genotypes and not assuming that rare variants have larger effects; from Zhou et al, 2013) or "center-std"; if dominance relationships, can be "vitezica" (classical/statistical parametrization from Vitezica et al, 2013) or "su" (from Su et al, PLoS One, 2012)
 ##' @param theta smoothing parameter for "gauss" (default=0.5)
 ##' @param verbose verbosity level (default=1)
 ##' @return matrix
@@ -890,11 +890,11 @@ estimGenRel <- function(X, mafs=NULL, thresh=0.01, relationships="additive",
   stopifnot(is.matrix(X),
             all(X >= 0),
             relationships %in% c("additive", "dominance", "gauss"))
-  if(relationships == "dominance")
-    stop(paste0(relationships, " relationships is not (yet) implemented"))
   if(relationships == "additive")
-    stopifnot(method %in% c("astle-balding", "vanraden1", "habier", "yang",
+    stopifnot(method %in% c("vanraden1", "habier", "astle-balding", "yang",
                             "zhou", "center-std"))
+  if(relationships == "dominance")
+    stopifnot(method %in% c("vitezica", "su"))
   if(! is.null(thresh))
     stopifnot(thresh >= 0, thresh <= 0.5)
   if(relationships == "gauss"){
@@ -964,7 +964,7 @@ estimGenRel <- function(X, mafs=NULL, thresh=0.01, relationships="additive",
   ## estimate relationships (not coancestries)
   if(relationships == "additive"){
     if(method == "vanraden1"){
-      M <- X - 1
+      M <- X - 1 # recode genotypes as {-1,0,1}
       Pmat <- matrix(rep(1,N)) %*% (2 * (mafs - 0.5))
       Z <- M - Pmat
       gen.rel <- tcrossprod(Z, Z) / (2 * sum(mafs * (1 - mafs)))
@@ -990,8 +990,24 @@ estimGenRel <- function(X, mafs=NULL, thresh=0.01, relationships="additive",
       gen.rel <- tcrossprod(tmp, tmp) / P
     }
   } else if(relationships == "dominance"){
-    H <- matrix(data=NA, nrow=N, ncol=P) # <- TODO
-    gen.rel <- tcrossprod(H, H) / (2 * sum(mafs * (1 - mafs) * (1 - 2 * mafs * (1 - mafs))))
+    if(method == "vitezica"){
+      is.0 <- (X == 0)
+      is.1 <- (X == 1) # matrix indicating the heterozygotes
+      is.2 <- (X == 2)
+      W <- X
+      for(i in 1:N){
+        W[i, is.0[i,]] <- - 2 * (1 - mafs[is.0[i,]])^2
+        W[i, is.1[i,]] <- 2 * mafs[is.1[i,]] * (1 - mafs[is.1[i,]])
+        W[i, is.2[i,]] <- - 2 * mafs[is.2[i,]]^2
+      }
+      gen.rel <- tcrossprod(W, W) / sum((2 * mafs * (1 - mafs))^2)
+    } else if(method == "su"){
+      H <- X
+      H[H != 1] <- 0 # recode genotypes as {0,1,0}
+      H <- sweep(x=H, MARGIN=2, STATS=2*mafs*(1-mafs), FUN="-")
+      gen.rel <- tcrossprod(H, H) /
+        (2 * sum(mafs * (1 - mafs) * (1 - 2 * mafs * (1 - mafs))))
+    }
   } else if(relationships == "gauss"){
     M <- X - 1 # recode genotypes as {-1,0,1}
     gen.dist <- as.matrix(dist(x=M, method="euclidean")) / (2 * sqrt(P))

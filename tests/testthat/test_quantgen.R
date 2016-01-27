@@ -21,7 +21,11 @@ test_that("estimGenRel_vanraden1", {
   mafs <- c(0.383, 0.244, 0.167, 0.067)
   tmp <- matrix(rep(2*(mafs-0.5), N), nrow=N, ncol=P, byrow=TRUE)
   Z <- X - 1 - tmp
-  expected <- (Z %*% t(Z)) / (2 * sum(mafs * (1 - mafs)))
+  denom <- 0
+  for(p in 1:P)
+    denom <- denom + mafs[p] * (1 - mafs[p])
+  denom <- 2 * denom
+  expected <- (Z %*% t(Z)) / denom
 
   observed <- estimGenRel(X=X, mafs=mafs, thresh=0, relationships="additive",
                           method="vanraden1", verbose=0)
@@ -73,6 +77,67 @@ test_that("estimGenRel_yang", {
 
   observed <- estimGenRel(X=X, mafs=NULL, thresh=0, relationships="additive",
                           method="yang", verbose=0)
+
+  expect_equal(observed, expected)
+})
+
+test_that("estimGenRel_su", {
+  N <- 3 # individuals
+  P <- 4 # SNPs
+  X <- matrix(c(0,0,2, 1,1,0, 0,1,0, 1,0,0), nrow=N, ncol=P)
+
+  mafs <- c(0.383, 0.244, 0.167, 0.067)
+  H <- matrix(c(0 - 2 * mafs[1] * (1 - mafs[1]),
+                0 - 2 * mafs[1] * (1 - mafs[1]),
+                0 - 2 * mafs[1] * (1 - mafs[1]),
+                1 - 2 * mafs[2] * (1 - mafs[2]),
+                1 - 2 * mafs[2] * (1 - mafs[2]),
+                0 - 2 * mafs[2] * (1 - mafs[2]),
+                0 - 2 * mafs[3] * (1 - mafs[3]),
+                1 - 2 * mafs[3] * (1 - mafs[3]),
+                0 - 2 * mafs[3] * (1 - mafs[3]),
+                1 - 2 * mafs[4] * (1 - mafs[4]),
+                0 - 2 * mafs[4] * (1 - mafs[4]),
+                0 - 2 * mafs[4] * (1 - mafs[4])),
+              nrow=N, ncol=P)
+  denom <- 0
+  for(p in 1:P)
+    denom <- denom + 2 * mafs[p] * (1 - mafs[p]) *
+      (1 - 2 * mafs[p] * (1 - mafs[p]))
+  expected <- (H %*% t(H)) / denom
+
+  observed <- estimGenRel(X=X, mafs=mafs, thresh=0, relationships="dominance",
+                          method="su", verbose=0)
+
+  expect_equal(observed, expected)
+})
+
+test_that("estimGenRel_vitezica", {
+  N <- 3 # individuals
+  P <- 4 # SNPs
+  X <- matrix(c(0,0,2, 1,1,0, 0,1,0, 1,0,0), nrow=N, ncol=P)
+
+  mafs <- c(0.383, 0.244, 0.167, 0.067)
+  W <- matrix(c(- 2 * (1 - mafs[1])^2,
+                - 2 * (1 - mafs[1])^2,
+                - 2 * mafs[1]^2,
+                2 * mafs[2] * (1 - mafs[2]),
+                2 * mafs[2] * (1 - mafs[2]),
+                - 2 * (1 - mafs[2])^2,
+                - 2 * (1 - mafs[3])^2,
+                2 * mafs[3] * (1 - mafs[3]),
+                - 2 * (1 - mafs[3])^2,
+                2 * mafs[4] * (1 - mafs[4]),
+                - 2 * (1 - mafs[4])^2,
+                - 2 * (1 - mafs[4])^2),
+              nrow=N, ncol=P)
+  denom <- 0
+  for(p in 1:P)
+    denom <- denom + (2 * mafs[p] * (1 - mafs[p]))^2
+  expected <- (W %*% t(W)) / denom
+
+  observed <- estimGenRel(X=X, mafs=mafs, thresh=0, relationships="dominance",
+                          method="vitezica", verbose=0)
 
   expect_equal(observed, expected)
 })
