@@ -1277,7 +1277,8 @@ simulAnimalModel <- function(Q=3, mu=50, mean.a=5, sd.a=2,
             nrow(A) == ncol(A),
             ! is.null(rownames(A)),
             ! is.null(colnames(A)),
-            rownames(A) == colnames(A))
+            rownames(A) == colnames(A),
+            perc.NA >= 0, perc.NA <= 100)
   if(! is.null(seed))
     set.seed(seed)
 
@@ -1336,6 +1337,93 @@ simulAnimalModel <- function(Q=3, mu=50, mean.a=5, sd.a=2,
               Z=Z, G=G, u=u, sigma.u2=sigma.u2,
               sigma2=sigma2,
               h2=h2,
+              dat=dat))
+}
+
+##' Animal model
+##'
+##' Simulate phenotypes from a basic, multivariate "animal model".
+##' Y = W A + Z U + E
+##' where Y is N x T; W is N x Q; Z is N x I
+##' U ~ Norm_IxT(M_U=0, U_U=A_U, V_U)
+##' E ~ Norm_NxT(M_E=0, U_E=I_N, V_E)
+##' @param T number of traits
+##' @param Q number of years
+##' @param mu vector of overall means (one per trait), i.e. A[1,1:T]
+##' @param mean.a mean of the Normal prior on A[2:Q,1:T]
+##' @param sd.a std dev of the Normal prior on A[2:Q,1:T]
+##' @param A.U matrix of additive genetic relationships
+##' @param nu.V.U degrees of freedom of the Wishart prior for V.U
+##' @param nu.V.E degrees of freedom of the Wishart prior for V.E
+##' @param perc.NA percentage of missing phenotypes, at random
+##' @param seed seed for the pseudo-random number generator
+##' @return list
+##' @author Timothee Flutre
+simulAnimalModelMultivar <- function(T=2, Q=3, mu=rep(50,T), mean.a=5, sd.a=2,
+                                     A.U, nu.V.U=T, nu.V.E=T,
+                                     perc.NA=0, seed=NULL){
+  stopifnot(length(mu) == T,
+            is.matrix(A.U),
+            nrow(A.U) == ncol(A.U),
+            ! is.null(rownames(A.U)),
+            ! is.null(colnames(A.U)),
+            rownames(A.U) == colnames(A.U),
+            perc.NA >= 0, perc.NA <= 100)
+  if(! is.null(seed))
+    set.seed(seed)
+
+  I <- nrow(A.U)
+  N <- Q * I
+
+  ## incidence matrix of "fixed" effects
+  levels.years <- as.character(seq(from=2010, to=2010+Q-1))
+  if(N %% Q == 0){
+    years <- rep(levels.years, each=N / Q)
+  } else
+    years <- sort(sample(x=levels.years, size=N, replace=TRUE))
+  years <- as.factor(years)
+  W <- model.matrix(~ years)
+  dat <- data.frame(year=years)
+
+  ## "fixed" effects
+  A <- matrix(data=c(mu, rnorm(n=(Q-1)*T, mean=mean.a, sd=sd.a)),
+              byrow=TRUE,
+              nrow=Q,
+              ncol=T)
+
+  ## incidence matrix of genetic "random" effects
+  levels.inds <- rownames(A.U)
+  inds <- rep(NA, N)
+  for(year in levels.years)
+    inds[years == year] <- levels.inds[1:sum(years == year)]
+  inds <- as.factor(inds)
+  ## Z <- as.matrix(Matrix::t(as(inds, Class="sparseMatrix")))
+  Z <- model.matrix(~ inds - 1)
+  dat$ind <- inds
+
+  ## additive genetic component
+  V.U <- rWishart(n=1, df=nu.V.U, Sigma=diag(T))[,,1]
+  U <- rmatnorm(n=1, M=matrix(data=0, nrow=I, ncol=T),
+                U=A.U, V=V.U)[,,1]
+
+  ## errors
+  V.E <- rWishart(n=1, df=nu.V.E, Sigma=diag(T))[,,1]
+  E <- rmatnorm(n=1, M=matrix(data=0, nrow=N, ncol=T),
+                U=diag(N), V=V.E)[,,1]
+
+  ## phenotypes
+  Y <- W %*% A + Z %*% U + E
+  if(perc.NA > 0){
+    idx <- sample.int(n=N*T, size=floor(perc.NA/100 * N*T))
+    y[idx] <- NA
+  }
+  for(t in 1:T)
+    dat[[paste0("response", t)]] <- Y[,t]
+
+  return(list(Y=Y,
+              W=W, A=A,
+              Z=Z, V.U=V.U, U=U,
+              V.E=V.E,
               dat=dat))
 }
 
