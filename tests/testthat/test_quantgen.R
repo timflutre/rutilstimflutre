@@ -209,6 +209,51 @@ test_that("getHaplosInds", {
   expect_equal(observed, expected)
 })
 
+test_that("splitGenomesTrainTest", {
+  nb.inds.train <- 1
+  nb.inds.test <- 1
+  nb.inds <- nb.inds.train + nb.inds.test
+  nb.snps <- 2
+  snp.names <- c("snp1", "snp2")
+
+  chr1 <- matrix(c(1,0,1,0, 1,1,0,1), nrow=2 * nb.inds, ncol=nb.snps,
+                 dimnames=list(c("ind1_h1", "ind1_h2", "ind2_h1", "ind2_h2"),
+                               snp.names))
+  genomes <- list(haplos=list(chr1=chr1),
+                  genos=matrix(c(1,1,2,1), nrow=nb.inds, ncol=nb.snps,
+                               dimnames=list(c("ind1", "ind2"),
+                                             snp.names)))
+
+  expected <- list(genomes=list(haplos=list(
+                                    chr1=matrix(c(1,0, 1,1),
+                                                nrow=2 * nb.inds.train,
+                                                ncol=nb.snps,
+                                                dimnames=list(c("ind1_h1",
+                                                                "ind1_h2"),
+                                                              snp.names))),
+                                genos=matrix(c(1,2),
+                                             nrow=nb.inds.train,
+                                             ncol=nb.snps,
+                                             dimnames=list(c("ind1"),
+                                                           snp.names))),
+                   genomes.pred=list(haplos=list(
+                                         chr1=matrix(c(1,0, 0,1),
+                                                     nrow=2 * nb.inds.test,
+                                                     ncol=nb.snps,
+                                                     dimnames=list(c("ind2_h1",
+                                                                     "ind2_h2"),
+                                                                   snp.names))),
+                                     genos=matrix(c(1,1),
+                                                  nrow=nb.inds.test,
+                                                  ncol=nb.snps,
+                                                  dimnames=list(c("ind2"),
+                                                                snp.names))))
+
+  observed <- splitGenomesTrainTest(genomes, nb.inds.pred=1)
+
+  expect_equal(observed, expected)
+})
+
 test_that("makeGameteSingleIndSingleChrom", {
   P <- 4 # SNPs
   haplos.par.chr <- matrix(data=c(1,0, 0,1, 1,0, 1,0), nrow=2, ncol=P,

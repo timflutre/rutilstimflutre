@@ -407,6 +407,42 @@ simulCoalescent <- function(nb.inds=100,
   return(out)
 }
 
+##' Genomes
+##'
+##' From a set of individual genomes simulated together, split them into a training (for estimation) and testing (for prediction) sets.
+##' @param genomes list, e.g. returned by \code{\link{simulCoalescent}}
+##' @param nb.inds.pred number of individuals for whom prediction will be performed
+##' @return list composed of two lists, genomes and genomes.pred
+##' @author Timothee Flutre
+splitGenomesTrainTest <- function(genomes, nb.inds.pred){
+  stopifnot(is.list(genomes),
+            all(c("haplos", "genos") %in% names(genomes)),
+            is.list(genomes$haplos),
+            is.matrix(genomes$genos),
+            nb.inds.pred < nrow(genomes$haplos[[1]]))
+
+  out <- list(genomes=NULL,
+              genomes.pred=NULL)
+
+  if(nb.inds.pred == 0){
+    out$genomes <- genomes
+  } else{
+    ind.names <- getIndNamesFromHaplos(genomes$haplos)
+    ind.names.train <- ind.names[1:(length(ind.names) - nb.inds.pred)]
+    ind.names.test <- ind.names[(length(ind.names) - nb.inds.pred + 1):
+                                length(ind.names)]
+    out$genomes <- list(haplos=getHaplosInds(genomes$haplos, ind.names.train),
+                        genos=subset(genomes$genos,
+                                     ind.names %in% ind.names.train))
+    out$genomes.pred <- list(haplos=getHaplosInds(genomes$haplos,
+                                                  ind.names.test),
+                             genos=subset(genomes$genos,
+                                          ind.names %in% ind.names.test))
+  }
+
+  return(out)
+}
+
 ##' Pi
 ##'
 ##' Calculate the average number of differences between pairs of sequences, named pi in the population genetics literature (Tajima, 1983; Wakeley, 2008).
