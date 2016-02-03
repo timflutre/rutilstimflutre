@@ -1381,23 +1381,31 @@ simulAnimalModel <- function(Q=3, mu=50, mean.a=5, sd.a=2,
 ##' Simulate phenotypes from a basic, multivariate "animal model".
 ##' Y = W A + Z U + E
 ##' where Y is N x T; W is N x Q; Z is N x I
-##' U ~ Norm_IxT(M_U=0, U_U=A_U, V_U)
-##' E ~ Norm_NxT(M_E=0, U_E=I_N, V_E)
+##' U ~ Norm_IxT(M_U=0, U_U=A_U, V_U) with unconstrained V_U
+##' E ~ Norm_NxT(M_E=0, U_E=I_N, V_E) with V_E = sigma_E^2 x Id_T
 ##' @param T number of traits
 ##' @param Q number of years
 ##' @param mu vector of overall means (one per trait), i.e. A[1,1:T]
 ##' @param mean.a mean of the Normal prior on A[2:Q,1:T]
 ##' @param sd.a std dev of the Normal prior on A[2:Q,1:T]
-##' @param A.U matrix of additive genetic relationships
-##' @param nu.V.U degrees of freedom of the Wishart prior for V.U
-##' @param nu.V.E degrees of freedom of the Wishart prior for V.E
+##' @param A.U matrix of additive genetic relationships (e.g. see \code{\link{estimGenRel}} with VanRaden's estimator)
+##' @param lambda ratio of variance components V_u^2 / V_E^2 (ignored if T > 1)
+##' @param V.U variance component for the additive genetic relationships
+##' @param scale.halfCauchy scale of the half-Cauchy prior for sqrt(V_U), e.g. 5 (ignored if T > 1)
+##' @param nu.V.U degrees of freedom of the Wishart prior for V_U (ignored if T = 1)
+##' @param nu.V.E degrees of freedom of the Wishart prior for V_E (ignored if T = 1)
 ##' @param perc.NA percentage of missing phenotypes, at random
+##' @param err.df degrees of freedom of the Student's t-distribution of the errors (ignored if T > 1)
 ##' @param seed seed for the pseudo-random number generator
 ##' @return list
 ##' @author Timothee Flutre
 simulAnimalModelMultivar <- function(T=2, Q=3, mu=rep(50,T), mean.a=5, sd.a=2,
-                                     A.U, nu.V.U=T, nu.V.E=T,
-                                     perc.NA=0, seed=NULL){
+                                     A.U, lambda=3, V.U=NULL,
+                                     scale.halfCauchy=NULL, nu.V.U=T, nu.V.E=T,
+                                     perc.NA=0, err.df=Inf, seed=NULL){
+  if(! requireNamespace("MASS", quietly=TRUE))
+    stop("Pkg MASS needed for this function to work. Please install it.",
+         call.=FALSE)
   stopifnot(length(mu) == T,
             is.matrix(A.U),
             nrow(A.U) == ncol(A.U),
@@ -1405,13 +1413,15 @@ simulAnimalModelMultivar <- function(T=2, Q=3, mu=rep(50,T), mean.a=5, sd.a=2,
             ! is.null(colnames(A.U)),
             rownames(A.U) == colnames(A.U),
             perc.NA >= 0, perc.NA <= 100)
+  if(T == 1)
+    stopifnot(xor(is.null(V.U), is.null(scale.halfCauchy)))
   if(! is.null(seed))
     set.seed(seed)
 
   I <- nrow(A.U)
   N <- Q * I
 
-  ## incidence matrix of "fixed" effects
+  ## incidence matrix of "year" effects
   levels.years <- as.character(seq(from=2010, to=2010+Q-1))
   if(N %% Q == 0){
     years <- rep(levels.years, each=N / Q)
@@ -1433,19 +1443,42 @@ simulAnimalModelMultivar <- function(T=2, Q=3, mu=rep(50,T), mean.a=5, sd.a=2,
   for(year in levels.years)
     inds[years == year] <- levels.inds[1:sum(years == year)]
   inds <- as.factor(inds)
-  ## Z <- as.matrix(Matrix::t(as(inds, Class="sparseMatrix")))
   Z <- model.matrix(~ inds - 1)
   dat$ind <- inds
 
   ## additive genetic component
-  V.U <- rWishart(n=1, df=nu.V.U, Sigma=diag(T))[,,1]
-  U <- rmatnorm(n=1, M=matrix(data=0, nrow=I, ncol=T),
-                U=A.U, V=V.U)[,,1]
+  U <- NULL
+  if(T == 1){
+    if(is.null(V.U)){
+      sigma.u <- abs(rcauchy(n=1, location=0, scale=scale.halfCauchy))
+      V.U <- matrix(sigma.u^2)
+    } else{
+      if(! is.matrix(V.U))
+        V.U <- as.matrix(V.U)
+    }
+    ## G <- as.matrix(Matrix::nearPD(V.U[1,1] * A.U)$mat)
+    U <- matrix(MASS::mvrnorm(n=1, mu=rep(0, I), Sigma=V.U[1,1] * A.U))
+    rownames(U) <- rownames(A)
+  } else{
+    V.U <- rWishart(n=1, df=nu.V.U, Sigma=diag(T))[,,1]
+    U <- rmatnorm(n=1, M=matrix(data=0, nrow=I, ncol=T),
+                  U=A.U, V=V.U)[,,1]
+  }
 
   ## errors
-  V.E <- rWishart(n=1, df=nu.V.E, Sigma=diag(T))[,,1]
-  E <- rmatnorm(n=1, M=matrix(data=0, nrow=N, ncol=T),
-                U=diag(N), V=V.E)[,,1]
+  V.E <- NULL
+  E <- NULL
+  if(T == 1){
+    V.E <- V.U / lambda
+    if(is.infinite(err.df)){
+      E <- matrix(rnorm(n=N, mean=0, sd=sqrt(V.E)))
+    } else
+      E <- matrix(rt(n=N, df=err.df, ncp=0))
+  } else{
+    V.E <- rWishart(n=1, df=nu.V.E, Sigma=diag(T))[,,1]
+    E <- rmatnorm(n=1, M=matrix(data=0, nrow=N, ncol=T),
+                  U=diag(N), V=V.E)[,,1]
+  }
 
   ## phenotypes
   Y <- W %*% A + Z %*% U + E

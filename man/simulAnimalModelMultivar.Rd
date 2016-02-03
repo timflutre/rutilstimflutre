@@ -5,7 +5,8 @@
 \title{Animal model}
 \usage{
 simulAnimalModelMultivar(T = 2, Q = 3, mu = rep(50, T), mean.a = 5,
-  sd.a = 2, A.U, nu.V.U = T, nu.V.E = T, perc.NA = 0, seed = NULL)
+  sd.a = 2, A.U, lambda = 3, V.U = NULL, scale.halfCauchy = NULL,
+  nu.V.U = T, nu.V.E = T, perc.NA = 0, err.df = Inf, seed = NULL)
 }
 \arguments{
 \item{T}{number of traits}
@@ -18,13 +19,21 @@ simulAnimalModelMultivar(T = 2, Q = 3, mu = rep(50, T), mean.a = 5,
 
 \item{sd.a}{std dev of the Normal prior on A[2:Q,1:T]}
 
-\item{A.U}{matrix of additive genetic relationships}
+\item{A.U}{matrix of additive genetic relationships (e.g. see \code{\link{estimGenRel}} with VanRaden's estimator)}
 
-\item{nu.V.U}{degrees of freedom of the Wishart prior for V.U}
+\item{lambda}{ratio of variance components V_u^2 / V_E^2 (ignored if T > 1)}
 
-\item{nu.V.E}{degrees of freedom of the Wishart prior for V.E}
+\item{V.U}{variance component for the additive genetic relationships}
+
+\item{scale.halfCauchy}{scale of the half-Cauchy prior for sqrt(V_U), e.g. 5 (ignored if T > 1)}
+
+\item{nu.V.U}{degrees of freedom of the Wishart prior for V_U (ignored if T = 1)}
+
+\item{nu.V.E}{degrees of freedom of the Wishart prior for V_E (ignored if T = 1)}
 
 \item{perc.NA}{percentage of missing phenotypes, at random}
+
+\item{err.df}{degrees of freedom of the Student's t-distribution of the errors (ignored if T > 1)}
 
 \item{seed}{seed for the pseudo-random number generator}
 }
@@ -35,8 +44,8 @@ list
 Simulate phenotypes from a basic, multivariate "animal model".
 Y = W A + Z U + E
 where Y is N x T; W is N x Q; Z is N x I
-U ~ Norm_IxT(M_U=0, U_U=A_U, V_U)
-E ~ Norm_NxT(M_E=0, U_E=I_N, V_E)
+U ~ Norm_IxT(M_U=0, U_U=A_U, V_U) with unconstrained V_U
+E ~ Norm_NxT(M_E=0, U_E=I_N, V_E) with V_E = sigma_E^2 x Id_T
 }
 \author{
 Timothee Flutre
