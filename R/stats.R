@@ -1,5 +1,21 @@
 ## Contains functions useful for statistics.
 
+##' Summary
+##'
+##' Print the output of \code{\link{summary}} in a single line.
+##' @param x vector of numbers
+##' @param spec specifier, see \code{\link{sprintf}}
+##' @return nothing
+##' @author Timothee Flutre
+prettyPrintSummary <- function(x, spec="%.2f"){
+  stopifnot(is.vector(x))
+  tmp <- summary(x)
+  fmt <- paste0("min=", spec, " q1=", spec, " med=", spec, " mean=", spec,
+                " q3=", spec, " max=", spec)
+  txt <- sprintf(fmt, tmp[1], tmp[2], tmp[3], tmp[4], tmp[5], tmp[6])
+  print(txt)
+}
+
 ##' Return the Root Mean Squared Error
 ##'
 ##'
