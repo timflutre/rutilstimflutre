@@ -309,6 +309,7 @@ segSites2snpCoords <- function(seg.sites, snp.ids, chrom.len, prefix="chr"){
 ##' @param pop.mut.rate theta = 4 N0 mu
 ##' @param pop.recomb.rate rho = 4 N0 r
 ##' @param chrom.len in bp
+##' @param other character vector of length 1 with other parameters to the simulator (e.g. time-specific parameters such as "-G 6.93 -eG 0.2 0.0 -eN 0.3 0.5")
 ##' @param nb.pops number of populations
 ##' @param mig.rate migration rate = 4 N0 m (symmetric)
 ##' @param get.trees get gene genealogies in the Newick format
@@ -322,6 +323,7 @@ simulCoalescent <- function(nb.inds=100,
                             pop.mut.rate=50,
                             pop.recomb.rate=5,
                             chrom.len=10^3,
+                            other=NULL,
                             nb.pops=1,
                             mig.rate=5,
                             get.trees=FALSE,
@@ -331,6 +333,9 @@ simulCoalescent <- function(nb.inds=100,
     stop("Pkg scrm needed for this function to work. Please install it.",
          call.=FALSE)
   stopifnot(nb.inds > nb.pops)
+  if(! is.null(other))
+    stopifnot(is.character(other),
+              length(other) == 1)
 
   out <- list()
 
@@ -343,6 +348,8 @@ simulCoalescent <- function(nb.inds=100,
   cmd <- paste0(nb.samples, " ", nb.reps)
   cmd <- paste0(cmd, " -t ", pop.mut.rate)
   cmd <- paste0(cmd, " -r ", pop.recomb.rate, " ", chrom.len)
+  if(! is.null(other))
+    cmd <- paste0(cmd, " ", other)
   if(get.trees)
     cmd <- paste0(cmd, " -T")
   if(get.tmrca)

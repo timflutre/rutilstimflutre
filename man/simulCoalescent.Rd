@@ -5,8 +5,9 @@
 \title{Coalescent with recombination}
 \usage{
 simulCoalescent(nb.inds = 100, ind.ids = NULL, nb.reps = 20,
-  pop.mut.rate = 50, pop.recomb.rate = 5, chrom.len = 10^3, nb.pops = 1,
-  mig.rate = 5, get.trees = FALSE, get.tmrca = FALSE, verbose = 0)
+  pop.mut.rate = 50, pop.recomb.rate = 5, chrom.len = 10^3,
+  other = NULL, nb.pops = 1, mig.rate = 5, get.trees = FALSE,
+  get.tmrca = FALSE, verbose = 0)
 }
 \arguments{
 \item{nb.inds}{diploids (thus nb of haplotypes is 2 * nb.inds)}
@@ -20,6 +21,8 @@ simulCoalescent(nb.inds = 100, ind.ids = NULL, nb.reps = 20,
 \item{pop.recomb.rate}{rho = 4 N0 r}
 
 \item{chrom.len}{in bp}
+
+\item{other}{character vector of length 1 with other parameters to the simulator (e.g. time-specific parameters such as "-G 6.93 -eG 0.2 0.0 -eN 0.3 0.5")}
 
 \item{nb.pops}{number of populations}
 
