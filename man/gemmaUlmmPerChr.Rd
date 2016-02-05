@@ -13,9 +13,10 @@ gemmaUlmmPerChr(y, X, snp.coords, alleles, chr.ids = NULL, W, out.dir,
 \item{X}{matrix of SNP genotypes encoded as allele doses, with SNPs in
 columns and individuals in rows}
 
-\item{snp.coords}{data.frame with 3 columns (chr, snp, coord)}
+\item{snp.coords}{data.frame with 3 columns (snp, coord, chr)}
 
-\item{alleles}{data.frame with SNPs in rows (names as row names) and}
+\item{alleles}{data.frame with SNPs in rows (names as row names) and
+alleles in columns (first is "minor", second is "major")}
 
 \item{chr.ids}{set of chromosome identifiers to analyze (optional, all by default)}
 

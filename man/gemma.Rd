@@ -5,8 +5,8 @@
 \title{Launch GEMMA}
 \usage{
 gemma(model = "ulmm", y, X, snp.coords, alleles, K.c = NULL, W, out.dir,
-  task.id = "", verbose = 1, clean = FALSE, burnin = 1000,
-  nb.iters = 7000, thin = 10)
+  task.id, verbose = 1, clean = FALSE, burnin = 1000, nb.iters = 7000,
+  thin = 10)
 }
 \arguments{
 \item{model}{name of the model to fit (default=ulmm/bslmm)}
@@ -16,8 +16,7 @@ gemma(model = "ulmm", y, X, snp.coords, alleles, K.c = NULL, W, out.dir,
 \item{X}{matrix of SNP genotypes encoded as allele doses, with SNPs in
 columns and individuals in rows}
 
-\item{snp.coords}{data.frame with 3 columns: chromosomes' identifiers,
-coordinates of SNPs on the chromosome and SNPs names}
+\item{snp.coords}{data.frame with 3 columns (snp, coord, chr)}
 
 \item{alleles}{data.frame with SNPs in rows (names as row names) and
 alleles in columns (first is "minor", second is "major")}
