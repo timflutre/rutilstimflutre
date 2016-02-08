@@ -152,7 +152,7 @@ mpInv <- function(mat){
 ##' Shriner (Heredity, 2011)
 ##' @param X genotype matrix (0,1,2) with SNPs in rows and individuals in columns
 ##' @return integer
-##' @author Daniel Shriner
+##' @author Daniel Shriner [aut], Timothee Flutre [cre]
 ##' @export
 getNbPCsMinimAvgSqPartCor <- function(X){
   if(nrow(X) < ncol(X))

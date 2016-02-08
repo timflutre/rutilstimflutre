@@ -17,6 +17,6 @@ integer
 Shriner (Heredity, 2011)
 }
 \author{
-Daniel Shriner
+Daniel Shriner [aut], Timothee Flutre [cre]
 }
 

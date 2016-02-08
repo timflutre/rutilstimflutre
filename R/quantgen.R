@@ -1840,7 +1840,7 @@ simulBslmm <- function(Q=3, mu=50, mean.a=5, sd.a=2,
 ##' @param nb.iters number of iterations
 ##' @param thin thining
 ##' @return invisible data.frame
-##' @author Timothee Flutre [cre,aut], Dalel Ahmed [ctb]
+##' @author Timothee Flutre [aut,cre], Dalel Ahmed [ctb]
 ##' @export
 gemma <- function(model="ulmm", y, X, snp.coords, alleles, K.c=NULL, W,
                   out.dir, task.id, verbose=1, clean="none",
@@ -1976,7 +1976,7 @@ gemma <- function(model="ulmm", y, X, snp.coords, alleles, K.c=NULL, W,
 ##' @param clean remove files: none, some (temporary only), all (temporary and results)
 ##' @param verbose verbosity level (default=1)
 ##' @return a list of the GEMMA outputs for all chromosomes
-##' @author Timothee Flutre [cre,aut], Dalel Ahmed [ctb]
+##' @author Timothee Flutre [aut,cre], Dalel Ahmed [ctb]
 ##' @export
 gemmaUlmmPerChr <- function(y, X, snp.coords, alleles, chr.ids=NULL, W, out.dir,
                             task.id="", clean="none", verbose=1){
@@ -2113,7 +2113,7 @@ calcAsymptoticBayesFactorWakefield <- function(theta.hat, V, W, log10=TRUE){
 ##' @param sigma.d variance of the prior on the dominance genetic effect
 ##' @param log10 to return the log10 of the ABF (default=TRUE)
 ##' @return numeric
-##' @author Bertrand Servin [cre,aut], Timothee Flutre [ctb]
+##' @author Bertrand Servin [aut], Timothee Flutre [ctb,cre]
 ##' @export
 calcExactBayesFactorServinStephens <- function(G, Y, sigma.a, sigma.d,
                                                log10=TRUE){
@@ -2150,7 +2150,7 @@ calcExactBayesFactorServinStephens <- function(G, Y, sigma.a, sigma.d,
 ##' @param phi2 prior variance of the \eqn{b_s} given \eqn{\bar{b}}; controls the prior expected degree of heterogeneity among subgroups
 ##' @param oma2 prior variance of \eqn{\bar{b}}; controls the prior expected size of the average effect across subgroups
 ##' @return numeric
-##' @author Xiaoquan Wen [cre,aut], Timothee Flutre [ctb]
+##' @author Xiaoquan Wen [aut], Timothee Flutre [ctb,cre]
 ##' @export
 calcL10ApproximateBayesFactorWenStephens <- function(sstats, phi2, oma2){
   stopifnot(is.matrix(sstats),

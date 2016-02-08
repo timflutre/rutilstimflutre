@@ -46,6 +46,6 @@ invisible data.frame
 Launch GEMMA
 }
 \author{
-Timothee Flutre [cre,aut], Dalel Ahmed [ctb]
+Timothee Flutre [aut,cre], Dalel Ahmed [ctb]
 }
 
