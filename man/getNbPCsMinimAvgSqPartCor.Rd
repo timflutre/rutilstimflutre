@@ -17,6 +17,6 @@ integer
 Shriner (Heredity, 2011)
 }
 \author{
-Shriner
+Daniel Shriner
 }
 

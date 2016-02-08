@@ -5,7 +5,7 @@
 \title{Launch GEMMA uLMM chromosome per chromosome}
 \usage{
 gemmaUlmmPerChr(y, X, snp.coords, alleles, chr.ids = NULL, W, out.dir,
-  task.id = "", clean = FALSE, verbose = 1)
+  task.id = "", clean = "none", verbose = 1)
 }
 \arguments{
 \item{y}{vector of phenotypes}
@@ -26,7 +26,7 @@ alleles in columns (first is "minor", second is "major")}
 
 \item{task.id}{identifier of the task (used in output file names)}
 
-\item{clean}{remove temporary files}
+\item{clean}{remove files: none, some (temporary only), all (temporary and results)}
 
 \item{verbose}{verbosity level (default=1)}
 }

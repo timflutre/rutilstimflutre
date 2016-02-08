@@ -1,7 +1,13 @@
 Package: rutilstimflutre
 Title: Timothee Flutre's personal R code
-Version: 0.43.0
-Authors@R: person("Timothee", "Flutre", email = "timothee.flutre@supagro.inra.fr", role = c("aut", "cre"))
+Version: 0.43.1
+Authors@R: c(
+    person("Timothee", "Flutre", email="timothee.flutre@supagro.inra.fr", role=c("aut", "cre")),
+    person("Dalel", "Ahmed", role="ctb"),
+    person("Xiaoquan", "Wen", role="ctb"),
+    person("Daniel", "Shriner", role="ctb"),
+    person("Bertrand", "Servin", role="ctb")
+    )
 Description: Miscellaneous R functions.
 Depends:
     R (>= 3.0.0)

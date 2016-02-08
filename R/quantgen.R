@@ -1835,14 +1835,15 @@ simulBslmm <- function(Q=3, mu=50, mean.a=5, sd.a=2,
 ##' @param out.dir directory in which the output files will be saved
 ##' @param task.id identifier of the task (used in output file names)
 ##' @param verbose verbosity level (default=1)
-##' @param clean remove temporary files
+##' @param clean remove files: none, some (temporary only), all (temporary and results)
 ##' @param burnin number of iterations to discard as burn-in
 ##' @param nb.iters number of iterations
 ##' @param thin thining
 ##' @return invisible data.frame
 ##' @author Timothee Flutre [cre,aut], Dalel Ahmed [ctb]
+##' @export
 gemma <- function(model="ulmm", y, X, snp.coords, alleles, K.c=NULL, W,
-                  out.dir, task.id, verbose=1, clean=FALSE,
+                  out.dir, task.id, verbose=1, clean="none",
                   burnin=1000, nb.iters=7000, thin=10){
   stopifnot(model %in% c("ulmm", "bslmm"),
             is.vector(y),
@@ -1859,25 +1860,36 @@ gemma <- function(model="ulmm", y, X, snp.coords, alleles, K.c=NULL, W,
             is.matrix(W),
             file.exists(out.dir),
             is.character(task.id),
-            length(task.id) == 1)
+            length(task.id) == 1,
+            clean %in% c("none", "some", "all"))
 
   ## prepare input files
+  tmp.files <- c()
+  tmp.files <- c(tmp.files,
+                 bimbam=paste0(out.dir, "/genos_bimbam_", task.id, ".txt.gz"))
   X.bimbam <- dose2bimbam(X=X, alleles=alleles,
-                          file=gzfile(paste0(out.dir,
-                              "/genos_bimbam_", task.id, ".txt.gz")))
+                          file=gzfile(tmp.files["bimbam"]))
+  tmp.files <- c(tmp.files,
+                 coord=paste0(out.dir, "/snp_coordinates_", task.id, ".txt"))
   write.table(x=snp.coords,
-              file=paste0(out.dir, "/snp_coordinates_", task.id, ".txt"),
+              file=tmp.files["coord"],
               quote=FALSE, sep="\t", row.names=FALSE, col.names=FALSE)
   if(is.null(K.c))
     K.c <- estimGenRel(X=X, method="zhou")
+  tmp.files <- c(tmp.files,
+                 kin=paste0(out.dir, "/kinship-center_", task.id, ".txt"))
   write.table(x=K.c,
-              file=paste0(out.dir, "/kinship-center_", task.id, ".txt"),
+              file=tmp.files["kin"],
               quote=FALSE, sep="\t", row.names=FALSE, col.names=FALSE)
+  tmp.files <- c(tmp.files,
+                 covar=paste0(out.dir, "/covar_gemma_", task.id, ".txt"))
   write.table(x=W,
-              file=paste0(out.dir, "/covar_gemma_", task.id, ".txt"),
+              file=tmp.files["covar"],
               quote=FALSE, sep="\t", row.names=FALSE, col.names=FALSE)
+  tmp.files <- c(tmp.files,
+                 pheno=paste0(out.dir, "/phenotypes_", task.id, ".txt.gz"))
   write.table(x=y,
-              file=gzfile(paste0(out.dir, "/phenotypes_", task.id, ".txt.gz")),
+              file=gzfile(tmp.files["pheno"]),
               quote=FALSE, sep="\t", row.names=FALSE, col.names=FALSE)
 
   ## prepare cmd-line and execute it
@@ -1898,37 +1910,53 @@ gemma <- function(model="ulmm", y, X, snp.coords, alleles, K.c=NULL, W,
                   " -s ", format(x=nb.iters, scientific=FALSE),
                   " -rpace ", thin)
   }
-  if(verbose <= 0)
-    cmd <- paste0(cmd, " > stdouterr_gemma_", task.id, ".txt 2>&1")
+  if(verbose <= 0){
+    tmp.files <- c(tmp.files,
+                   stdoe=paste0(out.dir, "/stdouterr_gemma_", task.id, ".txt"))
+    cmd <- paste0(cmd, " > ", tmp.files["stdoe"], " 2>&1")
+  }
   if(verbose > 0)
     write(cmd, stdout())
   system(cmd)
 
   ## load output files
   if(model == "ulmm"){
-    output <- read.table(file=paste0(out.dir, "/results_simul_",
-                                     task.id, ".assoc.txt"), sep="\t",
-                         header=TRUE, stringsAsFactors=FALSE)
+    f <- paste0(out.dir, "/results_simul_", task.id, ".assoc.txt")
+    output <- read.table(file=f, sep="\t", header=TRUE, stringsAsFactors=FALSE)
     rownames(output) <- output$rs
+    if(clean == "all")
+      file.remove(f)
   } else if(model == "bslmm"){
     output <- list()
-    output[["hyperparams"]] <- read.table(file=paste0(out.dir,
-                                                      "/results_simul_",
-                                                      task.id, ".hyp.txt"),
+    f <- paste0(out.dir, "/results_simul_", task.id, ".hyp.txt")
+    output[["hyperparams"]] <- read.table(file=f,
                                           sep="\t",
                                           skip=1, stringsAsFactors=FALSE,
                                           header=FALSE,
                                           col.names=c("h", "pve", "rho", "pge",
                                                       "pi", "n_gamma", ""))
     output[["hyperparams"]][7] <- NULL
-    output[["params"]] <- read.table(file=paste0(out.dir,
-                                                 "/results_simul_",
-                                                 task.id, ".param.txt"),
+    if(clean == "all")
+      file.remove(f)
+    f <- paste0(out.dir, "/results_simul_", task.id, ".param.txt")
+    output[["params"]] <- read.table(file=f,
                                      sep="\t", skip=1,
                                      stringsAsFactors=FALSE, header=FALSE,
                                      col.names=c("chr", "rs", "ps", "n_miss",
                                                  "alpha", "beta", "gamma"))
+    if(clean == "all")
+      file.remove(f)
   }
+  if(clean == "all"){
+    f <- paste0(out.dir, "/results_simul_", task.id, ".log.txt")
+    if(file.exists(f))
+      file.remove(f)
+  }
+
+  ## clean temporary files
+  if(clean != "none")
+    for(f in tmp.files)
+      file.remove(f)
 
   invisible(output)
 }
@@ -1945,12 +1973,13 @@ gemma <- function(model="ulmm", y, X, snp.coords, alleles, K.c=NULL, W,
 ##' @param W matrix of covariates with individuals in rows (names as row names), a first column of 1 and a second column of covariates values
 ##' @param out.dir directory in which the data files will be found
 ##' @param task.id identifier of the task (used in output file names)
-##' @param clean remove temporary files
+##' @param clean remove files: none, some (temporary only), all (temporary and results)
 ##' @param verbose verbosity level (default=1)
 ##' @return a list of the GEMMA outputs for all chromosomes
 ##' @author Timothee Flutre [cre,aut], Dalel Ahmed [ctb]
+##' @export
 gemmaUlmmPerChr <- function(y, X, snp.coords, alleles, chr.ids=NULL, W, out.dir,
-                            task.id="", clean=FALSE, verbose=1){
+                            task.id="", clean="none", verbose=1){
   stopifnot(is.vector(y),
             is.matrix(X),
             ! is.null(colnames(X)),
@@ -1963,11 +1992,12 @@ gemmaUlmmPerChr <- function(y, X, snp.coords, alleles, chr.ids=NULL, W, out.dir,
             is.matrix(W),
             file.exists(out.dir),
             is.character(task.id),
-            length(task.id) == 1)
+            length(task.id) == 1,
+            clean %in% c("none", "some", "all"))
 
   out <- list()
   if(is.null(chr.ids))
-    chr.ids <- unique(as.character(snp.coords$chr))
+    chr.ids <- sort(unique(as.character(snp.coords$chr)))
 
   for(chr.id in chr.ids){
     subset.snp.ids <- (snp.coords$chr == chr.id)
@@ -2010,6 +2040,7 @@ gemmaUlmmPerChr <- function(y, X, snp.coords, alleles, chr.ids=NULL, W, out.dir,
 ##' @param col plotting color for the points (default is all points in black)
 ##' @param ... graphical parameters other than xlim, ylim, xlab, ylab, las and col
 ##' @author Timothee Flutre (inspired from an anonymous comment to http://gettinggeneticsdone.blogspot.fr/2009/11/qq-plots-of-p-values-in-r-using-ggplot2.html)
+##' @export
 qqplotPval <- function(pvalues, plot.conf.int=TRUE,
                        xlab=expression(Expected~~-log[10](italic(p)~values)),
                        ylab=expression(Observed~~-log[10](italic(p)~values)),
@@ -2083,6 +2114,7 @@ calcAsymptoticBayesFactorWakefield <- function(theta.hat, V, W, log10=TRUE){
 ##' @param log10 to return the log10 of the ABF (default=TRUE)
 ##' @return numeric
 ##' @author Bertrand Servin [cre,aut], Timothee Flutre [ctb]
+##' @export
 calcExactBayesFactorServinStephens <- function(G, Y, sigma.a, sigma.d,
                                                log10=TRUE){
   stopifnot(is.vector(G), is.vector(Y))
@@ -2119,6 +2151,7 @@ calcExactBayesFactorServinStephens <- function(G, Y, sigma.a, sigma.d,
 ##' @param oma2 prior variance of \eqn{\bar{b}}; controls the prior expected size of the average effect across subgroups
 ##' @return numeric
 ##' @author Xiaoquan Wen [cre,aut], Timothee Flutre [ctb]
+##' @export
 calcL10ApproximateBayesFactorWenStephens <- function(sstats, phi2, oma2){
   stopifnot(is.matrix(sstats),
             all(colnames(sstats) == c("bhat","sebhat","t")),

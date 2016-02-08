@@ -5,7 +5,7 @@
 \title{Launch GEMMA}
 \usage{
 gemma(model = "ulmm", y, X, snp.coords, alleles, K.c = NULL, W, out.dir,
-  task.id, verbose = 1, clean = FALSE, burnin = 1000, nb.iters = 7000,
+  task.id, verbose = 1, clean = "none", burnin = 1000, nb.iters = 7000,
   thin = 10)
 }
 \arguments{
@@ -31,7 +31,7 @@ alleles in columns (first is "minor", second is "major")}
 
 \item{verbose}{verbosity level (default=1)}
 
-\item{clean}{remove temporary files}
+\item{clean}{remove files: none, some (temporary only), all (temporary and results)}
 
 \item{burnin}{number of iterations to discard as burn-in}
 
