@@ -8,7 +8,7 @@ estimGenRel(X, mafs = NULL, thresh = 0.01, relationships = "additive",
   method = "vanraden1", theta = 0.5, verbose = 1)
 }
 \arguments{
-\item{X}{matrix of SNP genotypes encoded as allele doses ({0,1,2}), with SNPs in columns and individuals in rows; SNPs with missing data are ignored}
+\item{X}{matrix of SNP genotypes encoded as allele doses in {0,1,2}, with individuals in rows and SNPs in columns}
 
 \item{mafs}{vector with minor allele frequencies (calculated with `estimMaf` if NULL)}
 

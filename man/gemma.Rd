@@ -13,8 +13,7 @@ gemma(model = "ulmm", y, X, snp.coords, alleles, K.c = NULL, W, out.dir,
 
 \item{y}{vector of phenotypes}
 
-\item{X}{matrix of SNP genotypes encoded as allele doses, with SNPs in
-columns and individuals in rows}
+\item{X}{matrix of SNP genotypes encoded as allele doses in {0,1,2}, with individuals in rows and SNPs in columns}
 
 \item{snp.coords}{data.frame with 3 columns (snp, coord, chr)}
 

@@ -86,8 +86,7 @@ plotGridMissGenos <- function(x, main="Missing genotypes", xlab="Individuals",
 ##' Estimate minor allele frequencies of SNPs.
 ##'
 ##' Missing values should be encoded as NA.
-##' @param X matrix of SNP genotypes encoded as allele doses, with SNPs in
-##' columns and individuals in rows
+##' @param X matrix of SNP genotypes encoded as allele doses in {0,1,2}, with individuals in rows and SNPs in columns
 ##' @return vector
 ##' @author Timothee Flutre
 ##' @export
@@ -110,8 +109,7 @@ estimMaf <- function(X){
 ##' Plot the histogram of the minor allele frequency per SNP
 ##'
 ##' Missing values (encoded as NA) are discarded.
-##' @param X matrix of SNP genotypes encoded as allele doses, with SNPs in
-##' columns and individuals in rows (optional if maf is not null)
+##' @param X matrix of SNP genotypes encoded as allele doses in {0,1,2}, with individuals in rows and SNPs in columns (optional if maf is not null)
 ##' @param maf vector of minor allele frequencies (optional if X is not null)
 ##' @param main string for the main title (default="")
 ##' @param xlim default=c(0,0.5)
@@ -147,7 +145,7 @@ plotHistMinAllelFreq <- function(X=NULL, maf=NULL, main="", xlim=c(0,0.5),
 ##' Convert genotype data to the "mean genotype" file format from BimBam
 ##'
 ##' The format is specified in BimBam's manual http://www.haplotype.org/download/bimbam-manual.pdf#page=6
-##' @param X matrix with individuals in rows and SNPs in columns
+##' @param X matrix of SNP genotypes encoded as allele doses in {0,1,2}, with individuals in rows and SNPs in columns
 ##' @param tX matrix with SNPs in rows and individuals in columns
 ##' @param alleles data.frame with SNPs in rows (names as row names) and
 ##' alleles in columns (first is "minor", second is "major")
@@ -952,7 +950,7 @@ distSnpPairs <- function(snp.pairs, snp.coords, nb.cores=1, verbose=0){
 ##' Genomic relatedness
 ##'
 ##' Estimate genetic relationships between individuals from their SNP genotypes. Note that "relationships" are estimated, and not "coancestries" (2 x relationhips).
-##' @param X matrix of SNP genotypes encoded as allele doses ({0,1,2}), with SNPs in columns and individuals in rows; SNPs with missing data are ignored
+##' @param X matrix of SNP genotypes encoded as allele doses in {0,1,2}, with individuals in rows and SNPs in columns
 ##' @param mafs vector with minor allele frequencies (calculated with `estimMaf` if NULL)
 ##' @param thresh threshold on allele frequencies below which SNPs are ignored (default=0.01, NULL to skip this step)
 ##' @param relationships relationship to estimate (default=additive/dominance/gauss) where "gauss" corresponds to the Gaussian kernel from Endelman (2011)
@@ -1095,7 +1093,7 @@ estimGenRel <- function(X, mafs=NULL, thresh=0.01, relationships="additive",
 ##' Pairwise linkage disequilibrium
 ##'
 ##' Estimates linkage disequilibrium between pairs of SNPs when the observations are the genotypes of individuals, not their gametes (i.e. the gametic phases are unknown). When ignoring kinship and population structure, the estimator of Rogers and Huff (Genetics, 2009) can be used. When kinship and/or population structure are controlled for, the estimator of Mangin et al (Heredity, 2012) is used via their LDcorSV package.
-##' @param X matrix of SNP genotypes encoded as allele doses, with SNPs in columns and individuals in rows
+##' @param X matrix of SNP genotypes encoded as allele doses in {0,1,2}, with individuals in rows and SNPs in columns
 ##' @param K matrix of kinship
 ##' @param pops vector of characters indicating the population of each individual
 ##' @param snp.coords data.frame with SNP identifiers as row names, and two columns, "chr" and "pos"
@@ -1705,9 +1703,7 @@ lmerAM <- function(formula, data, relmat, REML=TRUE, verbose=1){
 ##' @param mu overall mean
 ##' @param mean.a mean of the prior on alpha[2:Q]
 ##' @param sd.a std dev of the prior on alpha[2:Q]
-##' @param X matrix of SNP genotypes encoded as allele doses, with SNPs in
-##' columns and individuals in rows (SNPs with missing values or low MAF
-##' should be discarded beforehand)
+##' @param X matrix of SNP genotypes encoded as allele doses in {0,1,2}, with individuals in rows and SNPs in columns (SNPs with missing values or low MAF should be discarded beforehand)
 ##' @param pi proportion of beta-tilde values that are non-zero
 ##' @param h approximation to E[PVE] (h and rho should be NULL or not together)
 ##' @param rho approximation to E[PGE]
@@ -1825,8 +1821,7 @@ simulBslmm <- function(Q=3, mu=50, mean.a=5, sd.a=2,
 ##'
 ##' @param model name of the model to fit (default=ulmm/bslmm)
 ##' @param y vector of phenotypes
-##' @param X matrix of SNP genotypes encoded as allele doses, with SNPs in
-##' columns and individuals in rows
+##' @param X matrix of SNP genotypes encoded as allele doses in {0,1,2}, with individuals in rows and SNPs in columns
 ##' @param snp.coords data.frame with 3 columns (snp, coord, chr)
 ##' @param alleles data.frame with SNPs in rows (names as row names) and
 ##' alleles in columns (first is "minor", second is "major")
@@ -1858,6 +1853,7 @@ gemma <- function(model="ulmm", y, X, snp.coords, alleles, K.c=NULL, W,
             all(snp.coords$snp == colnames(X)),
             all(snp.coords$snp == rownames(alleles)),
             is.matrix(W),
+            all(W[,1] == 1),
             file.exists(out.dir),
             is.character(task.id),
             length(task.id) == 1,
@@ -1961,41 +1957,60 @@ gemma <- function(model="ulmm", y, X, snp.coords, alleles, K.c=NULL, W,
   invisible(output)
 }
 
-##' Launch GEMMA uLMM chromosome per chromosome
+##' GEMMA uLMM per chromosome
 ##'
 ##' @param y vector of phenotypes
-##' @param X matrix of SNP genotypes encoded as allele doses, with SNPs in
-##' columns and individuals in rows
-##' @param snp.coords data.frame with 3 columns (snp, coord, chr)
-##' @param alleles data.frame with SNPs in rows (names as row names) and
-##' alleles in columns (first is "minor", second is "major")
+##' @param X matrix of SNP genotypes encoded as allele doses in {0,1,2}, with individuals in rows and SNPs in columns
+##' @param snp.coords data.frame with SNP identifiers as row names, and two columns, "chr" and "coord" or "pos"
+##' @param alleles data.frame with SNPs in rows (names as row names) and alleles in columns (first is "minor", second is "major"); will be made of A's and B's if missing
 ##' @param chr.ids set of chromosome identifiers to analyze (optional, all by default)
 ##' @param W matrix of covariates with individuals in rows (names as row names), a first column of 1 and a second column of covariates values
 ##' @param out.dir directory in which the data files will be found
 ##' @param task.id identifier of the task (used in output file names)
 ##' @param clean remove files: none, some (temporary only), all (temporary and results)
 ##' @param verbose verbosity level (default=1)
-##' @return a list of the GEMMA outputs for all chromosomes
+##' @return a data.frame with GEMMA's output for all chromosomes
 ##' @author Timothee Flutre [aut,cre], Dalel Ahmed [ctb]
 ##' @export
-gemmaUlmmPerChr <- function(y, X, snp.coords, alleles, chr.ids=NULL, W, out.dir,
-                            task.id="", clean="none", verbose=1){
+gemmaUlmmPerChr <- function(y, X, snp.coords, alleles=NULL, chr.ids=NULL, W,
+                            out.dir, task.id="", clean="none", verbose=1){
   stopifnot(is.vector(y),
             is.matrix(X),
             ! is.null(colnames(X)),
             anyDuplicated(colnames(X)) == 0,
-            ! is.null(row.names(alleles)),
-            colnames(alleles) == c("minor","major"),
-            all(colnames(snp.coords) == c("snp", "coord", "chr")),
-            all(snp.coords$snp == colnames(X)),
-            all(snp.coords$snp == rownames(alleles)),
+            .isValidSnpCoords(snp.coords),
+            all(rownames(snp.coords) %in% colnames(X)),
+            all(colnames(X) %in% rownames(snp.coords)),
             is.matrix(W),
+            all(W[,1] == 1),
             file.exists(out.dir),
             is.character(task.id),
             length(task.id) == 1,
             clean %in% c("none", "some", "all"))
+  if(! is.null(alleles))
+    stopifnot(is.data.frame(alleles),
+              ! is.null(rownames(alleles)),
+              colnames(alleles) == c("minor","major"),
+              all(colnames(X) %in% rownames(alleles)),
+              all(rownames(alleles) %in% colnames(X)))
 
   out <- list()
+
+  snp.coords <- snp.coords[colnames(X),]
+  if(! "coord" %in% colnames(snp.coords))
+    colnames(snp.coords)[colnames(snp.coords) == "pos"] <- "coord"
+  if(is.null(alleles)){
+    alleles <- data.frame(minor=rep("A", nrow(snp.coords)),
+                          major=rep("B", nrow(snp.coords)),
+                          stringsAsFactors=FALSE)
+    rownames(alleles) <- rownames(snp.coords)
+  } else
+    alleles <- alleles[colnames(X),]
+  sc.gemma <- data.frame(snp=rownames(snp.coords),
+                         coord=snp.coords$coord,
+                         chr=snp.coords$chr,
+                         stringsAsFactors=FALSE)
+
   if(is.null(chr.ids))
     chr.ids <- sort(unique(as.character(snp.coords$chr)))
 
@@ -2007,7 +2022,7 @@ gemmaUlmmPerChr <- function(y, X, snp.coords, alleles, chr.ids=NULL, W, out.dir,
     out[[chr.id]] <- gemma(model="ulmm",
                            y=y,
                            X=X[, subset.snp.ids],
-                           snp.coords=snp.coords[subset.snp.ids,],
+                           snp.coords=sc.gemma[subset.snp.ids,],
                            alleles=alleles[subset.snp.ids,],
                            K.c=K.c, W=W, out.dir=out.dir,
                            task.id=paste0(task.id, "-", chr.id),
@@ -2015,6 +2030,99 @@ gemmaUlmmPerChr <- function(y, X, snp.coords, alleles, chr.ids=NULL, W, out.dir,
   }
   out <- do.call(rbind, out)
   rownames(out) <- out$rs
+
+  return(out)
+}
+
+##' QTLRel per chromosome
+##'
+##' for each SNP p, y = W alpha + x_p beta_p + Z u + epsilon
+##' @param y vector of phenotypes
+##' @param X matrix of SNP genotypes encoded as allele doses in {0,1,2}, with individuals in rows and SNPs in columns
+##' @param snp.coords data.frame with SNP identifiers as row names, and two columns, "chr" and "coord" or "pos"
+##' @param chr.ids set of chromosome identifiers to analyze (optional, all by default)
+##' @param W incidence matrix of covariates (should not contain the column of 1's for the intercept)
+##' @param Z incidence matrix relating phenotypes to individuals (if nrow(y) and nrow(X) are different; diagonal otherwise)
+##' @param verbose verbosity level (default=1)
+##' @return a list with two data.frames as components, vc and scan
+##' @author Timothee Flutre
+##' @export
+qtlrelPerChr <- function(y, X, snp.coords, chr.ids=NULL, W=NULL, Z=NULL,
+                         verbose=0){
+  stopifnot(is.vector(y),
+            is.matrix(X),
+            ! is.null(colnames(X)),
+            anyDuplicated(colnames(X)) == 0,
+            .isValidSnpCoords(snp.coords),
+            all(rownames(snp.coords) %in% colnames(X)),
+            all(colnames(X) %in% rownames(snp.coords)))
+  if(! is.null(W)){
+    stopifnot(is.matrix(W),
+              nrow(W) == length(y),
+              ! all(W[,1] == 1))
+  }
+  if(! is.null(Z)){
+    stopifnot(is.matrix(Z),
+              nrow(Z) == length(y),
+              ncol(Z) == nrow(X))
+  } else{
+    stopifnot(length(y) == nrow(X))
+    Z <- diag(length(y))
+  }
+
+  out <- list(vc=list(),
+              scan=list())
+
+  if(! "coord" %in% colnames(snp.coords))
+    colnames(snp.coords)[colnames(snp.coords) == "pos"] <- "coord"
+
+  if(is.null(chr.ids))
+    chr.ids <- sort(unique(as.character(snp.coords$chr)))
+
+  for(chr.id in chr.ids){
+    subset.snp.ids <- (snp.coords$chr == chr.id)
+    if(verbose > 0)
+      message(paste0(chr.id, ": ", sum(subset.snp.ids), " SNPs"))
+    K.c <- estimGenRel(X=X[, ! subset.snp.ids], method="zhou")
+    if(is.null(W)){
+      vc <- QTLRel::estVC(y=y,
+                          v=list(AA=Z %*% K.c %*% t(Z), DD=NULL, HH=NULL,
+                                 AD=NULL, MH=NULL, EE=diag(length(y))))
+      scan <- QTLRel::scanOne(y=y,
+                              gdat=Z %*% (X[, subset.snp.ids] - 1),
+                              vc=vc,
+                              test="F",
+                              numGeno=TRUE)
+    } else{
+      vc <- QTLRel::estVC(y=y,
+                          x=W,
+                          v=list(AA=Z %*% K.c %*% t(Z), DD=NULL, HH=NULL,
+                                 AD=NULL, MH=NULL, EE=diag(length(y))))
+      scan <- QTLRel::scanOne(y=y,
+                              x=W,
+                              gdat=Z %*% (X[, subset.snp.ids] - 1),
+                              vc=vc,
+                              test="F",
+                              numGeno=TRUE)
+    }
+    out$vc[[chr.id]] <- vc$par
+    out$scan[[chr.id]] <- data.frame(snp=names(scan$p),
+                                     chr=chr.id,
+                                     coord=snp.coords$coord[subset.snp.ids],
+                                     pvalue=scan$p,
+                                     pve=scan$v / 100,
+                                     stringsAsFactors=FALSE)
+    out$scan[[chr.id]] <- cbind(out$scan[[chr.id]],
+                                do.call(rbind, scan$parameters))
+    colnames(out$scan[[chr.id]])[(ncol(out$scan[[chr.id]]) -
+                                  length(scan$parameters[[1]]) + 1):
+                                 ncol(out$scan[[chr.id]])] <-
+      paste0("coef", 1:length(scan$parameters[[1]]))
+  }
+  out$vc <- do.call(rbind, out$vc)
+  rownames(out$vc) <- chr.ids
+  out$scan <- do.call(rbind, out$scan)
+  rownames(out$scan) <- out$scan$snp
 
   return(out)
 }

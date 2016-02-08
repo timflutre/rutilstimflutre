@@ -2,21 +2,19 @@
 % Please edit documentation in R/quantgen.R
 \name{gemmaUlmmPerChr}
 \alias{gemmaUlmmPerChr}
-\title{Launch GEMMA uLMM chromosome per chromosome}
+\title{GEMMA uLMM per chromosome}
 \usage{
-gemmaUlmmPerChr(y, X, snp.coords, alleles, chr.ids = NULL, W, out.dir,
-  task.id = "", clean = "none", verbose = 1)
+gemmaUlmmPerChr(y, X, snp.coords, alleles = NULL, chr.ids = NULL, W,
+  out.dir, task.id = "", clean = "none", verbose = 1)
 }
 \arguments{
 \item{y}{vector of phenotypes}
 
-\item{X}{matrix of SNP genotypes encoded as allele doses, with SNPs in
-columns and individuals in rows}
+\item{X}{matrix of SNP genotypes encoded as allele doses in {0,1,2}, with individuals in rows and SNPs in columns}
 
-\item{snp.coords}{data.frame with 3 columns (snp, coord, chr)}
+\item{snp.coords}{data.frame with SNP identifiers as row names, and two columns, "chr" and "coord" or "pos"}
 
-\item{alleles}{data.frame with SNPs in rows (names as row names) and
-alleles in columns (first is "minor", second is "major")}
+\item{alleles}{data.frame with SNPs in rows (names as row names) and alleles in columns (first is "minor", second is "major"); will be made of A's and B's if missing}
 
 \item{chr.ids}{set of chromosome identifiers to analyze (optional, all by default)}
 
@@ -31,10 +29,10 @@ alleles in columns (first is "minor", second is "major")}
 \item{verbose}{verbosity level (default=1)}
 }
 \value{
-a list of the GEMMA outputs for all chromosomes
+a data.frame with GEMMA's output for all chromosomes
 }
 \description{
-Launch GEMMA uLMM chromosome per chromosome
+GEMMA uLMM per chromosome
 }
 \author{
 Timothee Flutre [aut,cre], Dalel Ahmed [ctb]

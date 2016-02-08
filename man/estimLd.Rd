@@ -8,7 +8,7 @@ estimLd(X, K = NULL, pops = NULL, snp.coords, only.chr = NULL,
   only.pop = NULL, use.ldcorsv = FALSE, verbose = 0)
 }
 \arguments{
-\item{X}{matrix of SNP genotypes encoded as allele doses, with SNPs in columns and individuals in rows}
+\item{X}{matrix of SNP genotypes encoded as allele doses in {0,1,2}, with individuals in rows and SNPs in columns}
 
 \item{K}{matrix of kinship}
 

@@ -9,8 +9,7 @@ plotHistMinAllelFreq(X = NULL, maf = NULL, main = "", xlim = c(0, 0.5),
   ...)
 }
 \arguments{
-\item{X}{matrix of SNP genotypes encoded as allele doses, with SNPs in
-columns and individuals in rows (optional if maf is not null)}
+\item{X}{matrix of SNP genotypes encoded as allele doses in {0,1,2}, with individuals in rows and SNPs in columns (optional if maf is not null)}
 
 \item{maf}{vector of minor allele frequencies (optional if X is not null)}
 
