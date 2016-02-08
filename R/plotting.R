@@ -10,6 +10,7 @@
 ##' @param ... arguments to be passed to plot()
 ##' @return nothing
 ##' @author Timothee Flutre
+##' @export
 regplot <- function(x, y, ...){
   x <- as.numeric(x)
   y <- as.numeric(y)
@@ -33,6 +34,7 @@ regplot <- function(x, y, ...){
 ##' @param main main title
 ##' @param max.sqrt.m to play with the scaling
 ##' @author Timothee Flutre
+##' @export
 hinton <- function(m, main="", max.sqrt.m=NULL){
   rows <- dim(m)[1]
   cols <- dim(m)[2]
@@ -113,6 +115,7 @@ hinton <- function(m, main="", max.sqrt.m=NULL){
 ##' @param xlim lim
 ##' @param ... arguments to be passed to plot()
 ##' @author Timothee Flutre
+##' @export
 plotWithScale <- function(z, zlim, col = heat.colors(12),
                           breaks, horiz=TRUE, ylim=NULL, xlim=NULL, ...){
   if(! missing(breaks))
@@ -171,6 +174,7 @@ plotWithScale <- function(z, zlim, col = heat.colors(12),
 ##' @param idx.colnames vector giving the indices of the column names of z to be added on top of the plot
 ##' @param breaks vector (default=seq(min(z), max(z), length.out=100))
 ##' @author Timothee Flutre
+##' @export
 imageWithScale <- function(z, main=NULL, idx.rownames=NULL, idx.colnames=NULL,
                            breaks=NULL){
   if(! is.null(idx.rownames) & is.null(rownames(z)))

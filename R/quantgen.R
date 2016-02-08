@@ -11,6 +11,7 @@
 ##' @return list of a matrix (allele doses, SNPs in columns and individuals in
 ##' rows) and a vector (minor alleles)
 ##' @author Timothee Flutre
+##' @export
 alleles2dose <- function(x, na.string="--", verbose=1){
   stopifnot(is.data.frame(x),
             ! is.null(colnames(x)))
@@ -75,10 +76,9 @@ alleles2dose <- function(x, na.string="--", verbose=1){
 ##' @param ylab a title for the y axis (default="SNPs")
 ##' @return nothing
 ##' @author Timothee Flutre
+##' @export
 plotGridMissGenos <- function(x, main="Missing genotypes", xlab="Individuals",
                               ylab="SNPs"){
-  if(ncol(x) < nrow(x))
-    warning("did you put SNPs in columns and individuals in rows?")
   image(1:nrow(x), 1:ncol(x), is.na(x), col=c("white","black"),
         main=main, xlab=xlab, ylab=ylab)
 }
@@ -90,14 +90,13 @@ plotGridMissGenos <- function(x, main="Missing genotypes", xlab="Individuals",
 ##' columns and individuals in rows
 ##' @return vector
 ##' @author Timothee Flutre
+##' @export
 estimMaf <- function(X){
   stopifnot(is.matrix(X),
             sum(X < 0, na.rm=TRUE) == 0,
             sum(X > 2, na.rm=TRUE) == 0)
   N <- nrow(X)
   P <- ncol(X)
-  if(P < N)
-    warning("input matrix doesn't seem to have SNPs in columns and individuals in rows")
 
   maf <- apply(X, 2, function(x){
     x <- x[complete.cases(x)]
@@ -124,6 +123,7 @@ estimMaf <- function(X){
 ##' @param ... arguments to be passed to hist()
 ##' @return nothing
 ##' @author Timothee Flutre
+##' @export
 plotHistMinAllelFreq <- function(X=NULL, maf=NULL, main="", xlim=c(0,0.5),
                                  col="grey", border="white", las=1,
                                  breaks="FD", verbose=1, ...){
@@ -132,8 +132,6 @@ plotHistMinAllelFreq <- function(X=NULL, maf=NULL, main="", xlim=c(0,0.5),
   if(! is.null(X) & is.null(maf)){
     N <- nrow(X)
     P <- ncol(X)
-    if(P < N)
-      warning("input matrix doesn't seem to have SNPs in columns and individuals in rows")
     if(verbose > 0){
       txt <- paste0(P, " SNPs and ", N, " individuals")
       write(txt, stdout())
@@ -157,6 +155,7 @@ plotHistMinAllelFreq <- function(X=NULL, maf=NULL, main="", xlim=c(0,0.5),
 ##' 'genotypes_bimbam.txt' or gzfile('genotypes_bimbam.txt.gz'))
 ##' @return data.frame
 ##' @author Timothee Flutre
+##' @export
 dose2bimbam <- function(X=NULL, tX=NULL, alleles, file=NULL){
     stopifnot(xor(is.null(X), is.null(tX)),
               ! is.null(row.names(alleles)),
@@ -180,6 +179,7 @@ dose2bimbam <- function(X=NULL, tX=NULL, alleles, file=NULL){
 ##' @param debug boolean (TRUE to check the output matrix is indeed symmetric)
 ##' @return matrix
 ##' @author Timothee Flutre
+##' @export
 coancestry2relmat <- function(x, estim.coancestry, estim.inbreeding=NULL,
                               rel.type="coancestries", debug=FALSE){
   stopifnot(estim.coancestry %in% colnames(x$relatedness),
@@ -232,6 +232,7 @@ coancestry2relmat <- function(x, estim.coancestry, estim.inbreeding=NULL,
 ##' @param snp.ids vector with the identifiers of the SNPs
 ##' @return matrix with diploid individuals in rows and SNPs in columns
 ##' @author Timothee Flutre
+##' @export
 segSites2allDoses <- function(seg.sites, ind.ids=NULL, snp.ids=NULL){
   stopifnot(is.list(seg.sites),
             length(unique(sapply(seg.sites, nrow))) == 1)
@@ -273,6 +274,7 @@ segSites2allDoses <- function(seg.sites, ind.ids=NULL, snp.ids=NULL){
 ##' @param prefix character string
 ##' @return data.frame with SNPs in rows and 2 columns (chr, pos)
 ##' @author Timothee Flutre
+##' @export
 segSites2snpCoords <- function(seg.sites, snp.ids, chrom.len, prefix="chr"){
   stopifnot(is.list(seg.sites),
             length(unique(sapply(seg.sites, nrow))) == 1)
@@ -317,6 +319,7 @@ segSites2snpCoords <- function(seg.sites, snp.ids, chrom.len, prefix="chr"){
 ##' @param verbose verbosity level (default=0=nothing, 1=few, 2=more)
 ##' @return list with haplotypes (list), genotypes as allele doses (matrix) and SNP coordinates (data.frame)
 ##' @author Timothee Flutre
+##' @export
 simulCoalescent <- function(nb.inds=100,
                             ind.ids=NULL,
                             nb.reps=20,
@@ -421,6 +424,7 @@ simulCoalescent <- function(nb.inds=100,
 ##' @param nb.inds.pred number of individuals for whom prediction will be performed
 ##' @return list composed of two lists, genomes and genomes.pred
 ##' @author Timothee Flutre
+##' @export
 splitGenomesTrainTest <- function(genomes, nb.inds.pred){
   stopifnot(is.list(genomes),
             all(c("haplos", "genos") %in% names(genomes)),
@@ -456,6 +460,7 @@ splitGenomesTrainTest <- function(genomes, nb.inds.pred){
 ##' @param haplos.chr matrix of 0's and 1's with haplotypes in rows and sites in columns
 ##' @return numeric(1)
 ##' @author Timothee Flutre
+##' @export
 calcAvgPwDiffBtwHaplos <- function(haplos.chr){
   stopifnot(is.matrix(haplos.chr),
             all(haplos.chr %in% c(0,1)))
@@ -486,6 +491,7 @@ calcAvgPwDiffBtwHaplos <- function(haplos.chr){
 ##' @param main main title
 ##' @return nothing
 ##' @author Timothee Flutre
+##' @export
 plotHaplosMatrix <- function(haplos, main="Haplotypes"){
   stopifnot(is.matrix(haplos),
             ! is.null(dimnames(haplos)))
@@ -510,6 +516,7 @@ plotHaplosMatrix <- function(haplos, main="Haplotypes"){
 ##' @param haplos list of matrices (one per chromosome, with individuals in rows)
 ##' @return vector
 ##' @author Timothee Flutre
+##' @export
 getIndNamesFromHaplos <- function(haplos){
   stopifnot(is.list(haplos))
 
@@ -529,6 +536,7 @@ getIndNamesFromHaplos <- function(haplos){
 ##' @param ind.name identifier of the individual to retrieve
 ##' @return list similar to "haplos"
 ##' @author Timothee Flutre
+##' @export
 getHaplosInd <- function(haplos, ind.name){
   stopifnot(is.list(haplos),
             is.character(ind.name))
@@ -554,6 +562,7 @@ getHaplosInd <- function(haplos, ind.name){
 ##' @param ind.names identifier of the individuals to retrieve
 ##' @return list similar to "haplos"
 ##' @author Timothee Flutre
+##' @export
 getHaplosInds <- function(haplos, ind.names){
   stopifnot(is.list(haplos),
             length(unique(sapply(haplos, class))) == 1,
@@ -583,6 +592,7 @@ getHaplosInds <- function(haplos, ind.names){
 ##' @param loc.crossovers positions of the crossing overs (the coordinate of the first nucleotide is assumed to be 1, and crossing-overs are assumed to occur right after the given localization)
 ##' @return vector
 ##' @author Timothee Flutre
+##' @export
 makeGameteSingleIndSingleChrom <- function(haplos.par.chr, loc.crossovers){
   stopifnot(is.matrix(haplos.par.chr),
             ! is.null(dimnames(haplos.par.chr)),
@@ -624,6 +634,7 @@ makeGameteSingleIndSingleChrom <- function(haplos.par.chr, loc.crossovers){
 ##' @param loc.crossovers list of vectors with positions of the crossing overs (the coordinate of the first nucleotide is assumed to be 1, and crossing-overs are assumed to occur right after the given localization)
 ##' @return list of vectors (one per chromosome)
 ##' @author Timothee Flutre
+##' @export
 makeGameteSingleInd <- function(haplos.par, loc.crossovers){
   stopifnot(is.list(haplos.par),
             is.list(loc.crossovers))
@@ -641,6 +652,7 @@ makeGameteSingleInd <- function(haplos.par, loc.crossovers){
 ##' @param child.name identifier of the child
 ##' @return list of 2-row matrices (one per chromosome)
 ##' @author Timothee Flutre
+##' @export
 fecundation <- function(gam1, gam2, child.name){
   stopifnot(is.list(gam1),
             is.list(gam2),
@@ -669,6 +681,7 @@ fecundation <- function(gam1, gam2, child.name){
 ##' @param verbose verbosity level (default=0/1)
 ##' @return list of matrices (one per chromosome) for the child
 ##' @author Timothee Flutre
+##' @export
 makeCross <- function(haplos.par1,
                       loc.crossovers.par1,
                       haplos.par2=NULL,
@@ -738,6 +751,7 @@ makeCross <- function(haplos.par1,
 ##' @param lambda mean number of crossing-overs (parameter of a Poisson)
 ##' @return list of lists (one per cross, then one per parent, then one per chromosome) whose names are crosses$child, in the same order
 ##' @author Timothee Flutre
+##' @export
 drawLocCrossovers <- function(crosses, nb.snps, lambda=2){
   stopifnot(is.data.frame(crosses),
             ncol(crosses) >= 3,
@@ -797,6 +811,7 @@ drawLocCrossovers <- function(crosses, nb.snps, lambda=2){
 ##' @param verbose verbosity level (default=0/1)
 ##' @return list of matrices (one per chromosome) with child haplotypes in rows and SNPs in columns
 ##' @author Timothee Flutre
+##' @export
 makeCrosses <- function(haplos, crosses, loc.crossovers=NULL,
                         nb.cores=1, verbose=1){
   stopifnot(is.list(haplos),
@@ -864,15 +879,43 @@ makeCrosses <- function(haplos, crosses, loc.crossovers=NULL,
   return(haplos.children)
 }
 
+.isValidSnpCoords <- function(snp.coords){
+  all(is.data.frame(snp.coords),
+      ! is.null(rownames(snp.coords)),
+      ncol(snp.coords) >= 2,
+      "chr" %in% colnames(snp.coords),
+      "coord" %in% colnames(snp.coords) | "pos" %in% colnames(snp.coords))
+}
+
+.df2gr <- function(snp.coords.df){
+  if(! requireNamespace("GenomicRanges", quietly=TRUE))
+    stop("Pkg GenomicRanges needed for this function to work. Please install it.",
+         call.=FALSE)
+  if(! requireNamespace("S4Vectors", quietly=TRUE))
+    stop("Pkg S4Vectors needed for this function to work. Please install it.",
+         call.=FALSE)
+  if(! requireNamespace("IRanges", quietly=TRUE))
+    stop("Pkg IRanges needed for this function to work. Please install it.",
+         call.=FALSE)
+  stopifnot(.isValidSnpCoords(snp.coords.df))
+  snp.coords.gr <-
+    GenomicRanges::GRanges(seqnames=S4Vectors::Rle(snp.coords.df$chr),
+                           ranges=IRanges::IRanges(start=snp.coords.df$coord,
+                                                   end=snp.coords.df$coord))
+  names(snp.coords.gr) <- rownames(snp.coords.df)
+  return(snp.coords.gr)
+}
+
 ##' Distance between SNP pairs
 ##'
 ##' For each SNP pair, return the number of "blocks" (i.e. nucleotides) between both SNPs via the \code{\link[GenomicRanges]{distance}} function.
 ##' @param snp.pairs data.frame with two columns "loc1" and "loc2"
-##' @param snp.coords data.frame with SNP identifiers as row names, and two columns, "chr" and "pos" or "coord"
+##' @param snp.coords data.frame with SNP identifiers as row names, and two columns, "chr" and "coord" or "pos"
 ##' @param nb.cores the number of cores to use
 ##' @param verbose verbosity level (default=0/1)
 ##' @return vector
 ##' @author Timothee Flutre
+##' @export
 distSnpPairs <- function(snp.pairs, snp.coords, nb.cores=1, verbose=0){
   if(! requireNamespace("GenomicRanges", quietly=TRUE))
     stop("Pkg GenomicRanges needed for this function to work. Please install it.",
@@ -886,27 +929,17 @@ distSnpPairs <- function(snp.pairs, snp.coords, nb.cores=1, verbose=0){
   stopifnot(is.data.frame(snp.pairs),
             ncol(snp.pairs) >= 2,
             all(c("loc1", "loc2") %in% colnames(snp.pairs)),
-            is.data.frame(snp.coords),
-            ! is.null(rownames(snp.coords)),
-            ncol(snp.coords) >= 2,
-            "chr" %in% colnames(snp.coords))
+            .isValidSnpCoords(snp.coords))
   snp.pairs$loc1 <- as.character(snp.pairs$loc1)
   snp.pairs$loc2 <- as.character(snp.pairs$loc2)
   stopifnot(all(unique(unlist(snp.pairs[, c("loc1", "loc2")])) %in%
                 rownames(snp.coords)))
-  if(! "pos" %in% colnames(snp.coords)){
-    if(! "coord" %in% colnames(snp.coords))
-      stop("colnames of snp.coords contain neither 'pos' nor 'coord'")
-    colnames(snp.coords)[colnames(snp.coords) == "coord"] <- "pos"
-  }
+  if(! "coord" %in% colnames(snp.coords))
+    colnames(snp.coords)[colnames(snp.coords) == "pos"] <- "coord"
 
   if(verbose > 0)
     message("make GRanges ...")
-  snp.granges <-
-    GenomicRanges::GRanges(seqnames=S4Vectors::Rle(snp.coords$chr),
-                           ranges=IRanges::IRanges(start=snp.coords$pos,
-                                                   end=snp.coords$pos))
-  names(snp.granges) <- rownames(snp.coords)
+  snp.granges <- .df2gr(snp.coords)
 
   if(verbose > 0)
     message("calculate pairwise distances ...")
@@ -928,6 +961,7 @@ distSnpPairs <- function(snp.pairs, snp.coords, nb.cores=1, verbose=0){
 ##' @param verbose verbosity level (default=1)
 ##' @return matrix
 ##' @author Timothee Flutre
+##' @export
 estimGenRel <- function(X, mafs=NULL, thresh=0.01, relationships="additive",
                         method="vanraden1", theta=0.5, verbose=1){
   stopifnot(is.matrix(X),
@@ -947,16 +981,14 @@ estimGenRel <- function(X, mafs=NULL, thresh=0.01, relationships="additive",
               theta > 0,
               theta <= 1)
   }
+  if(! is.null(mafs))
+    stopifnot(all(colnames(X) %in% names(mafs)),
+              all(names(mafs) %in% colnames(X)))
 
   gen.rel <- NULL # to be filled and returned
 
   N <- nrow(X) # nb of individuals
   P <- ncol(X) # nb of SNPs
-  if(P < N){
-    msg <- paste0("input matrix doesn't seem to have SNPs",
-                  " in columns and individuals in rows")
-    warning(msg)
-  }
 
   idx.rm <- c()
 
@@ -1073,6 +1105,7 @@ estimGenRel <- function(X, mafs=NULL, thresh=0.01, relationships="additive",
 ##' @param verbose verbosity level (default=0/1)
 ##' @return data frame
 ##' @author Timothee Flutre
+##' @export
 estimLd <- function(X, K=NULL, pops=NULL, snp.coords,
                     only.chr=NULL, only.pop=NULL,
                     use.ldcorsv=FALSE, verbose=0){
@@ -1082,8 +1115,7 @@ estimLd <- function(X, K=NULL, pops=NULL, snp.coords,
   stopifnot(is.matrix(X),
             ! is.null(dimnames(X)),
             sum(is.na(X)) == 0,
-            is.data.frame(snp.coords),
-            colnames(snp.coords) == c("chr", "pos"))
+            .isValidSnpCoords(snp.coords))
   if(! is.null(K))
     stopifnot(use.ldcorsv,
               is.matrix(K),
@@ -1197,6 +1229,7 @@ estimLd <- function(X, K=NULL, pops=NULL, snp.coords,
 ##' @param c recomb rate in events per base per generation
 ##' @return nothing
 ##' @author Timothee Flutre
+##' @export
 plotLd <- function(x, y, estim="r2", main,
                    use.density=TRUE,
                    xlab="physical distance (bp)",
@@ -1287,6 +1320,90 @@ plotLd <- function(x, y, estim="r2", main,
   legend("topright", legend=legs, col=cols, lty=ltys, lwd=lwds, bty="n")
 }
 
+##' Distance between consecutive SNPs
+##'
+##' For each pair of consecutive SNPs, return the number of "blocks" (i.e. nucleotides) between both SNPs (to be coherent with \code{\link{distSnpPairs}}).
+##' @param snp.coords data.frame with SNP identifiers as row names, and with two columns "chr" and "coord" or "pos"
+##' @param only.chr identifier of a given chromosome
+##' @param nb.cores the number of cores to use (default=1)
+##' @return list with one component per chromosome
+##' @author Timothee Flutre
+##' @export
+distConsecutiveSnps <- function(snp.coords, only.chr=NULL, nb.cores=1){
+  if(! requireNamespace("parallel", quietly=TRUE))
+    stop("Pkg parallel needed for this function to work. Please install it.",
+         call.=FALSE)
+  stopifnot(.isValidSnpCoords(snp.coords))
+  if(! "coord" %in% colnames(snp.coords))
+    colnames(snp.coords)[colnames(snp.coords) == "pos"] <- "coord"
+
+  snp.coords$chr <- as.character(snp.coords$chr)
+  chr.ids <- unique(snp.coords$chr)
+  if(! is.null(only.chr)){
+    stopifnot(only.chr %in% chr.ids)
+    chr.ids <- only.chr
+  }
+
+  snp.dists <- parallel::mclapply(chr.ids, function(chr.id){
+    coords <- snp.coords$coord[snp.coords$chr == chr.id]
+    names(coords) <- rownames(snp.coords)[snp.coords$chr == chr.id]
+    dis <- coords[2:length(coords)] - coords[1:(length(coords)-1)] - 1
+    names(dis) <- paste(names(dis), names(coords)[-length(coords)], sep="-")
+    dis
+  }, mc.cores=nb.cores)
+  names(snp.dists) <- chr.ids
+
+  return(snp.dists)
+}
+
+##' Thin SNPs
+##'
+##' Thin SNPs according to various methods: based on their index or based on their genomic coordinate.
+##' @param method index or coord
+##' @param threshold keep every "threshold" SNPs (if method="index"), keep SNPs with more than "threshold" base pairs between them (if method="coord")
+##' @param snp.coords data.frame with SNP identifiers as row names, and two columns, "chr" and "coord" or "pos"; SNPs will be sorted according to their coordinates per chromosome (use \code{\link[gtools]{mixedsort}} if you want to also sort chromosomes)
+##' @param only.chr identifier of a given chromosome
+##' @return vector of SNP identifiers
+##' @author Timothee Flutre
+##' @export
+thinSnps <- function(method, threshold, snp.coords, only.chr=NULL){
+  if(! requireNamespace("GenomicRanges", quietly=TRUE))
+    stop("Pkg GenomicRanges needed for this function to work. Please install it.",
+         call.=FALSE)
+  stopifnot(method %in% c("index", "coord"))
+  stopifnot(! is.null(snp.coords),
+            .isValidSnpCoords(snp.coords),
+            threshold == floor(threshold))
+  if(! "coord" %in% colnames(snp.coords))
+    colnames(snp.coords)[colnames(snp.coords) == "pos"] <- "coord"
+
+  snp.coords$chr <- as.character(snp.coords$chr)
+  chr.ids <- unique(snp.coords$chr)
+  if(! is.null(only.chr)){
+    stopifnot(only.chr %in% chr.ids)
+    chr.ids <- only.chr
+  }
+
+  out.snp.ids <- do.call(c, lapply(chr.ids, function(chr.id){
+    tmp <- snp.coords[snp.coords$chr == chr.id,]
+    tmp <- tmp[order(tmp$coord),]
+    if(method == "index"){
+      idx <- seq(1, nrow(tmp), threshold)
+      rownames(tmp)[idx]
+    } else if(method == "coord"){
+      tiles <- GenomicRanges::tileGenome(seqlengths=setNames(max(tmp$coord),
+                                                             chr.id),
+                                         tilewidth=threshold)
+      tmp.gr <- .df2gr(tmp)
+      ovl <- GenomicRanges::findOverlaps(tiles, tmp.gr)
+      idx <- sapply(as.list(ovl), `[`, 1)
+      names(tmp.gr[idx[! is.na(idx)]])
+    }
+  }))
+
+  return(out.snp.ids)
+}
+
 ##' Simulate phenotypes from a basic "animal model" (LMM).
 ##'
 ##' y = W alpha + Z u + epsilon
@@ -1305,6 +1422,7 @@ plotLd <- function(x, y, estim="r2", main,
 ##' @param seed seed for the pseudo-random number generator
 ##' @return list
 ##' @author Timothee Flutre
+##' @export
 simulAnimalModel <- function(Q=3, mu=50, mean.a=5, sd.a=2,
                              A, lambda=3, sigma.u2=NULL, scale.halfCauchy=NULL,
                              perc.NA=0, err.df=Inf,
@@ -1406,6 +1524,7 @@ simulAnimalModel <- function(Q=3, mu=50, mean.a=5, sd.a=2,
 ##' @param seed seed for the pseudo-random number generator
 ##' @return list
 ##' @author Timothee Flutre
+##' @export
 simulAnimalModelMultivar <- function(T=2, Q=3, mu=rep(50,T), mean.a=5, sd.a=2,
                                      A.U, lambda=3, V.U=NULL,
                                      scale.halfCauchy=NULL, nu.V.U=T, nu.V.E=T,
@@ -1517,6 +1636,7 @@ simulAnimalModelMultivar <- function(T=2, Q=3, mu=rep(50,T), mean.a=5, sd.a=2,
 ##' @param verbose verbosity level (0/default=1)
 ##' @return merMod object
 ##' @author Timothee Flutre
+##' @export
 lmerAM <- function(formula, data, relmat, REML=TRUE, verbose=1){
   if(! requireNamespace("lme4", quietly=TRUE))
     stop("Pkg lme4 needed for this function to work. Please install it.",
@@ -1596,6 +1716,7 @@ lmerAM <- function(formula, data, relmat, REML=TRUE, verbose=1){
 ##' @param seed seed for the pseudo-random number generator
 ##' @return list
 ##' @author Timothee Flutre
+##' @export
 simulBslmm <- function(Q=3, mu=50, mean.a=5, sd.a=2,
                        X, pi=NULL, h=NULL, rho=NULL,
                        perc.NA=0, err.df=Inf,
@@ -1615,8 +1736,6 @@ simulBslmm <- function(Q=3, mu=50, mean.a=5, sd.a=2,
 
   I <- nrow(X)
   P <- ncol(X)
-  if(P < I)
-    warning("input matrix doesn't seem to have SNPs in columns and individuals in rows")
   if(Q > 0){
     N <- Q * I
   } else
@@ -1941,6 +2060,7 @@ qqplotPval <- function(pvalues, plot.conf.int=TRUE,
 ##' @param log10 to return the log10 of the ABF (default=TRUE)
 ##' @return numeric
 ##' @author Timothee Flutre
+##' @export
 calcAsymptoticBayesFactorWakefield <- function(theta.hat, V, W, log10=TRUE){
   z2 <- theta.hat^2 / V # Wald statistic
 
@@ -2056,6 +2176,7 @@ calcL10ApproximateBayesFactorWenStephens <- function(sstats, phi2, oma2){
 ##' @param file the name of the file which the data are to be read from
 ##' @return list
 ##' @author Timothee Flutre
+##' @export
 readBiomercator <- function(file){
     stopifnot(file.exists(file))
 
@@ -2147,6 +2268,7 @@ readBiomercator <- function(file){
 ##' @param ... other plotting options; see ?plot.igraph and ?igraph.plotting
 ##' @return invisible pedigree as an "igraph" object
 ##' @author Timothee Flutre
+##' @export
 plotPedigree <- function(inds, mothers, fathers, generations, sexes=NULL,
                          edge.col.mother="black", edge.col.father="darkgrey",
                          vertex.label.color="darkblue", vertex.color="white",

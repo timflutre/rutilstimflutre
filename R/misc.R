@@ -1,3 +1,5 @@
+##' @import data.table
+
 .onAttach <- function(libname, pkgname) {
   if(! requireNamespace("utils", quietly=TRUE))
     stop("Pkg utils needed for this function to work. Please install it.",

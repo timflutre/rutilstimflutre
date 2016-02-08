@@ -13,6 +13,7 @@
 ##' @param mar margins (see the "mar" option of "par()")
 ##' @return the "map" data.frame as an invisible object
 ##' @author Timothee Flutre
+##' @export
 plotMapSxGDomaineChapitre <- function(map,
                                       main="default",
                                       lang="FR",

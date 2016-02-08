@@ -6,7 +6,8 @@
 ##' @param x vector of sequences (e.g. "AGGT"), possibly with names
 ##' @return vector
 ##' @author Timothee Flutre
-gc.content <- function(x){
+##' @export
+gcContent <- function(x){
   if(! requireNamespace("Biostrings", quietly=TRUE))
     stop("Pkg Biostrings needed for this function to work. Please install it.",
          call.=FALSE)
@@ -27,7 +28,8 @@ gc.content <- function(x){
 ##' @param ... arguments to be passed to Biostrings::pairwiseAlignment()
 ##' @return list of instances of class PairwiseAlignments
 ##' @author Timothee Flutre
-all.pair.aligns <- function(x, type="global", ...){
+##' @export
+allPairAligns <- function(x, type="global", ...){
   if(! requireNamespace("Biostrings", quietly=TRUE))
     stop("Pkg Biostrings needed for this function to work. Please install it.",
          call.=FALSE)
@@ -57,11 +59,12 @@ all.pair.aligns <- function(x, type="global", ...){
 ##' Extract statistics from all pairwise alignments
 ##'
 ##' Requires the Biostrings package.
-##' @param aligns list of instances of class PairwiseAlignments (see all.pair.aligns())
+##' @param aligns list of instances of class PairwiseAlignments (see \code{\link{allPairAligns}})
 ##' @param nb.sequences number of sequences
 ##' @return list of matrices
 ##' @author Timothee Flutre
-stats.all.pair.aligns <- function(aligns, nb.sequences){
+##' @export
+statsAllPairAligns <- function(aligns, nb.sequences){
   if(! requireNamespace("Biostrings", quietly=TRUE))
     stop("Pkg Biostrings needed for this function to work. Please install it.",
          call.=FALSE)
@@ -98,6 +101,7 @@ stats.all.pair.aligns <- function(aligns, nb.sequences){
 ##' @param lanes.dir vector of paths to directories "lane_..." from "demultiplex.py --step 2"
 ##' @return data.frame with (individual,lane) in rows and counts in columns
 ##' @author Timothee Flutre
+##' @export
 loadReadCountsPerIndAndLane <- function(lanes.dir){
   stopifnot(is.vector(lanes.dir),
             length(lanes.dir) > 0)
@@ -127,6 +131,7 @@ loadReadCountsPerIndAndLane <- function(lanes.dir){
 ##' @param x data.frame
 ##' @return matrix
 ##' @author Timothee Flutre
+##' @export
 formatReadCountsPerLane <- function(x){
   stopifnot(is.data.frame(x),
             "lane" %in% colnames(x),
@@ -162,6 +167,7 @@ formatReadCountsPerLane <- function(x){
 ##' @param xlab.line see \code{line} from \code{mtext}
 ##' @return nothing
 ##' @author Timothee Flutre
+##' @export
 barplotReadCounts <- function(counts,
                               xlab=paste0("Individuals (", ncol(counts), ")"),
                               ylab="Number of read pairs",
@@ -201,6 +207,7 @@ barplotReadCounts <- function(counts,
 ##' @param add.text add total count, as well as Q25, median and Q75 for insert sizes, to the topright of the plot
 ##' @return invisible data frame of the content of the file
 ##' @author Timothee Flutre
+##' @export
 barplotInsertSizes <- function(file, main=NULL, add.text=FALSE){
   stopifnot(file.exists(file))
 
@@ -254,6 +261,7 @@ barplotInsertSizes <- function(file, main=NULL, add.text=FALSE){
 ##' @param verbose verbosity level (0/default=1)
 ##' @return list of data.tables
 ##' @author Timothee Flutre
+##' @export
 fread.bedtools.coverage.hist <- function(files, verbose=1){
   colClasses <- sapply(read.table(files[1], nrows=5), class)
   ldat <-
@@ -290,6 +298,7 @@ fread.bedtools.coverage.hist <- function(files, verbose=1){
 ##' @param min.reg.frac minimum fraction of a region when reporting the number of interesting regions
 ##' @return data.table
 ##' @author Timothee Flutre
+##' @export
 depths.per.sample <- function(dat, min.reg.len=30, max.reg.len=500,
                               min.reg.dep=10, max.reg.dep=200,
                               min.reg.frac=0.25){
@@ -338,6 +347,7 @@ depths.per.sample <- function(dat, min.reg.len=30, max.reg.len=500,
 ##' @param min.reg.frac minimum fraction of a region when reporting the number of interesting regions
 ##' @return data.table
 ##' @author Timothee Flutre
+##' @export
 depths.per.region <- function(dat, min.reg.len=30, max.reg.len=500,
                               min.reg.dep=10, max.reg.dep=200,
                               min.reg.frac=0.25){
@@ -382,6 +392,7 @@ depths.per.region <- function(dat, min.reg.len=30, max.reg.len=500,
 ##' @param verbose verbosity level (0/default=1)
 ##' @return invisible list of covrg and cumcovrg
 ##' @author Timothee Flutre
+##' @export
 coverage.regions <- function(path=NULL, pattern=NULL, covrg=NULL, plot.it=TRUE,
                              xlim=NULL, ylim=c(0,1), points.type="l",
                              plot.legend=TRUE, verbose=1){
@@ -436,6 +447,7 @@ coverage.regions <- function(path=NULL, pattern=NULL, covrg=NULL, plot.it=TRUE,
 ##' @param file the name of the ".dict" file which the data are to be read from
 ##' @return data.frame
 ##' @author Timothee Flutre
+##' @export
 readSamDict <- function(file){
   stopifnot(file.exists(file))
 
@@ -489,6 +501,7 @@ readSamDict <- function(file){
 ##' @param thresh.sor exclude variant if SOR > threshold (must be positive)
 ##' @return list
 ##' @author Timothee Flutre
+##' @export
 infoVariantCalls <- function(x, type="SNP", thresh.qual=20, thresh.qd=2,
                              thresh.fs=60, thresh.mq=40, thresh.mqrs=-12.5,
                              thresh.rprs=-8, thresh.hs=13,
@@ -696,6 +709,7 @@ infoVariantCalls <- function(x, type="SNP", thresh.qual=20, thresh.qd=2,
 ##' @param plot.it plot GQ=f(DP) if TRUE
 ##' @return invisible data.frame
 ##' @author Timothee Flutre
+##' @export
 confidenceGenoOneVar <- function(x, plot.it=FALSE){
   if(! requireNamespace("VariantAnnotation", quietly=TRUE))
     stop("Pkg VariantAnnotation needed for this function to work. Please install it.",
@@ -744,6 +758,7 @@ confidenceGenoOneVar <- function(x, plot.it=FALSE){
 ##' @param verbose verbosity level (0/default=1)
 ##' @return the destination file path as an invisible character(1)
 ##' @author Timothee Flutre
+##' @export
 setGt2Na <- function(vcf.file, genome, out.file,
                      yieldSize=NA_integer_, dict.file=NULL,
                      seq.id=NULL, seq.start=NULL, seq.end=NULL,
@@ -853,6 +868,7 @@ setGt2Na <- function(vcf.file, genome, out.file,
 ##' @param verbose verbosity level (0/default=1)
 ##' @return the destination file path as a character(1)
 ##' @author Timothee Flutre
+##' @export
 filterVariantCalls <- function(vcf.file, genome, out.file,
                                yieldSize=NA_integer_, dict.file=NULL,
                                seq.id=NULL, seq.start=NULL, seq.end=NULL,
@@ -1048,6 +1064,7 @@ filterVariantCalls <- function(vcf.file, genome, out.file,
 ##' @param verbose verbosity level (0/default=1)
 ##' @return matrix with one row per variant and 7 columns (min, q1, med, mean, q3, max, na)
 ##' @author Timothee Flutre
+##' @export
 summaryGq <- function(vcf.file, genome, yieldSize=10^4, verbose=1){
   stopifnot(file.exists(vcf.file))
 
@@ -1103,6 +1120,7 @@ summaryGq <- function(vcf.file, genome, yieldSize=10^4, verbose=1){
 ##' @param vcf CollapsedVCF (see pkg VariantAnnotation)
 ##' @return matrix with variants in rows and samples in columns
 ##' @author Timothee Flutre
+##' @export
 gtVcf2dose <- function(vcf){
   if(! requireNamespace("S4Vectors", quietly=TRUE))
     stop("Pkg S4Vectors needed for this function to work. Please install it.",
@@ -1130,6 +1148,7 @@ gtVcf2dose <- function(vcf){
 ##' @param vcf CollapsedVCF (see pkg VariantAnnotation)
 ##' @return data.frame
 ##' @author Timothee Flutre
+##' @export
 rngVcf2df <- function(vcf){
   if(! requireNamespace("S4Vectors", quietly=TRUE))
     stop("Pkg S4Vectors needed for this function to work. Please install it.",
@@ -1175,6 +1194,7 @@ rngVcf2df <- function(vcf){
 ##' @param verbose verbosity level (0/default=1)
 ##' @return an invisible list with both output file paths
 ##' @author Timothee Flutre
+##' @export
 vcf2dosage <- function(vcf.file, genome, gdose.file, amap.file,
                        yieldSize=NA_integer_, dict.file=NULL,
                        seq.id=NULL, seq.start=NULL, seq.end=NULL,

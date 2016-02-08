@@ -9,6 +9,7 @@
 ##' @param names vector of names for each plate
 ##' @return list of matrices, one per plate, in the "wide" format
 ##' @author Timothee Flutre
+##' @export
 initPlates <- function(n, nrow, ncol, names){
   plates <- list()
 
@@ -29,6 +30,7 @@ initPlates <- function(n, nrow, ncol, names){
 ##' @param verbose verbosity level (0/default=1)
 ##' @return invisible named vector
 ##' @author Timothee Flutre
+##' @export
 descPlate <- function(plate, plate.name, verbose=1){
   out <- setNames(object=rep(NA, 3),
                   nm=c("nb.wells", "nb.empty.wells", "nb.samples"))
@@ -56,6 +58,7 @@ descPlate <- function(plate, plate.name, verbose=1){
 ##' @param verbose verbosity level (0/default=1)
 ##' @return list of matrices, one per plate, in the "wide" format
 ##' @author Timothee Flutre
+##' @export
 loadPlates <- function(files, verbose=1){
   plates <- list()
 
@@ -100,6 +103,7 @@ loadPlates <- function(files, verbose=1){
 ##' @param main string containing the text for the main title
 ##' @return nothing
 ##' @author Timothee Flutre
+##' @export
 plotPlate <- function(plate, main="Plate"){
   stopifnot(is.matrix(plate))
 
@@ -123,6 +127,7 @@ plotPlate <- function(plate, main="Plate"){
 ##' @param plate.w matrix of a plate in the "wide" format
 ##' @return data.frame of a plate in the "long" format (1 well per row)
 ##' @author Timothee Flutre
+##' @export
 lengthenPlate <- function(plate.w){
   stopifnot(is.matrix(plate.w),
             ! is.null(rownames(plate.w)),
@@ -152,6 +157,7 @@ lengthenPlate <- function(plate.w){
 ##' @param plate.w matrix of a plate in the "wide" format
 ##' @return 2 column data.frame (row;col) corresponding to empty wells
 ##' @author Timothee Flutre
+##' @export
 emptyWells <- function(plate.w){
   plate.l <- lengthenPlate(plate.w)
   empty.idx <- is.na(plate.l$sample)
@@ -167,6 +173,7 @@ emptyWells <- function(plate.w){
 ##' @param file path to file in which to write the randomised plate
 ##' @return matrix
 ##' @author Timothee Flutre
+##' @export
 randPlate <- function(plate, rand.scheme="1x96", seed=NULL, file=NULL){
   stopifnot(is.matrix(plate),
             ! is.null(dimnames(plate)),

@@ -146,10 +146,12 @@ test_that("getIndNamesFromHaplos", {
   N <- 2 # individuals
   P <- 3 # SNPs
   haplos <- list(chr1=matrix(data=c(1,1,1,0, 1,0,0,1), nrow=2*N, ncol=P-1,
-                             dimnames=list(c("ind1_h1", "ind1_h2", "ind2_h1", "ind2_h2"),
+                             dimnames=list(c("ind1_h1", "ind1_h2", "ind2_h1",
+                                             "ind2_h2"),
                                            c("snp1", "snp2"))),
                  chr2=matrix(data=c(0,0,1,0), nrow=2*N, ncol=1,
-                             dimnames=list(c("ind1_h1", "ind1_h2", "ind2_h1", "ind2_h2"),
+                             dimnames=list(c("ind1_h1", "ind1_h2", "ind2_h1",
+                                             "ind2_h2"),
                                            c("snp3"))))
 
   expected <- c("ind1", "ind2")
@@ -164,10 +166,12 @@ test_that("getHaplosInd", {
   P <- 3 # SNPs
 
   haplos <- list(chr1=matrix(data=c(1,1,1,0, 1,0,0,1), nrow=2*N, ncol=P-1,
-                             dimnames=list(c("ind1_h1", "ind1_h2", "ind2_h1", "ind2_h2"),
+                             dimnames=list(c("ind1_h1", "ind1_h2", "ind2_h1",
+                                             "ind2_h2"),
                                            c("snp1", "snp2"))),
                  chr2=matrix(data=c(0,0,1,0), nrow=2*N, ncol=1,
-                             dimnames=list(c("ind1_h1", "ind1_h2", "ind2_h1", "ind2_h2"),
+                             dimnames=list(c("ind1_h1", "ind1_h2", "ind2_h1",
+                                             "ind2_h2"),
                                            c("snp3"))))
 
   expected <- list(chr1=matrix(data=c(1,0, 0,1), nrow=2, ncol=P-1,
@@ -460,6 +464,54 @@ test_that("estimLd_cor-r2", {
 
   ## check that LDcorSV returns the same results
   colnames(expected)[3] <- "r2"
-  observed <- estimLd(X=X, snp.coords=snp.coords, only.chr="chr1", use.ldcorsv=TRUE)
+  observed <- estimLd(X=X, snp.coords=snp.coords, only.chr="chr1",
+                      use.ldcorsv=TRUE)
+  expect_equal(observed, expected)
+})
+
+test_that("distConsecutiveSnps", {
+  P <- 5 # SNPs
+  snp.coords <- data.frame(chr=c(rep("chr1", P-2), rep("chr2", 2)),
+                           pos=c(2, 17, 28, 5, 100),
+                           stringsAsFactors=FALSE)
+  rownames(snp.coords) <- paste0("snp", 1:P)
+
+  expected <- list(chr1=setNames(c(14, 10), c("snp2-snp1", "snp3-snp2")),
+                   chr2=setNames(c(94), c("snp5-snp4")))
+
+  observed <- distConsecutiveSnps(snp.coords=snp.coords)
+
+  expect_equal(observed, expected)
+})
+
+test_that("thinSnps_index", {
+  P <- 5 # SNPs
+  snp.coords <- data.frame(chr=c(rep("chr1", P-2), rep("chr2", 2)),
+                           coord=c(17, 2, 28, 5, 100))
+  rownames(snp.coords) <- paste0("snp", 1:P)
+
+  threshold <- 2
+
+  expected <- c("snp2", "snp3", "snp4")
+
+  observed <- thinSnps(method="index", threshold=threshold,
+                       snp.coords=snp.coords)
+
+  expect_equal(observed, expected)
+})
+
+test_that("thinSnps_coord", {
+  P <- 5 # SNPs
+  snp.coords <- data.frame(chr=c(rep("chr1", P-2), rep("chr2", 2)),
+                           coord=c(17, 2, 28, 5, 100))
+  rownames(snp.coords) <- paste0("snp", 1:P)
+
+  threshold <- 15
+
+  expected <- c("snp2", "snp1", "snp4", "snp5")
+
+  observed <- thinSnps(method="coord", threshold=threshold,
+                       snp.coords=snp.coords)
+
   expect_equal(observed, expected)
 })

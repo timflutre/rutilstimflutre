@@ -7,6 +7,7 @@
 ##' @param spec specifier, see \code{\link{sprintf}}
 ##' @return nothing
 ##' @author Timothee Flutre
+##' @export
 prettyPrintSummary <- function(x, spec="%.2f"){
   stopifnot(is.vector(x))
   tmp <- summary(x)
@@ -23,6 +24,7 @@ prettyPrintSummary <- function(x, spec="%.2f"){
 ##' @param error vector \eqn{\hat{\theta}_i - \theta_i}
 ##' @return numeric
 ##' @author Timothee Flutre
+##' @export
 rmse <- function(error){
   sqrt(mean(error^2))
 }
@@ -34,6 +36,7 @@ rmse <- function(error){
 ##' @param error vector \eqn{\hat{\theta}_i - \theta_i}
 ##' @return numeric
 ##' @author Timothee Flutre
+##' @export
 mae <- function(error){
   mean(abs(error))
 }
@@ -45,6 +48,7 @@ mae <- function(error){
 ##' @param error vector \eqn{\hat{\theta}_i - \theta_i}
 ##' @return numeric
 ##' @author Timothee Flutre
+##' @export
 msd <- function(error){
   mean(error)
 }
@@ -61,6 +65,7 @@ msd <- function(error){
 ##' @param called.nulls vector of booleans (TRUE if the null is accepted)
 ##' @return vector with names
 ##' @author Timothee Flutre
+##' @export
 binaryClassif <- function(known.nulls, called.nulls){
   ## http://en.wikipedia.org/wiki/Sensitivity_and_specificity
   ##
@@ -116,6 +121,7 @@ binaryClassif <- function(known.nulls, called.nulls){
 ##' @param weights weights
 ##' @return numeric
 ##' @author Timothee Flutre
+##' @export
 log10WeightedSum <- function(x, weights=NULL){
   stopifnot(is.numeric(x), is.vector(x))
   if(! is.null(weights)){
@@ -134,6 +140,7 @@ log10WeightedSum <- function(x, weights=NULL){
 ##' @param mat matrix
 ##' @return matrix
 ##' @author Timothee Flutre
+##' @export
 mpInv <- function(mat){
   mat.svd <- svd(mat)
   mat.svd$v %*% diag(1/mat.svd$d) %*% t(mat.svd$u)
@@ -183,6 +190,7 @@ getNbPCsMinimAvgSqPartCor <- function(X){
 ##' @param seed see for the pseudo-random number generator (default=1859)
 ##' @return vector
 ##' @author Timothee Flutre
+##' @export
 quantNorm <- function(x, break.ties.rand=TRUE, seed=1859){
   stopifnot(is.vector(x), is.numeric(x), is.logical(break.ties.rand),
             is.numeric(seed))
@@ -209,6 +217,7 @@ quantNorm <- function(x, break.ties.rand=TRUE, seed=1859){
 ##' @param sd standard deviations
 ##' @return matrix
 ##' @author Timothee Flutre
+##' @export
 cor2cov <- function(x, sd){
   ## D <- diag(sd); return(D %*% x %*% D)
   return(sweep(sweep(x, 1, sd, "*"), 2, sd, "*"))
@@ -224,6 +233,7 @@ cor2cov <- function(x, sd){
 ##' @param V between-column covariance matrix
 ##' @return array
 ##' @author Timothee Flutre
+##' @export
 rmatnorm <- function(n=1, M, U, V){
   stopifnot(nrow(M) == nrow(U),
             ncol(M) == nrow(V),
@@ -267,6 +277,7 @@ rmatnorm <- function(n=1, M, U, V){
 ##' @param hi half-interval (optional)
 ##' @return nothing
 ##' @author Timothee Flutre
+##' @export
 plotMcmcChain <- function(res.mcmc, param.name, subplots=1:4,
                           pe=NULL, hi=NULL){
   if(! requireNamespace("coda", quietly=TRUE))
