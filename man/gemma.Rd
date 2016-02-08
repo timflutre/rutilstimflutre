@@ -42,7 +42,7 @@ alleles in columns (first is "minor", second is "major")}
 invisible data.frame
 }
 \description{
-Launch GEMMA
+See Zhou & Stephens (Nature Genetics, 2012) and Zhou et al (PLoS Genetics, 2013).
 }
 \author{
 Timothee Flutre [aut,cre], Dalel Ahmed [ctb]

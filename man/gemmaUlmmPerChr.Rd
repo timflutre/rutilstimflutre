@@ -32,7 +32,7 @@ gemmaUlmmPerChr(y, X, snp.coords, alleles = NULL, chr.ids = NULL, W,
 a data.frame with GEMMA's output for all chromosomes
 }
 \description{
-GEMMA uLMM per chromosome
+See Zhou & Stephens (Nature Genetics, 2012).
 }
 \author{
 Timothee Flutre [aut,cre], Dalel Ahmed [ctb]

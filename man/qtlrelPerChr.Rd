@@ -26,7 +26,7 @@ qtlrelPerChr(y, X, snp.coords, chr.ids = NULL, W = NULL, Z = NULL,
 a list with two data.frames as components, vc and scan
 }
 \description{
-for each SNP p, y = W alpha + x_p beta_p + Z u + epsilon
+For each SNP p, the likelihood is y = W alpha + Z x_p beta_p + Z u + epsilon where all x_p are columns of X, and one want to test the null hypothesis "beta = 0". See Cheng et al (BMC Genetics, 2011).
 }
 \author{
 Timothee Flutre

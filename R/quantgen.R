@@ -1819,6 +1819,7 @@ simulBslmm <- function(Q=3, mu=50, mean.a=5, sd.a=2,
 
 ##' Launch GEMMA
 ##'
+##' See Zhou & Stephens (Nature Genetics, 2012) and Zhou et al (PLoS Genetics, 2013).
 ##' @param model name of the model to fit (default=ulmm/bslmm)
 ##' @param y vector of phenotypes
 ##' @param X matrix of SNP genotypes encoded as allele doses in {0,1,2}, with individuals in rows and SNPs in columns
@@ -1959,6 +1960,7 @@ gemma <- function(model="ulmm", y, X, snp.coords, alleles, K.c=NULL, W,
 
 ##' GEMMA uLMM per chromosome
 ##'
+##' See Zhou & Stephens (Nature Genetics, 2012).
 ##' @param y vector of phenotypes
 ##' @param X matrix of SNP genotypes encoded as allele doses in {0,1,2}, with individuals in rows and SNPs in columns
 ##' @param snp.coords data.frame with SNP identifiers as row names, and two columns, "chr" and "coord" or "pos"
@@ -2036,7 +2038,7 @@ gemmaUlmmPerChr <- function(y, X, snp.coords, alleles=NULL, chr.ids=NULL, W,
 
 ##' QTLRel per chromosome
 ##'
-##' for each SNP p, y = W alpha + x_p beta_p + Z u + epsilon
+##' For each SNP p, the likelihood is y = W alpha + Z x_p beta_p + Z u + epsilon where all x_p are columns of X, and one want to test the null hypothesis "beta = 0". See Cheng et al (BMC Genetics, 2011).
 ##' @param y vector of phenotypes
 ##' @param X matrix of SNP genotypes encoded as allele doses in {0,1,2}, with individuals in rows and SNPs in columns
 ##' @param snp.coords data.frame with SNP identifiers as row names, and two columns, "chr" and "coord" or "pos"
