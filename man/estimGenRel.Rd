@@ -4,15 +4,15 @@
 \alias{estimGenRel}
 \title{Genomic relatedness}
 \usage{
-estimGenRel(X, mafs = NULL, thresh = 0.01, relationships = "additive",
+estimGenRel(X, afs = NULL, thresh = 0.01, relationships = "additive",
   method = "vanraden1", theta = 0.5, verbose = 1)
 }
 \arguments{
-\item{X}{matrix of SNP genotypes encoded as allele doses in {0,1,2}, with individuals in rows and SNPs in columns}
+\item{X}{matrix of SNP genotypes encoded as allele doses in {0,1,2}, with individuals in rows and SNPs in columns; SNPs with missing data will be ignored}
 
-\item{mafs}{vector with minor allele frequencies (calculated with `estimMaf` if NULL)}
+\item{afs}{vector with 2nd allele frequencies (calculated with \code{\link{estimAf}} if NULL)}
 
-\item{thresh}{threshold on allele frequencies below which SNPs are ignored (default=0.01, NULL to skip this step)}
+\item{thresh}{threshold on minor allele frequencies below which SNPs are ignored (default=0.01, NULL to skip this step)}
 
 \item{relationships}{relationship to estimate (default=additive/dominance/gauss) where "gauss" corresponds to the Gaussian kernel from Endelman (2011)}
 

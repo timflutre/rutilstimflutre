@@ -1,14 +1,33 @@
 library(rutilstimflutre)
 context("Quantgen")
 
+test_that("estimAf", {
+  N <- 2 # individuals
+  P <- 4 # SNPs
+  X <- matrix(c(1,1, 1,0, 2,1, 1,NA), nrow=N, ncol=P,
+              dimnames=list(paste0("ind", 1:N), paste0("snp", 1:P)))
+
+  expected <- setNames(c(2/4, 1/4, 3/4, 1/2), colnames(X))
+
+  observed <- estimAf(X=X)
+
+  expect_equal(observed, expected)
+})
+
 test_that("estimMaf", {
   N <- 2 # individuals
   P <- 4 # SNPs
-  X <- matrix(c(1,1, 1,0, 2,1, 1,NA), nrow=N, ncol=P)
+  X <- matrix(c(1,1, 1,0, 2,1, 1,NA), nrow=N, ncol=P,
+              dimnames=list(paste0("ind", 1:N), paste0("snp", 1:P)))
 
-  expected <- c(2/4, 1/4, 1/4, 1/2)
+  expected <- setNames(c(2/4, 1/4, 1/4, 1/2), colnames(X))
 
   observed <- estimMaf(X=X)
+
+  expect_equal(observed, expected)
+
+  afs <- setNames(c(2/4, 1/4, 3/4, 1/2), colnames(X))
+  observed <- estimMaf(afs=afs)
 
   expect_equal(observed, expected)
 })
@@ -16,18 +35,19 @@ test_that("estimMaf", {
 test_that("estimGenRel_vanraden1", {
   N <- 3 # individuals
   P <- 4 # SNPs
-  X <- matrix(c(0,0,2, 1,1,0, 0,1,0, 1,0,0), nrow=N, ncol=P)
+  X <- matrix(c(0,0,2, 1,1,0, 0,1,0, 1,0,0), nrow=N, ncol=P,
+              dimnames=list(paste0("ind", 1:N), paste0("snp", 1:P)))
 
-  mafs <- c(0.383, 0.244, 0.167, 0.067)
-  tmp <- matrix(rep(2*(mafs-0.5), N), nrow=N, ncol=P, byrow=TRUE)
+  afs <- setNames(c(0.383, 0.244, 0.167, 0.067), colnames(X))
+  tmp <- matrix(rep(2*(afs-0.5), N), nrow=N, ncol=P, byrow=TRUE)
   Z <- X - 1 - tmp
   denom <- 0
   for(p in 1:P)
-    denom <- denom + mafs[p] * (1 - mafs[p])
+    denom <- denom + afs[p] * (1 - afs[p])
   denom <- 2 * denom
   expected <- (Z %*% t(Z)) / denom
 
-  observed <- estimGenRel(X=X, mafs=mafs, thresh=0, relationships="additive",
+  observed <- estimGenRel(X=X, afs=afs, thresh=0, relationships="additive",
                           method="vanraden1", verbose=0)
 
   expect_equal(observed, expected)
@@ -36,18 +56,20 @@ test_that("estimGenRel_vanraden1", {
 test_that("estimGenRel_astle-balding", {
   N <- 2 # individuals
   P <- 4 # SNPs
-  X <- matrix(c(1,1, 1,0, 2,1, 1,0), nrow=N, ncol=P)
+  X <- matrix(c(1,1, 1,0, 2,1, 1,0), nrow=N, ncol=P,
+              dimnames=list(paste0("ind", 1:N), paste0("snp", 1:P)))
 
-  mafs <- estimMaf(X=X)
+  afs <- estimAf(X=X)
 
-  expected <- matrix(data=0, nrow=N, ncol=N)
+  expected <- matrix(data=0, nrow=N, ncol=N,
+                     dimnames=list(rownames(X), rownames(X)))
   for(p in 1:P)
     expected <- expected +
-      (matrix(X[,p] - 2 * mafs[p]) %*% t(X[,p] - 2 * mafs[p])) /
-      (4 * mafs[p] * (1 - mafs[p]))
+      (matrix(X[,p] - 2 * afs[p]) %*% t(X[,p] - 2 * afs[p])) /
+      (4 * afs[p] * (1 - afs[p]))
   expected <- 2 * (1/P) * expected
 
-  observed <- estimGenRel(X=X, mafs=NULL, thresh=0, relationships="additive",
+  observed <- estimGenRel(X=X, afs=afs, thresh=0, relationships="additive",
                           method="astle-balding", verbose=0)
 
   expect_equal(observed, expected)
@@ -56,26 +78,28 @@ test_that("estimGenRel_astle-balding", {
 test_that("estimGenRel_yang", {
   N <- 2 # individuals
   P <- 4 # SNPs
-  X <- matrix(c(1,1, 1,0, 2,1, 1,1), nrow=N, ncol=P)
+  X <- matrix(c(1,1, 1,0, 2,1, 1,1), nrow=N, ncol=P,
+              dimnames=list(paste0("ind", 1:N), paste0("snp", 1:P)))
 
-  mafs <- estimMaf(X=X)
+  afs <- estimAf(X=X)
 
-  expected <- matrix(data=0, nrow=N, ncol=N)
+  expected <- matrix(data=0, nrow=N, ncol=N,
+                     dimnames=list(rownames(X), rownames(X)))
   for(i in 1:N){
     summands <- rep(NA, P)
     for(p in 1:P)
-      summands[p] <- (X[i,p]^2 - (1 + 2 * mafs[p]) * X[i,p] + 2 * mafs[p]^2) /
-        (2 * mafs[p] * (1 - mafs[p]))
+      summands[p] <- (X[i,p]^2 - (1 + 2 * afs[p]) * X[i,p] + 2 * afs[p]^2) /
+        (2 * afs[p] * (1 - afs[p]))
     expected[i,i] <- 1 + (1/P) * sum(summands)
   }
   summands <- rep(NA, P)
   for(p in 1:P)
-    summands[p] <- ((X[1,p] - 2 * mafs[p]) * (X[2,p] - 2 * mafs[p])) /
-      (2 * mafs[p] * (1 - mafs[p]))
+    summands[p] <- ((X[1,p] - 2 * afs[p]) * (X[2,p] - 2 * afs[p])) /
+      (2 * afs[p] * (1 - afs[p]))
   expected[1,2] <- (1/P) * sum(summands)
   expected[2,1] <- expected[1,2]
 
-  observed <- estimGenRel(X=X, mafs=NULL, thresh=0, relationships="additive",
+  observed <- estimGenRel(X=X, afs=afs, thresh=0, relationships="additive",
                           method="yang", verbose=0)
 
   expect_equal(observed, expected)
@@ -84,29 +108,31 @@ test_that("estimGenRel_yang", {
 test_that("estimGenRel_su", {
   N <- 3 # individuals
   P <- 4 # SNPs
-  X <- matrix(c(0,0,2, 1,1,0, 0,1,0, 1,0,0), nrow=N, ncol=P)
+  X <- matrix(c(0,0,2, 1,1,0, 0,1,0, 1,0,0), nrow=N, ncol=P,
+              dimnames=list(paste0("ind", 1:N), paste0("snp", 1:P)))
 
-  mafs <- c(0.383, 0.244, 0.167, 0.067)
-  H <- matrix(c(0 - 2 * mafs[1] * (1 - mafs[1]),
-                0 - 2 * mafs[1] * (1 - mafs[1]),
-                0 - 2 * mafs[1] * (1 - mafs[1]),
-                1 - 2 * mafs[2] * (1 - mafs[2]),
-                1 - 2 * mafs[2] * (1 - mafs[2]),
-                0 - 2 * mafs[2] * (1 - mafs[2]),
-                0 - 2 * mafs[3] * (1 - mafs[3]),
-                1 - 2 * mafs[3] * (1 - mafs[3]),
-                0 - 2 * mafs[3] * (1 - mafs[3]),
-                1 - 2 * mafs[4] * (1 - mafs[4]),
-                0 - 2 * mafs[4] * (1 - mafs[4]),
-                0 - 2 * mafs[4] * (1 - mafs[4])),
-              nrow=N, ncol=P)
+  afs <- setNames(c(0.383, 0.244, 0.167, 0.067), colnames(X))
+  H <- matrix(c(0 - 2 * afs[1] * (1 - afs[1]),
+                0 - 2 * afs[1] * (1 - afs[1]),
+                0 - 2 * afs[1] * (1 - afs[1]),
+                1 - 2 * afs[2] * (1 - afs[2]),
+                1 - 2 * afs[2] * (1 - afs[2]),
+                0 - 2 * afs[2] * (1 - afs[2]),
+                0 - 2 * afs[3] * (1 - afs[3]),
+                1 - 2 * afs[3] * (1 - afs[3]),
+                0 - 2 * afs[3] * (1 - afs[3]),
+                1 - 2 * afs[4] * (1 - afs[4]),
+                0 - 2 * afs[4] * (1 - afs[4]),
+                0 - 2 * afs[4] * (1 - afs[4])),
+              nrow=N, ncol=P,
+              dimnames=list(rownames(X), colnames(X)))
   denom <- 0
   for(p in 1:P)
-    denom <- denom + 2 * mafs[p] * (1 - mafs[p]) *
-      (1 - 2 * mafs[p] * (1 - mafs[p]))
+    denom <- denom + 2 * afs[p] * (1 - afs[p]) *
+      (1 - 2 * afs[p] * (1 - afs[p]))
   expected <- (H %*% t(H)) / denom
 
-  observed <- estimGenRel(X=X, mafs=mafs, thresh=0, relationships="dominance",
+  observed <- estimGenRel(X=X, afs=afs, thresh=0, relationships="dominance",
                           method="su", verbose=0)
 
   expect_equal(observed, expected)
@@ -115,28 +141,30 @@ test_that("estimGenRel_su", {
 test_that("estimGenRel_vitezica", {
   N <- 3 # individuals
   P <- 4 # SNPs
-  X <- matrix(c(0,0,2, 1,1,0, 0,1,0, 1,0,0), nrow=N, ncol=P)
+  X <- matrix(c(0,0,2, 1,1,0, 0,1,0, 1,0,0), nrow=N, ncol=P,
+              dimnames=list(paste0("ind", 1:N), paste0("snp", 1:P)))
 
-  mafs <- c(0.383, 0.244, 0.167, 0.067)
-  W <- matrix(c(- 2 * (1 - mafs[1])^2,
-                - 2 * (1 - mafs[1])^2,
-                - 2 * mafs[1]^2,
-                2 * mafs[2] * (1 - mafs[2]),
-                2 * mafs[2] * (1 - mafs[2]),
-                - 2 * (1 - mafs[2])^2,
-                - 2 * (1 - mafs[3])^2,
-                2 * mafs[3] * (1 - mafs[3]),
-                - 2 * (1 - mafs[3])^2,
-                2 * mafs[4] * (1 - mafs[4]),
-                - 2 * (1 - mafs[4])^2,
-                - 2 * (1 - mafs[4])^2),
-              nrow=N, ncol=P)
+  afs <- setNames(c(0.383, 0.244, 0.167, 0.067), colnames(X))
+  W <- matrix(c(- 2 * (1 - afs[1])^2,
+                - 2 * (1 - afs[1])^2,
+                - 2 * afs[1]^2,
+                2 * afs[2] * (1 - afs[2]),
+                2 * afs[2] * (1 - afs[2]),
+                - 2 * (1 - afs[2])^2,
+                - 2 * (1 - afs[3])^2,
+                2 * afs[3] * (1 - afs[3]),
+                - 2 * (1 - afs[3])^2,
+                2 * afs[4] * (1 - afs[4]),
+                - 2 * (1 - afs[4])^2,
+                - 2 * (1 - afs[4])^2),
+              nrow=N, ncol=P,
+              dimnames=list(rownames(X), colnames(X)))
   denom <- 0
   for(p in 1:P)
-    denom <- denom + (2 * mafs[p] * (1 - mafs[p]))^2
+    denom <- denom + (2 * afs[p] * (1 - afs[p]))^2
   expected <- (W %*% t(W)) / denom
 
-  observed <- estimGenRel(X=X, mafs=mafs, thresh=0, relationships="dominance",
+  observed <- estimGenRel(X=X, afs=afs, thresh=0, relationships="dominance",
                           method="vitezica", verbose=0)
 
   expect_equal(observed, expected)

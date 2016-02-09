@@ -83,27 +83,45 @@ plotGridMissGenos <- function(x, main="Missing genotypes", xlab="Individuals",
         main=main, xlab=xlab, ylab=ylab)
 }
 
-##' Estimate minor allele frequencies of SNPs.
+##' Allele frequencies
 ##'
-##' Missing values should be encoded as NA.
+##' Estimate the frequency of the second allele for each SNP. Missing values should be encoded as NA in order to be ignored. Note that the "second" allele may not be the "minor" allele (the least frequent).
 ##' @param X matrix of SNP genotypes encoded as allele doses in {0,1,2}, with individuals in rows and SNPs in columns
 ##' @return vector
+##' @seealso \code{\link{estimMaf}}
 ##' @author Timothee Flutre
 ##' @export
-estimMaf <- function(X){
+estimAf <- function(X){
   stopifnot(is.matrix(X),
             sum(X < 0, na.rm=TRUE) == 0,
-            sum(X > 2, na.rm=TRUE) == 0)
+            sum(X > 2, na.rm=TRUE) == 0,
+            ! is.null(colnames(X)))
   N <- nrow(X)
   P <- ncol(X)
 
-  maf <- apply(X, 2, function(x){
-    x <- x[complete.cases(x)]
-    tmp <- sum(x) / (2 * length(x))
-    ifelse(tmp <= 0.5, tmp, 1 - tmp)
-  })
+  afs <- colMeans(X, na.rm=TRUE) / 2
 
-  return(maf)
+  return(afs)
+}
+
+##' Minor allele frequencies
+##'
+##' Estimate the frequency of the minor allele for each SNP. Missing values should be encoded as NA in order to be ignored.
+##' @param X matrix of SNP genotypes encoded as allele doses in {0,1,2}, with individuals in rows and SNPs in columns; if NULL, afs should be specified
+##' @param afs vector with 2nd allele frequencies; if NULL, X should be specified, and the frequencies will be estimated with \code{\link{estimAf}}
+##' @return vector
+##' @seealso \code{\link{estimAf}}
+##' @author Timothee Flutre
+##' @export
+estimMaf <- function(X=NULL, afs=NULL){
+  stopifnot(xor(is.null(X), is.null(afs)))
+
+  if(is.null(afs))
+    afs <- estimAf(X)
+
+  mafs <- apply(rbind(afs, 1 - afs), 2, min)
+
+  return(mafs)
 }
 
 ##' Plot the histogram of the minor allele frequency per SNP
@@ -950,9 +968,9 @@ distSnpPairs <- function(snp.pairs, snp.coords, nb.cores=1, verbose=0){
 ##' Genomic relatedness
 ##'
 ##' Estimate genetic relationships between individuals from their SNP genotypes. Note that "relationships" are estimated, and not "coancestries" (2 x relationhips).
-##' @param X matrix of SNP genotypes encoded as allele doses in {0,1,2}, with individuals in rows and SNPs in columns
-##' @param mafs vector with minor allele frequencies (calculated with `estimMaf` if NULL)
-##' @param thresh threshold on allele frequencies below which SNPs are ignored (default=0.01, NULL to skip this step)
+##' @param X matrix of SNP genotypes encoded as allele doses in {0,1,2}, with individuals in rows and SNPs in columns; SNPs with missing data will be ignored
+##' @param afs vector with 2nd allele frequencies (calculated with \code{\link{estimAf}} if NULL)
+##' @param thresh threshold on minor allele frequencies below which SNPs are ignored (default=0.01, NULL to skip this step)
 ##' @param relationships relationship to estimate (default=additive/dominance/gauss) where "gauss" corresponds to the Gaussian kernel from Endelman (2011)
 ##' @param method if additive relationships, can be "vanraden1" (first method in VanRaden, 2008), "habier" (similar to 'vanraden1' without giving more importance to rare alleles; from Habier et al, 2007), "astle-balding" (two times equation 2.2 in Astle & Balding, 2009), "yang" (similar to 'astle-balding' but without ignoring sampling error per SNP; from Yang et al, 2010), "zhou" (centering the genotypes and not assuming that rare variants have larger effects; from Zhou et al, 2013) or "center-std"; if dominance relationships, can be "vitezica" (classical/statistical parametrization from Vitezica et al, 2013) or "su" (from Su et al, PLoS One, 2012)
 ##' @param theta smoothing parameter for "gauss" (default=0.5)
@@ -960,10 +978,12 @@ distSnpPairs <- function(snp.pairs, snp.coords, nb.cores=1, verbose=0){
 ##' @return matrix
 ##' @author Timothee Flutre
 ##' @export
-estimGenRel <- function(X, mafs=NULL, thresh=0.01, relationships="additive",
+estimGenRel <- function(X, afs=NULL, thresh=0.01, relationships="additive",
                         method="vanraden1", theta=0.5, verbose=1){
   stopifnot(is.matrix(X),
-            all(X >= 0),
+            all(X >= 0), # to avoid {-1,0,1}
+            ! is.null(rownames(X)),
+            ! is.null(colnames(X)),
             relationships %in% c("additive", "dominance", "gauss"))
   if(relationships == "additive")
     stopifnot(method %in% c("vanraden1", "habier", "astle-balding", "yang",
@@ -979,9 +999,12 @@ estimGenRel <- function(X, mafs=NULL, thresh=0.01, relationships="additive",
               theta > 0,
               theta <= 1)
   }
-  if(! is.null(mafs))
-    stopifnot(all(colnames(X) %in% names(mafs)),
-              all(names(mafs) %in% colnames(X)))
+  if(! is.null(afs)){
+    stopifnot(! is.null(names(afs)),
+              all(colnames(X) %in% names(afs)),
+              all(names(afs) %in% colnames(X)))
+    afs <- afs[colnames(X)] # re-order if necessary
+  }
 
   gen.rel <- NULL # to be filled and returned
 
@@ -1002,34 +1025,27 @@ estimGenRel <- function(X, mafs=NULL, thresh=0.01, relationships="additive",
     idx.rm <- which(snps.na)
     X <- X[, -idx.rm]
     P <- ncol(X)
+    if(! is.null(afs))
+      afs <- afs[-idx.rm]
   }
 
-  ## estimate MAFs
-  if(is.null(mafs)){
-    mafs <- estimMaf(X)
-    if(verbose > 1){
-      txt <- paste0("allele freqs: ",
-                    "min=", format(min(mafs), digits=2),
-                    " Q1=", format(quantile(mafs, 0.25), digits=2),
-                    " med=", format(median(mafs), digits=2),
-                    " mean=", format(mean(mafs), digits=2),
-                    " Q3=", format(quantile(mafs, 0.75), digits=2),
-                    " max=", format(max(mafs), digits=2))
-      write(txt, stdout())
-    }
-  }
+  ## estimate (M)AFs
+  if(is.null(afs))
+    afs <- estimAf(X=X)
+  mafs <- estimMaf(afs=afs)
 
   ## discard SNPs with low MAFs
   if(! is.null(thresh)){
     snps.low <- mafs < thresh
     if(any(snps.low)){
       if(verbose > 0){
-        txt <- paste0("skip ", sum(snps.low), " SNPs with freq below ", thresh)
+        txt <- paste0("skip ", sum(snps.low), " SNPs with MAF below ", thresh)
         write(txt, stdout())
       }
       idx.rm <- which(snps.low)
       X <- X[, -idx.rm]
       P <- ncol(X)
+      afs <- afs[-idx.rm]
       mafs <- mafs[-idx.rm]
     }
   }
@@ -1038,22 +1054,22 @@ estimGenRel <- function(X, mafs=NULL, thresh=0.01, relationships="additive",
   if(relationships == "additive"){
     if(method == "vanraden1"){
       M <- X - 1 # recode genotypes as {-1,0,1}
-      Pmat <- matrix(rep(1,N)) %*% (2 * (mafs - 0.5))
+      Pmat <- matrix(rep(1, N)) %*% (2 * (afs - 0.5))
       Z <- M - Pmat
-      gen.rel <- tcrossprod(Z, Z) / (2 * sum(mafs * (1 - mafs)))
+      gen.rel <- tcrossprod(Z, Z) / (2 * sum(afs * (1 - afs)))
     } else if(method == "habier"){
-      gen.rel <- tcrossprod(X, X) / (2 * sum(mafs * (1 - mafs)))
+      gen.rel <- tcrossprod(X, X) / (2 * sum(afs * (1 - afs)))
     } else if(method == "astle-balding"){
-      tmp1 <- sweep(x=X, MARGIN=2, STATS=2*mafs, FUN="-")
-      tmp2 <- sweep(x=tmp1, MARGIN=2, STATS=2*mafs*(1-mafs), FUN="/")
+      tmp1 <- sweep(x=X, MARGIN=2, STATS=2*afs, FUN="-")
+      tmp2 <- sweep(x=tmp1, MARGIN=2, STATS=2*afs*(1-afs), FUN="/")
       gen.rel <- (1/P) * tcrossprod(tmp1, tmp2)
     } else if(method == "yang"){
-      tmp1 <- sweep(x=X, MARGIN=2, STATS=2*mafs, FUN="-")
-      tmp2 <- sweep(x=tmp1, MARGIN=2, STATS=2*mafs*(1-mafs), FUN="/")
+      tmp1 <- sweep(x=X, MARGIN=2, STATS=2*afs, FUN="-")
+      tmp2 <- sweep(x=tmp1, MARGIN=2, STATS=2*afs*(1-afs), FUN="/")
       gen.rel <- (1/P) * tcrossprod(tmp1, tmp2)
-      tmp3 <- X^2 - sweep(x=X, MARGIN=2, STATS=1+2*mafs, FUN="*")
-      tmp4 <- sweep(x=tmp3, MARGIN=2, STATS=2*mafs^2, FUN="+")
-      tmp5 <- sweep(x=tmp4, MARGIN=2, STATS=2*mafs*(1-mafs), FUN="/")
+      tmp3 <- X^2 - sweep(x=X, MARGIN=2, STATS=1+2*afs, FUN="*")
+      tmp4 <- sweep(x=tmp3, MARGIN=2, STATS=2*afs^2, FUN="+")
+      tmp5 <- sweep(x=tmp4, MARGIN=2, STATS=2*afs*(1-afs), FUN="/")
       diag(gen.rel) <- 1 + (1/P) * rowSums(tmp5)
     } else if(method == "zhou"){
       tmp <- scale(x=X, center=TRUE, scale=FALSE)
@@ -1069,17 +1085,17 @@ estimGenRel <- function(X, mafs=NULL, thresh=0.01, relationships="additive",
       is.2 <- (X == 2)
       W <- X
       for(i in 1:N){
-        W[i, is.0[i,]] <- - 2 * (1 - mafs[is.0[i,]])^2
-        W[i, is.1[i,]] <- 2 * mafs[is.1[i,]] * (1 - mafs[is.1[i,]])
-        W[i, is.2[i,]] <- - 2 * mafs[is.2[i,]]^2
+        W[i, is.0[i,]] <- - 2 * (1 - afs[is.0[i,]])^2
+        W[i, is.1[i,]] <- 2 * afs[is.1[i,]] * (1 - afs[is.1[i,]])
+        W[i, is.2[i,]] <- - 2 * afs[is.2[i,]]^2
       }
-      gen.rel <- tcrossprod(W, W) / sum((2 * mafs * (1 - mafs))^2)
+      gen.rel <- tcrossprod(W, W) / sum((2 * afs * (1 - afs))^2)
     } else if(method == "su"){
       H <- X
       H[H != 1] <- 0 # recode genotypes as {0,1,0}
-      H <- sweep(x=H, MARGIN=2, STATS=2*mafs*(1-mafs), FUN="-")
+      H <- sweep(x=H, MARGIN=2, STATS=2*afs*(1-afs), FUN="-")
       gen.rel <- tcrossprod(H, H) /
-        (2 * sum(mafs * (1 - mafs) * (1 - 2 * mafs * (1 - mafs))))
+        (2 * sum(afs * (1 - afs) * (1 - 2 * afs * (1 - afs))))
     }
   } else if(relationships == "gauss"){
     M <- X - 1 # recode genotypes as {-1,0,1}

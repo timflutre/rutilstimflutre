@@ -2,20 +2,25 @@
 % Please edit documentation in R/quantgen.R
 \name{estimMaf}
 \alias{estimMaf}
-\title{Estimate minor allele frequencies of SNPs.}
+\title{Minor allele frequencies}
 \usage{
-estimMaf(X)
+estimMaf(X = NULL, afs = NULL)
 }
 \arguments{
-\item{X}{matrix of SNP genotypes encoded as allele doses in {0,1,2}, with individuals in rows and SNPs in columns}
+\item{X}{matrix of SNP genotypes encoded as allele doses in {0,1,2}, with individuals in rows and SNPs in columns; if NULL, afs should be specified}
+
+\item{afs}{vector with 2nd allele frequencies; if NULL, X should be specified, and the frequencies will be estimated with \code{\link{estimAf}}}
 }
 \value{
 vector
 }
 \description{
-Missing values should be encoded as NA.
+Estimate the frequency of the minor allele for each SNP. Missing values should be encoded as NA in order to be ignored.
 }
 \author{
 Timothee Flutre
+}
+\seealso{
+\code{\link{estimAf}}
 }
 
