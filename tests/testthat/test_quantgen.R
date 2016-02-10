@@ -194,22 +194,22 @@ test_that("getHaplosInd", {
   P <- 3 # SNPs
 
   haplos <- list(chr1=matrix(data=c(1,1,1,0, 1,0,0,1), nrow=2*N, ncol=P-1,
-                             dimnames=list(c("ind1_h1", "ind1_h2", "ind2_h1",
-                                             "ind2_h2"),
+                             dimnames=list(c("ind1_h1", "ind1_h2", "ind10_h1",
+                                             "ind10_h2"),
                                            c("snp1", "snp2"))),
                  chr2=matrix(data=c(0,0,1,0), nrow=2*N, ncol=1,
-                             dimnames=list(c("ind1_h1", "ind1_h2", "ind2_h1",
-                                             "ind2_h2"),
+                             dimnames=list(c("ind1_h1", "ind1_h2", "ind10_h1",
+                                             "ind10_h2"),
                                            c("snp3"))))
 
-  expected <- list(chr1=matrix(data=c(1,0, 0,1), nrow=2, ncol=P-1,
-                               dimnames=list(c("ind2_h1", "ind2_h2"),
+  expected <- list(chr1=matrix(data=c(1,1, 1,0), nrow=2, ncol=P-1,
+                               dimnames=list(c("ind1_h1", "ind1_h2"),
                                              c("snp1", "snp2"))),
-                   chr2=matrix(data=c(1,0), nrow=2, ncol=1,
-                               dimnames=list(c("ind2_h1", "ind2_h2"),
+                   chr2=matrix(data=c(0,0), nrow=2, ncol=1,
+                               dimnames=list(c("ind1_h1", "ind1_h2"),
                                              c("snp3"))))
 
-  observed <- getHaplosInd(haplos, "ind2")
+  observed <- getHaplosInd(haplos, "ind1")
 
   expect_equal(observed, expected)
 })

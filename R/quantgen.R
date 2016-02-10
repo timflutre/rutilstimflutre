@@ -559,7 +559,7 @@ getHaplosInd <- function(haplos, ind.name){
 
   ## for each chromosome, retrieve both haplotypes of the given individual
   haplos.ind <- lapply(haplos, function(haplos.chr){
-    idx <- grep(ind.name, rownames(haplos.chr))
+    idx <- grep(paste0("^", ind.name, "_h[12]"), rownames(haplos.chr))
     if(length(idx) == 2){
       haplos.chr[idx, , drop=FALSE]
     } else{
