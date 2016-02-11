@@ -1025,7 +1025,7 @@ estimGenRel <- function(X, afs=NULL, thresh=0.01, relationships="additive",
       write(txt, stdout())
     }
     idx.rm <- which(snps.na)
-    X <- X[, -idx.rm]
+    X <- X[, -idx.rm, drop=FALSE]
     P <- ncol(X)
     if(! is.null(afs))
       afs <- afs[-idx.rm]
@@ -1045,7 +1045,7 @@ estimGenRel <- function(X, afs=NULL, thresh=0.01, relationships="additive",
         write(txt, stdout())
       }
       idx.rm <- which(snps.low)
-      X <- X[, -idx.rm]
+      X <- X[, -idx.rm, drop=FALSE]
       P <- ncol(X)
       afs <- afs[-idx.rm]
       mafs <- mafs[-idx.rm]
