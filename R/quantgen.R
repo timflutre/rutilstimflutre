@@ -1,15 +1,12 @@
 ## Contains functions useful for quantitative genetics.
 
-##' Convert SNP genotype data from alleles (say, "AA" and "AT") to minor allele
-##' doses (here, 0 and 1 if "T" is the minor allele).
+##' Convert genotypes
 ##'
-##' Not particularly efficient, but at least it exists.
-##' @param x data.frame with SNPs in rows and individuals in columns, the SNP
-##' identifiers being in the first column
+##' Convert SNP genotype data from alleles (say, "AA" and "AT") to minor allele doses (here, 0 and 1 if "T" is the minor allele). Not particularly efficient, but at least it exists.
+##' @param x data.frame with SNPs in rows and individuals in columns, the SNP identifiers being in the first column
 ##' @param na.string a character to be interpreted as NA values
 ##' @param verbose verbosity level (0/default=1)
-##' @return list of a matrix (allele doses, SNPs in columns and individuals in
-##' rows) and a vector (minor alleles)
+##' @return list of a matrix (allele doses, SNPs in columns and individuals in rows) and a vector (minor alleles)
 ##' @author Timothee Flutre
 ##' @export
 alleles2dose <- function(x, na.string="--", verbose=1){
@@ -31,7 +28,7 @@ alleles2dose <- function(x, na.string="--", verbose=1){
                     dimnames=list(snp.names, c("minor", "major")))
 
   for(p in 1:P){ # for each SNP
-    raw.genos <- unlist(x[p, -1])
+    raw.genos <- as.character(unlist(x[p, -1]))
     raw.genos[raw.genos == na.string] <- NA
     if(all(is.na(raw.genos))){
       next

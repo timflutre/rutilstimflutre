@@ -2,25 +2,22 @@
 % Please edit documentation in R/quantgen.R
 \name{alleles2dose}
 \alias{alleles2dose}
-\title{Convert SNP genotype data from alleles (say, "AA" and "AT") to minor allele
-doses (here, 0 and 1 if "T" is the minor allele).}
+\title{Convert genotypes}
 \usage{
 alleles2dose(x, na.string = "--", verbose = 1)
 }
 \arguments{
-\item{x}{data.frame with SNPs in rows and individuals in columns, the SNP
-identifiers being in the first column}
+\item{x}{data.frame with SNPs in rows and individuals in columns, the SNP identifiers being in the first column}
 
 \item{na.string}{a character to be interpreted as NA values}
 
 \item{verbose}{verbosity level (0/default=1)}
 }
 \value{
-list of a matrix (allele doses, SNPs in columns and individuals in
-rows) and a vector (minor alleles)
+list of a matrix (allele doses, SNPs in columns and individuals in rows) and a vector (minor alleles)
 }
 \description{
-Not particularly efficient, but at least it exists.
+Convert SNP genotype data from alleles (say, "AA" and "AT") to minor allele doses (here, 0 and 1 if "T" is the minor allele). Not particularly efficient, but at least it exists.
 }
 \author{
 Timothee Flutre
