@@ -11,11 +11,9 @@ dose2bimbam(X = NULL, tX = NULL, alleles, file = NULL)
 
 \item{tX}{matrix with SNPs in rows and individuals in columns}
 
-\item{alleles}{data.frame with SNPs in rows (names as row names) and
-alleles in columns (first is "minor", second is "major")}
+\item{alleles}{data.frame with SNPs in rows (names as row names) and alleles in columns (first is "minor", second is "major")}
 
-\item{file}{prints the genotype data to this file if non NULL (for instance
-'genotypes_bimbam.txt' or gzfile('genotypes_bimbam.txt.gz'))}
+\item{file}{write the genotype data to this file if non NULL (for instance 'genotypes_bimbam.txt' or gzfile('genotypes_bimbam.txt.gz'))}
 }
 \value{
 data.frame

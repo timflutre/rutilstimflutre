@@ -80,6 +80,35 @@ plotGridMissGenos <- function(x, main="Missing genotypes", xlab="Individuals",
         main=main, xlab=xlab, ylab=ylab)
 }
 
+.isValidGenosDose <- function(X, check.coln=TRUE, check.rown=TRUE,
+                              check.na=TRUE){
+  all(is.matrix(X),
+      sum(X < 0, na.rm=TRUE) == 0,
+      sum(X > 2, na.rm=TRUE) == 0,
+      ifelse(check.coln,
+             ! is.null(colnames(X)) & ! anyDuplicated(colnames(X)),
+             TRUE),
+      ifelse(check.rown,
+             ! is.null(rownames(X)),
+             TRUE),
+      ifelse(check.na, sum(is.na(X)) == 0, TRUE))
+}
+
+##' Missing genotypes
+##'
+##' Calculate the frequency of missing genotypes for each SNP.
+##' @param X matrix of SNP genotypes encoded as allele doses in {0,1,2}, with individuals in rows and SNPs in columns
+##' @return vector
+##' @author Timothee Flutre
+##' @export
+calcFreqMissGenos <- function(X){
+  stopifnot(.isValidGenosDose(X, check.coln=FALSE, check.rown=FALSE,
+                              check.na=FALSE))
+  N <- nrow(X)
+  out <- apply(X, 2, function(x){sum(is.na(x)) / N})
+  return(out)
+}
+
 ##' Allele frequencies
 ##'
 ##' Estimate the frequency of the second allele for each SNP. Missing values should be encoded as NA in order to be ignored. Note that the "second" allele may not be the "minor" allele (the least frequent).
@@ -89,10 +118,9 @@ plotGridMissGenos <- function(x, main="Missing genotypes", xlab="Individuals",
 ##' @author Timothee Flutre
 ##' @export
 estimAf <- function(X){
-  stopifnot(is.matrix(X),
-            sum(X < 0, na.rm=TRUE) == 0,
-            sum(X > 2, na.rm=TRUE) == 0,
-            ! is.null(colnames(X)))
+  stopifnot(.isValidGenosDose(X, check.coln=FALSE, check.rown=FALSE,
+                              check.na=FALSE))
+
   N <- nrow(X)
   P <- ncol(X)
 
@@ -143,6 +171,8 @@ plotHistMinAllelFreq <- function(X=NULL, maf=NULL, main="", xlim=c(0,0.5),
   stopifnot(! is.null(X) || ! is.null(maf))
 
   if(! is.null(X) & is.null(maf)){
+    stopifnot(.isValidGenosDose(X, check.coln=FALSE, check.rown=FALSE,
+                                check.na=FALSE))
     N <- nrow(X)
     P <- ncol(X)
     if(verbose > 0){
@@ -162,10 +192,8 @@ plotHistMinAllelFreq <- function(X=NULL, maf=NULL, main="", xlim=c(0,0.5),
 ##' The format is specified in BimBam's manual http://www.haplotype.org/download/bimbam-manual.pdf#page=6
 ##' @param X matrix of SNP genotypes encoded as allele doses in {0,1,2}, with individuals in rows and SNPs in columns
 ##' @param tX matrix with SNPs in rows and individuals in columns
-##' @param alleles data.frame with SNPs in rows (names as row names) and
-##' alleles in columns (first is "minor", second is "major")
-##' @param file prints the genotype data to this file if non NULL (for instance
-##' 'genotypes_bimbam.txt' or gzfile('genotypes_bimbam.txt.gz'))
+##' @param alleles data.frame with SNPs in rows (names as row names) and alleles in columns (first is "minor", second is "major")
+##' @param file write the genotype data to this file if non NULL (for instance 'genotypes_bimbam.txt' or gzfile('genotypes_bimbam.txt.gz'))
 ##' @return data.frame
 ##' @author Timothee Flutre
 ##' @export
@@ -173,8 +201,10 @@ dose2bimbam <- function(X=NULL, tX=NULL, alleles, file=NULL){
     stopifnot(xor(is.null(X), is.null(tX)),
               ! is.null(row.names(alleles)),
               colnames(alleles) == c("minor","major"))
-    if(is.null(tX))
-        tX <- t(X)
+    if(! is.null(X)){
+      stopifnot(.isValidGenosDose(X, check.coln=FALSE, check.rown=FALSE))
+      tX <- t(X)
+    }
     tmp <- cbind(alleles, tX)
     if(! is.null(file))
         write.table(x=tmp, file=file, quote=FALSE, sep="\t", row.names=TRUE,
@@ -982,10 +1012,7 @@ distSnpPairs <- function(snp.pairs, snp.coords, nb.cores=1, verbose=0){
 ##' @export
 estimGenRel <- function(X, afs=NULL, thresh=0.01, relationships="additive",
                         method="vanraden1", theta=0.5, verbose=1){
-  stopifnot(is.matrix(X),
-            all(X >= 0), # to avoid {-1,0,1}
-            ! is.null(rownames(X)),
-            ! is.null(colnames(X)),
+  stopifnot(.isValidGenosDose(X),
             relationships %in% c("additive", "dominance", "gauss"))
   if(relationships == "additive")
     stopifnot(method %in% c("vanraden1", "habier", "astle-balding", "yang",
@@ -1128,9 +1155,7 @@ estimLd <- function(X, K=NULL, pops=NULL, snp.coords,
   if(use.ldcorsv & ! requireNamespace("LDcorSV", quietly=TRUE))
     stop("Pkg LDcorSV needed for this function to work. Please install it.",
          call.=FALSE)
-  stopifnot(is.matrix(X),
-            ! is.null(dimnames(X)),
-            sum(is.na(X)) == 0,
+  stopifnot(.isValidGenosDose(X),
             .isValidSnpCoords(snp.coords))
   if(! is.null(K))
     stopifnot(use.ldcorsv,
@@ -1712,12 +1737,12 @@ lmerAM <- function(formula, data, relmat, REML=TRUE, verbose=1){
 ##' Simulate phenotypes according to the BSLMM model.
 ##'
 ##' y = W alpha + Z X tilde{beta} + Z u + epsilon
-##' where y is N x 1; W is N x Q; Z is N x I; X is I x P
-##' tilde{beta}_p ~ pi Norm_1(0, sigma_beta^2/sigma^2) + (1 - pi) delta_0
+##' where y is N x 1; W is N x Q; alpha is Q x 1; Z is N x I; X is I x P; u is I x 1 and epsilon is N x 1
+##' for all p, tilde{beta}_p ~ pi Norm_1(0, sigma_betat^2/sigma^2) + (1 - pi) delta_0
 ##' u ~ Norm_I(0, (sigma_u^2/sigma^2) A)
 ##' epsilon ~ Norm_N(0, sigma^2 I)
 ##' See Zhou, Carbonetto & Stephens (2013).
-##' @param Q number of years
+##' @param Q number of years during which individuals are phenotyped (starting in 2010)
 ##' @param mu overall mean
 ##' @param mean.a mean of the prior on alpha[2:Q]
 ##' @param sd.a std dev of the prior on alpha[2:Q]
@@ -1725,6 +1750,7 @@ lmerAM <- function(formula, data, relmat, REML=TRUE, verbose=1){
 ##' @param pi proportion of beta-tilde values that are non-zero
 ##' @param h approximation to E[PVE] (h and rho should be NULL or not together)
 ##' @param rho approximation to E[PGE]
+##' @param tau precision of the errors (i.e. 1 / sigma^2)
 ##' @param perc.NA percentage of missing phenotypes, at random
 ##' @param err.df degrees of freedom of errors' Student's t-distribution
 ##' @param seed seed for the pseudo-random number generator
@@ -1733,7 +1759,7 @@ lmerAM <- function(formula, data, relmat, REML=TRUE, verbose=1){
 ##' @export
 simulBslmm <- function(Q=3, mu=50, mean.a=5, sd.a=2,
                        X, pi=NULL, h=NULL, rho=NULL,
-                       perc.NA=0, err.df=Inf,
+                       tau=1, perc.NA=0, err.df=Inf,
                        seed=NULL){
   if(! requireNamespace("MASS", quietly=TRUE))
     stop("Pkg MASS needed for this function to work. Please install it.",
@@ -1741,10 +1767,8 @@ simulBslmm <- function(Q=3, mu=50, mean.a=5, sd.a=2,
   ## if(! requireNamespace("Matrix", quietly=TRUE))
   ##   stop("Pkg Matrix needed for this function to work. Please install it.",
   ##        call.=FALSE)
-  stopifnot(xor(is.null(h) & is.null(rho), ! (is.null(h) & is.null(rho))),
-            sum(is.na(X)) == 0,
-            ! is.null(rownames(X)),
-            ! is.null(colnames(X)))
+  stopifnot(.isValidGenosDose(X),
+            xor(is.null(h) & is.null(rho), ! (is.null(h) & is.null(rho))))
   if(! is.null(seed))
     set.seed(seed)
 
@@ -1797,17 +1821,19 @@ simulBslmm <- function(Q=3, mu=50, mean.a=5, sd.a=2,
     h <- runif(n=1, min=0, max=1)
   if(is.null(rho))
     rho <- runif(n=1, min=0, max=1)
-  sigma.betat2 <- (h * rho) / ((1 - h) * P * pi * s.a)
+  sigma.betat2 <- (h * rho) / ((1 - h) * P * pi * s.a) # -> sigma_a^2 in paper
   if(is.nan(sigma.betat2))
     sigma.betat2 <- 0
-  sigma.u2 <- (h * (1 - rho)) / ((1 - h) * s.b)
-  tau <- 1
+  sigma.u2 <- (h * (1 - rho)) / ((1 - h) * s.b) # -> sigma_b^2 in paper
+  if(is.null(tau))
+    ## tau <- rgamma(n=1, shape=1, rate=0.5)
+    tau <- 1
 
   ## sparse genetic effects
   betat <- setNames(object=rep(0, P), nm=colnames(X))
   gamma <- setNames(object=rbinom(n=P, size=1, prob=pi), nm=colnames(X))
   betat[gamma == 1] <- rnorm(n=sum(gamma == 1), mean=0,
-            sd=sqrt(sigma.betat2 * tau^(-1)))
+                             sd=sqrt(sigma.betat2 * tau^(-1)))
 
   ## polygenic effects
   u <- setNames(object=MASS::mvrnorm(n=1, mu=rep(0, I),
@@ -1861,9 +1887,7 @@ gemma <- function(model="ulmm", y, X, snp.coords, alleles, K.c=NULL, W,
                   burnin=1000, nb.iters=7000, thin=10){
   stopifnot(model %in% c("ulmm", "bslmm"),
             is.vector(y),
-            is.matrix(X),
-            ! is.null(colnames(X)),
-            anyDuplicated(colnames(X)) == 0,
+            .isValidGenosDose(X, check.rown=FALSE),
             is.data.frame(snp.coords),
             ncol(snp.coords) == 3,
             ! is.null(row.names(alleles)),
@@ -1995,9 +2019,7 @@ gemma <- function(model="ulmm", y, X, snp.coords, alleles, K.c=NULL, W,
 gemmaUlmmPerChr <- function(y, X, snp.coords, alleles=NULL, chr.ids=NULL, W,
                             out.dir, task.id="", clean="none", verbose=1){
   stopifnot(is.vector(y),
-            is.matrix(X),
-            ! is.null(colnames(X)),
-            anyDuplicated(colnames(X)) == 0,
+            .isValidGenosDose(X, check.rown=FALSE),
             .isValidSnpCoords(snp.coords),
             all(rownames(snp.coords) %in% colnames(X)),
             all(colnames(X) %in% rownames(snp.coords)),
@@ -2070,9 +2092,7 @@ gemmaUlmmPerChr <- function(y, X, snp.coords, alleles=NULL, chr.ids=NULL, W,
 qtlrelPerChr <- function(y, X, snp.coords, chr.ids=NULL, W=NULL, Z=NULL,
                          verbose=0){
   stopifnot(is.vector(y),
-            is.matrix(X),
-            ! is.null(colnames(X)),
-            anyDuplicated(colnames(X)) == 0,
+            .isValidGenosDose(X, check.rown=FALSE),
             .isValidSnpCoords(snp.coords),
             all(rownames(snp.coords) %in% colnames(X)),
             all(colnames(X) %in% rownames(snp.coords)))

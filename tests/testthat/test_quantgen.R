@@ -1,6 +1,19 @@
 library(rutilstimflutre)
 context("Quantgen")
 
+test_that("calcFreqMissGenos", {
+  N <- 2 # individuals
+  P <- 4 # SNPs
+  X <- matrix(c(1,1, NA,NA, 2,1, 1,NA), nrow=N, ncol=P,
+              dimnames=list(paste0("ind", 1:N), paste0("snp", 1:P)))
+
+  expected <- setNames(c(0/2, 2/2, 0/2, 1/2), colnames(X))
+
+  observed <- calcFreqMissGenos(X)
+
+  expect_equal(observed, expected)
+})
+
 test_that("estimAf", {
   N <- 2 # individuals
   P <- 4 # SNPs
