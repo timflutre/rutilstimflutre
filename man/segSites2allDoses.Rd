@@ -11,7 +11,7 @@ segSites2allDoses(seg.sites, ind.ids = NULL, snp.ids = NULL)
 
 \item{ind.ids}{vector with the identifiers of the individuals}
 
-\item{snp.ids}{vector with the identifiers of the SNPs}
+\item{snp.ids}{vector with the identifiers of the SNPs (if NULL, the SNP identifiers from seg.sites will be used if they aren't NULL, too)}
 }
 \value{
 matrix with diploid individuals in rows and SNPs in columns

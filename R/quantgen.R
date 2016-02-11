@@ -245,7 +245,7 @@ coancestry2relmat <- function(x, estim.coancestry, estim.inbreeding=NULL,
 ##' SFS stands for site frequency spectrum
 ##' @param seg.sites list returned by scrm()
 ##' @param ind.ids vector with the identifiers of the individuals
-##' @param snp.ids vector with the identifiers of the SNPs
+##' @param snp.ids vector with the identifiers of the SNPs (if NULL, the SNP identifiers from seg.sites will be used if they aren't NULL, too)
 ##' @return matrix with diploid individuals in rows and SNPs in columns
 ##' @author Timothee Flutre
 ##' @export
@@ -266,8 +266,13 @@ segSites2allDoses <- function(seg.sites, ind.ids=NULL, snp.ids=NULL){
   X <- matrix(data=NA, nrow=nb.inds, ncol=nb.snps)
   if(! is.null(ind.ids))
     rownames(X) <- ind.ids
-  if(! is.null(snp.ids))
+  if(! is.null(snp.ids)){
     colnames(X) <- snp.ids
+  } else{
+    tmp <- do.call(c, lapply(seg.sites, colnames))
+    if(all(! is.null(tmp), length(tmp) == ncol(X)))
+      colnames(X) <- tmp
+  }
 
   j <- 1
   for(x in seq_along(seg.sites)){
