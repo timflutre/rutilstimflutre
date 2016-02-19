@@ -267,6 +267,34 @@ coancestry2relmat <- function(x, estim.coancestry, estim.inbreeding=NULL,
   return(mat)
 }
 
+##' Haplotype list to matrix
+##'
+##' Convert a list of haplotypes into a matrix.
+##' @param haplos list of matrices (one per chromosome, with individuals in rows and markers in columns)
+##' @return matrix
+##' @author Timothee Flutre
+##' @export
+haplosList2Matrix <- function(haplos){
+  stopifnot(is.list(haplos),
+            all(sapply(haplos, class) == "matrix"))
+
+  nb.chroms <- length(haplos)
+  nb.haplos <- nrow(haplos[[1]]) # 2 x nb of individuals
+  nb.snps <- sapply(haplos, ncol)
+  P <- sum(nb.snps) # nb of SNPs
+
+  H <- matrix(data=NA, nrow=nb.haplos, ncol=P,
+              dimnames=list(rownames(haplos[[1]]),
+                            do.call(c, lapply(haplos, colnames))))
+  names(colnames(H)) <- NULL # remove "chr" names
+
+  H[, 1:nb.snps[1]] <- haplos[[1]]
+  for(chr in 2:nb.chroms)
+    H[, (cumsum(nb.snps)[chr-1]+1):(cumsum(nb.snps)[chr])] <- haplos[[chr]]
+
+  return(H)
+}
+
 ##' Convert the SFS of independent replicates into a matrix of allele dosage.
 ##'
 ##' SFS stands for site frequency spectrum
