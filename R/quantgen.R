@@ -388,8 +388,8 @@ segSites2snpCoords <- function(seg.sites, snp.ids, chrom.len, prefix="chr"){
 ##' @param pop.recomb.rate rho = 4 N0 r
 ##' @param chrom.len in bp
 ##' @param other character vector of length 1 with other parameters to the simulator (e.g. time-specific parameters such as "-G 6.93 -eG 0.2 0.0 -eN 0.3 0.5")
-##' @param nb.pops number of populations
-##' @param mig.rate migration rate = 4 N0 m (symmetric)
+##' @param nb.pops number of populations (\code{\link{kmeans}} will then be used to pair haplotypes into diploid individuals)
+##' @param mig.rate migration rate = 4 N0 m (will be symmetric)
 ##' @param get.trees get gene genealogies in the Newick format
 ##' @param get.tmrca get time to most recent common ancestor and local tree lengths
 ##' @param verbose verbosity level (default=0=nothing, 1=few, 2=more)
@@ -465,19 +465,27 @@ simulCoalescent <- function(nb.inds=100,
   out[["snp.coords"]] <- snp.coords
 
   ## randomize haplotypes to make diploid individuals, and set names
-  tmp.idx <- sample.int(nb.samples)
-  for(c in 1:nb.reps){
-    sum.stats$seg_sites[[c]] <- sum.stats$seg_sites[[c]][tmp.idx,]
-    colnames(sum.stats$seg_sites[[c]]) <-
-      snp.ids[(ifelse(c == 1, 1, 1 + cumsum(nb.snps.per.chr)[c-1])):
-                (cumsum(nb.snps.per.chr)[c])]
-    rownames(sum.stats$seg_sites[[c]]) <-
-      paste0(rep(ind.ids, each=2), rep(c("_h1", "_h2"), nb.inds))
+  out[["haplos"]] <- list()
+  idx <- sample.int(nb.samples)
+  if(nb.pops > 1){
+    H <- haplosList2Matrix(sum.stats$seg_sites)
+    kmH <- kmeans(H, nb.pops)
   }
-  out[["haplos"]] <- sum.stats$seg_sites
+  for(chr in 1:nb.reps){
+    if(nb.pops > 1)
+      idx <- do.call(c, lapply(1:nb.pops, function(pop.idx){
+        sample(x=which(kmH$cluster == pop.idx),
+               sum(kmH$cluster == pop.idx))
+      }))
+    out$haplos[[chr]] <- sum.stats$seg_sites[[chr]][idx,]
+    rownames(out$haplos[[chr]]) <- paste0(rep(ind.ids, each=2), "_h", 1:2)
+    colnames(out$haplos[[chr]]) <-
+      snp.ids[(ifelse(chr == 1, 1, 1 + cumsum(nb.snps.per.chr)[chr-1])):
+      (cumsum(nb.snps.per.chr)[chr])]
+  }
 
   ## make a matrix with genotypes encoded as allele dose
-  X <- segSites2allDoses(sum.stats$seg_sites, ind.ids, snp.ids)
+  X <- segSites2allDoses(out$haplos, ind.ids, snp.ids)
   if(verbose > 0){
     txt <- paste0("nb of SNPs: ", nb.snps)
     write(txt, stdout())

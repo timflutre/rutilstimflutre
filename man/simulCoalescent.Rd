@@ -24,9 +24,9 @@ simulCoalescent(nb.inds = 100, ind.ids = NULL, nb.reps = 20,
 
 \item{other}{character vector of length 1 with other parameters to the simulator (e.g. time-specific parameters such as "-G 6.93 -eG 0.2 0.0 -eN 0.3 0.5")}
 
-\item{nb.pops}{number of populations}
+\item{nb.pops}{number of populations (\code{\link{kmeans}} will then be used to pair haplotypes into diploid individuals)}
 
-\item{mig.rate}{migration rate = 4 N0 m (symmetric)}
+\item{mig.rate}{migration rate = 4 N0 m (will be symmetric)}
 
 \item{get.trees}{get gene genealogies in the Newick format}
 
