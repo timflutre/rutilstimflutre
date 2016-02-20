@@ -483,6 +483,7 @@ simulCoalescent <- function(nb.inds=100,
       snp.ids[(ifelse(chr == 1, 1, 1 + cumsum(nb.snps.per.chr)[chr-1])):
       (cumsum(nb.snps.per.chr)[chr])]
   }
+  names(out$haplos) <- names(sum.stats$seg_sites)
 
   ## make a matrix with genotypes encoded as allele dose
   X <- segSites2allDoses(out$haplos, ind.ids, snp.ids)
