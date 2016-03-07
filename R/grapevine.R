@@ -65,16 +65,18 @@ plotMapSxGDomaineChapitre <- function(map,
       if(main == "default")
         main <- paste0("Carte du croisement r\u00E9ciproque Syrah x Grenache (INRA)",
                        "\nDomaine du Chapitre, Villeneuve-l\u00E8s-Maguelone, France")
-    xlab <- "rangs"
-    ylab <- "placette"
+    xlab <- "Rangs"
+    ylab <- "Placettes"
   } else if(lang == "EN"){
     if(! is.null(main))
       if(main == "default")
         main <- paste0("Map of the reciprocal cross Syrah x Grenache (INRA)",
                        "\nDomaine du Chapitre, Villeneuve-l\u00E8s-Maguelone, France")
-    xlab <- "ranks"
-    ylab <- "locations"
+    xlab <- "Ranks"
+    ylab <- "Locations"
   }
+  xlab <- paste0(xlab, " (", length(unique(map$rank)), ")")
+  ylab <- paste0(ylab, " (", length(unique(map$location)), ")")
   plot(0, type="n", axes=FALSE, xlim=c(range.x[1], range.x[2]+x.off), ylim=range.y,
        main=NULL, xlab=xlab, ylab=ylab)
   if(! is.null(main))
