@@ -5,28 +5,52 @@
 \title{QTLRel per chromosome}
 \usage{
 qtlrelPerChr(y, X, snp.coords, chr.ids = NULL, W = NULL, Z = NULL,
-  verbose = 0)
+  method.A = "vanraden1", verbose = 0)
 }
 \arguments{
-\item{y}{vector of phenotypes}
+\item{y}{vector or one-column matrix of phenotypes (the order is important and should be in agreement with the other arguments X, W and Z)}
 
 \item{X}{matrix of SNP genotypes encoded as allele doses in {0,1,2}, with individuals in rows and SNPs in columns}
 
-\item{snp.coords}{data.frame with SNP identifiers as row names, and two columns, "chr" and "coord" or "pos"}
+\item{snp.coords}{data.frame with SNP identifiers as row names and two columns named "chr" and "coord" (or "pos")}
 
-\item{chr.ids}{set of chromosome identifiers to analyze (optional, all by default)}
+\item{chr.ids}{set of chromosome identifiers to analyze (if NULL, the regular QTLRel procedure is used, i.e. all chromosomes are used to estimate the variance components)}
 
-\item{W}{incidence matrix of covariates (should not contain the column of 1's for the intercept)}
+\item{W}{incidence matrix of covariates (should not contain the column of 1's for the intercept; use \code{\link{model.matrix}} if necessary)}
 
-\item{Z}{incidence matrix relating phenotypes to individuals (if nrow(y) and nrow(X) are different; diagonal otherwise)}
+\item{Z}{incidence matrix relating phenotypes to individuals (if nrow(y) and nrow(X) are different, diagonal otherwise; use \code{\link{model.matrix}} if necessary)}
+
+\item{method.A}{method to estimate the additive relationships (see \code{\link{estimGenRel}})}
 
 \item{verbose}{verbosity level (default=1)}
 }
 \value{
-a list with two data.frames as components, vc and scan
+a list with three data.frames as components, variance.components, fixed.effects and scan
 }
 \description{
-For each SNP p, the likelihood is y = W alpha + Z x_p beta_p + Z u + epsilon where all x_p are columns of X, and one want to test the null hypothesis "beta = 0". See Cheng et al (BMC Genetics, 2011).
+Given I individuals, P SNPs, Q covariates (e.g. replicates) and N=I*Q phenotypes, the whole likelihood is: y = W alpha + Z X beta + epsilon, where y is Nx1, W is NxQ, Z is NxI, X is IxP and u = X beta.
+The QTLRel package (Cheng et al, BMC Genetics, 2011) decomposes the inference into an \emph{ad hoc} procedure of two steps.
+First, the variance components and fixed effects are estimated (y = W alpha + Z u + epsilon), second the allele effects are tested SNP per SNP (y = Z x_p beta_p + epsilon).
+As the SNPs can be in linkage disequilibrium, it is advised (Yang et al, Nature Genetics, 2014) to perform the procedure chromosome per chromosome, which is the goal of this function; but I advise to also run it with chr.ids=NULL.
+}
+\examples{
+I <- 50
+P <- 500
+Q <- 3
+N <- Q * I
+dat <- data.frame(ind=as.factor(rep(paste0("ind", 1:I), times=Q)),
+                  year=as.factor(rep(paste0(2003:(2003+Q-1)), each=I)))
+W <- model.matrix(~ year, dat)
+alpha <- rnorm(n=Q, mean=50, sd=30)
+X <- matrix(sample(0:2, size=I*P, replace=TRUE), nrow=I, ncol=P,
+            dimnames=list(dat$ind[1:I], paste0("snp", 1:P)))
+beta <- rnorm(n=P, mean=0, sd=2)
+Z <- model.matrix(~ ind - 1, dat)
+dat$response <- as.vector(W \%*\% alpha + Z \%*\% X \%*\% beta + rnorm(N))
+snp.coords <- data.frame(chr=sample(paste0("chr",1:10), P, TRUE),
+                         coord=sample.int(10^6, P))
+rownames(snp.coords) <- colnames(X)
+res <- qtlrelPerChr(dat$response, X, snp.coords, "chr1", W=W[,-1], Z=Z)
 }
 \author{
 Timothee Flutre

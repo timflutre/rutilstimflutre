@@ -2115,21 +2115,45 @@ gemmaUlmmPerChr <- function(y, X, snp.coords, alleles=NULL, chr.ids=NULL, W,
 
 ##' QTLRel per chromosome
 ##'
-##' For each SNP p, the likelihood is y = W alpha + Z x_p beta_p + Z u + epsilon where all x_p are columns of X, and one want to test the null hypothesis "beta = 0". See Cheng et al (BMC Genetics, 2011).
-##' @param y vector of phenotypes
+##' Given I individuals, P SNPs, Q covariates (e.g. replicates) and N=I*Q phenotypes, the whole likelihood is: y = W alpha + Z X beta + epsilon, where y is Nx1, W is NxQ, Z is NxI, X is IxP and u = X beta.
+##' The QTLRel package (Cheng et al, BMC Genetics, 2011) decomposes the inference into an \emph{ad hoc} procedure of two steps.
+##' First, the variance components and fixed effects are estimated (y = W alpha + Z u + epsilon), second the allele effects are tested SNP per SNP (y = Z x_p beta_p + epsilon).
+##' As the SNPs can be in linkage disequilibrium, it is advised (Yang et al, Nature Genetics, 2014) to perform the procedure chromosome per chromosome, which is the goal of this function; but I advise to also run it with chr.ids=NULL.
+##' @param y vector or one-column matrix of phenotypes (the order is important and should be in agreement with the other arguments X, W and Z)
 ##' @param X matrix of SNP genotypes encoded as allele doses in {0,1,2}, with individuals in rows and SNPs in columns
-##' @param snp.coords data.frame with SNP identifiers as row names, and two columns, "chr" and "coord" or "pos"
-##' @param chr.ids set of chromosome identifiers to analyze (optional, all by default)
-##' @param W incidence matrix of covariates (should not contain the column of 1's for the intercept)
-##' @param Z incidence matrix relating phenotypes to individuals (if nrow(y) and nrow(X) are different; diagonal otherwise)
+##' @param snp.coords data.frame with SNP identifiers as row names and two columns named "chr" and "coord" (or "pos")
+##' @param chr.ids set of chromosome identifiers to analyze (if NULL, the regular QTLRel procedure is used, i.e. all chromosomes are used to estimate the variance components)
+##' @param W incidence matrix of covariates (should not contain the column of 1's for the intercept; use \code{\link{model.matrix}} if necessary)
+##' @param Z incidence matrix relating phenotypes to individuals (if nrow(y) and nrow(X) are different, diagonal otherwise; use \code{\link{model.matrix}} if necessary)
+##' @param method.A method to estimate the additive relationships (see \code{\link{estimGenRel}})
 ##' @param verbose verbosity level (default=1)
-##' @return a list with two data.frames as components, vc and scan
+##' @return a list with three data.frames as components, variance.components, fixed.effects and scan
 ##' @author Timothee Flutre
+##' @examples
+##' I <- 50
+##' P <- 500
+##' Q <- 3
+##' N <- Q * I
+##' dat <- data.frame(ind=as.factor(rep(paste0("ind", 1:I), times=Q)),
+##'                   year=as.factor(rep(paste0(2003:(2003+Q-1)), each=I)))
+##' W <- model.matrix(~ year, dat)
+##' alpha <- rnorm(n=Q, mean=50, sd=30)
+##' X <- matrix(sample(0:2, size=I*P, replace=TRUE), nrow=I, ncol=P,
+##'             dimnames=list(dat$ind[1:I], paste0("snp", 1:P)))
+##' beta <- rnorm(n=P, mean=0, sd=2)
+##' Z <- model.matrix(~ ind - 1, dat)
+##' dat$response <- as.vector(W %*% alpha + Z %*% X %*% beta + rnorm(N))
+##' snp.coords <- data.frame(chr=sample(paste0("chr",1:10), P, TRUE),
+##'                          coord=sample.int(10^6, P))
+##' rownames(snp.coords) <- colnames(X)
+##' res <- qtlrelPerChr(dat$response, X, snp.coords, "chr1", W=W[,-1], Z=Z)
 ##' @export
 qtlrelPerChr <- function(y, X, snp.coords, chr.ids=NULL, W=NULL, Z=NULL,
-                         verbose=0){
-  stopifnot(is.vector(y),
-            .isValidGenosDose(X, check.rown=FALSE),
+                         method.A="vanraden1", verbose=0){
+  if(is.matrix(y))
+    stopifnot(ncol(y) == 1)
+  y <- as.vector(y)
+  stopifnot(.isValidGenosDose(X, check.rown=FALSE),
             .isValidSnpCoords(snp.coords),
             all(rownames(snp.coords) %in% colnames(X)),
             all(colnames(X) %in% rownames(snp.coords)))
@@ -2147,59 +2171,136 @@ qtlrelPerChr <- function(y, X, snp.coords, chr.ids=NULL, W=NULL, Z=NULL,
     Z <- diag(length(y))
   }
 
-  out <- list(vc=list(),
-              scan=list())
+  out <- list()
 
   if(! "coord" %in% colnames(snp.coords))
     colnames(snp.coords)[colnames(snp.coords) == "pos"] <- "coord"
+  snp.coords$chr <- as.character(snp.coords$chr)
+  X <- X[, rownames(snp.coords)]
 
-  if(is.null(chr.ids))
-    chr.ids <- sort(unique(as.character(snp.coords$chr)))
-
-  for(chr.id in chr.ids){
-    subset.snp.ids <- (snp.coords$chr == chr.id)
-    if(verbose > 0)
-      message(paste0(chr.id, ": ", sum(subset.snp.ids), " SNPs"))
-    K.c <- estimGenRel(X=X[, ! subset.snp.ids], method="zhou")
+  ## infer with all chromosomes together
+  if(is.null(chr.ids)){
+    if(verbose > 0){
+      msg <- paste0("estimate additive genetic relationships (", ncol(X),
+                    " SNPs, method=", method.A, ") ...")
+      write(msg, stdout())
+    }
+    A.mark <- estimGenRel(X=X, relationships="additive", method=method.A,
+                          verbose=verbose - 1)
     if(is.null(W)){
+      if(verbose > 0)
+        write("estimate variance components ...", stdout())
       vc <- QTLRel::estVC(y=y,
-                          v=list(AA=Z %*% K.c %*% t(Z), DD=NULL, HH=NULL,
+                          v=list(AA=Z %*% A.mark %*% t(Z), DD=NULL, HH=NULL,
                                  AD=NULL, MH=NULL, EE=diag(length(y))))
+      if(verbose > 0){
+        msg <- paste0("test alleles' effect (", ncol(X), " SNPs) ...")
+        write(msg, stdout())
+      }
       scan <- QTLRel::scanOne(y=y,
-                              gdat=Z %*% (X[, subset.snp.ids] - 1),
+                              gdat=Z %*% (X - 1),
                               vc=vc,
                               test="F",
                               numGeno=TRUE)
     } else{
+      if(verbose > 0)
+        write("estimate variance components ...", stdout())
       vc <- QTLRel::estVC(y=y,
                           x=W,
-                          v=list(AA=Z %*% K.c %*% t(Z), DD=NULL, HH=NULL,
+                          v=list(AA=Z %*% A.mark %*% t(Z), DD=NULL, HH=NULL,
                                  AD=NULL, MH=NULL, EE=diag(length(y))))
+      if(verbose > 0){
+        msg <- paste0("test alleles' effect (", ncol(X), " SNPs) ...")
+        write(msg, stdout())
+      }
       scan <- QTLRel::scanOne(y=y,
                               x=W,
-                              gdat=Z %*% (X[, subset.snp.ids] - 1),
+                              gdat=Z %*% (X - 1),
                               vc=vc,
                               test="F",
                               numGeno=TRUE)
     }
-    out$vc[[chr.id]] <- vc$par
-    out$scan[[chr.id]] <- data.frame(snp=names(scan$p),
-                                     chr=chr.id,
-                                     coord=snp.coords$coord[subset.snp.ids],
-                                     pvalue=scan$p,
-                                     pve=scan$v / 100,
-                                     stringsAsFactors=FALSE)
-    out$scan[[chr.id]] <- cbind(out$scan[[chr.id]],
-                                do.call(rbind, scan$parameters))
-    colnames(out$scan[[chr.id]])[(ncol(out$scan[[chr.id]]) -
-                                  length(scan$parameters[[1]]) + 1):
-                                 ncol(out$scan[[chr.id]])] <-
-      paste0("coef", 1:length(scan$parameters[[1]]))
-  }
-  out$vc <- do.call(rbind, out$vc)
-  rownames(out$vc) <- chr.ids
-  out$scan <- do.call(rbind, out$scan)
-  rownames(out$scan) <- out$scan$snp
+    out$variance.components <- vc$par[c("AA", "EE")]
+    out$fixed.effects <- vc$par[1:(length(vc$par)-2)]
+    out$scan <- data.frame(chr=snp.coords$chr,
+                           coord=snp.coords$coord,
+                           pvalue=scan$p,
+                           pve=scan$v / 100,
+                           stringsAsFactors=FALSE)
+    out$scan <- cbind(out$scan,
+                      do.call(rbind, scan$parameters))
+    rownames(out$scan) <- names(scan$p)
+  } else{ ## infer chromosome per chromosome
+    stopifnot(all(chr.ids %in% unique(snp.coords$chr)))
+    for(chr.id in chr.ids){
+      subset.snp.ids <- (snp.coords$chr == chr.id)
+      if(verbose > 0)
+        message(paste0(chr.id, ": ", sum(subset.snp.ids), " SNPs"))
+      if(verbose > 0){
+        msg <- paste0("estimate additive genetic relationships (",
+                      ncol(X[, ! subset.snp.ids]), " SNPs, method=",
+                      method.A, ") ...")
+        write(msg, stdout())
+      }
+      A.mark <- estimGenRel(X=X[, ! subset.snp.ids], relationships="additive",
+                            method=method.A, verbose=verbose - 1)
+      if(is.null(W)){
+        if(verbose > 0)
+          write("estimate variance components ...", stdout())
+        vc <- QTLRel::estVC(y=y,
+                            v=list(AA=Z %*% A.mark %*% t(Z), DD=NULL, HH=NULL,
+                                   AD=NULL, MH=NULL, EE=diag(length(y))))
+        if(verbose > 0){
+          msg <- paste0("test alleles' effect (", ncol(X[, subset.snp.ids]),
+                        " SNPs) ...")
+          write(msg, stdout())
+        }
+        scan <- QTLRel::scanOne(y=y,
+                                gdat=Z %*% (X[, subset.snp.ids] - 1),
+                                vc=vc,
+                                test="F",
+                                numGeno=TRUE)
+      } else{
+        if(verbose > 0)
+          write("estimate variance components ...", stdout())
+        vc <- QTLRel::estVC(y=y,
+                            x=W,
+                            v=list(AA=Z %*% A.mark %*% t(Z), DD=NULL, HH=NULL,
+                                   AD=NULL, MH=NULL, EE=diag(length(y))))
+        if(verbose > 0){
+          msg <- paste0("test alleles' effect (", ncol(X[, subset.snp.ids]),
+                        " SNPs) ...")
+          write(msg, stdout())
+        }
+        scan <- QTLRel::scanOne(y=y,
+                                x=W,
+                                gdat=Z %*% (X[, subset.snp.ids] - 1),
+                                vc=vc,
+                                test="F",
+                                numGeno=TRUE)
+      }
+      out$variance.components[[chr.id]] <- vc$par[c("AA", "EE")]
+      out$fixed.effects[[chr.id]] <- vc$par[1:(length(vc$par)-2)]
+      out$scan[[chr.id]] <- data.frame(snp=names(scan$p),
+                                       chr=chr.id,
+                                       coord=snp.coords$coord[subset.snp.ids],
+                                       pvalue=scan$p,
+                                       pve=scan$v / 100,
+                                       stringsAsFactors=FALSE)
+      out$scan[[chr.id]] <- cbind(out$scan[[chr.id]],
+                                  do.call(rbind, scan$parameters))
+      colnames(out$scan[[chr.id]])[(ncol(out$scan[[chr.id]]) -
+                                    length(scan$parameters[[1]]) + 1):
+                                   ncol(out$scan[[chr.id]])] <-
+        paste0("coef", 1:length(scan$parameters[[1]]))
+    } # end of for loop over chromosomes
+    out$variance.components <- do.call(rbind, out$variance.components)
+    rownames(out$variance.components) <- chr.ids
+    out$fixed.effects <- do.call(rbind, out$fixed.effects)
+    rownames(out$fixed.effects) <- chr.ids
+    out$scan <- do.call(rbind, out$scan)
+    rownames(out$scan) <- out$scan$snp
+  } # end of chromosome-by-chromosome inference
 
   return(out)
 }
