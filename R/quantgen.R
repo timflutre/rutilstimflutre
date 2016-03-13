@@ -2204,24 +2204,16 @@ qtlrelPerChr <- function(y, X, snp.coords, chr.ids=NULL, W=NULL, Z=NULL,
   return(out)
 }
 
-##' Produce a quantile-quantile plot for p values and display its confidence
-##' interval
+##' Q-Q plot for p values
 ##'
-##' A quantile is an order statistic, and the j-th order statistic from a
-##' Uniform(0,1) sample has a Beta(j,N-j+1) distribution (Casella & Berger,
-##' 2001, 2nd edition, p230).
-##' Let us assume we have N independent p values, \eqn{\{p_1,\ldots,p_N\}}, for
-##' instance: pvalues <- c(runif(99000,0,1), rbeta(1000,0.5,1)). Under the
-##' null, they are independent and identically uniformly distributed:
-##' \eqn{\forall i \; p_i \sim \mathcal{U}_{[0,1]}}.
-##' Therefore, the 95% confidence interval for the j-th quantile of the set
-##' of p values can be calculated with: qbeta(0.95, j, N-j+1).
-##' TODO: look at this https://github.com/stephenturner/qqman/blob/v0.0.0/qqman.r
-##' @param pvalues vector of raw p values
+##' Produce a quantile-quantile plot for p values and display its confidence interval.
+##' A quantile is an order statistic, and the j-th order statistic from a Uniform(0,1) sample has a Beta(j,N-j+1) distribution (Casella & Berger, 2001, 2nd edition, p230). Let us assume we have N independent p values, \eqn{\{p_1,\ldots,p_N\}}, for instance: pvalues <- c(runif(99000,0,1), rbeta(1000,0.5,1)). Under the null, they are independent and identically uniformly distributed: \eqn{\forall i \; p_i \sim \mathcal{U}_{[0,1]}}. Therefore, the 95% confidence interval for the j-th quantile of the set of p values can be calculated with: qbeta(0.95, j, N-j+1).
+##' See also the qqman package.
+##' @param pvalues vector of raw p values (missing values will be omitted)
 ##' @param plot.conf.int show the confidence interval (default=TRUE)
 ##' @param xlab a title for the x axis (see default)
 ##' @param ylab a title for the x axis (see default)
-##' @param main an overall title for the plot (default: "Q-Q plot (<length(pvalues)> p-values)")
+##' @param main an overall title for the plot (default: "Q-Q plot (<length(pvalues)> p values)")
 ##' @param col plotting color for the points (default is all points in black)
 ##' @param ... graphical parameters other than xlim, ylim, xlab, ylab, las and col
 ##' @author Timothee Flutre (inspired from an anonymous comment to http://gettinggeneticsdone.blogspot.fr/2009/11/qq-plots-of-p-values-in-r-using-ggplot2.html)
@@ -2230,6 +2222,11 @@ qqplotPval <- function(pvalues, plot.conf.int=TRUE,
                        xlab=expression(Expected~~-log[10](italic(p)~values)),
                        ylab=expression(Observed~~-log[10](italic(p)~values)),
                        main=NULL, col=NULL){
+  stopifnot(is.vector(pvalues))
+
+  if(any(is.na(pvalues)))
+    pvalues <- pvalues[! is.na(pvalues)]
+
   N <- length(pvalues)
   expected <- - log10(1:N / N)
   observed <- - log10(pvalues)
@@ -2253,7 +2250,7 @@ qqplotPval <- function(pvalues, plot.conf.int=TRUE,
   }
 
   if(is.null(main))
-    main <- paste0("Q-Q plot (", N, " p-values)")
+    main <- paste0("Q-Q plot (", N, " p values)")
 
   if(is.null(col)){
     col <- rep(1, N)
