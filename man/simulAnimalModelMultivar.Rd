@@ -4,36 +4,39 @@
 \alias{simulAnimalModelMultivar}
 \title{Animal model}
 \usage{
-simulAnimalModelMultivar(T = 2, Q = 3, mu = rep(50, T), mean.a = 5,
-  sd.a = 2, A.U, lambda = 3, V.U = NULL, scale.halfCauchy = NULL,
-  nu.V.U = T, nu.V.E = T, perc.NA = 0, err.df = Inf, seed = NULL)
+simulAnimalModelMultivar(T = 1, Q = 3, mu = rep(50, T), mean.a = 5,
+  sd.a = 2, A, scale.halfCauchy = NULL, sigma.a2 = NULL, V.G.a = NULL,
+  nu.V.G.a = T, V.E = NULL, nu.V.E = T, err.df = Inf, perc.NA = 0,
+  seed = NULL)
 }
 \arguments{
 \item{T}{number of traits}
 
-\item{Q}{number of years}
+\item{Q}{number of covariates (as "fixed effects", e.g. replicates)}
 
-\item{mu}{vector of overall means (one per trait), i.e. A[1,1:T]}
+\item{mu}{T-vector of overall means (one per trait), i.e. Alpha[1,1:T]}
 
-\item{mean.a}{mean of the Normal prior on A[2:Q,1:T]}
+\item{mean.a}{mean of the Normal prior on Alpha[2:Q,1:T] (ignored if Q=1)}
 
-\item{sd.a}{std dev of the Normal prior on A[2:Q,1:T]}
+\item{sd.a}{std dev of the Normal prior on Alpha[2:Q,1:T] (ignored if Q=1)}
 
-\item{A.U}{matrix of additive genetic relationships (e.g. see \code{\link{estimGenRel}} with VanRaden's estimator)}
+\item{A}{IxI matrix of additive genetic relationships between individuals (e.g. see \code{\link{estimGenRel}} with VanRaden's estimator)}
 
-\item{lambda}{ratio of variance components V_u^2 / V_E^2 (ignored if T > 1)}
+\item{scale.halfCauchy}{scale of the half-Cauchy prior for sigma_a and sqrt{V_E} (e.g. 5; used if sigma.a2=NULL, whatever the value of T; used if V.E=NULL when T=1)}
 
-\item{V.U}{variance component for the additive genetic relationships}
+\item{sigma.a2}{variance component of the additive genetic relationships (e.g. 15)}
 
-\item{scale.halfCauchy}{scale of the half-Cauchy prior for sqrt(V_U), e.g. 5 (ignored if T > 1)}
+\item{V.G.a}{TxT matrix of genetic variance-covariance between traits (ignored if T=1)}
 
-\item{nu.V.U}{degrees of freedom of the Wishart prior for V_U (ignored if T = 1)}
+\item{nu.V.G.a}{degrees of freedom of the Wishart prior for V_{G_a} (ignored if T=1 or V.G.a!=NULL)}
 
-\item{nu.V.E}{degrees of freedom of the Wishart prior for V_E (ignored if T = 1)}
+\item{V.E}{TxT matrix of error variance-covariance between traits (ignored if T=1 and err.df!=Inf)}
+
+\item{nu.V.E}{degrees of freedom of the Wishart prior for V_E (ignored if T=1 or V.E!=NULL)}
+
+\item{err.df}{degrees of freedom of the Student's t-distribution of the errors (e.g. 3; Inf means Normal distribution; will be Inf if T>1)}
 
 \item{perc.NA}{percentage of missing phenotypes, at random}
-
-\item{err.df}{degrees of freedom of the Student's t-distribution of the errors (ignored if T > 1)}
 
 \item{seed}{seed for the pseudo-random number generator}
 }
@@ -41,11 +44,29 @@ simulAnimalModelMultivar(T = 2, Q = 3, mu = rep(50, T), mean.a = 5,
 list
 }
 \description{
-Simulate phenotypes from a basic, multivariate "animal model".
-Y = W A + Z U + E
-where Y is N x T; W is N x Q; Z is N x I
-U ~ Norm_IxT(M_U=0, U_U=A_U, V_U) with unconstrained V_U
-E ~ Norm_NxT(M_E=0, U_E=I_N, V_E) with V_E = sigma_E^2 x Id_T
+Given T traits, I individuals, Q covariates and N=I*Q phenotypes per trait, simulate phenotypes via the following "animal model": Y = W Alpha + Z G_a + E, where Y is N x T; W is N x Q; Z is N x I; G_a ~ Normal_IxT(M_{G_a}=0, U_{G_a}=sigma_a^2 A, V_{G_a}) with unconstrained V_{G_a}; E ~ Normal_NxT(M_E=0, U_E=Id_N, V_E).
+}
+\examples{
+I <- 50 # individuals
+P <- 1000 # SNPs
+X <- matrix(sample(0:2, size=I*P, replace=TRUE), nrow=I, ncol=P,
+            dimnames=list(paste0("ind", 1:I), paste0("snp", 1:P)))
+A.vr <- estimGenRel(X, relationships="additive", method="vanraden1", verbose=0)
+
+# one trait with heritability h2=0.75, no covariate, Normal errors, no NA
+model <- simulAnimalModelMultivar(T=1, Q=1, A=A.vr, sigma.a2=15, V.E=5)
+
+# one trait with heritability h2=0.75, three covariates, Normal errors, no NA
+model <- simulAnimalModelMultivar(T=1, Q=3, A=A.vr, sigma.a2=15, V.E=5)
+
+# one trait with heritability h2=0.75, no covariate, Student errors, no NA
+model <- simulAnimalModelMultivar(T=1, Q=1, A=A.vr, sigma.a2=15, err.df=3)
+
+# one trait with heritability drawn at random, no covariate, Normal errors, no NA
+model <- simulAnimalModelMultivar(T=1, Q=1, A=A.vr, scale.halfCauchy=5)
+
+# two traits with heritabilities drawn at random, no covariate, Normal errors, no NA
+model <- simulAnimalModelMultivar(T=2, Q=1, A=A.vr, scale.halfCauchy=5, nu.V.E=3)
 }
 \author{
 Timothee Flutre
