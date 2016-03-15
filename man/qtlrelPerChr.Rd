@@ -4,8 +4,8 @@
 \alias{qtlrelPerChr}
 \title{QTLRel per chromosome}
 \usage{
-qtlrelPerChr(y, X, snp.coords, chr.ids = NULL, W = NULL, Z = NULL,
-  method.A = "vanraden1", verbose = 0)
+qtlrelPerChr(y, X, snp.coords, thresh = 0.01, chr.ids = NULL, W = NULL,
+  Z = NULL, method.A = "vanraden1", verbose = 0)
 }
 \arguments{
 \item{y}{vector or one-column matrix of phenotypes (the order is important and should be in agreement with the other arguments X, W and Z)}
@@ -14,7 +14,9 @@ qtlrelPerChr(y, X, snp.coords, chr.ids = NULL, W = NULL, Z = NULL,
 
 \item{snp.coords}{data.frame with SNP identifiers as row names and two columns named "chr" and "coord" (or "pos")}
 
-\item{chr.ids}{set of chromosome identifiers to analyze (if NULL, the regular QTLRel procedure is used, i.e. all chromosomes are used to estimate the variance components)}
+\item{thresh}{threshold on minor allele frequencies below which SNPs are ignored via \code{\link{discardSnpsLowMaf}} (default=0.01, NULL to skip this step)}
+
+\item{chr.ids}{vector of chromosome identifiers to analyze (if NULL, the regular QTLRel procedure is launched, i.e. all chromosomes are used to estimate the variance components)}
 
 \item{W}{incidence matrix of covariates (should not contain the column of 1's for the intercept; use \code{\link{model.matrix}} if necessary)}
 
@@ -30,12 +32,14 @@ a list with three data.frames as components, variance.components, fixed.effects 
 \description{
 Given I individuals, P SNPs, Q covariates (e.g. replicates) and N=I*Q phenotypes, the whole likelihood is: y = W alpha + Z X beta + epsilon, where y is Nx1, W is NxQ, Z is NxI, X is IxP and u = X beta.
 The QTLRel package (Cheng et al, BMC Genetics, 2011) decomposes the inference into an \emph{ad hoc} procedure of two steps.
-First, the variance components and fixed effects are estimated (y = W alpha + Z u + epsilon), second the allele effects are tested SNP per SNP (y = Z x_p beta_p + epsilon).
+First, the variance components and fixed effects are estimated: y = W alpha + Z u + epsilon.
+Second the allele effects are tested SNP per SNP: for all p in {1,..,P}, y = W alpha + Z x_p beta_p + Z u + epsilon, using the fixed effects and variance components estimated in the first step.
 As the SNPs can be in linkage disequilibrium, it is advised (Yang et al, Nature Genetics, 2014) to perform the procedure chromosome per chromosome, which is the goal of this function; but I advise to also run it with chr.ids=NULL.
 }
 \examples{
-I <- 50
-P <- 500
+set.seed(1859)
+I <- 100
+P <- 2000
 Q <- 3
 N <- Q * I
 dat <- data.frame(ind=as.factor(rep(paste0("ind", 1:I), times=Q)),
@@ -50,7 +54,9 @@ dat$response <- as.vector(W \%*\% alpha + Z \%*\% X \%*\% beta + rnorm(N))
 snp.coords <- data.frame(chr=sample(paste0("chr",1:10), P, TRUE),
                          coord=sample.int(10^6, P))
 rownames(snp.coords) <- colnames(X)
-res <- qtlrelPerChr(dat$response, X, snp.coords, "chr1", W=W[,-1], Z=Z)
+res <- qtlrelPerChr(dat$response, X, snp.coords, 0.01, "chr1", W=W[,-1], Z=Z)
+if(interactive())
+   res <- qtlrelPerChr(dat$response, X, snp.coords, 0.01, NULL, W=W[,-1], Z=Z)
 }
 \author{
 Timothee Flutre

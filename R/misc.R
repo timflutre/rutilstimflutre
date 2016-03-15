@@ -1,4 +1,6 @@
 ##' @import data.table
+##' @import lme4
+##' @import Matrix
 
 .onAttach <- function(libname, pkgname) {
   if(! requireNamespace("utils", quietly=TRUE))

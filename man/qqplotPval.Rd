@@ -29,6 +29,6 @@ A quantile is an order statistic, and the j-th order statistic from a Uniform(0,
 See also the qqman package.
 }
 \author{
-Timothee Flutre (inspired from an anonymous comment to http://gettinggeneticsdone.blogspot.fr/2009/11/qq-plots-of-p-values-in-r-using-ggplot2.html)
+Timothee Flutre (inspired by an anonymous comment at http://gettinggeneticsdone.blogspot.fr/2009/11/qq-plots-of-p-values-in-r-using-ggplot2.html)
 }
 

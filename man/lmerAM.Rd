@@ -2,32 +2,48 @@
 % Please edit documentation in R/quantgen.R
 \name{lmerAM}
 \alias{lmerAM}
-\title{Fit a basic "animal model" with lme4}
+\title{Animal model}
 \usage{
 lmerAM(formula, data, relmat, REML = TRUE, verbose = 1)
 }
 \arguments{
-\item{formula}{formula}
+\item{formula}{formula (see \code{\link[lme4]{lmer}})}
 
-\item{data}{data.frame containing the data corresponding to formula and relmat}
+\item{data}{data.frame containing the data corresponding to formula and relmat (see \code{\link[lme4]{lmer}})}
 
-\item{relmat}{list containing the matrix of additive genetic relationships (should use the same name as the colname in data)}
+\item{relmat}{list containing the matrix of additive genetic relationships (should use the same name as the colname in data); can be in the "matrix" class (base) or the "dsCMatrix" class (Matrix package); see \code{\link{estimGenRel}}}
 
-\item{REML}{default is TRUE, but use FALSE to compare models with different fixed effects}
+\item{REML}{default is TRUE (use FALSE to compare models with different fixed effects)}
 
 \item{verbose}{verbosity level (0/default=1)}
 }
 \value{
-merMod object
+\code{\link[lme4]{merMod}} object
 }
 \description{
-y = W alpha + Z u + epsilon
-where y is N x 1; W is N x Q; Z is N x I
-u ~ Norm_I(0, G=sigma_u^2 A); epsilon_n ~ N(0, sigma^2 I); Cov(u,e)=0
-See http://stackoverflow.com/q/19327088/597069.
-Still problems: see https://github.com/lme4/lme4/issues/340.
+Given I individuals, Q covariates and N=I*Q phenotypes per trait, fit an "animal model" with the lme4 package via the following likelihood: y = W alpha + Z g_a + epsilon, where y is Nx1; W is NxQ; Z is NxI; g_a ~ Normal_I(0, Sigma_a=sigma_a^2 A) with A the known matrix of additive genetic relationships; epsilon ~ Normal_N(0, Sigma=sigma^2 Id_N); Cov(g_a,e)=0.
+}
+\examples{
+set.seed(1859)
+I <- 100 # individuals
+P <- 2000 # SNPs
+X <- matrix(sample(0:2, size=I*P, replace=TRUE), nrow=I, ncol=P,
+            dimnames=list(paste0("ind", 1:I), paste0("snp", 1:P)))
+A.vr <- estimGenRel(X, relationships="additive", method="vanraden1", verbose=0)
+model <- simulAnimalModelMultivar(T=1, Q=3, A=A.vr, sigma.a2=15, V.E=5)
+c(model$Alpha)
+res <- lmerAM(formula=response1 ~ year + (1|ind), data=model$dat,
+              relmat=list(ind=A.vr))
+summary(res)
+fixef(res)
+vc <- as.data.frame(VarCorr(res))
+c(vc[vc$grp == "ind", "vcov"], vc[vc$grp == "Residual", "vcov"])
+if(interactive()){
+   confint(res, method="profile", oldNames=FALSE) # faster
+   confint(res, method="boot", oldNames=FALSE) # better
+}
 }
 \author{
-Timothee Flutre
+Timothee Flutre (inspired by Ben Bolker at http://stackoverflow.com/q/19327088/597069)
 }
 

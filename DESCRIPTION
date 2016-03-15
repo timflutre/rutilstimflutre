@@ -1,16 +1,19 @@
 Package: rutilstimflutre
 Title: Timothee Flutre's personal R code
-Version: 0.48.0
+Version: 0.49.0
 Authors@R: c(
     person("Timothee", "Flutre", email="timothee.flutre@supagro.inra.fr", role=c("aut", "ctb", "cre")),
-    person("Dalel", "Ahmed", role="ctb"),
-    person("Xiaoquan", "Wen", role="aut"),
-    person("Daniel", "Shriner", role="aut"),
-    person("Bertrand", "Servin", role="aut")
+    person("Dalel", "Ahmed", role="ctb", comment="few functions during internship"),
+    person("Xiaoquan", "Wen", role="aut", comment="function via collaboration"),
+    person("Daniel", "Shriner", role="aut", comment="function from article"),
+    person("Bertrand", "Servin", role="aut", comment="function from article")
     )
 Description: Miscellaneous R functions.
 Depends:
-    R (>= 3.0.0)
+    R (>= 3.0.0),
+    data.table,
+    lme4,
+    Matrix
 License: GPL-3
 Copyright: Institut National de la Recherche Agronomique (INRA)
 LazyData: true
@@ -25,9 +28,7 @@ Suggests:
     igraph,
     IRanges,
     LDcorSV,
-    lme4,
     MASS,
-    Matrix,
     QTLRel,
     Rsamtools,
     S4Vectors,
@@ -35,6 +36,4 @@ Suggests:
     snpStats,
     testthat,
     VariantAnnotation
-Imports:
-    data.table
 RoxygenNote: 5.0.1

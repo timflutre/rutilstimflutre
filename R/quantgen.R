@@ -82,7 +82,8 @@ plotGridMissGenos <- function(x, main="Missing genotypes", xlab="Individuals",
 
 .isValidGenosDose <- function(X, check.coln=TRUE, check.rown=TRUE,
                               check.na=TRUE){
-  all(is.matrix(X),
+  all(! is.null(X),
+      is.matrix(X),
       sum(X < 0, na.rm=TRUE) == 0,
       sum(X > 2, na.rm=TRUE) == 0,
       ifelse(check.coln,
@@ -151,28 +152,28 @@ estimMaf <- function(X=NULL, afs=NULL){
 
 ##' Plot the histogram of the minor allele frequency per SNP
 ##'
-##' Missing values (encoded as NA) are discarded.
+##' Missing values (encoded as NA) should be discarded beforehand.
 ##' @param X matrix of SNP genotypes encoded as allele doses in {0,1,2}, with individuals in rows and SNPs in columns (optional if maf is not null)
 ##' @param maf vector of minor allele frequencies (optional if X is not null)
-##' @param main string for the main title (default="")
-##' @param xlim default=c(0,0.5)
+##' @param main string for the main title
+##' @param xlim limits of the x-axis
 ##' @param col color for the bars
 ##' @param border color for the border of the bars
-##' @param las see ?par (default=1)
-##' @param breaks see ?hist (default="FD")
-##' @param verbose verbosity level (0/default=1)
+##' @param las see ?par
+##' @param breaks see ?hist
+##' @param verbose verbosity level (0/1)
 ##' @param ... arguments to be passed to hist()
 ##' @return nothing
 ##' @author Timothee Flutre
 ##' @export
-plotHistMinAllelFreq <- function(X=NULL, maf=NULL, main="", xlim=c(0,0.5),
+plotHistMinAllelFreq <- function(X=NULL, maf=NULL, main=NULL, xlim=c(0,0.5),
                                  col="grey", border="white", las=1,
                                  breaks="FD", verbose=1, ...){
   stopifnot(! is.null(X) || ! is.null(maf))
 
   if(! is.null(X) & is.null(maf)){
     stopifnot(.isValidGenosDose(X, check.coln=FALSE, check.rown=FALSE,
-                                check.na=FALSE))
+                                check.na=TRUE))
     N <- nrow(X)
     P <- ncol(X)
     if(verbose > 0){
@@ -182,9 +183,41 @@ plotHistMinAllelFreq <- function(X=NULL, maf=NULL, main="", xlim=c(0,0.5),
     maf <- estimMaf(X)
   }
 
+  if(is.null(main))
+    main <- paste0("MAFs of ", length(maf), " SNPs")
+
   tmp <- hist(x=maf, xlab="Minor allele frequency", ylab="Number of SNPs",
               main=main, xlim=xlim, col=col, border=border, las=las,
               breaks=breaks, ...)
+}
+
+##' Minor allele frequencies
+##'
+##' Discard the SNPs with a minor allele frequency below the given threshold.
+##' @param X matrix of SNP genotypes encoded as allele doses in {0,1,2}, with individuals in rows and SNPs in columns
+##' @param mafs vector of minor allele frequencies; if NULL, will be estimated with \code{\link{estimMaf}}
+##' @param thresh threshold on minor allele frequencies below which SNPs are ignored
+##' @param verbose verbosity level (0/1)
+##' @return matrix similar to X but possibly with less columns
+##' @author Timothee Flutre
+##' @export
+discardSnpsLowMaf <- function(X, mafs=NULL, thresh=0.01, verbose=0){
+  stopifnot(.isValidGenosDose(X, check.coln=FALSE, check.rown=FALSE))
+
+  if(is.null(mafs))
+    mafs <- estimMaf(X=X)
+
+  snps.low <- mafs < thresh
+  if(any(snps.low)){
+    if(verbose > 0){
+      txt <- paste0("skip ", sum(snps.low), " SNPs with MAF below ", thresh)
+      write(txt, stdout())
+    }
+    idx.rm <- which(snps.low)
+    X <- X[, -idx.rm, drop=FALSE]
+  }
+
+  return(X)
 }
 
 ##' Convert genotype data to the "mean genotype" file format from BimBam
@@ -1095,25 +1128,16 @@ estimGenRel <- function(X, afs=NULL, thresh=0.01, relationships="additive",
       afs <- afs[-idx.rm]
   }
 
-  ## estimate (M)AFs
+  ## estimate AFs
   if(is.null(afs))
     afs <- estimAf(X=X)
-  mafs <- estimMaf(afs=afs)
 
   ## discard SNPs with low MAFs
   if(! is.null(thresh)){
-    snps.low <- mafs < thresh
-    if(any(snps.low)){
-      if(verbose > 0){
-        txt <- paste0("skip ", sum(snps.low), " SNPs with MAF below ", thresh)
-        write(txt, stdout())
-      }
-      idx.rm <- which(snps.low)
-      X <- X[, -idx.rm, drop=FALSE]
-      P <- ncol(X)
-      afs <- afs[-idx.rm]
-      mafs <- mafs[-idx.rm]
-    }
+    mafs <- estimMaf(afs=afs)
+    X <- discardSnpsLowMaf(X=X, mafs=mafs, thresh=thresh, verbose=verbose)
+    P <- ncol(X)
+    afs <- afs[colnames(X)]
   }
 
   ## estimate relationships (not coancestries)
@@ -1600,8 +1624,9 @@ simulAnimalModel <- function(Q=3, mu=50, mean.a=5, sd.a=2,
 ##' @return list
 ##' @author Timothee Flutre
 ##' @examples
-##' I <- 50 # individuals
-##' P <- 1000 # SNPs
+##' set.seed(1859)
+##' I <- 100 # individuals
+##' P <- 2000 # SNPs
 ##' X <- matrix(sample(0:2, size=I*P, replace=TRUE), nrow=I, ncol=P,
 ##'             dimnames=list(paste0("ind", 1:I), paste0("snp", 1:P)))
 ##' A.vr <- estimGenRel(X, relationships="additive", method="vanraden1", verbose=0)
@@ -1733,20 +1758,35 @@ simulAnimalModelMultivar <- function(T=1,
               dat=dat))
 }
 
-##' Fit a basic "animal model" with lme4
+##' Animal model
 ##'
-##' y = W alpha + Z u + epsilon
-##' where y is N x 1; W is N x Q; Z is N x I
-##' u ~ Norm_I(0, G=sigma_u^2 A); epsilon_n ~ N(0, sigma^2 I); Cov(u,e)=0
-##' See http://stackoverflow.com/q/19327088/597069.
-##' Still problems: see https://github.com/lme4/lme4/issues/340.
-##' @param formula formula
-##' @param data data.frame containing the data corresponding to formula and relmat
-##' @param relmat list containing the matrix of additive genetic relationships (should use the same name as the colname in data)
-##' @param REML default is TRUE, but use FALSE to compare models with different fixed effects
+##' Given I individuals, Q covariates and N=I*Q phenotypes per trait, fit an "animal model" with the lme4 package via the following likelihood: y = W alpha + Z g_a + epsilon, where y is Nx1; W is NxQ; Z is NxI; g_a ~ Normal_I(0, Sigma_a=sigma_a^2 A) with A the known matrix of additive genetic relationships; epsilon ~ Normal_N(0, Sigma=sigma^2 Id_N); Cov(g_a,e)=0.
+##' @param formula formula (see \code{\link[lme4]{lmer}})
+##' @param data data.frame containing the data corresponding to formula and relmat (see \code{\link[lme4]{lmer}})
+##' @param relmat list containing the matrix of additive genetic relationships (should use the same name as the colname in data); can be in the "matrix" class (base) or the "dsCMatrix" class (Matrix package); see \code{\link{estimGenRel}}
+##' @param REML default is TRUE (use FALSE to compare models with different fixed effects)
 ##' @param verbose verbosity level (0/default=1)
-##' @return merMod object
-##' @author Timothee Flutre
+##' @return \code{\link[lme4]{merMod}} object
+##' @author Timothee Flutre (inspired by Ben Bolker at http://stackoverflow.com/q/19327088/597069)
+##' @examples
+##' set.seed(1859)
+##' I <- 100 # individuals
+##' P <- 2000 # SNPs
+##' X <- matrix(sample(0:2, size=I*P, replace=TRUE), nrow=I, ncol=P,
+##'             dimnames=list(paste0("ind", 1:I), paste0("snp", 1:P)))
+##' A.vr <- estimGenRel(X, relationships="additive", method="vanraden1", verbose=0)
+##' model <- simulAnimalModelMultivar(T=1, Q=3, A=A.vr, sigma.a2=15, V.E=5)
+##' c(model$Alpha)
+##' res <- lmerAM(formula=response1 ~ year + (1|ind), data=model$dat,
+##'               relmat=list(ind=A.vr))
+##' summary(res)
+##' fixef(res)
+##' vc <- as.data.frame(VarCorr(res))
+##' c(vc[vc$grp == "ind", "vcov"], vc[vc$grp == "Residual", "vcov"])
+##' if(interactive()){
+##'    confint(res, method="profile", oldNames=FALSE) # faster
+##'    confint(res, method="boot", oldNames=FALSE) # better
+##' }
 ##' @export
 lmerAM <- function(formula, data, relmat, REML=TRUE, verbose=1){
   if(! requireNamespace("lme4", quietly=TRUE))
@@ -1755,32 +1795,35 @@ lmerAM <- function(formula, data, relmat, REML=TRUE, verbose=1){
   if(! requireNamespace("Matrix", quietly=TRUE))
     stop("Pkg Matrix needed for this function to work. Please install it.",
          call.=FALSE)
+  stopifnot(is.data.frame(data),
+            all(! duplicated(colnames(data))),
+            is.list(relmat),
+            all(! duplicated(names(names(relmat)))),
+            all(names(relmat) %in% colnames(data)),
+            is.logical(REML))
   for(i in seq_along(relmat))
-    stopifnot(is.matrix(relmat[[i]]),
-              names(relmat)[i] %in% colnames(data))
+    stopifnot(is.matrix(relmat[[i]]) || class(relmat[[i]]) == "dsCMatrix")
 
   if(verbose > 0)
-    write("parse the formula", stdout())
+    write("parse the formula ...", stdout())
   parsedFormula <- lme4::lFormula(formula=formula,
                                   data=data,
                                   control=lme4::lmerControl(
                                       check.nobs.vs.nlev="ignore",
                                       check.nobs.vs.nRE="ignore"),
                                   REML=REML)
+
   if(verbose > 0)
-    write("structure the design and covariance matrices of the random effects",
+    write("structure the design and covariance matrices of the random effects ...",
           stdout())
   relfac <- relmat
   flist <- parsedFormula$reTrms[["flist"]] # list of grouping factors
-  Ztlist <- parsedFormula$reTrms[["Ztlist"]] # list of transpose of the sparse model matrices
-  stopifnot(all(names(relmat) %in% names(flist)))
   asgn <- attr(flist, "assign")
+  Ztlist <- parsedFormula$reTrms[["Ztlist"]] # list of transpose of the sparse model matrices
   for(i in seq_along(relmat)) {
     tn <- which(match(names(relmat)[i], names(flist)) == asgn)
-    if(length(tn) > 1)
-      stop("a relationship matrix must be associated",
-           " with only one random effects term", call.=FALSE)
-    relmat[[i]] <- Matrix::Matrix(relmat[[i]], sparse=TRUE)
+    zn <- rownames(Ztlist[[i]])
+    relmat[[i]] <- Matrix::Matrix(relmat[[i]][zn,zn], sparse=TRUE)
     relfac[[i]] <- chol(relmat[[i]])
     Ztlist[[i]] <- relfac[[i]] %*% Ztlist[[i]]
   }
@@ -1788,19 +1831,20 @@ lmerAM <- function(formula, data, relmat, REML=TRUE, verbose=1){
   parsedFormula$reTrms[["Zt"]] <- do.call(Matrix::rBind, Ztlist)
 
   if(verbose > 0)
-    write("make the deviance function", stdout())
+    write("make the deviance function ..", stdout())
   devianceFunction <- do.call(lme4::mkLmerDevfun, parsedFormula)
 
   if(verbose > 0)
-    write("optimize the deviance function", stdout())
+    write("optimize the deviance function ...", stdout())
   optimizerOutput <- lme4::optimizeLmer(devianceFunction)
 
   if(verbose > 0)
-    write("make the output", stdout())
+    write("make the output ...", stdout())
   fit <- lme4::mkMerMod(rho=environment(devianceFunction),
                         opt=optimizerOutput,
                         reTrms=parsedFormula$reTrms,
                         fr=parsedFormula$fr)
+
   return(fit)
 }
 
@@ -2150,12 +2194,14 @@ gemmaUlmmPerChr <- function(y, X, snp.coords, alleles=NULL, chr.ids=NULL, W,
 ##'
 ##' Given I individuals, P SNPs, Q covariates (e.g. replicates) and N=I*Q phenotypes, the whole likelihood is: y = W alpha + Z X beta + epsilon, where y is Nx1, W is NxQ, Z is NxI, X is IxP and u = X beta.
 ##' The QTLRel package (Cheng et al, BMC Genetics, 2011) decomposes the inference into an \emph{ad hoc} procedure of two steps.
-##' First, the variance components and fixed effects are estimated (y = W alpha + Z u + epsilon), second the allele effects are tested SNP per SNP (y = Z x_p beta_p + epsilon).
+##' First, the variance components and fixed effects are estimated: y = W alpha + Z u + epsilon.
+##' Second the allele effects are tested SNP per SNP: for all p in {1,..,P}, y = W alpha + Z x_p beta_p + Z u + epsilon, using the fixed effects and variance components estimated in the first step.
 ##' As the SNPs can be in linkage disequilibrium, it is advised (Yang et al, Nature Genetics, 2014) to perform the procedure chromosome per chromosome, which is the goal of this function; but I advise to also run it with chr.ids=NULL.
 ##' @param y vector or one-column matrix of phenotypes (the order is important and should be in agreement with the other arguments X, W and Z)
 ##' @param X matrix of SNP genotypes encoded as allele doses in {0,1,2}, with individuals in rows and SNPs in columns
 ##' @param snp.coords data.frame with SNP identifiers as row names and two columns named "chr" and "coord" (or "pos")
-##' @param chr.ids set of chromosome identifiers to analyze (if NULL, the regular QTLRel procedure is used, i.e. all chromosomes are used to estimate the variance components)
+##' @param thresh threshold on minor allele frequencies below which SNPs are ignored via \code{\link{discardSnpsLowMaf}} (default=0.01, NULL to skip this step)
+##' @param chr.ids vector of chromosome identifiers to analyze (if NULL, the regular QTLRel procedure is launched, i.e. all chromosomes are used to estimate the variance components)
 ##' @param W incidence matrix of covariates (should not contain the column of 1's for the intercept; use \code{\link{model.matrix}} if necessary)
 ##' @param Z incidence matrix relating phenotypes to individuals (if nrow(y) and nrow(X) are different, diagonal otherwise; use \code{\link{model.matrix}} if necessary)
 ##' @param method.A method to estimate the additive relationships (see \code{\link{estimGenRel}})
@@ -2163,8 +2209,9 @@ gemmaUlmmPerChr <- function(y, X, snp.coords, alleles=NULL, chr.ids=NULL, W,
 ##' @return a list with three data.frames as components, variance.components, fixed.effects and scan
 ##' @author Timothee Flutre
 ##' @examples
-##' I <- 50
-##' P <- 500
+##' set.seed(1859)
+##' I <- 100
+##' P <- 2000
 ##' Q <- 3
 ##' N <- Q * I
 ##' dat <- data.frame(ind=as.factor(rep(paste0("ind", 1:I), times=Q)),
@@ -2179,9 +2226,11 @@ gemmaUlmmPerChr <- function(y, X, snp.coords, alleles=NULL, chr.ids=NULL, W,
 ##' snp.coords <- data.frame(chr=sample(paste0("chr",1:10), P, TRUE),
 ##'                          coord=sample.int(10^6, P))
 ##' rownames(snp.coords) <- colnames(X)
-##' res <- qtlrelPerChr(dat$response, X, snp.coords, "chr1", W=W[,-1], Z=Z)
+##' res <- qtlrelPerChr(dat$response, X, snp.coords, 0.01, "chr1", W=W[,-1], Z=Z)
+##' if(interactive())
+##'    res <- qtlrelPerChr(dat$response, X, snp.coords, 0.01, NULL, W=W[,-1], Z=Z)
 ##' @export
-qtlrelPerChr <- function(y, X, snp.coords, chr.ids=NULL, W=NULL, Z=NULL,
+qtlrelPerChr <- function(y, X, snp.coords, thresh=0.01, chr.ids=NULL, W=NULL, Z=NULL,
                          method.A="vanraden1", verbose=0){
   if(is.matrix(y))
     stopifnot(ncol(y) == 1)
@@ -2211,6 +2260,12 @@ qtlrelPerChr <- function(y, X, snp.coords, chr.ids=NULL, W=NULL, Z=NULL,
   snp.coords$chr <- as.character(snp.coords$chr)
   X <- X[, rownames(snp.coords)]
 
+  ## discard SNPs with low MAFs
+  if(! is.null(thresh)){
+    X <- discardSnpsLowMaf(X)
+    snp.coords <- snp.coords[colnames(X),]
+  }
+
   ## infer with all chromosomes together
   if(is.null(chr.ids)){
     if(verbose > 0){
@@ -2218,8 +2273,8 @@ qtlrelPerChr <- function(y, X, snp.coords, chr.ids=NULL, W=NULL, Z=NULL,
                     " SNPs, method=", method.A, ") ...")
       write(msg, stdout())
     }
-    A.mark <- estimGenRel(X=X, relationships="additive", method=method.A,
-                          verbose=verbose - 1)
+    A.mark <- estimGenRel(X=X, thresh=0, relationships="additive",
+                          method=method.A, verbose=verbose - 1)
     if(is.null(W)){
       if(verbose > 0)
         write("estimate variance components ...", stdout())
@@ -2350,7 +2405,7 @@ qtlrelPerChr <- function(y, X, snp.coords, chr.ids=NULL, W=NULL, Z=NULL,
 ##' @param main an overall title for the plot (default: "Q-Q plot (<length(pvalues)> p values)")
 ##' @param col plotting color for the points (default is all points in black)
 ##' @param ... graphical parameters other than xlim, ylim, xlab, ylab, las and col
-##' @author Timothee Flutre (inspired from an anonymous comment to http://gettinggeneticsdone.blogspot.fr/2009/11/qq-plots-of-p-values-in-r-using-ggplot2.html)
+##' @author Timothee Flutre (inspired by an anonymous comment at http://gettinggeneticsdone.blogspot.fr/2009/11/qq-plots-of-p-values-in-r-using-ggplot2.html)
 ##' @export
 qqplotPval <- function(pvalues, plot.conf.int=TRUE,
                        xlab=expression(Expected~~-log[10](italic(p)~values)),

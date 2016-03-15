@@ -47,8 +47,9 @@ list
 Given T traits, I individuals, Q covariates and N=I*Q phenotypes per trait, simulate phenotypes via the following "animal model": Y = W Alpha + Z G_a + E, where Y is N x T; W is N x Q; Z is N x I; G_a ~ Normal_IxT(M_{G_a}=0, U_{G_a}=sigma_a^2 A, V_{G_a}) with unconstrained V_{G_a}; E ~ Normal_NxT(M_E=0, U_E=Id_N, V_E).
 }
 \examples{
-I <- 50 # individuals
-P <- 1000 # SNPs
+set.seed(1859)
+I <- 100 # individuals
+P <- 2000 # SNPs
 X <- matrix(sample(0:2, size=I*P, replace=TRUE), nrow=I, ncol=P,
             dimnames=list(paste0("ind", 1:I), paste0("snp", 1:P)))
 A.vr <- estimGenRel(X, relationships="additive", method="vanraden1", verbose=0)
