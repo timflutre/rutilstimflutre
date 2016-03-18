@@ -53,6 +53,7 @@ P <- 2000 # SNPs
 X <- matrix(sample(0:2, size=I*P, replace=TRUE), nrow=I, ncol=P,
             dimnames=list(paste0("ind", 1:I), paste0("snp", 1:P)))
 A.vr <- estimGenRel(X, relationships="additive", method="vanraden1", verbose=0)
+A.vr <- as.matrix(Matrix::nearPD(A.vr)$mat) # not always necessary
 
 # one trait with heritability h2=0.75, no covariate, Normal errors, no NA
 model <- simulAnimalModelMultivar(T=1, Q=1, A=A.vr, sigma.a2=15, V.E=5)
