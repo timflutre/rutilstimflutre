@@ -1659,6 +1659,7 @@ simulAnimalModel <- function(Q=3, mu=50, mean.a=5, sd.a=2,
 ##' X <- matrix(sample(0:2, size=I*P, replace=TRUE), nrow=I, ncol=P,
 ##'             dimnames=list(paste0("ind", 1:I), paste0("snp", 1:P)))
 ##' A <- estimGenRel(X, relationships="additive", method="vanraden1", verbose=0)
+##' A <- as.matrix(Matrix::nearPD(A)$mat) # not always necessary
 ##'
 ##' # one trait with heritability h2=0.75, no covariate, Normal errors, no NA
 ##' model <- simulAnimalModelMultivar(T=1, Q=1, A=A, sigma.A2=15, V.E=5)
@@ -1850,6 +1851,7 @@ simulAnimalModelMultivar <- function(T=1,
 ##' X <- matrix(sample(0:2, size=I*P, replace=TRUE), nrow=I, ncol=P,
 ##'             dimnames=list(paste0("ind", 1:I), paste0("snp", 1:P)))
 ##' A.vr <- estimGenRel(X, relationships="additive", method="vanraden1", verbose=0)
+##' A.vr <- as.matrix(Matrix::nearPD(A.vr)$mat) # not always necessary
 ##' model <- simulAnimalModelMultivar(T=1, Q=3, A=A.vr, sigma.A2=15, V.E=5)
 ##' c(model$C)
 ##' res <- lmerAM(formula=response1 ~ year + (1|ind), data=model$dat,

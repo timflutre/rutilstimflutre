@@ -33,6 +33,7 @@ P <- 2000 # SNPs
 X <- matrix(sample(0:2, size=I*P, replace=TRUE), nrow=I, ncol=P,
             dimnames=list(paste0("ind", 1:I), paste0("snp", 1:P)))
 A.vr <- estimGenRel(X, relationships="additive", method="vanraden1", verbose=0)
+A.vr <- as.matrix(Matrix::nearPD(A.vr)$mat) # not always necessary
 model <- simulAnimalModelMultivar(T=1, Q=3, A=A.vr, sigma.A2=15, V.E=5)
 c(model$C)
 res <- lmerAM(formula=response1 ~ year + (1|ind), data=model$dat,
