@@ -314,6 +314,65 @@ rmatnorm <- function(n=1, M, U, V){
 ## }))
 ## summary(tmp) # corresponds well to Sigma
 
+##' P values
+##'
+##' Plot the histogram of p values with freq=FALSE to imitate figure 1 of Storey & Tibshirani (2003).
+##' The x-axis goes from 0 to 1 with equidistant bins of width 0.05, and the y-axis is in the density scale.
+##' For a given bin, the density of p values in this bin corresponds to the relative frequency in this bin divided by the bin width, where the relative frequency is the absolute frequency (i.e. raw counts in this bin) divided by the sum of all counts (i.e. over all bins).
+##' In the density scale, the area of a given bin is equal to its density times the bin width, thus the area of the whole histogram is equal to 1.
+##' Assuming all null hypotheses are true, the "density" histogram represents the density of the discrete version of the Uniform distribution, where the height of each bin is 1, so that the whole histogram area remains equal to 1.
+##' @param pvalues vector of raw p values (missing values will be omitted)
+##' @param freq as in \code{\link[graphics]{hist}}; if TRUE, the histogram graphic is a representation of frequencies, the "counts" component of the result; if FALSE, probability densities, component "density", are plotted (so that the histogram has a total area of one)
+##' @param main an overall title for the plot (default: "Density of <nb of non-NA p values> p values")
+##' @param pi0 estimate of the proportion of null hypotheses
+##' @return invisible output of \code{\link[graphics]{hist}}
+##' @author Timothee Flutre
+##' @export
+plotHistPval <- function(pvalues, freq=FALSE, main=NULL, pi0=NULL){
+  stopifnot(is.vector(pvalues))
+
+  if(any(is.na(pvalues)))
+    pvalues <- pvalues[! is.na(pvalues)]
+
+  if(is.null(main))
+    main <- paste0("Histogram of ", length(pvalues), " p values")
+
+  breaks <- seq(0, 1, 0.05)
+  out <- hist(pvalues, breaks=breaks, xlim=c(0,1), freq=freq, las=1,
+              xlab=expression(italic(p)~values), main=main,
+              ## ylab=ifelse(freq, "Frequency", "Density"),
+              col="grey", border="white")
+
+  ## height one would expect if all tested hypotheses were null
+  if(freq){
+    abline(h=length(pvalues) / length(breaks), lty=2)
+  } else
+    abline(h=1, lty=2)
+
+  legs <- paste0("expected ", ifelse(freq, "frequency", "density"),
+                 " if all hypotheses are null")
+  cols <- "black"
+  ltys <- 2
+  lwds <- 1
+
+  ## height of the estimate of the proportion of null hypotheses
+  if(! is.null(pi0)){
+    if(freq){
+      abline(h=pi0 * length(pvalues) / length(breaks), lty=3)
+    } else
+      abline(h=pi0, lty=3)
+    legs <- c(legs, paste0("estimated ", ifelse(freq, "frequency", "density"),
+                           " of null hypotheses"))
+    cols <- c(cols, "black")
+    ltys <- c(ltys, 3)
+    lwds <- c(lwds, 1)
+  }
+
+  legend("topright", legend=legs, col=cols, lty=ltys, lwd=lwds, bty="n")
+
+  invisible(out)
+}
+
 ##' MCMC diagnostics
 ##'
 ##' Plot the trace, autocorrelation, running average and density side by side for a single chain.

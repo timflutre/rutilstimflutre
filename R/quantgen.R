@@ -2531,54 +2531,6 @@ qqplotPval <- function(pvalues, plot.conf.int=TRUE,
   abline(0, 1, col="red")
 }
 
-##' P values
-##'
-##' Plot the histogram of p values as in figure 1 of Storey & Tibshirani (2003).
-##' The x-axis goes from 0 to 1 with equidistant bins of width 0.05, and the y-axis is in the density scale.
-##' For a given bin, the density of p values in this bin corresponds to the relative frequency in this bin divided by the bin width, where the relative frequency is the absolute frequency (i.e. raw counts in this bin) divided by the sum of all counts (i.e. over all bins).
-##' In the density scale, the area of a given bin is equal to its density times the bin width, thus the area of the whole histogram is equal to 1.
-##' Assuming all null hypotheses are true, the "density" histogram represents the density of the discrete version of the Uniform distribution, where the height of each bin is 1, so that the whole histogram area remains equal to 1.
-##' @param pvalues vector of raw p values (missing values will be omitted)
-##' @param main an overall title for the plot (default: "Density of <nb of non-NA p values> p values")
-##' @param pi0 estimate of the proportion of null hypotheses
-##' @return invisible output of \code{\link[graphics]{hist}}
-##' @author Timothee Flutre
-##' @export
-plotHistPval <- function(pvalues, main=NULL, pi0=NULL){
-  stopifnot(is.vector(pvalues))
-
-  if(any(is.na(pvalues)))
-    pvalues <- pvalues[! is.na(pvalues)]
-
-  if(is.null(main))
-    main <- paste0("Density of ", length(pvalues), " p values")
-
-  out <- hist(pvalues, breaks=seq(0,1,0.05), xlim=c(0,1), freq=FALSE, las=1,
-              xlab=expression(italic(p)~values), main=main,
-              col="grey", border="white")
-
-  ## density one would expect if all tested hypotheses were null
-  abline(h=1, lty=2)
-
-  legs <- "density if all hypotheses are null"
-  cols <- "black"
-  ltys <- 2
-  lwds <- 1
-
-  ## height of the estimate of the proportion of null hypotheses
-  if(! is.null(pi0)){
-    abline(h=pi0, lty=3)
-    legs <- c(legs, "estimated proportion of null hypotheses")
-    cols <- c(cols, "black")
-    ltys <- c(ltys, 3)
-    lwds <- c(lwds, 1)
-  }
-
-  legend("topright", legend=legs, col=cols, lty=ltys, lwd=lwds, bty="n")
-
-  invisible(out)
-}
-
 ##' Asymptotic Bayes factor
 ##'
 ##' Calculate the asymptotic Bayes factor proposed by Wakefield in Genetic Epidemiology 33:79-86 (2009, \url{http://dx.doi.org/10.1002/gepi.20359}).
