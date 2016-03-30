@@ -1,6 +1,6 @@
 Package: rutilstimflutre
 Title: Timothee Flutre's personal R code
-Version: 0.49.0
+Version: 0.50.0
 Authors@R: c(
     person("Timothee", "Flutre", email="timothee.flutre@supagro.inra.fr", role=c("aut", "ctb", "cre")),
     person("Dalel", "Ahmed", role="ctb", comment="few functions during internship"),
@@ -14,7 +14,7 @@ Depends:
     data.table,
     lme4,
     Matrix
-License: GPL-3
+License: GPL-3 | AGPL-3
 Copyright: Institut National de la Recherche Agronomique (INRA)
 LazyData: true
 URL: https://github.com/timflutre/rutilstimflutre
@@ -35,5 +35,8 @@ Suggests:
     scrm,
     snpStats,
     testthat,
-    VariantAnnotation
+    VariantAnnotation,
+    knitr,
+    rmarkdown
 RoxygenNote: 5.0.1
+VignetteBuilder: knitr

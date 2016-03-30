@@ -10,7 +10,7 @@ gemmaUlmmPerChr(y, X, snp.coords, alleles = NULL, chr.ids = NULL, W,
 \arguments{
 \item{y}{vector of phenotypes}
 
-\item{X}{matrix of SNP genotypes encoded as allele doses in {0,1,2}, with individuals in rows and SNPs in columns}
+\item{X}{matrix of SNP genotypes encoded in number of copies of the 2nd allele, i.e. as allele doses in {0,1,2}, with individuals in rows and SNPs in columns}
 
 \item{snp.coords}{data.frame with SNP identifiers as row names, and two columns, "chr" and "coord" or "pos"}
 
@@ -26,7 +26,7 @@ gemmaUlmmPerChr(y, X, snp.coords, alleles = NULL, chr.ids = NULL, W,
 
 \item{clean}{remove files: none, some (temporary only), all (temporary and results)}
 
-\item{verbose}{verbosity level (default=1)}
+\item{verbose}{verbosity level (0/1)}
 }
 \value{
 a data.frame with GEMMA's output for all chromosomes

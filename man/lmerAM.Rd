@@ -11,17 +11,20 @@ lmerAM(formula, data, relmat, REML = TRUE, verbose = 1)
 
 \item{data}{data.frame containing the data corresponding to formula and relmat (see \code{\link[lme4]{lmer}})}
 
-\item{relmat}{list containing the matrix of additive genetic relationships (should use the same name as the colname in data); can be in the "matrix" class (base) or the "dsCMatrix" class (Matrix package); see \code{\link{estimGenRel}}}
+\item{relmat}{list containing the matrices of genetic relationships (A is compulsory but D is optional); should use the same names as the colnames in data; can be in the "matrix" class (base) or the "dsCMatrix" class (Matrix package); see \code{\link{estimGenRel}}}
 
 \item{REML}{default is TRUE (use FALSE to compare models with different fixed effects)}
 
-\item{verbose}{verbosity level (0/default=1)}
+\item{verbose}{verbosity level (0/1)}
 }
 \value{
 \code{\link[lme4]{merMod}} object
 }
 \description{
-Given I individuals, Q covariates and N=I*Q phenotypes per trait, fit an "animal model" with the lme4 package via the following likelihood: y = W alpha + Z g_a + epsilon, where y is Nx1; W is NxQ; Z is NxI; g_a ~ Normal_I(0, Sigma_a=sigma_a^2 A) with A the known matrix of additive genetic relationships; epsilon ~ Normal_N(0, Sigma=sigma^2 Id_N); Cov(g_a,e)=0.
+Given I individuals, Q covariates and N=I*Q phenotypes for the trait, fit an "animal model" with the lme4 package via the following likelihood: y = W c + Z g_A + Z g_D + epsilon, where y is Nx1; W is NxQ; Z is NxI; g_A ~ Normal_I(0, sigma_A^2 A) with A the known matrix of additive genetic relationships; g_D ~ Normal_I(0, sigma_D^2 D) with D the known matrix of dominance genetic relationships; epsilon ~ Normal_N(0, sigma^2 Id_N); Cov(g_A,g_D)=0; Cov(g_A,e)=0; Cov(g_D,e)=0.
+}
+\note{
+If A is not positive definite, an error will be raised (via \code{\link[base]{chol}}); in such cases, using \code{\link[Matrix]{nearPD}} can be useful.
 }
 \examples{
 set.seed(1859)
@@ -30,8 +33,8 @@ P <- 2000 # SNPs
 X <- matrix(sample(0:2, size=I*P, replace=TRUE), nrow=I, ncol=P,
             dimnames=list(paste0("ind", 1:I), paste0("snp", 1:P)))
 A.vr <- estimGenRel(X, relationships="additive", method="vanraden1", verbose=0)
-model <- simulAnimalModelMultivar(T=1, Q=3, A=A.vr, sigma.a2=15, V.E=5)
-c(model$Alpha)
+model <- simulAnimalModelMultivar(T=1, Q=3, A=A.vr, sigma.A2=15, V.E=5)
+c(model$C)
 res <- lmerAM(formula=response1 ~ year + (1|ind), data=model$dat,
               relmat=list(ind=A.vr))
 summary(res)

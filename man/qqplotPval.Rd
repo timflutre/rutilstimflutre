@@ -11,7 +11,7 @@ qqplotPval(pvalues, plot.conf.int = TRUE, xlab = expression(Expected ~
 \arguments{
 \item{pvalues}{vector of raw p values (missing values will be omitted)}
 
-\item{plot.conf.int}{show the confidence interval (default=TRUE)}
+\item{plot.conf.int}{show the confidence interval}
 
 \item{xlab}{a title for the x axis (see default)}
 

@@ -5,10 +5,10 @@
 \title{Pairwise linkage disequilibrium}
 \usage{
 estimLd(X, K = NULL, pops = NULL, snp.coords, only.chr = NULL,
-  only.pop = NULL, use.ldcorsv = FALSE, verbose = 0)
+  only.pop = NULL, use.ldcorsv = FALSE, verbose = 1)
 }
 \arguments{
-\item{X}{matrix of SNP genotypes encoded as allele doses in {0,1,2}, with individuals in rows and SNPs in columns}
+\item{X}{matrix of SNP genotypes encoded in number of copies of the 2nd allele, i.e. as allele doses in {0,1,2}, with individuals in rows and SNPs in columns}
 
 \item{K}{matrix of kinship}
 
@@ -22,13 +22,15 @@ estimLd(X, K = NULL, pops = NULL, snp.coords, only.chr = NULL,
 
 \item{use.ldcorsv}{required if K and/or pops are not NULL; otherwise use the square of \code{\link{cor}}}
 
-\item{verbose}{verbosity level (default=0/1)}
+\item{verbose}{verbosity level (0/1)}
 }
 \value{
 data frame
 }
 \description{
-Estimates linkage disequilibrium between pairs of SNPs when the observations are the genotypes of individuals, not their gametes (i.e. the gametic phases are unknown). When ignoring kinship and population structure, the estimator of Rogers and Huff (Genetics, 2009) can be used. When kinship and/or population structure are controlled for, the estimator of Mangin et al (Heredity, 2012) is used via their LDcorSV package.
+Estimates linkage disequilibrium between pairs of SNPs when the observations are the genotypes of individuals, not their gametes (i.e. the gametic phases are unknown).
+When ignoring kinship and population structure, the estimator of Rogers and Huff (Genetics, 2009) can be used.
+When kinship and/or population structure are controlled for, the estimator of Mangin et al (Heredity, 2012) is used via their LDcorSV package.
 }
 \author{
 Timothee Flutre

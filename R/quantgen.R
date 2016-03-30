@@ -2,10 +2,11 @@
 
 ##' Convert genotypes
 ##'
-##' Convert SNP genotype data from alleles (say, "AA" and "AT") to minor allele doses (here, 0 and 1 if "T" is the minor allele). Not particularly efficient, but at least it exists.
+##' Convert SNP genotype data from alleles (say, "AA" and "AT") to minor allele doses (here, 0 and 1 if "T" is the minor allele).
+##' Not particularly efficient, but at least it exists.
 ##' @param x data.frame with SNPs in rows and individuals in columns, the SNP identifiers being in the first column
 ##' @param na.string a character to be interpreted as NA values
-##' @param verbose verbosity level (0/default=1)
+##' @param verbose verbosity level (0/1)
 ##' @return list of a matrix (allele doses, SNPs in columns and individuals in rows) and a vector (minor alleles)
 ##' @author Timothee Flutre
 ##' @export
@@ -63,23 +64,6 @@ alleles2dose <- function(x, na.string="--", verbose=1){
               alleles=alleles))
 }
 
-##' Plot missing SNP genotypes as a grid.
-##'
-##' Data will be represented in black if missing, white otherwise.
-##' @param x matrix with SNP genotypes as allele doses (NA if missing) with
-##' SNPs in columns and individuals in rows
-##' @param main an overall title for the plot (default="Missing genotypes")
-##' @param xlab a title for the x axis (default="Individuals")
-##' @param ylab a title for the y axis (default="SNPs")
-##' @return nothing
-##' @author Timothee Flutre
-##' @export
-plotGridMissGenos <- function(x, main="Missing genotypes", xlab="Individuals",
-                              ylab="SNPs"){
-  image(1:nrow(x), 1:ncol(x), is.na(x), col=c("white","black"),
-        main=main, xlab=xlab, ylab=ylab)
-}
-
 .isValidGenosDose <- function(X, check.coln=TRUE, check.rown=TRUE,
                               check.na=TRUE){
   all(! is.null(X),
@@ -98,7 +82,7 @@ plotGridMissGenos <- function(x, main="Missing genotypes", xlab="Individuals",
 ##' Missing genotypes
 ##'
 ##' Calculate the frequency of missing genotypes for each SNP.
-##' @param X matrix of SNP genotypes encoded as allele doses in {0,1,2}, with individuals in rows and SNPs in columns
+##' @param X matrix of SNP genotypes encoded in number of copies of the 2nd allele, i.e. as allele doses in {0,1,2}, with individuals in rows and SNPs in columns
 ##' @return vector
 ##' @author Timothee Flutre
 ##' @export
@@ -110,10 +94,31 @@ calcFreqMissGenos <- function(X){
   return(out)
 }
 
+##' Missing genotypes
+##'
+##' Plot missing SNP genotypes as a grid.
+##' Data will be represented in black if missing, white otherwise.
+##' @param X matrix of SNP genotypes encoded in number of copies of the 2nd allele, i.e. as allele doses in {0,1,2}, with individuals in rows and SNPs in columns; NA if missing
+##' @param main an overall title for the plot
+##' @param xlab a title for the x axis
+##' @param ylab a title for the y axis
+##' @return nothing
+##' @author Timothee Flutre
+##' @export
+plotGridMissGenos <- function(X, main="Missing genotypes", xlab="Individuals",
+                              ylab="SNPs"){
+  stopifnot(.isValidGenosDose(X, check.coln=FALSE, check.rown=FALSE,
+                              check.na=FALSE))
+
+  image(1:nrow(X), 1:ncol(X), is.na(X), col=c("white","black"),
+        main=main, xlab=xlab, ylab=ylab)
+}
+
 ##' Allele frequencies
 ##'
-##' Estimate the frequency of the second allele for each SNP. Missing values should be encoded as NA in order to be ignored. Note that the "second" allele may not be the "minor" allele (the least frequent).
-##' @param X matrix of SNP genotypes encoded as allele doses in {0,1,2}, with individuals in rows and SNPs in columns
+##' Estimate the frequency of the second allele for each SNP.
+##' Note that the "second" allele may not be the "minor" allele (the least frequent).
+##' @param X matrix of SNP genotypes encoded in number of copies of the 2nd allele, i.e. as allele doses in {0,1,2}, with individuals in rows and SNPs in columns; missing values should be encoded as NA in order to be ignored
 ##' @return vector
 ##' @seealso \code{\link{estimMaf}}
 ##' @author Timothee Flutre
@@ -132,8 +137,8 @@ estimAf <- function(X){
 
 ##' Minor allele frequencies
 ##'
-##' Estimate the frequency of the minor allele for each SNP. Missing values should be encoded as NA in order to be ignored.
-##' @param X matrix of SNP genotypes encoded as allele doses in {0,1,2}, with individuals in rows and SNPs in columns; if NULL, afs should be specified
+##' Estimate the frequency of the minor allele for each SNP.
+##' @param X matrix of SNP genotypes encoded in number of copies of the 2nd allele, i.e. as allele doses in {0,1,2}, with individuals in rows and SNPs in columns; missing values should be encoded as NA in order to be ignored; if X is NULL, afs should be specified
 ##' @param afs vector with 2nd allele frequencies; if NULL, X should be specified, and the frequencies will be estimated with \code{\link{estimAf}}
 ##' @return vector
 ##' @seealso \code{\link{estimAf}}
@@ -150,10 +155,10 @@ estimMaf <- function(X=NULL, afs=NULL){
   return(mafs)
 }
 
-##' Plot the histogram of the minor allele frequency per SNP
+##' Minor allele frequencies
 ##'
-##' Missing values (encoded as NA) should be discarded beforehand.
-##' @param X matrix of SNP genotypes encoded as allele doses in {0,1,2}, with individuals in rows and SNPs in columns (optional if maf is not null)
+##' Plot the histogram of the minor allele frequency per SNP.
+##' @param X matrix of SNP genotypes encoded in number of copies of the 2nd allele, i.e. as allele doses in {0,1,2}, with individuals in rows and SNPs in columns (optional if maf is not null); if X is not NULL, minor allele frequencies will be estimated via \code{\link{estimMaf}}
 ##' @param maf vector of minor allele frequencies (optional if X is not null)
 ##' @param main string for the main title
 ##' @param xlim limits of the x-axis
@@ -173,7 +178,7 @@ plotHistMinAllelFreq <- function(X=NULL, maf=NULL, main=NULL, xlim=c(0,0.5),
 
   if(! is.null(X) & is.null(maf)){
     stopifnot(.isValidGenosDose(X, check.coln=FALSE, check.rown=FALSE,
-                                check.na=TRUE))
+                                check.na=FALSE))
     N <- nrow(X)
     P <- ncol(X)
     if(verbose > 0){
@@ -194,15 +199,16 @@ plotHistMinAllelFreq <- function(X=NULL, maf=NULL, main=NULL, xlim=c(0,0.5),
 ##' Minor allele frequencies
 ##'
 ##' Discard the SNPs with a minor allele frequency below the given threshold.
-##' @param X matrix of SNP genotypes encoded as allele doses in {0,1,2}, with individuals in rows and SNPs in columns
+##' @param X matrix of SNP genotypes encoded in number of copies of the 2nd allele, i.e. as allele doses in {0,1,2}, with individuals in rows and SNPs in columns
 ##' @param mafs vector of minor allele frequencies; if NULL, will be estimated with \code{\link{estimMaf}}
 ##' @param thresh threshold on minor allele frequencies below which SNPs are ignored
 ##' @param verbose verbosity level (0/1)
 ##' @return matrix similar to X but possibly with less columns
 ##' @author Timothee Flutre
 ##' @export
-discardSnpsLowMaf <- function(X, mafs=NULL, thresh=0.01, verbose=0){
-  stopifnot(.isValidGenosDose(X, check.coln=FALSE, check.rown=FALSE))
+discardSnpsLowMaf <- function(X, mafs=NULL, thresh=0.01, verbose=1){
+  stopifnot(.isValidGenosDose(X, check.coln=FALSE, check.rown=FALSE,
+                              check.na=FALSE))
 
   if(is.null(mafs))
     mafs <- estimMaf(X=X)
@@ -223,7 +229,7 @@ discardSnpsLowMaf <- function(X, mafs=NULL, thresh=0.01, verbose=0){
 ##' Convert genotype data to the "mean genotype" file format from BimBam
 ##'
 ##' The format is specified in BimBam's manual http://www.haplotype.org/download/bimbam-manual.pdf#page=6
-##' @param X matrix of SNP genotypes encoded as allele doses in {0,1,2}, with individuals in rows and SNPs in columns
+##' @param X matrix of SNP genotypes encoded in number of copies of the 2nd allele, i.e. as allele doses in {0,1,2}, with individuals in rows and SNPs in columns
 ##' @param tX matrix with SNPs in rows and individuals in columns
 ##' @param alleles data.frame with SNPs in rows (names as row names) and alleles in columns (first is "minor", second is "major")
 ##' @param file write the genotype data to this file if non NULL (for instance 'genotypes_bimbam.txt' or gzfile('genotypes_bimbam.txt.gz'))
@@ -247,7 +253,9 @@ dose2bimbam <- function(X=NULL, tX=NULL, alleles, file=NULL){
 
 ##' Genetic relatedness
 ##'
-##' Reformat the output of \code{\link[related]{coancestry}} (http://frasierlab.wordpress.com/software/) into a matrix. By default, off-diagonal elements  correspond to coancestry coefficients between two individuals, and each diagonal element corresponds to (1 + f) / 2 where f corresponds to the inbreeding coefficient of the given individual. To learn more about genetic relatedness, see Weir et al (2006), Astle & Balding (2009) and Legarra (2016).
+##' Reformat the output of \code{\link[related]{coancestry}} (http://frasierlab.wordpress.com/software/) into a matrix.
+##' By default, off-diagonal elements  correspond to coancestry coefficients between two individuals, and each diagonal element corresponds to (1 + f) / 2 where f corresponds to the inbreeding coefficient of the given individual.
+##' To learn more about genetic relatedness, see Weir et al (2006), Astle & Balding (2009) and Legarra (2016).
 ##' @param x list returned by \code{\link[related]{coancestry}}
 ##' @param estim.coancestry name of the coancestry estimator (e.g. "dyadml") as used in \code{\link[related]{coancestry}}
 ##' @param estim.inbreeding name of the inbreeding estimator (e.g. "LR") as used in \code{\link[related]{coancestry}}
@@ -328,9 +336,9 @@ haplosList2Matrix <- function(haplos){
   return(H)
 }
 
-##' Convert the SFS of independent replicates into a matrix of allele dosage.
+##' Site frequency spectrum
 ##'
-##' SFS stands for site frequency spectrum
+##' Convert the SFS of independent replicates into a matrix of allele dosage.
 ##' @param seg.sites list returned by scrm()
 ##' @param ind.ids vector with the identifiers of the individuals
 ##' @param snp.ids vector with the identifiers of the SNPs (if NULL, the SNP identifiers from seg.sites will be used if they aren't NULL, too)
@@ -425,7 +433,7 @@ segSites2snpCoords <- function(seg.sites, snp.ids, chrom.len, prefix="chr"){
 ##' @param mig.rate migration rate = 4 N0 m (will be symmetric)
 ##' @param get.trees get gene genealogies in the Newick format
 ##' @param get.tmrca get time to most recent common ancestor and local tree lengths
-##' @param verbose verbosity level (default=0=nothing, 1=few, 2=more)
+##' @param verbose verbosity level (0/1/2)
 ##' @return list with haplotypes (list), genotypes as allele doses (matrix) and SNP coordinates (data.frame)
 ##' @author Timothee Flutre
 ##' @export
@@ -440,7 +448,7 @@ simulCoalescent <- function(nb.inds=100,
                             mig.rate=5,
                             get.trees=FALSE,
                             get.tmrca=FALSE,
-                            verbose=0){
+                            verbose=1){
   if(! requireNamespace("scrm", quietly=TRUE))
     stop("Pkg scrm needed for this function to work. Please install it.",
          call.=FALSE)
@@ -796,7 +804,7 @@ fecundation <- function(gam1, gam2, child.name){
 ##' @param haplos.par2 list of matrices (one per chromosome) for the second parent
 ##' @param loc.crossovers.par2 list of vectors (one per chromosome) for the second parent
 ##' @param child.name identifier of the child (if NULL, <parent1>"-x-"<parent2> or <parent1>"-hd")
-##' @param verbose verbosity level (default=0/1)
+##' @param verbose verbosity level (0/1)
 ##' @return list of matrices (one per chromosome) for the child
 ##' @author Timothee Flutre
 ##' @export
@@ -805,7 +813,7 @@ makeCross <- function(haplos.par1,
                       haplos.par2=NULL,
                       loc.crossovers.par2=NULL,
                       child.name=NULL,
-                      verbose=0){
+                      verbose=1){
   stopifnot(is.list(haplos.par1),
             is.list(loc.crossovers.par1),
             all(names(haplos.par1) == names(loc.crossovers.par1)))
@@ -926,7 +934,7 @@ drawLocCrossovers <- function(crosses, nb.snps, lambda=2){
 ##' @param crosses data.frame with three columns, parent1, parent2, child (no duplicate); if parent 1 and 2 are the same, it will be an autofecondation; if parent2 is NA, it will be a haplodiploidization
 ##' @param loc.crossovers list of lists (one per cross, then one per parent, then one per chromosome) whose names are crosses$child, in the same order; if NULL, draw many crossing-overs localizations at once (as Poisson with parameter 2, assuming all chromosomes have the same length)
 ##' @param nb.cores the number of cores to use, i.e. at most how many child processes will be run simultaneously (not on Windows)
-##' @param verbose verbosity level (default=0/1)
+##' @param verbose verbosity level (0/1)
 ##' @return list of matrices (one per chromosome) with child haplotypes in rows and SNPs in columns
 ##' @author Timothee Flutre
 ##' @export
@@ -1030,11 +1038,11 @@ makeCrosses <- function(haplos, crosses, loc.crossovers=NULL,
 ##' @param snp.pairs data.frame with two columns "loc1" and "loc2"
 ##' @param snp.coords data.frame with SNP identifiers as row names, and two columns, "chr" and "coord" or "pos"
 ##' @param nb.cores the number of cores to use
-##' @param verbose verbosity level (default=0/1)
+##' @param verbose verbosity level (0/1)
 ##' @return vector
 ##' @author Timothee Flutre
 ##' @export
-distSnpPairs <- function(snp.pairs, snp.coords, nb.cores=1, verbose=0){
+distSnpPairs <- function(snp.pairs, snp.coords, nb.cores=1, verbose=1){
   if(! requireNamespace("GenomicRanges", quietly=TRUE))
     stop("Pkg GenomicRanges needed for this function to work. Please install it.",
          call.=FALSE)
@@ -1069,25 +1077,26 @@ distSnpPairs <- function(snp.pairs, snp.coords, nb.cores=1, verbose=0){
 
 ##' Genomic relatedness
 ##'
-##' Estimate genetic relationships between individuals from their SNP genotypes. Note that "relationships" are estimated, and not "coancestries" (2 x relationhips).
-##' @param X matrix of SNP genotypes encoded as allele doses in {0,1,2}, with individuals in rows and SNPs in columns; SNPs with missing data will be ignored
+##' Estimate genetic relationships between individuals from their SNP genotypes.
+##' Note that "relationships" are estimated, and not "coancestries" which are equal to 2 times "relationhips".
+##' @param X matrix of SNP genotypes encoded in number of copies of the 2nd allele, i.e. as allele doses in {0,1,2}, with individuals in rows and SNPs in columns; missing values should be encoded as NA in order to be ignored
 ##' @param afs vector with 2nd allele frequencies (calculated with \code{\link{estimAf}} if NULL)
-##' @param thresh threshold on minor allele frequencies below which SNPs are ignored (default=0.01, NULL to skip this step)
-##' @param relationships relationship to estimate (default=additive/dominance/gauss) where "gauss" corresponds to the Gaussian kernel from Endelman (2011)
-##' @param method if additive relationships, can be "vanraden1" (first method in VanRaden, 2008), "habier" (similar to 'vanraden1' without giving more importance to rare alleles; from Habier et al, 2007), "astle-balding" (two times equation 2.2 in Astle & Balding, 2009), "yang" (similar to 'astle-balding' but without ignoring sampling error per SNP; from Yang et al, 2010), "zhou" (centering the genotypes and not assuming that rare variants have larger effects; from Zhou et al, 2013) or "center-std"; if dominance relationships, can be "vitezica" (classical/statistical parametrization from Vitezica et al, 2013) or "su" (from Su et al, PLoS One, 2012)
-##' @param theta smoothing parameter for "gauss" (default=0.5)
-##' @param verbose verbosity level (default=1)
+##' @param thresh threshold on minor allele frequencies below which SNPs are ignored (e.g. 0.01; NULL to skip this step)
+##' @param relationships relationship to estimate (additive/dominant/gaussian) where "gaussian" corresponds to the Gaussian kernel from Endelman (2011)
+##' @param method if additive relationships, can be "vanraden1" (first method in VanRaden, 2008), "habier" (similar to 'vanraden1' without giving more importance to rare alleles; from Habier et al, 2007), "astle-balding" (two times equation 2.2 in Astle & Balding, 2009), "yang" (similar to 'astle-balding' but without ignoring sampling error per SNP; from Yang et al, 2010), "zhou" (centering the genotypes and not assuming that rare variants have larger effects; from Zhou et al, 2013) or "center-std"; if dominant relationships, can be "vitezica" (classical/statistical parametrization from Vitezica et al, 2013) or "su" (from Su et al, PLoS One, 2012)
+##' @param theta smoothing parameter for "gauss"
+##' @param verbose verbosity level (0/1)
 ##' @return matrix
 ##' @author Timothee Flutre
 ##' @export
-estimGenRel <- function(X, afs=NULL, thresh=0.01, relationships="additive",
+estimGenRel <- function(X, afs=NULL, thresh=NULL, relationships="additive",
                         method="vanraden1", theta=0.5, verbose=1){
   stopifnot(.isValidGenosDose(X),
-            relationships %in% c("additive", "dominance", "gauss"))
+            relationships %in% c("additive", "dominant", "gaussian"))
   if(relationships == "additive")
     stopifnot(method %in% c("vanraden1", "habier", "astle-balding", "yang",
                             "zhou", "center-std"))
-  if(relationships == "dominance")
+  if(relationships == "dominant")
     stopifnot(method %in% c("vitezica", "su"))
   if(! is.null(thresh))
     stopifnot(thresh >= 0, thresh <= 0.5)
@@ -1141,11 +1150,21 @@ estimGenRel <- function(X, afs=NULL, thresh=0.01, relationships="additive",
   }
 
   ## estimate relationships (not coancestries)
+  if(verbose > 0){
+    txt <- paste0("use ", ncol(X), " SNPs")
+    write(txt, stdout())
+  }
   if(relationships == "additive"){
     if(method == "vanraden1"){
-      M <- X - 1 # recode genotypes as {-1,0,1}
-      Pmat <- matrix(rep(1, N)) %*% (2 * (afs - 0.5))
-      Z <- M - Pmat
+      ## implementation as in VanRaden (2008)
+      ## M <- X - 1 # recode genotypes as {-1,0,1}
+      ## Pmat <- matrix(rep(1, N)) %*% (2 * (afs - 0.5))
+      ## Z <- M - Pmat
+
+      ## implementation as in Vitezica et al (2013)
+      tmp <- matrix(rep(1, N)) %*% (2 * afs)
+      Z <- X - tmp
+
       gen.rel <- tcrossprod(Z, Z) / (2 * sum(afs * (1 - afs)))
     } else if(method == "habier"){
       gen.rel <- tcrossprod(X, X) / (2 * sum(afs * (1 - afs)))
@@ -1168,16 +1187,18 @@ estimGenRel <- function(X, afs=NULL, thresh=0.01, relationships="additive",
       tmp <- scale(x=X, center=TRUE, scale=TRUE)
       gen.rel <- tcrossprod(tmp, tmp) / P
     }
-  } else if(relationships == "dominance"){
+  } else if(relationships == "dominant"){
     if(method == "vitezica"){
-      is.0 <- (X == 0)
-      is.1 <- (X == 1) # matrix indicating the heterozygotes
-      is.2 <- (X == 2)
-      W <- X
+      ## caution, compared to Vitezica et al (2013), the X matrix encodes
+      ## genotypes in terms of nb of copies of the A2 allele, not A1
+      is.0 <- (X == 0) # homozygotes for the first allele
+      is.1 <- (X == 1) # heterozygotes
+      is.2 <- (X == 2) # homozygotes for the second allele
+      W <- matrix(NA, nrow=nrow(X), ncol=ncol(X), dimnames=dimnames(X))
       for(i in 1:N){
-        W[i, is.0[i,]] <- - 2 * (1 - afs[is.0[i,]])^2
+        W[i, is.0[i,]] <- - 2 * afs[is.0[i,]]^2
         W[i, is.1[i,]] <- 2 * afs[is.1[i,]] * (1 - afs[is.1[i,]])
-        W[i, is.2[i,]] <- - 2 * afs[is.2[i,]]^2
+        W[i, is.2[i,]] <- - 2 * (1 - afs[is.2[i,]])^2
       }
       gen.rel <- tcrossprod(W, W) / sum((2 * afs * (1 - afs))^2)
     } else if(method == "su"){
@@ -1187,7 +1208,7 @@ estimGenRel <- function(X, afs=NULL, thresh=0.01, relationships="additive",
       gen.rel <- tcrossprod(H, H) /
         (2 * sum(afs * (1 - afs) * (1 - 2 * afs * (1 - afs))))
     }
-  } else if(relationships == "gauss"){
+  } else if(relationships == "gaussian"){
     M <- X - 1 # recode genotypes as {-1,0,1}
     gen.dist <- as.matrix(dist(x=M, method="euclidean")) / (2 * sqrt(P))
     gen.rel <- exp(-(gen.dist / theta)^2)
@@ -1198,21 +1219,23 @@ estimGenRel <- function(X, afs=NULL, thresh=0.01, relationships="additive",
 
 ##' Pairwise linkage disequilibrium
 ##'
-##' Estimates linkage disequilibrium between pairs of SNPs when the observations are the genotypes of individuals, not their gametes (i.e. the gametic phases are unknown). When ignoring kinship and population structure, the estimator of Rogers and Huff (Genetics, 2009) can be used. When kinship and/or population structure are controlled for, the estimator of Mangin et al (Heredity, 2012) is used via their LDcorSV package.
-##' @param X matrix of SNP genotypes encoded as allele doses in {0,1,2}, with individuals in rows and SNPs in columns
+##' Estimates linkage disequilibrium between pairs of SNPs when the observations are the genotypes of individuals, not their gametes (i.e. the gametic phases are unknown).
+##' When ignoring kinship and population structure, the estimator of Rogers and Huff (Genetics, 2009) can be used.
+##' When kinship and/or population structure are controlled for, the estimator of Mangin et al (Heredity, 2012) is used via their LDcorSV package.
+##' @param X matrix of SNP genotypes encoded in number of copies of the 2nd allele, i.e. as allele doses in {0,1,2}, with individuals in rows and SNPs in columns
 ##' @param K matrix of kinship
 ##' @param pops vector of characters indicating the population of each individual
 ##' @param snp.coords data.frame with SNP identifiers as row names, and two columns, "chr" and "pos"
 ##' @param only.chr identifier of a given chromosome
 ##' @param only.pop identifier of a given population
 ##' @param use.ldcorsv required if K and/or pops are not NULL; otherwise use the square of \code{\link{cor}}
-##' @param verbose verbosity level (default=0/1)
+##' @param verbose verbosity level (0/1)
 ##' @return data frame
 ##' @author Timothee Flutre
 ##' @export
 estimLd <- function(X, K=NULL, pops=NULL, snp.coords,
                     only.chr=NULL, only.pop=NULL,
-                    use.ldcorsv=FALSE, verbose=0){
+                    use.ldcorsv=FALSE, verbose=1){
   if(use.ldcorsv & ! requireNamespace("LDcorSV", quietly=TRUE))
     stop("Pkg LDcorSV needed for this function to work. Please install it.",
          call.=FALSE)
@@ -1315,10 +1338,11 @@ estimLd <- function(X, K=NULL, pops=NULL, snp.coords,
 
 ##' Pairwise linkage disequilibrium
 ##'
-##' Plots the linkage disequilibrium between pairs of SNPs, as a blue density or black points, with a red loess. Possibility to add two analytical approximations of E[r^2] at equilibrium (see McVean, Handbook of Stat Gen, 2007): 1 / (1 + 4 Ne c x) by Sved (1971) and (10 + 4 Ne c x) / (22 + 13 * 4 Ne c x + (4 Ne c x)^2) by Ohta and Kimura (1971).
+##' Plots the linkage disequilibrium between pairs of SNPs, as a blue density or black points, with a red loess.
+##' Possibility to add two analytical approximations of E[r^2] at equilibrium (see McVean, Handbook of Stat Gen, 2007): 1 / (1 + 4 Ne c x) by Sved (1971) and (10 + 4 Ne c x) / (22 + 13 * 4 Ne c x + (4 Ne c x)^2) by Ohta and Kimura (1971).
 ##' @param x vector of distances between SNPs (see \code{\link{distSnpPairs}})
 ##' @param y vector of LD estimates (see \code{\link{estimLd}})
-##' @param estim estimator of pairwise LD corresponding to the values in y (default=r2/r)
+##' @param estim estimator of pairwise LD corresponding to the values in y (r2/r)
 ##' @param main main title
 ##' @param use.density if TRUE, uses smoothScatter; otherwise, use scatter.smooth
 ##' @param xlab label for the x axis
@@ -1326,7 +1350,9 @@ estimLd <- function(X, K=NULL, pops=NULL, snp.coords,
 ##' @param span the parameter alpha which controls the degree of smoothing (see \code{\link[stats]{loess}})
 ##' @param degree the degree of the polynomials to be used (see \code{\link[stats]{loess}})
 ##' @param evaluation number of points at which to evaluate the smooth curve (see \code{\link[stats]{loess.smooth}})
-##' @param sample.size nb of sampled haplotypes, n, used to estimate the pairwise LD; if not NULL, n is used to calculate the r value above which the null hypothesis "D=0" is rejected, where r = D / sqrt(f_A f_a f_B f_b) and X^2 = n r^2 is the test statistic asymptotically following a Chi2(df=1) (see McVean, Handbook of Statistical Genetics, 2007, and Pritchard and Przewoski, AJHG, 2001)
+##' @param sample.size nb of sampled haplotypes, n, used to estimate the pairwise LD; if not NULL, n is used to plot the horizontal line at the r value above which the null hypothesis "D=0" is rejected, where r = D / sqrt(f_A f_a f_B f_b) and X^2 = n r^2 is the test statistic asymptotically following a Chi2(df=1) (see McVean, Handbook of Statistical Genetics, 2007, and Pritchard and Przewoski, AJHG, 2001)
+##' @param add.ohta.kimura add the analytical approximation by Ohta and Kimura (1971); requires Ne and c
+##' @param add.sved add the analytical approximation by Sved (1971); requires Ne and c
 ##' @param Ne effective population size
 ##' @param c recomb rate in events per base per generation
 ##' @return nothing
@@ -1334,17 +1360,20 @@ estimLd <- function(X, K=NULL, pops=NULL, snp.coords,
 ##' @export
 plotLd <- function(x, y, estim="r2", main,
                    use.density=TRUE,
-                   xlab="physical distance (bp)",
-                   ylab=paste0("linkage disequilibrium (", estim, ")"),
+                   xlab="Physical distance (bp)",
+                   ylab=paste0("Linkage disequilibrium (", estim, ")"),
                    span=1/10, degree=1, evaluation=50,
                    sample.size=NULL,
-                   Ne=NULL, c=NULL){
+                   add.ohta.kimura=TRUE, add.sved=TRUE, Ne=NULL, c=NULL){
   stopifnot(is.vector(x),
             is.vector(y),
             estim %in% c("r2","r"),
             is.character(main))
   if(! is.null(sample.size))
     stopifnot(is.numeric(sample.size))
+  if(any(c(add.ohta.kimura, add.sved)))
+    stopifnot(! is.null(Ne),
+              ! is.null(c))
 
   ## plot the pairwise estimates of LD
   lpars <- list(col="red", cex=2)
@@ -1375,14 +1404,15 @@ plotLd <- function(x, y, estim="r2", main,
   }
 
   ## add analytical approximations
-  if(all(c(! is.null(Ne), ! is.null(c)))){
+  if(any(c(add.ohta.kimura, add.sved)))
     scaled.dist <- 4 * Ne * c * x
-
+  if(add.ohta.kimura){
     ok <- (10 + scaled.dist) / (22 + 13 * scaled.dist + scaled.dist^2)
     if(estim == "r")
       ok <- sqrt(ok)
     points(x, ok, pch=".", col="purple", cex=1.2)
-
+  }
+  if(add.sved){
     sved <- 1 / (1 + scaled.dist)
     if(estim == "r")
       sved <- sqrt(sved)
@@ -1392,32 +1422,27 @@ plotLd <- function(x, y, estim="r2", main,
   ## add the legend
   legs <- "loess"
   cols <- "red"
-  lty <- 1
+  ltys <- 1
   lwds <- c(2)
-  if(is.null(sample.size)){
-    if(all(! c(is.null(Ne), ! is.null(c)))){
-      legs <- c("loess", "Ohta & Kimura (1971)", "Sved (1971)")
-      cols <- c("red", "purple", "green")
-      lty <- c(1, 1, 1)
-      lwds <- c(2, 2, 2)
-    }
-  } else{
-    if(any(c(is.null(Ne), is.null(c)))){
-      legs <- c("loess",
-                as.expression(bquote(paste("r | D=0, n=", .(sample.size),
-                                           ", ", alpha, "=5%"))))
-      cols <- c("red", ifelse(use.density, "black", "blue"))
-      ltys <- c(1, 2)
-      lwds <- c(2, 2)
-    } else{
-      legs <- c("loess",
-                as.expression(bquote(paste("r | D=0, n=", .(sample.size),
-                                           ", ", alpha, "=5%"))),
-                "Ohta & Kimura (1971)", "Sved (1971)")
-      cols <- c("red", ifelse(use.density, "black", "blue"), "purple", "green")
-      ltys <- c(1, 2, 1, 1)
-      lwds <- c(2, 2, 2, 2)
-    }
+  if(! is.null(sample.size)){
+    legs <- c(legs,
+              as.expression(bquote(paste("r | D=0, n=", .(sample.size),
+                                         ", ", alpha, "=5%"))))
+    cols <- c(cols, ifelse(use.density, "black", "blue"))
+    ltys <- c(ltys, 2)
+    lwds <- c(lwds, 2)
+  }
+  if(add.ohta.kimura){
+    legs <- c(legs, "Ohta & Kimura (1971)")
+    cols <- c(cols, "purple")
+    ltys <- c(ltys, 1)
+    lwds <- c(lwds, 2)
+  }
+  if(add.sved){
+    legs <- c(legs, "Sved (1971)")
+    cols <- c(cols, "green")
+    ltys <- c(ltys, 1)
+    lwds <- c(lwds, 2)
   }
   legend("topright", legend=legs, col=cols, lty=ltys, lwd=lwds, bty="n")
 }
@@ -1427,7 +1452,7 @@ plotLd <- function(x, y, estim="r2", main,
 ##' For each pair of consecutive SNPs, return the number of "blocks" (i.e. nucleotides) between both SNPs (to be coherent with \code{\link{distSnpPairs}}).
 ##' @param snp.coords data.frame with SNP identifiers as row names, and with two columns "chr" and "coord" or "pos"
 ##' @param only.chr identifier of a given chromosome
-##' @param nb.cores the number of cores to use (default=1)
+##' @param nb.cores the number of cores to use
 ##' @return list with one component per chromosome
 ##' @author Timothee Flutre
 ##' @export
@@ -1605,17 +1630,21 @@ simulAnimalModel <- function(Q=3, mu=50, mean.a=5, sd.a=2,
 
 ##' Animal model
 ##'
-##' Given T traits, I individuals, Q covariates and N=I*Q phenotypes per trait, simulate phenotypes via the following "animal model": Y = W Alpha + Z G_a + E, where Y is N x T; W is N x Q; Z is N x I; G_a ~ Normal_IxT(M_{G_a}=0, U_{G_a}=sigma_a^2 A, V_{G_a}) with unconstrained V_{G_a}; E ~ Normal_NxT(M_E=0, U_E=Id_N, V_E).
+##' Given T traits, I individuals, Q covariates and N=I*Q phenotypes per trait, simulate phenotypes via the following "animal model": Y = W C + Z G_A + Z G_D + E, where Y is N x T; W is N x Q; Z is N x I; G_A ~ Normal_IxT(0, sigma_A^2 A, V_{G_A}); G_D ~ Normal_IxT(0, sigma_D^2 D, V_{G_D}); E ~ Normal_NxT(0, Id_N, V_E).
 ##' @param T number of traits
 ##' @param Q number of covariates (as "fixed effects", e.g. replicates)
-##' @param mu T-vector of overall means (one per trait), i.e. Alpha[1,1:T]
-##' @param mean.a mean of the Normal prior on Alpha[2:Q,1:T] (ignored if Q=1)
-##' @param sd.a std dev of the Normal prior on Alpha[2:Q,1:T] (ignored if Q=1)
-##' @param A IxI matrix of additive genetic relationships between individuals (e.g. see \code{\link{estimGenRel}} with VanRaden's estimator)
-##' @param scale.halfCauchy scale of the half-Cauchy prior for sigma_a and sqrt{V_E} (e.g. 5; used if sigma.a2=NULL, whatever the value of T; used if V.E=NULL when T=1)
-##' @param sigma.a2 variance component of the additive genetic relationships (e.g. 15)
-##' @param V.G.a TxT matrix of genetic variance-covariance between traits (ignored if T=1)
-##' @param nu.V.G.a degrees of freedom of the Wishart prior for V_{G_a} (ignored if T=1 or V.G.a!=NULL)
+##' @param mu T-vector of overall means (one per trait), i.e. C[1,1:T]
+##' @param mean.C mean of the univariate Normal prior on C[2:Q,1:T] (ignored if Q=1)
+##' @param sd.C std dev of the univariate Normal prior on C[2:Q,1:T] (ignored if Q=1)
+##' @param A IxI matrix of additive genetic relationships between individuals (see \code{\link{estimGenRel}} with VanRaden's estimator)
+##' @param scale.halfCauchy scale of the half-Cauchy prior for sigma_A, sigma_D and sqrt{V_E} (e.g. 5; used if sigma.A2=NULL, whatever the value of T; used if D!=NULL and sigma.D2=NULL, whatever the value of T; used if V.E=NULL when T=1)
+##' @param sigma.A2 variance component of the additive genetic relationships (e.g. 15)
+##' @param V.G.A TxT matrix of additive genetic variance-covariance between traits (ignored if T=1)
+##' @param nu.V.G.A degrees of freedom of the Wishart prior for V_{G_A} (ignored if T=1 or V.G.A!=NULL)
+##' @param D IxI matrix of dominance genetic relationships between individuals (see \code{\link{estimGenRel}} with Vitezica's estimator)
+##' @param sigma.D2 variance component of the dominance genetic relationships (e.g. 3)
+##' @param V.G.D TxT matrix of dominance genetic variance-covariance between traits (ignored if T=1)
+##' @param nu.V.G.D degrees of freedom of the Wishart prior for V_{G_D} (ignored if T=1 or V.G.D!=NULL)
 ##' @param V.E TxT matrix of error variance-covariance between traits (ignored if T=1 and err.df!=Inf)
 ##' @param nu.V.E degrees of freedom of the Wishart prior for V_E (ignored if T=1 or V.E!=NULL)
 ##' @param err.df degrees of freedom of the Student's t-distribution of the errors (e.g. 3; Inf means Normal distribution; will be Inf if T>1)
@@ -1629,28 +1658,30 @@ simulAnimalModel <- function(Q=3, mu=50, mean.a=5, sd.a=2,
 ##' P <- 2000 # SNPs
 ##' X <- matrix(sample(0:2, size=I*P, replace=TRUE), nrow=I, ncol=P,
 ##'             dimnames=list(paste0("ind", 1:I), paste0("snp", 1:P)))
-##' A.vr <- estimGenRel(X, relationships="additive", method="vanraden1", verbose=0)
+##' A <- estimGenRel(X, relationships="additive", method="vanraden1", verbose=0)
 ##'
 ##' # one trait with heritability h2=0.75, no covariate, Normal errors, no NA
-##' model <- simulAnimalModelMultivar(T=1, Q=1, A=A.vr, sigma.a2=15, V.E=5)
+##' model <- simulAnimalModelMultivar(T=1, Q=1, A=A, sigma.A2=15, V.E=5)
 ##'
 ##' # one trait with heritability h2=0.75, three covariates, Normal errors, no NA
-##' model <- simulAnimalModelMultivar(T=1, Q=3, A=A.vr, sigma.a2=15, V.E=5)
+##' model <- simulAnimalModelMultivar(T=1, Q=3, A=A, sigma.A2=15, V.E=5)
 ##'
 ##' # one trait with heritability h2=0.75, no covariate, Student errors, no NA
-##' model <- simulAnimalModelMultivar(T=1, Q=1, A=A.vr, sigma.a2=15, err.df=3)
+##' model <- simulAnimalModelMultivar(T=1, Q=1, A=A, sigma.A2=15, err.df=3)
 ##'
 ##' # one trait with heritability drawn at random, no covariate, Normal errors, no NA
-##' model <- simulAnimalModelMultivar(T=1, Q=1, A=A.vr, scale.halfCauchy=5)
+##' model <- simulAnimalModelMultivar(T=1, Q=1, A=A, scale.halfCauchy=5)
 ##'
 ##' # two traits with heritabilities drawn at random, no covariate, Normal errors, no NA
-##' model <- simulAnimalModelMultivar(T=2, Q=1, A=A.vr, scale.halfCauchy=5, nu.V.E=3)
+##' model <- simulAnimalModelMultivar(T=2, Q=1, A=A, scale.halfCauchy=5, nu.V.E=3)
 ##' @export
 simulAnimalModelMultivar <- function(T=1,
-                                     Q=3, mu=rep(50,T), mean.a=5, sd.a=2,
+                                     Q=3, mu=rep(50,T), mean.C=5, sd.C=2,
                                      A,
                                      scale.halfCauchy=NULL,
-                                     sigma.a2=NULL, V.G.a=NULL, nu.V.G.a=T,
+                                     sigma.A2=NULL, V.G.A=NULL, nu.V.G.A=T,
+                                     D=NULL, sigma.D2=NULL,
+                                     V.G.D=NULL, nu.V.G.D=T,
                                      V.E=NULL, nu.V.E=T,
                                      err.df=Inf, perc.NA=0, seed=NULL){
   if(! requireNamespace("MASS", quietly=TRUE))
@@ -1662,14 +1693,36 @@ simulAnimalModelMultivar <- function(T=1,
             ! is.null(rownames(A)),
             ! is.null(colnames(A)),
             rownames(A) == colnames(A))
-  if(is.null(sigma.a2))
+  if(is.null(sigma.A2))
     stopifnot(! is.null(scale.halfCauchy))
-  if(T > 1 & is.null(V.G.a))
-    stopifnot(! is.null(nu.V.G.a))
+  if(T > 1){
+    if(is.null(V.G.A)){
+      stopifnot(! is.null(nu.V.G.A))
+    } else
+      stopifnot(is.matrix(V.G.A),
+                nrow(V.G.A) == ncol(V.G.A))
+  }
   if(T == 1 & is.infinite(err.df) & is.null(V.E))
     stopifnot(! is.null(scale.halfCauchy))
   if(T > 1 & is.null(V.E))
     stopifnot(! is.null(nu.V.E))
+  if(! is.null(D)){
+    stopifnot(is.matrix(D),
+              nrow(D) == ncol(D),
+              ! is.null(rownames(D)),
+              ! is.null(colnames(D)),
+              rownames(D) == colnames(D),
+              rownames(D) == rownames(A))
+    if(is.null(sigma.D2))
+      stopifnot(! is.null(scale.halfCauchy))
+    if(T > 1){
+      if(is.null(V.G.D)){
+        stopifnot(! is.null(nu.V.G.D))
+      } else
+        stopifnot(is.matrix(V.G.D),
+                  nrow(V.G.D) == ncol(V.G.D))
+    }
+  }
   stopifnot(perc.NA >= 0, perc.NA <= 100)
   if(! is.null(seed))
     set.seed(seed)
@@ -1692,10 +1745,10 @@ simulAnimalModelMultivar <- function(T=1,
 
   ## "fixed" effects
   if(Q == 1){
-    Alpha <- matrix(data=mu, nrow=Q, ncol=T)
+    C <- matrix(data=mu, nrow=Q, ncol=T)
   } else
-    Alpha <- matrix(data=c(mu, rnorm(n=(Q-1)*T, mean=mean.a, sd=sd.a)),
-                    byrow=TRUE, nrow=Q, ncol=T)
+    C <- matrix(data=c(mu, rnorm(n=(Q-1)*T, mean=mean.C, sd=sd.C)),
+                byrow=TRUE, nrow=Q, ncol=T)
 
   ## incidence matrix of genetic "random" effects
   levels.inds <- rownames(A)
@@ -1707,25 +1760,45 @@ simulAnimalModelMultivar <- function(T=1,
   dat$ind <- inds
 
   ## additive genetic component
-  G.a <- NULL
-  if(is.null(sigma.a2)){
-    sigma.a <- abs(rcauchy(n=1, location=0, scale=scale.halfCauchy))
-    sigma.a2 <- sigma.a^2
+  G.A <- matrix(0, I, T)
+  if(is.null(sigma.A2)){
+    sigma.A <- abs(rcauchy(n=1, location=0, scale=scale.halfCauchy))
+    sigma.A2 <- sigma.A^2
   }
-  U.G.a <- sigma.a2 * A
-  ## U.G.a <- as.matrix(Matrix::nearPD(sigma.a^2 * A)$mat)
+  U.G.A <- sigma.A2 * A
+  ## U.G.A <- as.matrix(Matrix::nearPD(sigma.A^2 * A)$mat)
   if(T == 1){
-    G.a <- matrix(MASS::mvrnorm(n=1, mu=rep(0, I), Sigma=U.G.a))
-    rownames(G.a) <- rownames(A)
+    G.A <- matrix(MASS::mvrnorm(n=1, mu=rep(0, I), Sigma=U.G.A))
+    rownames(G.A) <- rownames(A)
   } else{
-    if(is.null(V.G.a))
-      V.G.a <- rWishart(n=1, df=nu.V.G.a, Sigma=diag(T))[,,1]
-    G.a <- rmatnorm(n=1, M=matrix(data=0, nrow=I, ncol=T),
-                    U=U.G.a, V=V.G.a)[,,1]
+    if(is.null(V.G.A))
+      V.G.A <- rWishart(n=1, df=nu.V.G.A, Sigma=diag(T))[,,1]
+    G.A <- rmatnorm(n=1, M=matrix(data=0, nrow=I, ncol=T),
+                    U=U.G.A, V=V.G.A)[,,1]
+  }
+
+  ## dominance genetic component
+  G.D <- matrix(0, I, T)
+  if(! is.null(D)){
+    if(is.null(sigma.D2)){
+      sigma.D <- abs(rcauchy(n=1, location=0, scale=scale.halfCauchy))
+      sigma.D2 <- sigma.D^2
+    }
+    U.G.D <- sigma.D2 * D
+    ## U.G.D <- as.matrix(Matrix::nearPD(sigma.D^2 * D)$mat)
+    if(T == 1){
+      G.D <- matrix(MASS::mvrnorm(n=1, mu=rep(0, I), Sigma=U.G.D))
+      rownames(G.D) <- rownames(D)
+    } else{
+      if(is.null(V.G.D))
+        V.G.D <- rWishart(n=1, df=nu.V.G.D, Sigma=diag(T))[,,1]
+      G.D <- rmatnorm(n=1, M=matrix(data=0, nrow=I, ncol=T),
+                      U=U.G.D, V=V.G.D)[,,1]
+    }
   }
 
   ## errors
-  E <- NULL
+  E <- matrix(0, N, T)
   if(T == 1){
     if(is.infinite(err.df)){
       if(is.null(V.E)){
@@ -1743,7 +1816,7 @@ simulAnimalModelMultivar <- function(T=1,
   }
 
   ## phenotypes
-  Y <- W %*% Alpha + Z %*% G.a + E
+  Y <- W %*% C + Z %*% G.A + Z %*% G.D + E
   if(perc.NA > 0){
     idx <- sample.int(n=N*T, size=floor(perc.NA/100 * N*T))
     y[idx] <- NA
@@ -1752,22 +1825,24 @@ simulAnimalModelMultivar <- function(T=1,
     dat[[paste0("response", t)]] <- Y[,t]
 
   return(list(Y=Y,
-              W=W, Alpha=Alpha,
-              Z=Z, V.G.a=V.G.a, G.a=G.a,
+              W=W, C=C,
+              Z=Z, sigma.A2=sigma.A2, V.G.A=V.G.A, G.A=G.A,
+              sigma.D2=sigma.D2, V.G.D=V.G.D, G.D=G.D,
               V.E=V.E,
               dat=dat))
 }
 
 ##' Animal model
 ##'
-##' Given I individuals, Q covariates and N=I*Q phenotypes per trait, fit an "animal model" with the lme4 package via the following likelihood: y = W alpha + Z g_a + epsilon, where y is Nx1; W is NxQ; Z is NxI; g_a ~ Normal_I(0, Sigma_a=sigma_a^2 A) with A the known matrix of additive genetic relationships; epsilon ~ Normal_N(0, Sigma=sigma^2 Id_N); Cov(g_a,e)=0.
+##' Given I individuals, Q covariates and N=I*Q phenotypes for the trait, fit an "animal model" with the lme4 package via the following likelihood: y = W c + Z g_A + Z g_D + epsilon, where y is Nx1; W is NxQ; Z is NxI; g_A ~ Normal_I(0, sigma_A^2 A) with A the known matrix of additive genetic relationships; g_D ~ Normal_I(0, sigma_D^2 D) with D the known matrix of dominance genetic relationships; epsilon ~ Normal_N(0, sigma^2 Id_N); Cov(g_A,g_D)=0; Cov(g_A,e)=0; Cov(g_D,e)=0.
 ##' @param formula formula (see \code{\link[lme4]{lmer}})
 ##' @param data data.frame containing the data corresponding to formula and relmat (see \code{\link[lme4]{lmer}})
-##' @param relmat list containing the matrix of additive genetic relationships (should use the same name as the colname in data); can be in the "matrix" class (base) or the "dsCMatrix" class (Matrix package); see \code{\link{estimGenRel}}
+##' @param relmat list containing the matrices of genetic relationships (A is compulsory but D is optional); should use the same names as the colnames in data; can be in the "matrix" class (base) or the "dsCMatrix" class (Matrix package); see \code{\link{estimGenRel}}
 ##' @param REML default is TRUE (use FALSE to compare models with different fixed effects)
-##' @param verbose verbosity level (0/default=1)
+##' @param verbose verbosity level (0/1)
 ##' @return \code{\link[lme4]{merMod}} object
 ##' @author Timothee Flutre (inspired by Ben Bolker at http://stackoverflow.com/q/19327088/597069)
+##' @note If A is not positive definite, an error will be raised (via \code{\link[base]{chol}}); in such cases, using \code{\link[Matrix]{nearPD}} can be useful.
 ##' @examples
 ##' set.seed(1859)
 ##' I <- 100 # individuals
@@ -1775,8 +1850,8 @@ simulAnimalModelMultivar <- function(T=1,
 ##' X <- matrix(sample(0:2, size=I*P, replace=TRUE), nrow=I, ncol=P,
 ##'             dimnames=list(paste0("ind", 1:I), paste0("snp", 1:P)))
 ##' A.vr <- estimGenRel(X, relationships="additive", method="vanraden1", verbose=0)
-##' model <- simulAnimalModelMultivar(T=1, Q=3, A=A.vr, sigma.a2=15, V.E=5)
-##' c(model$Alpha)
+##' model <- simulAnimalModelMultivar(T=1, Q=3, A=A.vr, sigma.A2=15, V.E=5)
+##' c(model$C)
 ##' res <- lmerAM(formula=response1 ~ year + (1|ind), data=model$dat,
 ##'               relmat=list(ind=A.vr))
 ##' summary(res)
@@ -1814,7 +1889,8 @@ lmerAM <- function(formula, data, relmat, REML=TRUE, verbose=1){
                                   REML=REML)
 
   if(verbose > 0)
-    write("structure the design and covariance matrices of the random effects ...",
+    write(paste0("structure the design and covariance matrices",
+                 " of the random effects ..."),
           stdout())
   relfac <- relmat
   flist <- parsedFormula$reTrms[["flist"]] # list of grouping factors
@@ -1860,7 +1936,7 @@ lmerAM <- function(formula, data, relmat, REML=TRUE, verbose=1){
 ##' @param mu overall mean
 ##' @param mean.a mean of the prior on alpha[2:Q]
 ##' @param sd.a std dev of the prior on alpha[2:Q]
-##' @param X matrix of SNP genotypes encoded as allele doses in {0,1,2}, with individuals in rows and SNPs in columns (SNPs with missing values or low MAF should be discarded beforehand)
+##' @param X matrix of SNP genotypes encoded in number of copies of the 2nd allele, i.e. as allele doses in {0,1,2}, with individuals in rows and SNPs in columns (SNPs with missing values or low MAF should be discarded beforehand)
 ##' @param pi proportion of beta-tilde values that are non-zero
 ##' @param h approximation to E[PVE] (h and rho should be NULL or not together)
 ##' @param rho approximation to E[PGE]
@@ -1978,9 +2054,9 @@ simulBslmm <- function(Q=3, mu=50, mean.a=5, sd.a=2,
 ##' Launch GEMMA
 ##'
 ##' See Zhou & Stephens (Nature Genetics, 2012) and Zhou et al (PLoS Genetics, 2013).
-##' @param model name of the model to fit (default=ulmm/bslmm)
+##' @param model name of the model to fit (ulmm/bslmm)
 ##' @param y vector of phenotypes
-##' @param X matrix of SNP genotypes encoded as allele doses in {0,1,2}, with individuals in rows and SNPs in columns
+##' @param X matrix of SNP genotypes encoded in number of copies of the 2nd allele, i.e. as allele doses in {0,1,2}, with individuals in rows and SNPs in columns
 ##' @param snp.coords data.frame with 3 columns (snp, coord, chr)
 ##' @param alleles data.frame with SNPs in rows (names as row names) and
 ##' alleles in columns (first is "minor", second is "major")
@@ -1988,7 +2064,7 @@ simulBslmm <- function(Q=3, mu=50, mean.a=5, sd.a=2,
 ##' @param W matrix of covariates with individuals in rows (names as row names), a first column of 1 and a second column of covariates values
 ##' @param out.dir directory in which the output files will be saved
 ##' @param task.id identifier of the task (used in output file names)
-##' @param verbose verbosity level (default=1)
+##' @param verbose verbosity level (0/1)
 ##' @param clean remove files: none, some (temporary only), all (temporary and results)
 ##' @param burnin number of iterations to discard as burn-in
 ##' @param nb.iters number of iterations
@@ -2118,7 +2194,7 @@ gemma <- function(model="ulmm", y, X, snp.coords, alleles, K.c=NULL, W,
 ##'
 ##' See Zhou & Stephens (Nature Genetics, 2012).
 ##' @param y vector of phenotypes
-##' @param X matrix of SNP genotypes encoded as allele doses in {0,1,2}, with individuals in rows and SNPs in columns
+##' @param X matrix of SNP genotypes encoded in number of copies of the 2nd allele, i.e. as allele doses in {0,1,2}, with individuals in rows and SNPs in columns
 ##' @param snp.coords data.frame with SNP identifiers as row names, and two columns, "chr" and "coord" or "pos"
 ##' @param alleles data.frame with SNPs in rows (names as row names) and alleles in columns (first is "minor", second is "major"); will be made of A's and B's if missing
 ##' @param chr.ids set of chromosome identifiers to analyze (optional, all by default)
@@ -2126,7 +2202,7 @@ gemma <- function(model="ulmm", y, X, snp.coords, alleles, K.c=NULL, W,
 ##' @param out.dir directory in which the data files will be found
 ##' @param task.id identifier of the task (used in output file names)
 ##' @param clean remove files: none, some (temporary only), all (temporary and results)
-##' @param verbose verbosity level (default=1)
+##' @param verbose verbosity level (0/1)
 ##' @return a data.frame with GEMMA's output for all chromosomes
 ##' @author Timothee Flutre [aut,cre], Dalel Ahmed [ctb]
 ##' @export
@@ -2198,14 +2274,14 @@ gemmaUlmmPerChr <- function(y, X, snp.coords, alleles=NULL, chr.ids=NULL, W,
 ##' Second the allele effects are tested SNP per SNP: for all p in {1,..,P}, y = W alpha + Z x_p beta_p + Z u + epsilon, using the fixed effects and variance components estimated in the first step.
 ##' As the SNPs can be in linkage disequilibrium, it is advised (Yang et al, Nature Genetics, 2014) to perform the procedure chromosome per chromosome, which is the goal of this function; but I advise to also run it with chr.ids=NULL.
 ##' @param y vector or one-column matrix of phenotypes (the order is important and should be in agreement with the other arguments X, W and Z)
-##' @param X matrix of SNP genotypes encoded as allele doses in {0,1,2}, with individuals in rows and SNPs in columns
+##' @param X matrix of SNP genotypes encoded in number of copies of the 2nd allele, i.e. as allele doses in {0,1,2}, with individuals in rows and SNPs in columns
 ##' @param snp.coords data.frame with SNP identifiers as row names and two columns named "chr" and "coord" (or "pos")
 ##' @param thresh threshold on minor allele frequencies below which SNPs are ignored via \code{\link{discardSnpsLowMaf}} (default=0.01, NULL to skip this step)
 ##' @param chr.ids vector of chromosome identifiers to analyze (if NULL, the regular QTLRel procedure is launched, i.e. all chromosomes are used to estimate the variance components)
 ##' @param W incidence matrix of covariates (should not contain the column of 1's for the intercept; use \code{\link{model.matrix}} if necessary)
 ##' @param Z incidence matrix relating phenotypes to individuals (if nrow(y) and nrow(X) are different, diagonal otherwise; use \code{\link{model.matrix}} if necessary)
 ##' @param method.A method to estimate the additive relationships (see \code{\link{estimGenRel}})
-##' @param verbose verbosity level (default=1)
+##' @param verbose verbosity level (0/1)
 ##' @return a list with three data.frames as components, variance.components, fixed.effects and scan
 ##' @author Timothee Flutre
 ##' @examples
@@ -2231,7 +2307,7 @@ gemmaUlmmPerChr <- function(y, X, snp.coords, alleles=NULL, chr.ids=NULL, W,
 ##'    res <- qtlrelPerChr(dat$response, X, snp.coords, 0.01, NULL, W=W[,-1], Z=Z)
 ##' @export
 qtlrelPerChr <- function(y, X, snp.coords, thresh=0.01, chr.ids=NULL, W=NULL, Z=NULL,
-                         method.A="vanraden1", verbose=0){
+                         method.A="vanraden1", verbose=1){
   if(is.matrix(y))
     stopifnot(ncol(y) == 1)
   y <- as.vector(y)
@@ -2399,7 +2475,7 @@ qtlrelPerChr <- function(y, X, snp.coords, thresh=0.01, chr.ids=NULL, W=NULL, Z=
 ##' A quantile is an order statistic, and the j-th order statistic from a Uniform(0,1) sample has a Beta(j,N-j+1) distribution (Casella & Berger, 2001, 2nd edition, p230). Let us assume we have N independent p values, \eqn{\{p_1,\ldots,p_N\}}, for instance: pvalues <- c(runif(99000,0,1), rbeta(1000,0.5,1)). Under the null, they are independent and identically uniformly distributed: \eqn{\forall i \; p_i \sim \mathcal{U}_{[0,1]}}. Therefore, the 95% confidence interval for the j-th quantile of the set of p values can be calculated with: qbeta(0.95, j, N-j+1).
 ##' See also the qqman package.
 ##' @param pvalues vector of raw p values (missing values will be omitted)
-##' @param plot.conf.int show the confidence interval (default=TRUE)
+##' @param plot.conf.int show the confidence interval
 ##' @param xlab a title for the x axis (see default)
 ##' @param ylab a title for the x axis (see default)
 ##' @param main an overall title for the plot (default: "Q-Q plot (<length(pvalues)> p values)")
@@ -2453,13 +2529,61 @@ qqplotPval <- function(pvalues, plot.conf.int=TRUE,
   abline(0, 1, col="red")
 }
 
+##' P values
+##'
+##' Plot the histogram of p values as in figure 1 of Storey & Tibshirani (2003).
+##' The x-axis goes from 0 to 1 with equidistant bins of width 0.05, and the y-axis is in the density scale.
+##' For a given bin, the density of p values in this bin corresponds to the relative frequency in this bin divided by the bin width, where the relative frequency is the absolute frequency (i.e. raw counts in this bin) divided by the sum of all counts (i.e. over all bins).
+##' In the density scale, the area of a given bin is equal to its density times the bin width, thus the area of the whole histogram is equal to 1.
+##' Assuming all null hypotheses are true, the "density" histogram represents the density of the discrete version of the Uniform distribution, where the height of each bin is 1, so that the whole histogram area remains equal to 1.
+##' @param pvalues vector of raw p values (missing values will be omitted)
+##' @param main an overall title for the plot (default: "Density of <nb of non-NA p values> p values")
+##' @param pi0 estimate of the proportion of null hypotheses
+##' @return invisible output of \code{\link[graphics]{hist}}
+##' @author Timothee Flutre
+##' @export
+plotHistPval <- function(pvalues, main=NULL, pi0=NULL){
+  stopifnot(is.vector(pvalues))
+
+  if(any(is.na(pvalues)))
+    pvalues <- pvalues[! is.na(pvalues)]
+
+  if(is.null(main))
+    main <- paste0("Density of ", length(pvalues), " p values")
+
+  out <- hist(pvalues, breaks=seq(0,1,0.05), xlim=c(0,1), freq=FALSE, las=1,
+              xlab=expression(italic(p)~values), main=main,
+              col="grey", border="white")
+
+  ## density one would expect if all tested hypotheses were null
+  abline(h=1, lty=2)
+
+  legs <- "density if all hypotheses are null"
+  cols <- "black"
+  ltys <- 2
+  lwds <- 1
+
+  ## height of the estimate of the proportion of null hypotheses
+  if(! is.null(pi0)){
+    abline(h=pi0, lty=3)
+    legs <- c(legs, "estimated proportion of null hypotheses")
+    cols <- c(cols, "black")
+    ltys <- c(ltys, 3)
+    lwds <- c(lwds, 1)
+  }
+
+  legend("topright", legend=legs, col=cols, lty=ltys, lwd=lwds, bty="n")
+
+  invisible(out)
+}
+
 ##' Asymptotic Bayes factor
 ##'
 ##' Calculate the asymptotic Bayes factor proposed by Wakefield in Genetic Epidemiology 33:79-86 (2009, \url{http://dx.doi.org/10.1002/gepi.20359}).
 ##' @param theta.hat MLE of the additive genetic effect
 ##' @param V variance of theta.hat
 ##' @param W variance of the prior on theta
-##' @param log10 to return the log10 of the ABF (default=TRUE)
+##' @param log10 return the log10 of the ABF
 ##' @return numeric
 ##' @author Timothee Flutre
 ##' @export
@@ -2482,7 +2606,7 @@ calcAsymptoticBayesFactorWakefield <- function(theta.hat, V, W, log10=TRUE){
 ##' @param Y vector of phenotypes
 ##' @param sigma.a variance of the prior on the additive genetic effect
 ##' @param sigma.d variance of the prior on the dominance genetic effect
-##' @param log10 to return the log10 of the ABF (default=TRUE)
+##' @param log10 return the log10 of the ABF
 ##' @return numeric
 ##' @author Bertrand Servin [aut], Timothee Flutre [ctb,cre]
 ##' @export
@@ -2653,7 +2777,9 @@ readBiomercator <- function(file){
 
 ##' Plot pedigree
 ##'
-##' Plot a pedigree using the "igraph" package. Inspired by plot.pedigree() from the "synbreed" package (under GPL-3). Add options for monoecious species and auto-fecondation.
+##' Plot a pedigree using the "igraph" package.
+##' This function was inspired by plot.pedigree() from the "synbreed" package (under GPL-3).
+##' It add options for monoecious species and auto-fecondation.
 ##' @param inds identifiers of the individuals
 ##' @param mothers identifiers of their mother; can be NA
 ##' @param fathers identifiers of their father; can be NA

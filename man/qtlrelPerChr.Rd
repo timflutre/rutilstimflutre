@@ -5,12 +5,12 @@
 \title{QTLRel per chromosome}
 \usage{
 qtlrelPerChr(y, X, snp.coords, thresh = 0.01, chr.ids = NULL, W = NULL,
-  Z = NULL, method.A = "vanraden1", verbose = 0)
+  Z = NULL, method.A = "vanraden1", verbose = 1)
 }
 \arguments{
 \item{y}{vector or one-column matrix of phenotypes (the order is important and should be in agreement with the other arguments X, W and Z)}
 
-\item{X}{matrix of SNP genotypes encoded as allele doses in {0,1,2}, with individuals in rows and SNPs in columns}
+\item{X}{matrix of SNP genotypes encoded in number of copies of the 2nd allele, i.e. as allele doses in {0,1,2}, with individuals in rows and SNPs in columns}
 
 \item{snp.coords}{data.frame with SNP identifiers as row names and two columns named "chr" and "coord" (or "pos")}
 
@@ -24,7 +24,7 @@ qtlrelPerChr(y, X, snp.coords, thresh = 0.01, chr.ids = NULL, W = NULL,
 
 \item{method.A}{method to estimate the additive relationships (see \code{\link{estimGenRel}})}
 
-\item{verbose}{verbosity level (default=1)}
+\item{verbose}{verbosity level (0/1)}
 }
 \value{
 a list with three data.frames as components, variance.components, fixed.effects and scan

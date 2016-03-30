@@ -2,7 +2,7 @@
 % Please edit documentation in R/quantgen.R
 \name{segSites2allDoses}
 \alias{segSites2allDoses}
-\title{Convert the SFS of independent replicates into a matrix of allele dosage.}
+\title{Site frequency spectrum}
 \usage{
 segSites2allDoses(seg.sites, ind.ids = NULL, snp.ids = NULL)
 }
@@ -17,7 +17,7 @@ segSites2allDoses(seg.sites, ind.ids = NULL, snp.ids = NULL)
 matrix with diploid individuals in rows and SNPs in columns
 }
 \description{
-SFS stands for site frequency spectrum
+Convert the SFS of independent replicates into a matrix of allele dosage.
 }
 \author{
 Timothee Flutre

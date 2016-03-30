@@ -8,6 +8,8 @@ National de la Recherche Agronomique (INRA).
 
 The copyright is owned by the INRA. The code is available under the GNU Public
 License (version 3 and later). See the COPYING file for usage permissions.
+It is also available under the GNU Affero General Public License (version 3
+and later), especially important when the software is run over a network.
 
 The content of this directory is versioned using git, the central
 repository being hosted on GitHub:

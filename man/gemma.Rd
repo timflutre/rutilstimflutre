@@ -9,11 +9,11 @@ gemma(model = "ulmm", y, X, snp.coords, alleles, K.c = NULL, W, out.dir,
   thin = 10)
 }
 \arguments{
-\item{model}{name of the model to fit (default=ulmm/bslmm)}
+\item{model}{name of the model to fit (ulmm/bslmm)}
 
 \item{y}{vector of phenotypes}
 
-\item{X}{matrix of SNP genotypes encoded as allele doses in {0,1,2}, with individuals in rows and SNPs in columns}
+\item{X}{matrix of SNP genotypes encoded in number of copies of the 2nd allele, i.e. as allele doses in {0,1,2}, with individuals in rows and SNPs in columns}
 
 \item{snp.coords}{data.frame with 3 columns (snp, coord, chr)}
 
@@ -28,7 +28,7 @@ alleles in columns (first is "minor", second is "major")}
 
 \item{task.id}{identifier of the task (used in output file names)}
 
-\item{verbose}{verbosity level (default=1)}
+\item{verbose}{verbosity level (0/1)}
 
 \item{clean}{remove files: none, some (temporary only), all (temporary and results)}
 

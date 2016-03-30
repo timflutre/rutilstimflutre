@@ -17,7 +17,7 @@ simulBslmm(Q = 3, mu = 50, mean.a = 5, sd.a = 2, X, pi = NULL,
 
 \item{sd.a}{std dev of the prior on alpha[2:Q]}
 
-\item{X}{matrix of SNP genotypes encoded as allele doses in {0,1,2}, with individuals in rows and SNPs in columns (SNPs with missing values or low MAF should be discarded beforehand)}
+\item{X}{matrix of SNP genotypes encoded in number of copies of the 2nd allele, i.e. as allele doses in {0,1,2}, with individuals in rows and SNPs in columns (SNPs with missing values or low MAF should be discarded beforehand)}
 
 \item{pi}{proportion of beta-tilde values that are non-zero}
 

@@ -2,14 +2,14 @@
 % Please edit documentation in R/quantgen.R
 \name{plotHistMinAllelFreq}
 \alias{plotHistMinAllelFreq}
-\title{Plot the histogram of the minor allele frequency per SNP}
+\title{Minor allele frequencies}
 \usage{
 plotHistMinAllelFreq(X = NULL, maf = NULL, main = NULL, xlim = c(0,
   0.5), col = "grey", border = "white", las = 1, breaks = "FD",
   verbose = 1, ...)
 }
 \arguments{
-\item{X}{matrix of SNP genotypes encoded as allele doses in {0,1,2}, with individuals in rows and SNPs in columns (optional if maf is not null)}
+\item{X}{matrix of SNP genotypes encoded in number of copies of the 2nd allele, i.e. as allele doses in {0,1,2}, with individuals in rows and SNPs in columns (optional if maf is not null); if X is not NULL, minor allele frequencies will be estimated via \code{\link{estimMaf}}}
 
 \item{maf}{vector of minor allele frequencies (optional if X is not null)}
 
@@ -33,7 +33,7 @@ plotHistMinAllelFreq(X = NULL, maf = NULL, main = NULL, xlim = c(0,
 nothing
 }
 \description{
-Missing values (encoded as NA) should be discarded beforehand.
+Plot the histogram of the minor allele frequency per SNP.
 }
 \author{
 Timothee Flutre

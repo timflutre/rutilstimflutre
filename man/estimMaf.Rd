@@ -7,7 +7,7 @@
 estimMaf(X = NULL, afs = NULL)
 }
 \arguments{
-\item{X}{matrix of SNP genotypes encoded as allele doses in {0,1,2}, with individuals in rows and SNPs in columns; if NULL, afs should be specified}
+\item{X}{matrix of SNP genotypes encoded in number of copies of the 2nd allele, i.e. as allele doses in {0,1,2}, with individuals in rows and SNPs in columns; missing values should be encoded as NA in order to be ignored; if X is NULL, afs should be specified}
 
 \item{afs}{vector with 2nd allele frequencies; if NULL, X should be specified, and the frequencies will be estimated with \code{\link{estimAf}}}
 }
@@ -15,7 +15,7 @@ estimMaf(X = NULL, afs = NULL)
 vector
 }
 \description{
-Estimate the frequency of the minor allele for each SNP. Missing values should be encoded as NA in order to be ignored.
+Estimate the frequency of the minor allele for each SNP.
 }
 \author{
 Timothee Flutre

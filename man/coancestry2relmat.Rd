@@ -22,7 +22,9 @@ coancestry2relmat(x, estim.coancestry, estim.inbreeding = NULL,
 matrix
 }
 \description{
-Reformat the output of \code{\link[related]{coancestry}} (http://frasierlab.wordpress.com/software/) into a matrix. By default, off-diagonal elements  correspond to coancestry coefficients between two individuals, and each diagonal element corresponds to (1 + f) / 2 where f corresponds to the inbreeding coefficient of the given individual. To learn more about genetic relatedness, see Weir et al (2006), Astle & Balding (2009) and Legarra (2016).
+Reformat the output of \code{\link[related]{coancestry}} (http://frasierlab.wordpress.com/software/) into a matrix.
+By default, off-diagonal elements  correspond to coancestry coefficients between two individuals, and each diagonal element corresponds to (1 + f) / 2 where f corresponds to the inbreeding coefficient of the given individual.
+To learn more about genetic relatedness, see Weir et al (2006), Astle & Balding (2009) and Legarra (2016).
 }
 \author{
 Timothee Flutre

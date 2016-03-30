@@ -2,25 +2,25 @@
 % Please edit documentation in R/quantgen.R
 \name{plotGridMissGenos}
 \alias{plotGridMissGenos}
-\title{Plot missing SNP genotypes as a grid.}
+\title{Missing genotypes}
 \usage{
-plotGridMissGenos(x, main = "Missing genotypes", xlab = "Individuals",
+plotGridMissGenos(X, main = "Missing genotypes", xlab = "Individuals",
   ylab = "SNPs")
 }
 \arguments{
-\item{x}{matrix with SNP genotypes as allele doses (NA if missing) with
-SNPs in columns and individuals in rows}
+\item{X}{matrix of SNP genotypes encoded in number of copies of the 2nd allele, i.e. as allele doses in {0,1,2}, with individuals in rows and SNPs in columns; NA if missing}
 
-\item{main}{an overall title for the plot (default="Missing genotypes")}
+\item{main}{an overall title for the plot}
 
-\item{xlab}{a title for the x axis (default="Individuals")}
+\item{xlab}{a title for the x axis}
 
-\item{ylab}{a title for the y axis (default="SNPs")}
+\item{ylab}{a title for the y axis}
 }
 \value{
 nothing
 }
 \description{
+Plot missing SNP genotypes as a grid.
 Data will be represented in black if missing, white otherwise.
 }
 \author{

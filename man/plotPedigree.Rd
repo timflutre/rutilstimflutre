@@ -48,7 +48,9 @@ plotPedigree(inds, mothers, fathers, generations, sexes = NULL,
 invisible pedigree as an "igraph" object
 }
 \description{
-Plot a pedigree using the "igraph" package. Inspired by plot.pedigree() from the "synbreed" package (under GPL-3). Add options for monoecious species and auto-fecondation.
+Plot a pedigree using the "igraph" package.
+This function was inspired by plot.pedigree() from the "synbreed" package (under GPL-3).
+It add options for monoecious species and auto-fecondation.
 }
 \author{
 Timothee Flutre

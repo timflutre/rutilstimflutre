@@ -11,7 +11,7 @@ distConsecutiveSnps(snp.coords, only.chr = NULL, nb.cores = 1)
 
 \item{only.chr}{identifier of a given chromosome}
 
-\item{nb.cores}{the number of cores to use (default=1)}
+\item{nb.cores}{the number of cores to use}
 }
 \value{
 list with one component per chromosome

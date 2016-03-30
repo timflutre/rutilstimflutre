@@ -7,7 +7,7 @@
 simulCoalescent(nb.inds = 100, ind.ids = NULL, nb.reps = 20,
   pop.mut.rate = 50, pop.recomb.rate = 5, chrom.len = 10^3,
   other = NULL, nb.pops = 1, mig.rate = 5, get.trees = FALSE,
-  get.tmrca = FALSE, verbose = 0)
+  get.tmrca = FALSE, verbose = 1)
 }
 \arguments{
 \item{nb.inds}{diploids (thus nb of haplotypes is 2 * nb.inds)}
@@ -32,7 +32,7 @@ simulCoalescent(nb.inds = 100, ind.ids = NULL, nb.reps = 20,
 
 \item{get.tmrca}{get time to most recent common ancestor and local tree lengths}
 
-\item{verbose}{verbosity level (default=0=nothing, 1=few, 2=more)}
+\item{verbose}{verbosity level (0/1/2)}
 }
 \value{
 list with haplotypes (list), genotypes as allele doses (matrix) and SNP coordinates (data.frame)

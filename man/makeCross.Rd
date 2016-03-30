@@ -5,7 +5,7 @@
 \title{Cross}
 \usage{
 makeCross(haplos.par1, loc.crossovers.par1, haplos.par2 = NULL,
-  loc.crossovers.par2 = NULL, child.name = NULL, verbose = 0)
+  loc.crossovers.par2 = NULL, child.name = NULL, verbose = 1)
 }
 \arguments{
 \item{haplos.par1}{list of matrices (one per chromosome) for the first parent}
@@ -18,7 +18,7 @@ makeCross(haplos.par1, loc.crossovers.par1, haplos.par2 = NULL,
 
 \item{child.name}{identifier of the child (if NULL, <parent1>"-x-"<parent2> or <parent1>"-hd")}
 
-\item{verbose}{verbosity level (default=0/1)}
+\item{verbose}{verbosity level (0/1)}
 }
 \value{
 list of matrices (one per chromosome) for the child

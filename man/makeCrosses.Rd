@@ -16,7 +16,7 @@ makeCrosses(haplos, crosses, loc.crossovers = NULL, nb.cores = 1,
 
 \item{nb.cores}{the number of cores to use, i.e. at most how many child processes will be run simultaneously (not on Windows)}
 
-\item{verbose}{verbosity level (default=0/1)}
+\item{verbose}{verbosity level (0/1)}
 }
 \value{
 list of matrices (one per chromosome) with child haplotypes in rows and SNPs in columns

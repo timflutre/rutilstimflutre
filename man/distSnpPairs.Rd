@@ -4,7 +4,7 @@
 \alias{distSnpPairs}
 \title{Distance between SNP pairs}
 \usage{
-distSnpPairs(snp.pairs, snp.coords, nb.cores = 1, verbose = 0)
+distSnpPairs(snp.pairs, snp.coords, nb.cores = 1, verbose = 1)
 }
 \arguments{
 \item{snp.pairs}{data.frame with two columns "loc1" and "loc2"}
@@ -13,7 +13,7 @@ distSnpPairs(snp.pairs, snp.coords, nb.cores = 1, verbose = 0)
 
 \item{nb.cores}{the number of cores to use}
 
-\item{verbose}{verbosity level (default=0/1)}
+\item{verbose}{verbosity level (0/1)}
 }
 \value{
 vector

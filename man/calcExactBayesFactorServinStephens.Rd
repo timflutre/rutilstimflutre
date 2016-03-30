@@ -15,7 +15,7 @@ calcExactBayesFactorServinStephens(G, Y, sigma.a, sigma.d, log10 = TRUE)
 
 \item{sigma.d}{variance of the prior on the dominance genetic effect}
 
-\item{log10}{to return the log10 of the ABF (default=TRUE)}
+\item{log10}{return the log10 of the ABF}
 }
 \value{
 numeric

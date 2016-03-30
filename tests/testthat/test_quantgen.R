@@ -71,7 +71,8 @@ test_that("estimGenRel_vanraden1", {
   X <- matrix(c(0,0,2, 1,1,0, 0,1,0, 1,0,0), nrow=N, ncol=P,
               dimnames=list(paste0("ind", 1:N), paste0("snp", 1:P)))
 
-  afs <- setNames(c(0.383, 0.244, 0.167, 0.067), colnames(X))
+  afs <- setNames(c(0.383, 0.244, 0.567, 0.067), colnames(X))
+
   tmp <- matrix(rep(2*(afs-0.5), N), nrow=N, ncol=P, byrow=TRUE)
   Z <- X - 1 - tmp
   denom <- 0
@@ -192,7 +193,7 @@ test_that("estimGenRel_su", {
       (1 - 2 * afs[p] * (1 - afs[p]))
   expected <- (H %*% t(H)) / denom
 
-  observed <- estimGenRel(X=X, afs=afs, thresh=0, relationships="dominance",
+  observed <- estimGenRel(X=X, afs=afs, thresh=0, relationships="dominant",
                           method="su", verbose=0)
 
   expect_equal(observed, expected)
@@ -205,18 +206,22 @@ test_that("estimGenRel_vitezica", {
               dimnames=list(paste0("ind", 1:N), paste0("snp", 1:P)))
 
   afs <- setNames(c(0.383, 0.244, 0.167, 0.067), colnames(X))
-  W <- matrix(c(- 2 * (1 - afs[1])^2,
-                - 2 * (1 - afs[1])^2,
+
+  W <- matrix(c(- 2 * afs[1]^2,
                 - 2 * afs[1]^2,
+                - 2 * (1 - afs[1])^2,
+
                 2 * afs[2] * (1 - afs[2]),
                 2 * afs[2] * (1 - afs[2]),
-                - 2 * (1 - afs[2])^2,
-                - 2 * (1 - afs[3])^2,
+                - 2 * afs[2]^2,
+
+                - 2 * afs[3]^2,
                 2 * afs[3] * (1 - afs[3]),
-                - 2 * (1 - afs[3])^2,
+                - 2 * afs[3]^2,
+
                 2 * afs[4] * (1 - afs[4]),
-                - 2 * (1 - afs[4])^2,
-                - 2 * (1 - afs[4])^2),
+                - 2 * afs[4]^2,
+                - 2 * afs[4]^2),
               nrow=N, ncol=P,
               dimnames=list(rownames(X), colnames(X)))
   denom <- 0
@@ -224,7 +229,7 @@ test_that("estimGenRel_vitezica", {
     denom <- denom + (2 * afs[p] * (1 - afs[p]))^2
   expected <- (W %*% t(W)) / denom
 
-  observed <- estimGenRel(X=X, afs=afs, thresh=0, relationships="dominance",
+  observed <- estimGenRel(X=X, afs=afs, thresh=0, relationships="dominant",
                           method="vitezica", verbose=0)
 
   expect_equal(observed, expected)

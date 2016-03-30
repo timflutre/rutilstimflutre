@@ -4,29 +4,30 @@
 \alias{estimGenRel}
 \title{Genomic relatedness}
 \usage{
-estimGenRel(X, afs = NULL, thresh = 0.01, relationships = "additive",
+estimGenRel(X, afs = NULL, thresh = NULL, relationships = "additive",
   method = "vanraden1", theta = 0.5, verbose = 1)
 }
 \arguments{
-\item{X}{matrix of SNP genotypes encoded as allele doses in {0,1,2}, with individuals in rows and SNPs in columns; SNPs with missing data will be ignored}
+\item{X}{matrix of SNP genotypes encoded in number of copies of the 2nd allele, i.e. as allele doses in {0,1,2}, with individuals in rows and SNPs in columns; missing values should be encoded as NA in order to be ignored}
 
 \item{afs}{vector with 2nd allele frequencies (calculated with \code{\link{estimAf}} if NULL)}
 
-\item{thresh}{threshold on minor allele frequencies below which SNPs are ignored (default=0.01, NULL to skip this step)}
+\item{thresh}{threshold on minor allele frequencies below which SNPs are ignored (e.g. 0.01; NULL to skip this step)}
 
-\item{relationships}{relationship to estimate (default=additive/dominance/gauss) where "gauss" corresponds to the Gaussian kernel from Endelman (2011)}
+\item{relationships}{relationship to estimate (additive/dominant/gaussian) where "gaussian" corresponds to the Gaussian kernel from Endelman (2011)}
 
-\item{method}{if additive relationships, can be "vanraden1" (first method in VanRaden, 2008), "habier" (similar to 'vanraden1' without giving more importance to rare alleles; from Habier et al, 2007), "astle-balding" (two times equation 2.2 in Astle & Balding, 2009), "yang" (similar to 'astle-balding' but without ignoring sampling error per SNP; from Yang et al, 2010), "zhou" (centering the genotypes and not assuming that rare variants have larger effects; from Zhou et al, 2013) or "center-std"; if dominance relationships, can be "vitezica" (classical/statistical parametrization from Vitezica et al, 2013) or "su" (from Su et al, PLoS One, 2012)}
+\item{method}{if additive relationships, can be "vanraden1" (first method in VanRaden, 2008), "habier" (similar to 'vanraden1' without giving more importance to rare alleles; from Habier et al, 2007), "astle-balding" (two times equation 2.2 in Astle & Balding, 2009), "yang" (similar to 'astle-balding' but without ignoring sampling error per SNP; from Yang et al, 2010), "zhou" (centering the genotypes and not assuming that rare variants have larger effects; from Zhou et al, 2013) or "center-std"; if dominant relationships, can be "vitezica" (classical/statistical parametrization from Vitezica et al, 2013) or "su" (from Su et al, PLoS One, 2012)}
 
-\item{theta}{smoothing parameter for "gauss" (default=0.5)}
+\item{theta}{smoothing parameter for "gauss"}
 
-\item{verbose}{verbosity level (default=1)}
+\item{verbose}{verbosity level (0/1)}
 }
 \value{
 matrix
 }
 \description{
-Estimate genetic relationships between individuals from their SNP genotypes. Note that "relationships" are estimated, and not "coancestries" (2 x relationhips).
+Estimate genetic relationships between individuals from their SNP genotypes.
+Note that "relationships" are estimated, and not "coancestries" which are equal to 2 times "relationhips".
 }
 \author{
 Timothee Flutre
