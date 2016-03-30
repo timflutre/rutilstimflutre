@@ -146,6 +146,53 @@ mpInv <- function(mat){
   mat.svd$v %*% diag(1/mat.svd$d) %*% t(mat.svd$u)
 }
 
+##' Principal component analysis
+##'
+##' Via the singular value decomposition (SVD): X = U D V^T.
+##' This is mostly for teaching purposes, see \code{\link[stats]{prcomp}} otherwise.
+##' @param X data matrix with N rows and P columns
+##' @param ct use TRUE to center the columns of X (recommended), FALSE otherwise
+##' @param sc use TRUE to scale the columns of X (if different units), FALSE otherwise
+##' @param plot use TRUE to show a plot of PC1 versus PC2
+##' @param main main title of the plot
+##' @param cols N-vector of colors
+##' @return list with the rotated matrix (= X V) which columns corresponds to "principal components", and with the proportion of variance explained per PC
+##' @author Timothee Flutre
+##' @export
+pca <- function(X, ct=TRUE, sc=FALSE, plot=FALSE, main="PCA", cols=NULL){
+  stopifnot(is.matrix(X),
+            is.logical(ct),
+            is.logical(sc),
+            is.logical(plot))
+  if(plot & ! is.null(cols))
+    stopifnot(is.vector(cols),
+              length(cols) == nrow(X))
+
+  X <- scale(x=X, center=ct, scale=sc)
+
+  res.svd <- svd(x=X) # X = U D V^T
+
+  rotation <- X %*% res.svd$v
+  colnames(rotation) <- paste0("PC", 1:ncol(rotation))
+
+  prop.vars <- res.svd$d / sqrt(max(1, nrow(X) - 1))
+  prop.vars <- prop.vars / sum(prop.vars)
+  names(prop.vars) <- colnames(rotation)
+
+  if(plot){
+    plot(x=rotation[,1], y=rotation[,2], las=1,
+         xlab=paste0("PC1 (", format(100 * prop.vars[1], digits=3), "%)"),
+         ylab=paste0("PC2 (", format(100 * prop.vars[2], digits=3), "%)"),
+         main=main, type=ifelse(is.null(cols), "p", "n"))
+    abline(h=0, lty=2); abline(v=0, lty=2)
+    if(! is.null(cols))
+      points(x=rotation[,1], y=rotation[,2], col=cols, pch=20)
+  }
+
+  return(list(rotation=rotation,
+              prop.vars=prop.vars))
+}
+
 ##' Return the number of PCs that minimizes the average squared partial
 ##' correlation
 ##'
