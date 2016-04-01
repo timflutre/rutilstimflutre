@@ -2057,28 +2057,33 @@ simulBslmm <- function(Q=3, mu=50, mean.a=5, sd.a=2,
 ##'
 ##' See Zhou & Stephens (Nature Genetics, 2012) and Zhou et al (PLoS Genetics, 2013).
 ##' @param model name of the model to fit (ulmm/bslmm)
-##' @param y vector of phenotypes
-##' @param X matrix of SNP genotypes encoded in number of copies of the 2nd allele, i.e. as allele doses in {0,1,2}, with individuals in rows and SNPs in columns
+##' @param y N-vector of phenotypes
+##' @param X NxP matrix of SNP genotypes encoded in number of copies of the 2nd allele, i.e. as allele doses in {0,1,2}, with individuals in rows and SNPs in columns
 ##' @param snp.coords data.frame with 3 columns (snp, coord, chr)
 ##' @param alleles data.frame with SNPs in rows (names as row names) and
 ##' alleles in columns (first is "minor", second is "major")
-##' @param K.c kinship centered matrix of SNPs
-##' @param W matrix of covariates with individuals in rows (names as row names), a first column of 1 and a second column of covariates values
+##' @param maf SNPs with minor allele frequency strictly below this threshold will be discarded
+##' @param K.c NxN kinship matrix; if NULL, will be estimated using X via \code{\link{estimGenRel}} with relationships="additive" and method="zhou"
+##' @param W NxQ matrix of covariates with individuals in rows (names as row names), a first column of 1 and a second column of covariates values
 ##' @param out.dir directory in which the output files will be saved
-##' @param task.id identifier of the task (used in output file names)
+##' @param task.id identifier of the task (used in temporary and output file names)
 ##' @param verbose verbosity level (0/1)
 ##' @param clean remove files: none, some (temporary only), all (temporary and results)
-##' @param burnin number of iterations to discard as burn-in
-##' @param nb.iters number of iterations
-##' @param thin thining
-##' @return invisible data.frame
+##' @param burnin number of iterations to discard as burn-in (if model="bslmm")
+##' @param nb.iters number of iterations (if model="bslmm")
+##' @param thin thining (if model="bslmm")
+##' @return invisible list
 ##' @author Timothee Flutre [aut,cre], Dalel Ahmed [ctb]
 ##' @export
-gemma <- function(model="ulmm", y, X, snp.coords, alleles, K.c=NULL, W,
-                  out.dir, task.id, verbose=1, clean="none",
+gemma <- function(model="ulmm", y, X, snp.coords, alleles, maf=0.01, K.c=NULL,
+                  W, out.dir=getwd(), task.id="gemma", verbose=1, clean="none",
                   burnin=1000, nb.iters=7000, thin=10){
-  stopifnot(model %in% c("ulmm", "bslmm"),
-            is.vector(y),
+  stopifnot(model %in% c("ulmm", "bslmm"))
+  if(is.matrix(y)){
+    stopifnot(ncol(y) == 1)
+    y <- as.vector(y)
+  }
+  stopifnot(is.vector(y),
             .isValidGenosDose(X, check.rown=FALSE),
             is.data.frame(snp.coords),
             ncol(snp.coords) == 3,
@@ -2087,6 +2092,10 @@ gemma <- function(model="ulmm", y, X, snp.coords, alleles, K.c=NULL, W,
             all(colnames(snp.coords) == c("snp", "coord", "chr")),
             all(snp.coords$snp == colnames(X)),
             all(snp.coords$snp == rownames(alleles)),
+            is.numeric(maf),
+            length(maf) == 1,
+            maf >= 0,
+            maf <= 1,
             is.matrix(W),
             all(W[,1] == 1),
             file.exists(out.dir),
@@ -2106,7 +2115,8 @@ gemma <- function(model="ulmm", y, X, snp.coords, alleles, K.c=NULL, W,
               file=tmp.files["coord"],
               quote=FALSE, sep="\t", row.names=FALSE, col.names=FALSE)
   if(is.null(K.c))
-    K.c <- estimGenRel(X=X, method="zhou")
+    K.c <- estimGenRel(X=X, thresh=maf, relationships="additive",
+                       method="zhou", verbose=verbose)
   tmp.files <- c(tmp.files,
                  kin=paste0(out.dir, "/kinship-center_", task.id, ".txt"))
   write.table(x=K.c,
@@ -2127,10 +2137,11 @@ gemma <- function(model="ulmm", y, X, snp.coords, alleles, K.c=NULL, W,
   cmd <- paste0("cd ", out.dir,
                 "; gemma",
                 " -g genos_bimbam_", task.id, ".txt.gz",
+                " -maf ", maf,
                 " -p phenotypes_", task.id, ".txt.gz",
                 " -a snp_coordinates_", task.id, ".txt",
                 " -outdir ./",
-                " -o results_simul_", task.id)
+                " -o results_", task.id)
   if(model == "ulmm"){
     cmd <- paste0(cmd, " -k kinship-center_", task.id, ".txt",
                   " -c covar_gemma_", task.id, ".txt",
@@ -2151,15 +2162,20 @@ gemma <- function(model="ulmm", y, X, snp.coords, alleles, K.c=NULL, W,
   system(cmd)
 
   ## load output files
+  output <- list()
+  f <- paste0(out.dir, "/results_", task.id, ".log.txt")
+  output[["log"]] <- readLines(f)
+  if(clean == "all")
+    file.remove(f)
   if(model == "ulmm"){
-    f <- paste0(out.dir, "/results_simul_", task.id, ".assoc.txt")
-    output <- read.table(file=f, sep="\t", header=TRUE, stringsAsFactors=FALSE)
-    rownames(output) <- output$rs
+    f <- paste0(out.dir, "/results_", task.id, ".assoc.txt")
+    tmp <- read.table(file=f, sep="\t", header=TRUE, stringsAsFactors=FALSE)
+    rownames(tmp) <- tmp$rs
+    output[["tests"]] <- tmp
     if(clean == "all")
       file.remove(f)
   } else if(model == "bslmm"){
-    output <- list()
-    f <- paste0(out.dir, "/results_simul_", task.id, ".hyp.txt")
+    f <- paste0(out.dir, "/results_", task.id, ".hyp.txt")
     output[["hyperparams"]] <- read.table(file=f,
                                           sep="\t",
                                           skip=1, stringsAsFactors=FALSE,
@@ -2169,18 +2185,13 @@ gemma <- function(model="ulmm", y, X, snp.coords, alleles, K.c=NULL, W,
     output[["hyperparams"]][7] <- NULL
     if(clean == "all")
       file.remove(f)
-    f <- paste0(out.dir, "/results_simul_", task.id, ".param.txt")
+    f <- paste0(out.dir, "/results_", task.id, ".param.txt")
     output[["params"]] <- read.table(file=f,
                                      sep="\t", skip=1,
                                      stringsAsFactors=FALSE, header=FALSE,
                                      col.names=c("chr", "rs", "ps", "n_miss",
                                                  "alpha", "beta", "gamma"))
     if(clean == "all")
-      file.remove(f)
-  }
-  if(clean == "all"){
-    f <- paste0(out.dir, "/results_simul_", task.id, ".log.txt")
-    if(file.exists(f))
       file.remove(f)
   }
 

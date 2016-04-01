@@ -4,42 +4,44 @@
 \alias{gemma}
 \title{Launch GEMMA}
 \usage{
-gemma(model = "ulmm", y, X, snp.coords, alleles, K.c = NULL, W, out.dir,
-  task.id, verbose = 1, clean = "none", burnin = 1000, nb.iters = 7000,
-  thin = 10)
+gemma(model = "ulmm", y, X, snp.coords, alleles, maf = 0.01, K.c = NULL,
+  W, out.dir = getwd(), task.id = "gemma", verbose = 1, clean = "none",
+  burnin = 1000, nb.iters = 7000, thin = 10)
 }
 \arguments{
 \item{model}{name of the model to fit (ulmm/bslmm)}
 
-\item{y}{vector of phenotypes}
+\item{y}{N-vector of phenotypes}
 
-\item{X}{matrix of SNP genotypes encoded in number of copies of the 2nd allele, i.e. as allele doses in {0,1,2}, with individuals in rows and SNPs in columns}
+\item{X}{NxP matrix of SNP genotypes encoded in number of copies of the 2nd allele, i.e. as allele doses in {0,1,2}, with individuals in rows and SNPs in columns}
 
 \item{snp.coords}{data.frame with 3 columns (snp, coord, chr)}
 
 \item{alleles}{data.frame with SNPs in rows (names as row names) and
 alleles in columns (first is "minor", second is "major")}
 
-\item{K.c}{kinship centered matrix of SNPs}
+\item{maf}{SNPs with minor allele frequency strictly below this threshold will be discarded}
 
-\item{W}{matrix of covariates with individuals in rows (names as row names), a first column of 1 and a second column of covariates values}
+\item{K.c}{NxN kinship matrix; if NULL, will be estimated using X via \code{\link{estimGenRel}} with relationships="additive" and method="zhou"}
+
+\item{W}{NxQ matrix of covariates with individuals in rows (names as row names), a first column of 1 and a second column of covariates values}
 
 \item{out.dir}{directory in which the output files will be saved}
 
-\item{task.id}{identifier of the task (used in output file names)}
+\item{task.id}{identifier of the task (used in temporary and output file names)}
 
 \item{verbose}{verbosity level (0/1)}
 
 \item{clean}{remove files: none, some (temporary only), all (temporary and results)}
 
-\item{burnin}{number of iterations to discard as burn-in}
+\item{burnin}{number of iterations to discard as burn-in (if model="bslmm")}
 
-\item{nb.iters}{number of iterations}
+\item{nb.iters}{number of iterations (if model="bslmm")}
 
-\item{thin}{thining}
+\item{thin}{thining (if model="bslmm")}
 }
 \value{
-invisible data.frame
+invisible list
 }
 \description{
 See Zhou & Stephens (Nature Genetics, 2012) and Zhou et al (PLoS Genetics, 2013).
