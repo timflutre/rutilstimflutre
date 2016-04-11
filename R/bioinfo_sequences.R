@@ -1,5 +1,31 @@
 ## Contains functions handling sequences often used in bioinformatics.
 
+##' Fasta file
+##'
+##' Return key aspects of a fasta file as summary (number of records, length of each record, letter frequency of each record).
+##' @param fa.file path to the fasta file (can be gzip-compressed)
+##' @param letters vector of characters to get their frequency
+##' @return list
+##' @author Timothee Flutre
+##' @export
+summaryFasta <- function(fa.file, letters=c("A","T","G","C","N")){
+  if(! requireNamespace("Biostrings", quietly=TRUE))
+    stop("Pkg Biostrings needed for this function to work. Please install it.",
+         call.=FALSE)
+  if(! requireNamespace("BiocGenerics", quietly=TRUE))
+    stop("Pkg BiocGenerics needed for this function to work. Please install it.",
+         call.=FALSE)
+  stopifnot(file.exists(fa.file))
+
+  records <- Biostrings::readDNAStringSet(filepath=fa.file, format="fasta")
+  lf <- Biostrings::letterFrequency(x=records, letters=letters)
+  rownames(lf) <- names(records)
+
+  return(list(nb.records=length(records),
+              rec.lengths=BiocGenerics::width(records),
+              letter.freqs=lf))
+}
+
 ##' Calculate the GC content of a set of sequences
 ##'
 ##' Requires the Biostrings package.
@@ -262,7 +288,7 @@ barplotInsertSizes <- function(file, main=NULL, add.text=FALSE){
 ##' @return list of data.tables
 ##' @author Timothee Flutre
 ##' @export
-fread.bedtools.coverage.hist <- function(files, verbose=1){
+freadBedtoolsCoverageHist <- function(files, verbose=1){
   colClasses <- sapply(read.table(files[1], nrows=5), class)
   ldat <-
     lapply(1:length(files), function (i, verbose){
@@ -290,7 +316,7 @@ fread.bedtools.coverage.hist <- function(files, verbose=1){
 ##' Depth per sample across regions
 ##'
 ##' Summarize the depth per sample across regions of a given length range.
-##' @param dat data.table (see fread.bedtools.coverage.hist)
+##' @param dat data.table (see freadBedtoolsCoverageHist)
 ##' @param min.reg.len minimum length of a region to be considered
 ##' @param max.reg.len maximum length of a region to be considered
 ##' @param min.reg.dep minimum depth of a region when reporting the number of interesting regions
@@ -299,9 +325,9 @@ fread.bedtools.coverage.hist <- function(files, verbose=1){
 ##' @return data.table
 ##' @author Timothee Flutre
 ##' @export
-depths.per.sample <- function(dat, min.reg.len=30, max.reg.len=500,
-                              min.reg.dep=10, max.reg.dep=200,
-                              min.reg.frac=0.25){
+depthsPerSample <- function(dat, min.reg.len=30, max.reg.len=500,
+                            min.reg.dep=10, max.reg.dep=200,
+                            min.reg.frac=0.25){
   stopifnot(is.data.table(dat))
   for(col in c("ind", "flowcell", "lane", "chrom", "start", "end", "name",
                "depth", "fraction"))
@@ -339,7 +365,7 @@ depths.per.sample <- function(dat, min.reg.len=30, max.reg.len=500,
 ##' Depth per region across samples
 ##'
 ##' Summarize the depth per region of a given length range across samples.
-##' @param dat data.table (see fread.bedtools.coverage.hist)
+##' @param dat data.table (see freadBedtoolsCoverageHist)
 ##' @param min.reg.len minimum length of a region to be considered
 ##' @param max.reg.len maximum length of a region to be considered
 ##' @param min.reg.dep minimum depth of a region when reporting the number of interesting regions
@@ -348,9 +374,9 @@ depths.per.sample <- function(dat, min.reg.len=30, max.reg.len=500,
 ##' @return data.table
 ##' @author Timothee Flutre
 ##' @export
-depths.per.region <- function(dat, min.reg.len=30, max.reg.len=500,
-                              min.reg.dep=10, max.reg.dep=200,
-                              min.reg.frac=0.25){
+depthsPerRegion <- function(dat, min.reg.len=30, max.reg.len=500,
+                            min.reg.dep=10, max.reg.dep=200,
+                            min.reg.frac=0.25){
   stopifnot(is.data.table(dat))
   for(col in c("ind", "flowcell", "lane", "chrom", "start", "end", "name",
                "depth", "fraction"))
@@ -393,9 +419,9 @@ depths.per.region <- function(dat, min.reg.len=30, max.reg.len=500,
 ##' @return invisible list of covrg and cumcovrg
 ##' @author Timothee Flutre
 ##' @export
-coverage.regions <- function(path=NULL, pattern=NULL, covrg=NULL, plot.it=TRUE,
-                             xlim=NULL, ylim=c(0,1), points.type="l",
-                             plot.legend=TRUE, verbose=1){
+coverageRegions <- function(path=NULL, pattern=NULL, covrg=NULL, plot.it=TRUE,
+                            xlim=NULL, ylim=c(0,1), points.type="l",
+                            plot.legend=TRUE, verbose=1){
   stopifnot(xor(is.null(path), is.null(covrg)))
 
   if(is.null(covrg)){
