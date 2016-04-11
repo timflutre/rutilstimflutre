@@ -4,18 +4,20 @@
 \alias{summaryFasta}
 \title{Fasta file}
 \usage{
-summaryFasta(fa.file, letters = c("A", "T", "G", "C", "N"))
+summaryFasta(fa.file, letters = c("A", "T", "G", "C", "N"), algo = NULL)
 }
 \arguments{
 \item{fa.file}{path to the fasta file (can be gzip-compressed)}
 
 \item{letters}{vector of characters to get their frequency}
+
+\item{algo}{name of the algorithm used to apply a cryptographical hash function on the sequence of each record (md5/sha1/NULL)}
 }
 \value{
 list
 }
 \description{
-Return key aspects of a fasta file as summary (number of records, length of each record, letter frequency of each record).
+Return key aspects of a fasta file as summary (number of records, length of each record, letter frequency of each record, ...).
 }
 \author{
 Timothee Flutre

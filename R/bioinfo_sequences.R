@@ -2,13 +2,14 @@
 
 ##' Fasta file
 ##'
-##' Return key aspects of a fasta file as summary (number of records, length of each record, letter frequency of each record).
+##' Return key aspects of a fasta file as summary (number of records, length of each record, letter frequency of each record, ...).
 ##' @param fa.file path to the fasta file (can be gzip-compressed)
 ##' @param letters vector of characters to get their frequency
+##' @param algo name of the algorithm used to apply a cryptographical hash function on the sequence of each record (md5/sha1/NULL)
 ##' @return list
 ##' @author Timothee Flutre
 ##' @export
-summaryFasta <- function(fa.file, letters=c("A","T","G","C","N")){
+summaryFasta <- function(fa.file, letters=c("A","T","G","C","N"), algo=NULL){
   if(! requireNamespace("Biostrings", quietly=TRUE))
     stop("Pkg Biostrings needed for this function to work. Please install it.",
          call.=FALSE)
@@ -16,14 +17,28 @@ summaryFasta <- function(fa.file, letters=c("A","T","G","C","N")){
     stop("Pkg BiocGenerics needed for this function to work. Please install it.",
          call.=FALSE)
   stopifnot(file.exists(fa.file))
+  if(! is.null(algo)){
+    if(! requireNamespace("digest", quietly=TRUE))
+      stop("Pkg digest needed for this function to work. Please install it.",
+           call.=FALSE)
+    stopifnot(algo %in% c("md5", "sha1"))
+  }
+
+  out <- list()
 
   records <- Biostrings::readDNAStringSet(filepath=fa.file, format="fasta")
+  out$nb.records <- length(records)
+  out$rec.lengths <- setNames(BiocGenerics::width(records),
+                              names(records))
+
   lf <- Biostrings::letterFrequency(x=records, letters=letters)
   rownames(lf) <- names(records)
+  out$letter.freqs <- lf
 
-  return(list(nb.records=length(records),
-              rec.lengths=BiocGenerics::width(records),
-              letter.freqs=lf))
+  if(! is.null(algo))
+    out[[algo]] <- sapply(records, digest::digest, algo=algo)
+
+  return(out)
 }
 
 ##' Calculate the GC content of a set of sequences
