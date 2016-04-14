@@ -20,7 +20,7 @@ simulAnimalModelMultivar(T = 1, Q = 3, mu = rep(50, T), mean.C = 5,
 
 \item{sd.C}{std dev of the univariate Normal prior on C[2:Q,1:T] (ignored if Q=1)}
 
-\item{A}{IxI matrix of additive genetic relationships between individuals (see \code{\link{estimGenRel}} with VanRaden's estimator)}
+\item{A}{IxI matrix of additive genetic relationships between genotypes (see \code{\link{estimGenRel}} with VanRaden's estimator)}
 
 \item{scale.halfCauchy}{scale of the half-Cauchy prior for sigma_A, sigma_D and sqrt{V_E} (e.g. 5; used if sigma.A2=NULL, whatever the value of T; used if D!=NULL and sigma.D2=NULL, whatever the value of T; used if V.E=NULL when T=1)}
 
@@ -52,7 +52,7 @@ simulAnimalModelMultivar(T = 1, Q = 3, mu = rep(50, T), mean.C = 5,
 list
 }
 \description{
-Given T traits, I individuals, Q covariates and N=I*Q phenotypes per trait, simulate phenotypes via the following "animal model": Y = W C + Z G_A + Z G_D + E, where Y is N x T; W is N x Q; Z is N x I; G_A ~ Normal_IxT(0, sigma_A^2 A, V_{G_A}); G_D ~ Normal_IxT(0, sigma_D^2 D, V_{G_D}); E ~ Normal_NxT(0, Id_N, V_E).
+Given T traits, I genotypes, Q covariates and N=I*Q phenotypes per trait, simulate phenotypes via the following "animal model": Y = W C + Z G_A + Z G_D + E, where Y is N x T; W is N x Q; Z is N x I; G_A ~ Normal_IxT(0, sigma_A^2 A, V_{G_A}); G_D ~ Normal_IxT(0, sigma_D^2 D, V_{G_D}); E ~ Normal_NxT(0, Id_N, V_E).
 }
 \examples{
 set.seed(1859)

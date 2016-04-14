@@ -1630,13 +1630,13 @@ simulAnimalModel <- function(Q=3, mu=50, mean.a=5, sd.a=2,
 
 ##' Animal model
 ##'
-##' Given T traits, I individuals, Q covariates and N=I*Q phenotypes per trait, simulate phenotypes via the following "animal model": Y = W C + Z G_A + Z G_D + E, where Y is N x T; W is N x Q; Z is N x I; G_A ~ Normal_IxT(0, sigma_A^2 A, V_{G_A}); G_D ~ Normal_IxT(0, sigma_D^2 D, V_{G_D}); E ~ Normal_NxT(0, Id_N, V_E).
+##' Given T traits, I genotypes, Q covariates and N=I*Q phenotypes per trait, simulate phenotypes via the following "animal model": Y = W C + Z G_A + Z G_D + E, where Y is N x T; W is N x Q; Z is N x I; G_A ~ Normal_IxT(0, sigma_A^2 A, V_{G_A}); G_D ~ Normal_IxT(0, sigma_D^2 D, V_{G_D}); E ~ Normal_NxT(0, Id_N, V_E).
 ##' @param T number of traits
 ##' @param Q number of covariates (as "fixed effects", e.g. replicates)
 ##' @param mu T-vector of overall means (one per trait), i.e. C[1,1:T]
 ##' @param mean.C mean of the univariate Normal prior on C[2:Q,1:T] (ignored if Q=1)
 ##' @param sd.C std dev of the univariate Normal prior on C[2:Q,1:T] (ignored if Q=1)
-##' @param A IxI matrix of additive genetic relationships between individuals (see \code{\link{estimGenRel}} with VanRaden's estimator)
+##' @param A IxI matrix of additive genetic relationships between genotypes (see \code{\link{estimGenRel}} with VanRaden's estimator)
 ##' @param scale.halfCauchy scale of the half-Cauchy prior for sigma_A, sigma_D and sqrt{V_E} (e.g. 5; used if sigma.A2=NULL, whatever the value of T; used if D!=NULL and sigma.D2=NULL, whatever the value of T; used if V.E=NULL when T=1)
 ##' @param sigma.A2 variance component of the additive genetic relationships (e.g. 15)
 ##' @param V.G.A TxT matrix of additive genetic variance-covariance between traits (ignored if T=1)
@@ -1820,7 +1820,7 @@ simulAnimalModelMultivar <- function(T=1,
   Y <- W %*% C + Z %*% G.A + Z %*% G.D + E
   if(perc.NA > 0){
     idx <- sample.int(n=N*T, size=floor(perc.NA/100 * N*T))
-    y[idx] <- NA
+    Y[idx] <- NA
   }
   for(t in 1:T)
     dat[[paste0("response", t)]] <- Y[,t]
