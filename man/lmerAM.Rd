@@ -4,50 +4,77 @@
 \alias{lmerAM}
 \title{Animal model}
 \usage{
-lmerAM(formula, data, relmat, REML = TRUE, verbose = 1)
+lmerAM(formula, dat, relmat, REML = TRUE, ci.meth = NULL, verbose = 1)
 }
 \arguments{
 \item{formula}{formula (see \code{\link[lme4]{lmer}})}
 
-\item{data}{data.frame containing the data corresponding to formula and relmat (see \code{\link[lme4]{lmer}})}
+\item{dat}{data.frame containing the data corresponding to formula and relmat (see \code{\link[lme4]{lmer}})}
 
 \item{relmat}{list containing the matrices of genetic relationships (A is compulsory but D is optional); should use the same names as the colnames in data; can be in the "matrix" class (base) or the "dsCMatrix" class (Matrix package); see \code{\link{estimGenRel}}}
 
 \item{REML}{default is TRUE (use FALSE to compare models with different fixed effects)}
 
+\item{ci.meth}{method to compute confidence intervals (profile/boot); if not NULL, use \code{\link[lme4]{confint.merMod}}}
+
 \item{verbose}{verbosity level (0/1)}
 }
 \value{
-\code{\link[lme4]{merMod}} object
+list which first component is a \code{\link[lme4]{merMod}} object and second component a data.frame with confidence intervals (if ci.meth is not NULL)
 }
 \description{
-Given I individuals, Q covariates and N=I*Q phenotypes for the trait, fit an "animal model" with the lme4 package via the following likelihood: y = W c + Z g_A + Z g_D + epsilon, where y is Nx1; W is NxQ; Z is NxI; g_A ~ Normal_I(0, sigma_A^2 A) with A the known matrix of additive genetic relationships; g_D ~ Normal_I(0, sigma_D^2 D) with D the known matrix of dominance genetic relationships; epsilon ~ Normal_N(0, sigma^2 Id_N); Cov(g_A,g_D)=0; Cov(g_A,e)=0; Cov(g_D,e)=0.
+Given I genotypes, Q covariates and N=I*Q phenotypes for the trait, fit an "animal model" with the lme4 package via the following likelihood: y = W c + Z g_A + Z g_D + epsilon, where y is Nx1; W is NxQ; Z is NxI; g_A ~ Normal_I(0, sigma_A^2 A) with A the known matrix of additive genetic relationships; g_D ~ Normal_I(0, sigma_D^2 D) with D the known matrix of dominant genetic relationships; epsilon ~ Normal_N(0, sigma^2 Id_N); Cov(g_A,g_D)=0; Cov(g_A,e)=0; Cov(g_D,e)=0.
 }
 \note{
 If A is not positive definite, an error will be raised (via \code{\link[base]{chol}}); in such cases, using \code{\link[Matrix]{nearPD}} can be useful.
 }
 \examples{
+## simulate genotypes
 set.seed(1859)
-I <- 100 # individuals
+I <- 100 # genotypes
 P <- 2000 # SNPs
 X <- matrix(sample(0:2, size=I*P, replace=TRUE), nrow=I, ncol=P,
-            dimnames=list(paste0("ind", 1:I), paste0("snp", 1:P)))
-A.vr <- estimGenRel(X, relationships="additive", method="vanraden1", verbose=0)
-A.vr <- as.matrix(Matrix::nearPD(A.vr)$mat) # not always necessary
-model <- simulAnimalModelMultivar(T=1, Q=3, A=A.vr, sigma.A2=15, V.E=5)
-c(model$C)
-res <- lmerAM(formula=response1 ~ year + (1|ind), data=model$dat,
-              relmat=list(ind=A.vr))
-summary(res)
-fixef(res)
-vc <- as.data.frame(VarCorr(res))
-c(vc[vc$grp == "ind", "vcov"], vc[vc$grp == "Residual", "vcov"])
-if(interactive()){
-   confint(res, method="profile", oldNames=FALSE) # faster
-   confint(res, method="boot", oldNames=FALSE) # better
-}
+            dimnames=list(paste0("geno", 1:I), paste0("snp", 1:P)))
+
+## simulate phenotypes with only additive part of genotypic values
+A <- estimGenRel(X, relationships="additive", method="vanraden1", verbose=0)
+A <- as.matrix(Matrix::nearPD(A)$mat) # not always necessary
+modelA <- simulAnimalModelMultivar(T=1, Q=3, A=A, sigma.A2=15, V.E=5)
+
+## infer with lme4
+resA <- lmerAM(formula=response1 ~ year + (1|geno), dat=modelA$dat,
+               relmat=list(geno=A), verbose=0)
+summary(resA$merMod)
+c(modelA$C); modelA$sigma.A2; modelA$V.E
+fixef(resA$merMod)
+vc <- as.data.frame(VarCorr(resA$merMod))
+c(vc[vc$grp == "geno", "vcov"], vc[vc$grp == "Residual", "vcov"])
+blups.geno <- ranef(resA$merMod, condVar=TRUE, drop=TRUE)$geno
+var.blups.geno <- setNames(attr(blups.geno, "postVar"), names(blups.geno))
+
+## simulate phenotypes with additive and dominant parts of genotypic values
+D <- estimGenRel(X, relationships="dominant", method="vitezica", verbose=0)
+D <- as.matrix(Matrix::nearPD(D)$mat) # not always necessary
+modelAD <- simulAnimalModelMultivar(T=1, Q=3, A=A, sigma.A2=15, V.E=5,
+                                    D=D, sigma.D2=3)
+
+## infer with lme4
+modelAD$dat$geno.add <- modelAD$dat$geno
+modelAD$dat$geno.dom <- modelAD$dat$geno; modelAD$dat$geno <- NULL
+resAD <- lmerAM(formula=response1 ~ year + (1|geno.add) + (1|geno.dom),
+                dat=modelAD$dat, relmat=list(geno.add=A, geno.dom=D),
+                verbose=0)
+summary(resAD$merMod)
+c(modelAD$C); modelAD$sigma.A2; modelAD$V.E; modelAD$sigma.D2
+fixef(resAD$merMod)
+vc <- as.data.frame(VarCorr(resAD$merMod))
+c(vc[vc$grp == "geno.add", "vcov"], vc[vc$grp == "Residual", "vcov"],
+  vc[vc$grp == "geno.dom", "vcov"])
 }
 \author{
 Timothee Flutre (inspired by Ben Bolker at http://stackoverflow.com/q/19327088/597069)
+}
+\seealso{
+\code{\link{inlaAM}}, \code{\link{jagsAM}}
 }
 

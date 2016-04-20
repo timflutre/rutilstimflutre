@@ -464,3 +464,39 @@ plotMcmcChain <- function(res.mcmc, param.name, subplots=1:4,
   if(changed.par)
     par(mfrow=c(1,1))
 }
+
+##' MCMC results
+##'
+##' Return effective sample size, posterior mean, time-series standard error of the posterior mean (i.e. without ignoring autocorrelation; based on an estimate of the spectral density at 0 via \code{\link[coda]{spectrum0.ar}}), posterior standard deviation, and posterior quantiles (at 0.025, 0.5, 0.975).
+##' @param res.mcmc object of class "mcmc" (not "mcmc.list"!)
+##' @param param.names parameter names in the columns of res.mcmc
+##' @return matrix with parameters in rows
+##' @author Timothee Flutre
+##' @export
+summaryMcmcChain <- function(res.mcmc, param.names){
+  if(! requireNamespace("coda", quietly=TRUE))
+    stop("Pkg coda needed for this function to work. Please install it.",
+         call.=FALSE)
+  stopifnot(coda::is.mcmc(res.mcmc),
+            all(is.character(param.names)),
+            all(param.names %in% colnames(res.mcmc)))
+
+  ## safespec0 in coda is not exported
+  safespectrum0 <- function(x){
+    result <- try(coda::spectrum0.ar(x)$spec)
+    if(class(result) == "try-error") result <- NA
+    result
+  }
+
+  out <- t(apply(res.mcmc[, param.names, drop=FALSE], 2, function(samples){
+    c(coda::effectiveSize(samples),
+      mean(samples),
+      sqrt(safespectrum0(samples) / length(samples)),
+      sd(samples),
+      quantile(samples, c(0.025, 0.5, 0.975)))
+  }))
+  colnames(out) <- c("ess", "mean", "se.mean", "sd",
+                     "0.025q", "0.5q", "0.975q")
+
+  return(out)
+}

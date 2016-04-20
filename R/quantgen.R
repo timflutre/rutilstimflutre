@@ -1641,9 +1641,9 @@ simulAnimalModel <- function(Q=3, mu=50, mean.a=5, sd.a=2,
 ##' @param sigma.A2 variance component of the additive genetic relationships (e.g. 15)
 ##' @param V.G.A TxT matrix of additive genetic variance-covariance between traits (ignored if T=1)
 ##' @param nu.V.G.A degrees of freedom of the Wishart prior for V_{G_A} (ignored if T=1 or V.G.A!=NULL)
-##' @param D IxI matrix of dominance genetic relationships between individuals (see \code{\link{estimGenRel}} with Vitezica's estimator)
-##' @param sigma.D2 variance component of the dominance genetic relationships (e.g. 3)
-##' @param V.G.D TxT matrix of dominance genetic variance-covariance between traits (ignored if T=1)
+##' @param D IxI matrix of dominant genetic relationships between genotypes (see \code{\link{estimGenRel}} with Vitezica's estimator)
+##' @param sigma.D2 variance component of the dominant genetic relationships (e.g. 3)
+##' @param V.G.D TxT matrix of dominant genetic variance-covariance between traits (ignored if T=1)
 ##' @param nu.V.G.D degrees of freedom of the Wishart prior for V_{G_D} (ignored if T=1 or V.G.D!=NULL)
 ##' @param V.E TxT matrix of error variance-covariance between traits (ignored if T=1 and err.df!=Inf)
 ##' @param nu.V.E degrees of freedom of the Wishart prior for V_E (ignored if T=1 or V.E!=NULL)
@@ -1654,10 +1654,10 @@ simulAnimalModel <- function(Q=3, mu=50, mean.a=5, sd.a=2,
 ##' @author Timothee Flutre
 ##' @examples
 ##' set.seed(1859)
-##' I <- 100 # individuals
+##' I <- 100 # genotypes
 ##' P <- 2000 # SNPs
 ##' X <- matrix(sample(0:2, size=I*P, replace=TRUE), nrow=I, ncol=P,
-##'             dimnames=list(paste0("ind", 1:I), paste0("snp", 1:P)))
+##'             dimnames=list(paste0("geno", 1:I), paste0("snp", 1:P)))
 ##' A <- estimGenRel(X, relationships="additive", method="vanraden1", verbose=0)
 ##' A <- as.matrix(Matrix::nearPD(A)$mat) # not always necessary
 ##'
@@ -1752,13 +1752,13 @@ simulAnimalModelMultivar <- function(T=1,
                 byrow=TRUE, nrow=Q, ncol=T)
 
   ## incidence matrix of genetic "random" effects
-  levels.inds <- rownames(A)
-  inds <- rep(NA, N)
+  levels.genos <- rownames(A)
+  genos <- rep(NA, N)
   for(year in levels.years)
-    inds[years == year] <- levels.inds[1:sum(years == year)]
-  inds <- as.factor(inds)
-  Z <- model.matrix(~ inds - 1)
-  dat$ind <- inds
+    genos[years == year] <- levels.genos[1:sum(years == year)]
+  genos <- as.factor(genos)
+  Z <- model.matrix(~ genos - 1)
+  dat$geno <- genos
 
   ## additive genetic component
   G.A <- matrix(0, I, T)
@@ -1778,7 +1778,7 @@ simulAnimalModelMultivar <- function(T=1,
                     U=U.G.A, V=V.G.A)[,,1]
   }
 
-  ## dominance genetic component
+  ## dominant genetic component
   G.D <- matrix(0, I, T)
   if(! is.null(D)){
     if(is.null(sigma.D2)){
@@ -1835,56 +1835,82 @@ simulAnimalModelMultivar <- function(T=1,
 
 ##' Animal model
 ##'
-##' Given I individuals, Q covariates and N=I*Q phenotypes for the trait, fit an "animal model" with the lme4 package via the following likelihood: y = W c + Z g_A + Z g_D + epsilon, where y is Nx1; W is NxQ; Z is NxI; g_A ~ Normal_I(0, sigma_A^2 A) with A the known matrix of additive genetic relationships; g_D ~ Normal_I(0, sigma_D^2 D) with D the known matrix of dominance genetic relationships; epsilon ~ Normal_N(0, sigma^2 Id_N); Cov(g_A,g_D)=0; Cov(g_A,e)=0; Cov(g_D,e)=0.
+##' Given I genotypes, Q covariates and N=I*Q phenotypes for the trait, fit an "animal model" with the lme4 package via the following likelihood: y = W c + Z g_A + Z g_D + epsilon, where y is Nx1; W is NxQ; Z is NxI; g_A ~ Normal_I(0, sigma_A^2 A) with A the known matrix of additive genetic relationships; g_D ~ Normal_I(0, sigma_D^2 D) with D the known matrix of dominant genetic relationships; epsilon ~ Normal_N(0, sigma^2 Id_N); Cov(g_A,g_D)=0; Cov(g_A,e)=0; Cov(g_D,e)=0.
 ##' @param formula formula (see \code{\link[lme4]{lmer}})
-##' @param data data.frame containing the data corresponding to formula and relmat (see \code{\link[lme4]{lmer}})
+##' @param dat data.frame containing the data corresponding to formula and relmat (see \code{\link[lme4]{lmer}})
 ##' @param relmat list containing the matrices of genetic relationships (A is compulsory but D is optional); should use the same names as the colnames in data; can be in the "matrix" class (base) or the "dsCMatrix" class (Matrix package); see \code{\link{estimGenRel}}
 ##' @param REML default is TRUE (use FALSE to compare models with different fixed effects)
+##' @param ci.meth method to compute confidence intervals (profile/boot); if not NULL, use \code{\link[lme4]{confint.merMod}}
 ##' @param verbose verbosity level (0/1)
-##' @return \code{\link[lme4]{merMod}} object
+##' @return list which first component is a \code{\link[lme4]{merMod}} object and second component a data.frame with confidence intervals (if ci.meth is not NULL)
 ##' @author Timothee Flutre (inspired by Ben Bolker at http://stackoverflow.com/q/19327088/597069)
 ##' @note If A is not positive definite, an error will be raised (via \code{\link[base]{chol}}); in such cases, using \code{\link[Matrix]{nearPD}} can be useful.
+##' @seealso \code{\link{inlaAM}}, \code{\link{jagsAM}}
 ##' @examples
+##' ## simulate genotypes
 ##' set.seed(1859)
-##' I <- 100 # individuals
+##' I <- 100 # genotypes
 ##' P <- 2000 # SNPs
 ##' X <- matrix(sample(0:2, size=I*P, replace=TRUE), nrow=I, ncol=P,
-##'             dimnames=list(paste0("ind", 1:I), paste0("snp", 1:P)))
-##' A.vr <- estimGenRel(X, relationships="additive", method="vanraden1", verbose=0)
-##' A.vr <- as.matrix(Matrix::nearPD(A.vr)$mat) # not always necessary
-##' model <- simulAnimalModelMultivar(T=1, Q=3, A=A.vr, sigma.A2=15, V.E=5)
-##' c(model$C)
-##' res <- lmerAM(formula=response1 ~ year + (1|ind), data=model$dat,
-##'               relmat=list(ind=A.vr))
-##' summary(res)
-##' fixef(res)
-##' vc <- as.data.frame(VarCorr(res))
-##' c(vc[vc$grp == "ind", "vcov"], vc[vc$grp == "Residual", "vcov"])
-##' if(interactive()){
-##'    confint(res, method="profile", oldNames=FALSE) # faster
-##'    confint(res, method="boot", oldNames=FALSE) # better
-##' }
+##'             dimnames=list(paste0("geno", 1:I), paste0("snp", 1:P)))
+##'
+##' ## simulate phenotypes with only additive part of genotypic values
+##' A <- estimGenRel(X, relationships="additive", method="vanraden1", verbose=0)
+##' A <- as.matrix(Matrix::nearPD(A)$mat) # not always necessary
+##' modelA <- simulAnimalModelMultivar(T=1, Q=3, A=A, sigma.A2=15, V.E=5)
+##'
+##' ## infer with lme4
+##' resA <- lmerAM(formula=response1 ~ year + (1|geno), dat=modelA$dat,
+##'                relmat=list(geno=A), verbose=0)
+##' summary(resA$merMod)
+##' c(modelA$C); modelA$sigma.A2; modelA$V.E
+##' fixef(resA$merMod)
+##' vc <- as.data.frame(VarCorr(resA$merMod))
+##' c(vc[vc$grp == "geno", "vcov"], vc[vc$grp == "Residual", "vcov"])
+##' blups.geno <- ranef(resA$merMod, condVar=TRUE, drop=TRUE)$geno
+##' var.blups.geno <- setNames(attr(blups.geno, "postVar"), names(blups.geno))
+##'
+##' ## simulate phenotypes with additive and dominant parts of genotypic values
+##' D <- estimGenRel(X, relationships="dominant", method="vitezica", verbose=0)
+##' D <- as.matrix(Matrix::nearPD(D)$mat) # not always necessary
+##' modelAD <- simulAnimalModelMultivar(T=1, Q=3, A=A, sigma.A2=15, V.E=5,
+##'                                     D=D, sigma.D2=3)
+##'
+##' ## infer with lme4
+##' modelAD$dat$geno.add <- modelAD$dat$geno
+##' modelAD$dat$geno.dom <- modelAD$dat$geno; modelAD$dat$geno <- NULL
+##' resAD <- lmerAM(formula=response1 ~ year + (1|geno.add) + (1|geno.dom),
+##'                 dat=modelAD$dat, relmat=list(geno.add=A, geno.dom=D),
+##'                 verbose=0)
+##' summary(resAD$merMod)
+##' c(modelAD$C); modelAD$sigma.A2; modelAD$V.E; modelAD$sigma.D2
+##' fixef(resAD$merMod)
+##' vc <- as.data.frame(VarCorr(resAD$merMod))
+##' c(vc[vc$grp == "geno.add", "vcov"], vc[vc$grp == "Residual", "vcov"],
+##'   vc[vc$grp == "geno.dom", "vcov"])
 ##' @export
-lmerAM <- function(formula, data, relmat, REML=TRUE, verbose=1){
+lmerAM <- function(formula, dat, relmat, REML=TRUE, ci.meth=NULL, verbose=1){
   if(! requireNamespace("lme4", quietly=TRUE))
     stop("Pkg lme4 needed for this function to work. Please install it.",
          call.=FALSE)
   if(! requireNamespace("Matrix", quietly=TRUE))
     stop("Pkg Matrix needed for this function to work. Please install it.",
          call.=FALSE)
-  stopifnot(is.data.frame(data),
-            all(! duplicated(colnames(data))),
+  stopifnot(is.data.frame(dat),
+            all(! duplicated(colnames(dat))),
             is.list(relmat),
             all(! duplicated(names(names(relmat)))),
-            all(names(relmat) %in% colnames(data)),
+            all(names(relmat) %in% colnames(dat)),
             is.logical(REML))
   for(i in seq_along(relmat))
     stopifnot(is.matrix(relmat[[i]]) || class(relmat[[i]]) == "dsCMatrix")
+  if(! is.null(ci.meth))
+    stopifnot(ci.meth %in% c("profile", "boot"))
 
   if(verbose > 0)
     write("parse the formula ...", stdout())
   parsedFormula <- lme4::lFormula(formula=formula,
-                                  data=data,
+                                  data=dat,
                                   control=lme4::lmerControl(
                                       check.nobs.vs.nlev="ignore",
                                       check.nobs.vs.nRE="ignore"),
@@ -1923,35 +1949,333 @@ lmerAM <- function(formula, data, relmat, REML=TRUE, verbose=1){
                         reTrms=parsedFormula$reTrms,
                         fr=parsedFormula$fr)
 
+  ci <- NULL
+  if(! is.null(ci.meth)){
+    write("compute confidence intervals ...", stdout())
+    suppressMessages(ci <- confint(fit, method=ci.meth, oldNames=FALSE))
+  }
+
+  return(list(merMod=fit, ci=ci))
+}
+
+##' Animal model
+##'
+##' Given I genotypes, Q covariates and N=I*Q phenotypes for the trait, fit an "animal model" with the INLA package via the following likelihood: y = W c + Z g_A + Z g_D + epsilon, where y is Nx1; W is NxQ; Z is NxI; g_A ~ Normal_I(0, sigma_A^2 A) with A the known matrix of additive genetic relationships; g_D ~ Normal_I(0, sigma_D^2 D) with D the known matrix of dominant genetic relationships; epsilon ~ Normal_N(0, sigma^2 Id_N); Cov(g_A,g_D)=0; Cov(g_A,e)=0; Cov(g_D,e)=0.
+##' @param dat data.frame containing the data corresponding to relmat; should have a column grep-able for "response" as well as a column "geno.add" used with matrix A; if a column "geno.dom" exists, it will be used with matrix D; any other column will be interpreted as corresponding to "fixed effects"
+##' @param relmat list containing the matrices of genetic relationships (see \code{\link{estimGenRel}}); additive relationships (matrix A) are compulsory, with name "geno.add"; dominant relationships (matrix D) are optional, with name "geno.dom"; can be in the "matrix" class (base) or the "dsCMatrix" class (Matrix package)
+##' @param family a string indicating the likelihood family (see \code{\link[INLA]{inla}})
+##' @param nb.threads maximum number of threads the inla-program will use (see \code{\link[INLA]{inla}})
+##' @param verbose verbosity level (0/1)
+##' @param silent if equal to TRUE, then the inla-program would be silent (see \code{\link[INLA]{inla}})
+##' @return \code{\link[INLA]{inla}} object
+##' @author Timothee Flutre
+##' @seealso \code{\link{lmerAM}}, \code{\link{jagsAM}}
+##' @examples
+##' \dontrun{## simulate genotypes
+##' set.seed(1859)
+##' I <- 100 # genotypes
+##' P <- 2000 # SNPs
+##' X <- matrix(sample(0:2, size=I*P, replace=TRUE), nrow=I, ncol=P,
+##'             dimnames=list(paste0("geno", 1:I), paste0("snp", 1:P)))
+##'
+##' ## simulate phenotypes with only additive part of genotypic values
+##' A <- estimGenRel(X, relationships="additive", method="vanraden1", verbose=0)
+##' A <- as.matrix(Matrix::nearPD(A)$mat) # not always necessary
+##' modelA <- simulAnimalModelMultivar(T=1, Q=3, A=A, sigma.A2=15, V.E=5)
+##'
+##' ## infer with INLA
+##' library(INLA)
+##' modelA$dat$geno.add <- modelA$dat$geno; modelA$dat$geno <- NULL
+##' resA <- inlaAM(dat=modelA$dat, relmat=list(geno.add=A))
+##' summary(resA)
+##' c(modelA$C); 1/modelA$sigma.A2; 1/modelA$V.E
+##'
+##' ## simulate phenotypes with additive and dominant parts of genotypic values
+##' D <- estimGenRel(X, relationships="dominant", method="vitezica", verbose=0)
+##' D <- as.matrix(Matrix::nearPD(D)$mat) # not always necessary
+##' modelAD <- simulAnimalModelMultivar(T=1, Q=3, A=A, sigma.A2=15, V.E=5,
+##'                                     D=D, sigma.D2=3)
+##'
+##' ## infer with INLA
+##' modelAD$dat$geno.add <- modelAD$dat$geno
+##' modelAD$dat$geno.dom <- modelAD$dat$geno; modelAD$dat$geno <- NULL
+##' resAD <- inlaAM(dat=modelAD$dat, relmat=list(geno.add=A, geno.dom=D))
+##' summary(resAD)
+##' c(modelAD$C); 1/modelAD$sigma.A2; 1/modelAD$V.E; 1/modelAD$sigma.D2
+##' }
+##' @export
+inlaAM <- function(dat, relmat, family="gaussian",
+                   nb.threads=1, verbose=0, silent=TRUE){
+  if(! requireNamespace("INLA", quietly=TRUE))
+    stop("Pkg INLA needed for this function to work. Please install it.",
+         call.=FALSE)
+  stopifnot(is.data.frame(dat),
+            sum(grepl("response", colnames(dat))) == 1,
+            "geno.add" %in% colnames(dat),
+            is.list(relmat),
+            ! is.null(names(relmat)),
+            "geno.add" %in% names(relmat))
+
+  ## make formula with response, intercept and additive genotypic value
+  formula <- paste0(colnames(dat)[grepl("response", colnames(dat))],
+                    " ~ 1",
+                    " + f(geno.add, model=\"generic0\", constr=TRUE",
+                    ", hyper=list(theta=list(param=c(0.5, 0.5), fixed=FALSE))",
+                    ", Cmatrix=solve(relmat[[\"geno.add\"]])",
+                    ", values=levels(dat$geno.add))")
+
+  ## add dominant genotypic value, if present
+  if("geno.dom" %in% names(relmat))
+    formula <- paste0(formula,
+                      " + f(geno.dom, model=\"generic0\", constr=TRUE",
+                      ", hyper=list(theta=list(param=c(0.5, 0.5), fixed=FALSE))",
+                      ", Cmatrix=solve(relmat[[\"geno.dom\"]])",
+                      ", values=levels(dat$geno.dom))")
+
+  ## add "fixed effects", if any
+  for(cn in colnames(dat))
+    if(! grepl("response", cn) & cn != "geno.add" & cn != "geno.dom")
+      formula <- paste0(formula, " + ", cn)
+
+  ## finalize formula
+  formula <- as.formula(formula)
+
+  ## fit the model with INLA
+  fit <- INLA::inla(formula=formula,
+                    family=family,
+                    data=dat,
+                    control.compute=list(dic=TRUE),
+                    num.threads=nb.threads,
+                    verbose=verbose,
+                    silent=silent)
+
   return(fit)
 }
 
-##' Simulate phenotypes according to the BSLMM model.
+##' Animal model
 ##'
-##' y = W alpha + Z X tilde{beta} + Z u + epsilon
-##' where y is N x 1; W is N x Q; alpha is Q x 1; Z is N x I; X is I x P; u is I x 1 and epsilon is N x 1
-##' for all p, tilde{beta}_p ~ pi Norm_1(0, sigma_betat^2/sigma^2) + (1 - pi) delta_0
-##' u ~ Norm_I(0, (sigma_u^2/sigma^2) A)
-##' epsilon ~ Norm_N(0, sigma^2 I)
-##' See Zhou, Carbonetto & Stephens (2013).
+##' Given I genotypes, Q covariates and N=I*Q phenotypes for the trait, fit an "animal model" with the rjags package via the following likelihood: y = W c + Z g_A + Z g_D + epsilon, where y is Nx1; W is NxQ; Z is NxI; g_A ~ Normal_I(0, sigma_A^2 A) with A the known matrix of additive genetic relationships; g_D ~ Normal_I(0, sigma_D^2 D) with D the known matrix of dominant genetic relationships; epsilon ~ Normal_N(0, sigma^2 Id_N); Cov(g_A,g_D)=0; Cov(g_A,e)=0; Cov(g_D,e)=0.
+##' @param dat data.frame containing the data corresponding to relmat; should have a column grep-able for "response" as well as a column "geno.add" used with matrix A; if a column "geno.dom" exists, it will be used with matrix D; any other column will be interpreted as corresponding to "fixed effects"
+##' @param relmat list containing the matrices of genetic relationships (see \code{\link{estimGenRel}}); additive relationships (matrix A) are compulsory, with name "geno.add"; dominant relationships (matrix D) are optional, with name "geno.dom"; can be in the "matrix" class (base) or the "dsCMatrix" class (Matrix package)
+##' @param inits list of initial values (possible to use 1 sub-list per chain, see \code{\link[rjags]{jags.model}}); if NULL, JAGS will choose typical values (usually mean, median, or mode of the prior)
+##' @param nb.chains the number of parallel chains for the model (see \code{\link[rjags]{jags.model}})
+##' @param burnin number of initial iterations to discard
+##' @param nb.iters number of iterations to monitor (see \code{\link[rjags]{coda.samples}})
+##' @param thin thinning interval for monitors (see \code{\link[rjags]{coda.samples}})
+##' @param rm.jags.file remove the file specifying the model written in the JAGS-dialect of the BUGS language
+##' @param verbose verbosity level (0/1)
+##' @param priors list of specifying priors; each component is itself a list for which "dist" specifies the distribution and "par" the parameter; a component named "fix" is used for fixed effects,  so that ("c",5) means c[q] ~ Cauchy(0,5) and ("n",10^6) means c[q] ~ Normal(0,10^6), but note that the global intercept always is Normal(mean(y),10^6); a component named "vc" is used for variance components, so that ("hc",5) means stdev ~ half-Cauchy(0,5) and ("ig",0.001) means var ~ InvGamma(0.001,0.001)
+##' @return \code{\link[coda]{mcmc.list}} object
+##' @author Timothee Flutre
+##' @seealso \code{\link{lmerAM}}, \code{\link{inlaAM}}
+##' @examples
+##' \dontrun{## simulate genotypes
+##' set.seed(1859)
+##' I <- 100 # genotypes
+##' P <- 2000 # SNPs
+##' X <- matrix(sample(0:2, size=I*P, replace=TRUE), nrow=I, ncol=P,
+##'             dimnames=list(paste0("geno", 1:I), paste0("snp", 1:P)))
+##'
+##' ## simulate phenotypes with only additive part of genotypic values
+##' A <- estimGenRel(X, relationships="additive", method="vanraden1", verbose=0)
+##' A <- as.matrix(Matrix::nearPD(A)$mat) # not always necessary
+##' modelA <- simulAnimalModelMultivar(T=1, Q=3, A=A, sigma.A2=15, V.E=5)
+##'
+##' ## infer with rjags
+##' modelA$dat$geno.add <- modelA$dat$geno; modelA$dat$geno <- NULL
+##' fitA <- jagsAM(dat=modelA$dat, relmat=list(geno.add=A))
+##' plotMcmcChain(fitA[[1]], "sigma.A2", 1:4, modelA$sigma.A2)
+##' cbind(truth=c(c(modelA$C), modelA$sigma.A2, modelA$V.E),
+##'       summaryMcmcChain(fitA[[1]], c("c[1]", "c[2]", "c[3]", "sigma.A2", "V.E")))
+##' }
+##' @export
+jagsAM <- function(dat, relmat, inits=NULL,
+                   priors=list(fix=list(dist="c", par=5), vc=list(dist="hc", par=5)),
+                   nb.chains=1, burnin=10^2, nb.iters=10^3, thin=10,
+                   rm.jags.file=TRUE, verbose=0){
+  if(! requireNamespace("rjags", quietly=TRUE))
+    stop("Pkg rjags needed for this function to work. Please install it.",
+         call.=FALSE)
+  stopifnot(is.data.frame(dat),
+            sum(grepl("response", colnames(dat))) == 1,
+            "geno.add" %in% colnames(dat),
+            is.list(relmat),
+            ! is.null(names(relmat)),
+            "geno.add" %in% names(relmat),
+            is.list(priors),
+            all(c("fix", "vc") %in% names(priors)),
+            all(c("dist", "par") %in% names(priors$fix)),
+            all(c("dist", "par") %in% names(priors$vc)))
+  if(! is.null(inits))
+    stopifnot(is.list(inits))
+
+  ## define model in JAGS dialect of BUGS language in separate file
+  st <- Sys.time()
+  jags.file <- tempfile(paste0("jagsAM_", format(st, "%Y-%m-%d-%H-%M-%S"), "_"),
+                        getwd(), ".jags")
+  model.txt <- paste0(
+      "# Goal: fit an \"animal model\" with rjags",
+      "\n# Author: Timothee Flutre (INRA)",
+      "\n# Source: rutilstimflutre ", packageVersion("rutilstimflutre"),
+      "\n# Date: ", format(st, "%Y-%m-%d %H:%M:%S"))
+  model.txt <- paste0(model.txt, "
+
+model {
+  # likelihood
+  for(n in 1:N){
+    y[n] ~ dnorm(W[n,] %*% c + Z[n,] %*% g.A")
+  if("geno.dom" %in% names(relmat))
+    model.txt <- paste0(model.txt, " + Z[n,] %*% g.D")
+  model.txt <- paste0(model.txt, ", 1/V.E)
+  }")
+  model.txt <- paste0(model.txt, "
+
+  # priors
+  c[1] ~ dnorm(mean.mu, 10^(-6))
+  for(q in 2:Q){")
+  if(priors$fix$dist == "c"){
+    model.txt <- paste0(model.txt, "
+    c[q] ~ dt(0, par.c, 1)")
+  } else if(priors$fix$dist == "n")
+    model.txt <- paste0(model.txt, "
+    c[q] ~ dnorm(0, 1/par.c)")
+  model.txt <- paste0(model.txt, "
+  }")
+  if(priors$vc$dist == "hc"){
+    model.txt <- paste0(model.txt, "
+  sigma.A ~ dt(0, par.vc, 1)T(0,)
+  sigma.A2 <- sigma.A^2")
+  } else if(priors$vc$dist == "ig")
+    model.txt <- paste0(model.txt, "
+  tau.A ~ dgamma(par.vc, par.vc)
+  sigma.A2 <- 1 / tau.A")
+  model.txt <- paste0(model.txt, "
+  Sigma.g.A <- sigma.A2 * A
+  g.A ~ dmnorm(mean.g.A, inverse(Sigma.g.A))")
+  if("geno.dom" %in% names(relmat)){
+    if(priors$vc$dist == "hc"){
+    model.txt <- paste0(model.txt, "
+  sigma.D ~ dt(0, par.vc, 1)T(0,)
+  sigma.D2 <- sigma.D^2")
+    } else if(priors$vc$dist == "ig")
+      model.txt <- paste0(model.txt, "
+  tau.D ~ dgamma(par.vc, par.vc)
+  sigma.D2 <- 1 / tau.D")
+    model.txt <- paste0(model.txt, "
+  Sigma.g.D <- sigma.D2 * D
+  g.D ~ dmnorm(mean.g.D, inverse(Sigma.g.D))")
+  }
+  if(priors$vc$dist == "hc"){
+    model.txt <- paste0(model.txt, "
+  sigma.E ~ dt(0, par.vc, 1)T(0,)
+  V.E <- sigma.E^2")
+  } else if(priors$vc$dist == "ig")
+    model.txt <- paste0(model.txt, "
+  tau.E ~ dgamma(par.vc, par.vc)
+  V.E <- 1 / tau")
+  model.txt <- paste0(model.txt, "
+}")
+  cat(model.txt, file=jags.file)
+
+  ## read model file and create object
+  y <- dat[, grepl("response", colnames(dat))]
+  W <- matrix(1, nrow=nrow(dat), ncol=1)
+  colnames(W) <- "mu"
+  for(j in 1:ncol(dat))
+    if(! grepl("response", colnames(dat)[j]) & colnames(dat)[j] != "geno.add" &
+       colnames(dat)[j] != "geno.dom"){
+      W <- cbind(W, model.matrix(~ dat[,j])[,-1])
+    }
+  colnames(W) <- gsub("dat\\[, j\\]", "", colnames(W))
+  data.list <- list(N=nrow(dat), Q=ncol(W),
+                    y=y, W=W, Z=model.matrix(~ dat[,"geno.add"] - 1),
+                    mean.mu=mean(y), par.c=priors$fix$par,
+                    par.vc=priors$vc$par, A=relmat[["geno.add"]],
+                    mean.g.A=rep(0, nlevels(dat[,"geno.add"])))
+  if("geno.dom" %in% names(relmat)){
+    data.list$D <- relmat[["geno.dom"]]
+    data.list$mean.g.D <- rep(0, nlevels(dat[,"geno.add"]))
+  }
+  jags <- rjags::jags.model(file=jags.file, data=data.list, inits=inits,
+                            n.chains=nb.chains,
+                            n.adapt=ifelse(nb.iters >= 10^3, 500, 0),
+                            quiet=ifelse(verbose > 0, FALSE, TRUE))
+  if(rm.jags.file)
+    file.remove(jags.file)
+
+  ## update model for burn-in period
+  update(jags, n.iter=burnin, progress.bar="none")
+
+  ## extract samples from model
+  vn <- c("c", "sigma.A2")
+  if("geno.dom" %in% names(relmat))
+    vn <- c(vn, "sigma.D2")
+  vn <- c(vn, "V.E")
+  vn <- c(vn, "g.A")
+  if("geno.dom" %in% names(relmat))
+    vn <- c(vn, "g.D")
+  fit <- rjags::coda.samples(model=jags,
+                             variable.names=vn,
+                             n.iter=nb.iters,
+                             thin=thin,
+                             progress.bar="none")
+
+  return(fit)
+}
+
+##' BSLMM
+##'
+##' Simulate phenotypes according to the Bayesian sparse linear mixed model (Zhou, Carbonetto & Stephens, 2013)): y = W alpha + Z X_c beta-tilde + Z u + epsilon where y is N x 1; W is N x Q; alpha is Q x 1; Z is N x I; X_c is I x P; u is I x 1 and epsilon is N x 1. For all p, beta-tilde_p ~ pi Norm_1(0, sigma_betat^2/sigma^2) + (1 - pi) delta_0; u ~ Norm_I(0, (sigma_u^2/sigma^2) K) and epsilon ~ Norm_N(0, sigma^2 I).
 ##' @param Q number of years during which individuals are phenotyped (starting in 2010)
 ##' @param mu overall mean
 ##' @param mean.a mean of the prior on alpha[2:Q]
 ##' @param sd.a std dev of the prior on alpha[2:Q]
-##' @param X matrix of SNP genotypes encoded in number of copies of the 2nd allele, i.e. as allele doses in {0,1,2}, with individuals in rows and SNPs in columns (SNPs with missing values or low MAF should be discarded beforehand)
-##' @param pi proportion of beta-tilde values that are non-zero
-##' @param h approximation to E[PVE] (h and rho should be NULL or not together)
-##' @param rho approximation to E[PGE]
-##' @param tau precision of the errors (i.e. 1 / sigma^2)
+##' @param X matrix of SNP genotypes encoded in number of copies of the 2nd allele, i.e. as allele doses in {0,1,2}, with individuals in rows and SNPs in columns (SNPs with missing values or low MAF should be discarded beforehand).
+##' @param pi proportion of beta-tilde values that are non-zero; if NULL, log(pi) is drawn from Unif(log(1/P),log(1))
+##' @param h approximation to E[PVE]; if NULL, drawn from Unif(0,1)
+##' @param rho approximation to E[PGE]; if NULL and pi=0, then rho=0, else rho is drawn from Unif(0,1)
+##' @param tau precision of the errors (1 / sigma^2)
+##' @param enforce.zhou if TRUE, X will be transformed into X_c by centering columns, and K will be calculated as X_c X_c^T / P; otherwise, X will be transformed into (-1,0,1) and K will be calculated as \code{\link{estimGenRel}} with method="vanraden1"
 ##' @param perc.NA percentage of missing phenotypes, at random
 ##' @param err.df degrees of freedom of errors' Student's t-distribution
 ##' @param seed seed for the pseudo-random number generator
 ##' @return list
 ##' @author Timothee Flutre
+##' @examples
+##' set.seed(1859)
+##' I <- 100 # genotypes
+##' P <- 2000 # SNPs
+##' X <- matrix(sample(0:2, size=I*P, replace=TRUE), nrow=I, ncol=P,
+##'             dimnames=list(paste0("geno", 1:I), paste0("snp", 1:P)))
+##' afs <- estimAf(X)
+##'
+##' ## particular case: LMM (only u contributes)
+##' mod.lmm <- simulBslmm(X=X, pi=0, h=0.7, seed=3591)
+##'
+##' ## particular case: BVSR (only beta-tilde contributes)
+##' mod.bvsr <- simulBslmm(X=X, pi=0.1, h=0.7, rho=1, seed=3591)
+##'
+##' ## general case: BSLMM (both u and beta-tilde contribute)
+##' mod.bslmm <- simulBslmm(X=X, pi=0.1, h=0.7, rho=0.7, seed=3591)
+##'
+##' \dontrun{library(rrBLUP)
+##' mod.lmmC <- simulBslmm(X=X, pi=0, h=0.7, enforce.zhou=FALSE, seed=3591)
+##' fit.lmmC1 <- mixed.solve(y=mod.lmmC$y, Z=mod.lmmC$Z,
+##'                          K=mod.lmmC$X.c %*% t(mod.lmmC$X.c),
+##'                          X=mod.lmmC$W)
+##' cbind(truth=c(mod.lmmC$alpha), estim=fit.lmmC1$beta)
+##' cbind(truth=c(mod.lmmC$sigma2, mod.lmmC$sigma.u2 / sum(2 * afs * (1-afs))),
+##'       estim=c(fit.lmmC1$Ve, fit.lmmC1$Vu))
+##' fit.lmmC2 <- mixed.solve(y=mod.lmmC$y, Z=mod.lmmC$Z %*% mod.lmmC$X.c,
+##'                          X=mod.lmmC$W)
+##' cbind(truth=c(mod.lmmC$alpha), estim=fit.lmmC2$beta)
+##' cbind(truth=c(mod.lmmC$sigma2, mod.lmmC$sigma.u2 / sum(2 * afs * (1-afs))),
+##'       estim=c(fit.lmmC2$Ve, fit.lmmC2$Vu))
+##' }
 ##' @export
 simulBslmm <- function(Q=3, mu=50, mean.a=5, sd.a=2,
-                       X, pi=NULL, h=NULL, rho=NULL,
-                       tau=1, perc.NA=0, err.df=Inf,
+                       X, pi=NULL, h=NULL, rho=NULL, tau=1,
+                       enforce.zhou=TRUE, perc.NA=0, err.df=Inf,
                        seed=NULL){
   if(! requireNamespace("MASS", quietly=TRUE))
     stop("Pkg MASS needed for this function to work. Please install it.",
@@ -1959,8 +2283,7 @@ simulBslmm <- function(Q=3, mu=50, mean.a=5, sd.a=2,
   ## if(! requireNamespace("Matrix", quietly=TRUE))
   ##   stop("Pkg Matrix needed for this function to work. Please install it.",
   ##        call.=FALSE)
-  stopifnot(.isValidGenosDose(X),
-            xor(is.null(h) & is.null(rho), ! (is.null(h) & is.null(rho))))
+  stopifnot(.isValidGenosDose(X))
   if(! is.null(seed))
     set.seed(seed)
 
@@ -2001,18 +2324,28 @@ simulBslmm <- function(Q=3, mu=50, mean.a=5, sd.a=2,
   inds <- as.factor(inds)
   ## Z <- as.matrix(Matrix::t(as(inds, Class="sparseMatrix")))
   Z <- model.matrix(~ inds - 1)
-  X.c <- scale(x=X, center=TRUE, scale=FALSE)
-  A <- tcrossprod(X.c, X.c) / P
+  if(enforce.zhou){
+    X.c <- scale(x=X, center=TRUE, scale=FALSE)
+    K <- tcrossprod(X.c, X.c) / P
+  } else{
+    X.c <- X - 1
+    K <- estimGenRel(X=X, relationships="additive", method="vanraden1",
+                     verbose=0)
+  }
 
   ## hyper-parameters
   s.a <- (1 / (N*P)) * sum(colSums(X.c^2))
-  s.b <- (1/N)  * sum(diag(A))
+  s.b <- (1/N)  * sum(diag(K))
   if(is.null(pi))
     pi <- exp(runif(n=1, min=log(1/P), max=log(1)))
   if(is.null(h))
     h <- runif(n=1, min=0, max=1)
-  if(is.null(rho))
-    rho <- runif(n=1, min=0, max=1)
+  if(is.null(rho)){
+    if(pi == 0){
+      rho <- 0
+    } else
+      rho <- runif(n=1, min=0, max=1)
+  }
   sigma.betat2 <- (h * rho) / ((1 - h) * P * pi * s.a) # -> sigma_a^2 in paper
   if(is.nan(sigma.betat2))
     sigma.betat2 <- 0
@@ -2029,7 +2362,7 @@ simulBslmm <- function(Q=3, mu=50, mean.a=5, sd.a=2,
 
   ## polygenic effects
   u <- setNames(object=MASS::mvrnorm(n=1, mu=rep(0, I),
-                                     Sigma=sigma.u2 * tau^(-1) * A),
+                                     Sigma=sigma.u2 * tau^(-1) * K),
                 nm=rownames(X))
 
   ## errors
@@ -2047,7 +2380,7 @@ simulBslmm <- function(Q=3, mu=50, mean.a=5, sd.a=2,
 
   return(list(y=y,
               W=W, alpha=alpha,
-              Z=Z, X.c=X.c, s.a=s.a, s.b=s.b, A=A,
+              Z=Z, X.c=X.c, s.a=s.a, s.b=s.b, K=K,
               pi=pi, h=h, rho=rho,
               sigma.betat2=sigma.betat2, sigma.u2=sigma.u2, sigma2=1/tau,
               betat=betat, u=u))
@@ -2492,8 +2825,9 @@ qtlrelPerChr <- function(y, X, snp.coords, thresh=0.01, chr.ids=NULL, W=NULL, Z=
 ##' @param xlab a title for the x axis (see default)
 ##' @param ylab a title for the x axis (see default)
 ##' @param main an overall title for the plot (default: "Q-Q plot (<length(pvalues)> p values)")
-##' @param col plotting color for the points (default is all points in black)
+##' @param col vector of plotting color(s) for the points (default is all points in black)
 ##' @param ... graphical parameters other than xlim, ylim, xlab, ylab, las and col
+##' @return invisible vector of pvalues with NA omitted
 ##' @author Timothee Flutre (inspired by an anonymous comment at http://gettinggeneticsdone.blogspot.fr/2009/11/qq-plots-of-p-values-in-r-using-ggplot2.html)
 ##' @export
 qqplotPval <- function(pvalues, plot.conf.int=TRUE,
@@ -2501,9 +2835,19 @@ qqplotPval <- function(pvalues, plot.conf.int=TRUE,
                        ylab=expression(Observed~~-log[10](italic(p)~values)),
                        main=NULL, col=NULL){
   stopifnot(is.vector(pvalues))
+  if(! is.null(col))
+    stopifnot(is.vector(col),
+              length(col) == length(pvalues))
 
-  if(any(is.na(pvalues)))
-    pvalues <- pvalues[! is.na(pvalues)]
+  if(is.null(col))
+    col <- rep(1, length(pvalues))
+
+  idx.na <- is.na(pvalues)
+  if(any(idx.na)){
+    warning(paste0(sum(idx.na), " p values being NA are omitted"))
+    pvalues <- pvalues[! idx.na]
+    col <- col[! idx.na]
+  }
 
   N <- length(pvalues)
   expected <- - log10(1:N / N)
@@ -2530,16 +2874,13 @@ qqplotPval <- function(pvalues, plot.conf.int=TRUE,
   if(is.null(main))
     main <- paste0("Q-Q plot (", N, " p values)")
 
-  if(is.null(col)){
-    col <- rep(1, N)
-  } else if(length(col) != N)
-    stop("param 'col' should have the same length as 'pvalues'")
-
   plot(x=sort(expected), y=sort(observed),
        xlim=c(0,MAX), ylim=c(0,MAX),
        las=1, col=col[order(observed)],
        xlab=xlab, ylab=ylab, main=main)
   abline(0, 1, col="red")
+
+  invisible(pvalues)
 }
 
 ##' Asymptotic Bayes factor

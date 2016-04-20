@@ -1,6 +1,6 @@
 Package: rutilstimflutre
 Title: Timothee Flutre's personal R code
-Version: 0.52.2
+Version: 0.53.0
 Authors@R: c(
     person("Timothee", "Flutre", email="timothee.flutre@supagro.inra.fr", role=c("aut", "ctb", "cre")),
     person("Dalel", "Ahmed", role="ctb", comment="few functions during internship"),
@@ -27,10 +27,12 @@ Suggests:
     GenomeInfoDb,
     GenomicRanges,
     igraph,
+    INLA,
     IRanges,
     LDcorSV,
     MASS,
     QTLRel,
+    rjags,
     Rsamtools,
     S4Vectors,
     scrm,

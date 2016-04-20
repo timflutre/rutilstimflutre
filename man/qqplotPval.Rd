@@ -19,9 +19,12 @@ qqplotPval(pvalues, plot.conf.int = TRUE, xlab = expression(Expected ~
 
 \item{main}{an overall title for the plot (default: "Q-Q plot (<length(pvalues)> p values)")}
 
-\item{col}{plotting color for the points (default is all points in black)}
+\item{col}{vector of plotting color(s) for the points (default is all points in black)}
 
 \item{...}{graphical parameters other than xlim, ylim, xlab, ylab, las and col}
+}
+\value{
+invisible vector of pvalues with NA omitted
 }
 \description{
 Produce a quantile-quantile plot for p values and display its confidence interval.

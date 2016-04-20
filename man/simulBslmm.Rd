@@ -2,11 +2,11 @@
 % Please edit documentation in R/quantgen.R
 \name{simulBslmm}
 \alias{simulBslmm}
-\title{Simulate phenotypes according to the BSLMM model.}
+\title{BSLMM}
 \usage{
 simulBslmm(Q = 3, mu = 50, mean.a = 5, sd.a = 2, X, pi = NULL,
-  h = NULL, rho = NULL, tau = 1, perc.NA = 0, err.df = Inf,
-  seed = NULL)
+  h = NULL, rho = NULL, tau = 1, enforce.zhou = TRUE, perc.NA = 0,
+  err.df = Inf, seed = NULL)
 }
 \arguments{
 \item{Q}{number of years during which individuals are phenotyped (starting in 2010)}
@@ -17,15 +17,17 @@ simulBslmm(Q = 3, mu = 50, mean.a = 5, sd.a = 2, X, pi = NULL,
 
 \item{sd.a}{std dev of the prior on alpha[2:Q]}
 
-\item{X}{matrix of SNP genotypes encoded in number of copies of the 2nd allele, i.e. as allele doses in {0,1,2}, with individuals in rows and SNPs in columns (SNPs with missing values or low MAF should be discarded beforehand)}
+\item{X}{matrix of SNP genotypes encoded in number of copies of the 2nd allele, i.e. as allele doses in {0,1,2}, with individuals in rows and SNPs in columns (SNPs with missing values or low MAF should be discarded beforehand).}
 
-\item{pi}{proportion of beta-tilde values that are non-zero}
+\item{pi}{proportion of beta-tilde values that are non-zero; if NULL, log(pi) is drawn from Unif(log(1/P),log(1))}
 
-\item{h}{approximation to E[PVE] (h and rho should be NULL or not together)}
+\item{h}{approximation to E[PVE]; if NULL, drawn from Unif(0,1)}
 
-\item{rho}{approximation to E[PGE]}
+\item{rho}{approximation to E[PGE]; if NULL and pi=0, then rho=0, else rho is drawn from Unif(0,1)}
 
-\item{tau}{precision of the errors (i.e. 1 / sigma^2)}
+\item{tau}{precision of the errors (1 / sigma^2)}
+
+\item{enforce.zhou}{if TRUE, X will be transformed into X_c by centering columns, and K will be calculated as X_c X_c^T / P; otherwise, X will be transformed into (-1,0,1) and K will be calculated as \code{\link{estimGenRel}} with method="vanraden1"}
 
 \item{perc.NA}{percentage of missing phenotypes, at random}
 
@@ -37,12 +39,39 @@ simulBslmm(Q = 3, mu = 50, mean.a = 5, sd.a = 2, X, pi = NULL,
 list
 }
 \description{
-y = W alpha + Z X tilde{beta} + Z u + epsilon
-where y is N x 1; W is N x Q; alpha is Q x 1; Z is N x I; X is I x P; u is I x 1 and epsilon is N x 1
-for all p, tilde{beta}_p ~ pi Norm_1(0, sigma_betat^2/sigma^2) + (1 - pi) delta_0
-u ~ Norm_I(0, (sigma_u^2/sigma^2) A)
-epsilon ~ Norm_N(0, sigma^2 I)
-See Zhou, Carbonetto & Stephens (2013).
+Simulate phenotypes according to the Bayesian sparse linear mixed model (Zhou, Carbonetto & Stephens, 2013)): y = W alpha + Z X_c beta-tilde + Z u + epsilon where y is N x 1; W is N x Q; alpha is Q x 1; Z is N x I; X_c is I x P; u is I x 1 and epsilon is N x 1. For all p, beta-tilde_p ~ pi Norm_1(0, sigma_betat^2/sigma^2) + (1 - pi) delta_0; u ~ Norm_I(0, (sigma_u^2/sigma^2) K) and epsilon ~ Norm_N(0, sigma^2 I).
+}
+\examples{
+set.seed(1859)
+I <- 100 # genotypes
+P <- 2000 # SNPs
+X <- matrix(sample(0:2, size=I*P, replace=TRUE), nrow=I, ncol=P,
+            dimnames=list(paste0("geno", 1:I), paste0("snp", 1:P)))
+afs <- estimAf(X)
+
+## particular case: LMM (only u contributes)
+mod.lmm <- simulBslmm(X=X, pi=0, h=0.7, seed=3591)
+
+## particular case: BVSR (only beta-tilde contributes)
+mod.bvsr <- simulBslmm(X=X, pi=0.1, h=0.7, rho=1, seed=3591)
+
+## general case: BSLMM (both u and beta-tilde contribute)
+mod.bslmm <- simulBslmm(X=X, pi=0.1, h=0.7, rho=0.7, seed=3591)
+
+\dontrun{library(rrBLUP)
+mod.lmmC <- simulBslmm(X=X, pi=0, h=0.7, enforce.zhou=FALSE, seed=3591)
+fit.lmmC1 <- mixed.solve(y=mod.lmmC$y, Z=mod.lmmC$Z,
+                         K=mod.lmmC$X.c \%*\% t(mod.lmmC$X.c),
+                         X=mod.lmmC$W)
+cbind(truth=c(mod.lmmC$alpha), estim=fit.lmmC1$beta)
+cbind(truth=c(mod.lmmC$sigma2, mod.lmmC$sigma.u2 / sum(2 * afs * (1-afs))),
+      estim=c(fit.lmmC1$Ve, fit.lmmC1$Vu))
+fit.lmmC2 <- mixed.solve(y=mod.lmmC$y, Z=mod.lmmC$Z \%*\% mod.lmmC$X.c,
+                         X=mod.lmmC$W)
+cbind(truth=c(mod.lmmC$alpha), estim=fit.lmmC2$beta)
+cbind(truth=c(mod.lmmC$sigma2, mod.lmmC$sigma.u2 / sum(2 * afs * (1-afs))),
+      estim=c(fit.lmmC2$Ve, fit.lmmC2$Vu))
+}
 }
 \author{
 Timothee Flutre

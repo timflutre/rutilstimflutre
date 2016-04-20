@@ -30,11 +30,11 @@ simulAnimalModelMultivar(T = 1, Q = 3, mu = rep(50, T), mean.C = 5,
 
 \item{nu.V.G.A}{degrees of freedom of the Wishart prior for V_{G_A} (ignored if T=1 or V.G.A!=NULL)}
 
-\item{D}{IxI matrix of dominance genetic relationships between individuals (see \code{\link{estimGenRel}} with Vitezica's estimator)}
+\item{D}{IxI matrix of dominant genetic relationships between genotypes (see \code{\link{estimGenRel}} with Vitezica's estimator)}
 
-\item{sigma.D2}{variance component of the dominance genetic relationships (e.g. 3)}
+\item{sigma.D2}{variance component of the dominant genetic relationships (e.g. 3)}
 
-\item{V.G.D}{TxT matrix of dominance genetic variance-covariance between traits (ignored if T=1)}
+\item{V.G.D}{TxT matrix of dominant genetic variance-covariance between traits (ignored if T=1)}
 
 \item{nu.V.G.D}{degrees of freedom of the Wishart prior for V_{G_D} (ignored if T=1 or V.G.D!=NULL)}
 
@@ -56,10 +56,10 @@ Given T traits, I genotypes, Q covariates and N=I*Q phenotypes per trait, simula
 }
 \examples{
 set.seed(1859)
-I <- 100 # individuals
+I <- 100 # genotypes
 P <- 2000 # SNPs
 X <- matrix(sample(0:2, size=I*P, replace=TRUE), nrow=I, ncol=P,
-            dimnames=list(paste0("ind", 1:I), paste0("snp", 1:P)))
+            dimnames=list(paste0("geno", 1:I), paste0("snp", 1:P)))
 A <- estimGenRel(X, relationships="additive", method="vanraden1", verbose=0)
 A <- as.matrix(Matrix::nearPD(A)$mat) # not always necessary
 
