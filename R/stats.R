@@ -322,26 +322,49 @@ rmatnorm <- function(n=1, M, U, V){
 ##' In the density scale, the area of a given bin is equal to its density times the bin width, thus the area of the whole histogram is equal to 1.
 ##' Assuming all null hypotheses are true, the "density" histogram represents the density of the discrete version of the Uniform distribution, where the height of each bin is 1, so that the whole histogram area remains equal to 1.
 ##' @param pvalues vector of raw p values (missing values will be omitted)
+##' @param breaks vector giving the breakpoints between histogram cells (see \code{\link[graphics]{hist}})
 ##' @param freq as in \code{\link[graphics]{hist}}; if TRUE, the histogram graphic is a representation of frequencies, the "counts" component of the result; if FALSE, probability densities, component "density", are plotted (so that the histogram has a total area of one)
 ##' @param main an overall title for the plot (default: "Density of <nb of non-NA p values> p values")
+##' @param col a colour to be used to fill the bars (see \code{\link[graphics]{hist}})
+##' @param border the color of the border around the bars (see \code{\link[graphics]{hist}})
 ##' @param pi0 estimate of the proportion of null hypotheses
 ##' @return invisible output of \code{\link[graphics]{hist}}
+##' @seealso \code{\link{qqplotPval}}
 ##' @author Timothee Flutre
+##' @examples
+##' set.seed(1859)
+##' P <- 1000; P1 <- 100; thresh <- 0.05
+##' pvalues.0 <- setNames(runif(n=P-P1, min=0, max=1),
+##'                       paste0("null",1:(P-P1)))
+##' pvalues.1 <- setNames(rbeta(n=P1, shape1=1, shape2=10^3),
+##'                       paste0("alt", 1:P1))
+##' pvalues <- c(pvalues.0, pvalues.1)
+##' pvalues[c(1,10)] <- NA
+##' plotHistPval(pvalues, pi0=(P-P1)/P, freq=TRUE)
+##' pval.bonf <- p.adjust(pvalues, method="bonferroni")
+##' sum(pval.bonf <= thresh, na.rm=TRUE) # 9
+##' pval.bh <- p.adjust(pvalues, method="BH")
+##' sum(pval.bh <= thresh, na.rm=TRUE) # 104
 ##' @export
-plotHistPval <- function(pvalues, freq=FALSE, main=NULL, pi0=NULL){
-  stopifnot(is.vector(pvalues))
+plotHistPval <- function(pvalues, breaks=seq(0, 1, 0.05), freq=FALSE,
+                         main=NULL, col="grey", border="white", pi0=NULL){
+  stopifnot(is.numeric(pvalues),
+            is.vector(pvalues),
+            is.vector(breaks))
 
-  if(any(is.na(pvalues)))
+  isna <- is.na(pvalues)
+  if(any(isna)){
+    warning(paste0(sum(isna), " NA are discarded"))
     pvalues <- pvalues[! is.na(pvalues)]
+  }
 
   if(is.null(main))
     main <- paste0("Histogram of ", length(pvalues), " p values")
 
-  breaks <- seq(0, 1, 0.05)
   out <- hist(pvalues, breaks=breaks, xlim=c(0,1), freq=freq, las=1,
               xlab=expression(italic(p)~values), main=main,
               ## ylab=ifelse(freq, "Frequency", "Density"),
-              col="grey", border="white")
+              col=col, border=border)
 
   ## height one would expect if all tested hypotheses were null
   if(freq){
@@ -371,6 +394,192 @@ plotHistPval <- function(pvalues, freq=FALSE, main=NULL, pi0=NULL){
   legend("topright", legend=legs, col=cols, lty=ltys, lwd=lwds, bty="n")
 
   invisible(out)
+}
+
+##' Q-Q plot for p values
+##'
+##' Produce a quantile-quantile plot for p values and display its confidence interval.
+##' A quantile is an order statistic, and the j-th order statistic from a Uniform(0,1) sample has a Beta(j,N-j+1) distribution (Casella & Berger, 2001, 2nd edition, p230). Let us assume we have N independent p values, \eqn{\{p_1,\ldots,p_N\}}. Under the null, they are independent and identically uniformly distributed: \eqn{\forall i \; p_i \sim \mathcal{U}_{[0,1]}}. Therefore, the 95\% confidence interval for the j-th quantile of the set of p values can be calculated with: qbeta(0.95, j, N-j+1). See also the qqman package.
+##' @param pvalues vector of raw p values (missing values will be omitted)
+##' @param plot.conf.int show the confidence interval
+##' @param xlab a title for the x axis (see default)
+##' @param ylab a title for the x axis (see default)
+##' @param main an overall title for the plot (default: "Q-Q plot (<length(pvalues)> p values)")
+##' @param col vector of plotting color(s) for the points (default is all points in black)
+##' @param ... graphical parameters other than xlim, ylim, xlab, ylab, las and col
+##' @return invisible vector of pvalues with NA omitted
+##' @seealso \code{\link{plotHistPval}}
+##' @author Timothee Flutre (inspired by an anonymous comment at http://gettinggeneticsdone.blogspot.fr/2009/11/qq-plots-of-p-values-in-r-using-ggplot2.html)
+##' @examples
+##' set.seed(1859)
+##' P <- 1000; P1 <- 100; thresh <- 0.05
+##' pvalues.0 <- setNames(runif(n=P-P1, min=0, max=1),
+##'                       paste0("null",1:(P-P1)))
+##' pvalues.1 <- setNames(rbeta(n=P1, shape1=1, shape2=10^3),
+##'                       paste0("alt", 1:P1))
+##' pvalues <- c(pvalues.0, pvalues.1)
+##' pvalues[c(1,10)] <- NA
+##' plotHistPval(pvalues, pi0=(P-P1)/P, freq=TRUE)
+##' pvalues <- qqplotPval(pvalues)
+##' pval.bonf <- p.adjust(pvalues, method="bonferroni")
+##' sum(pval.bonf <= thresh) # 9
+##' names(pvalues)[pval.bonf <= thresh]
+##' pval.bh <- p.adjust(pvalues, method="BH")
+##' sum(pval.bh <= thresh) # 104
+##' names(pvalues)[pval.bh <= thresh]
+##' lim.pval.bonf <- sort(pvalues[pval.bonf <= thresh], decreasing=TRUE)[1]
+##' abline(h=-log10(lim.pval.bonf), lty=2)
+##' lim.pval.BH <- sort(pvalues[pval.bh <= thresh], decreasing=TRUE)[1]
+##' abline(h=-log10(lim.pval.BH), lty=3)
+##' legend(x=2.2, y=1.8, legend=c(paste0(sum(pval.bonf <= thresh),
+##'  " tests significant at 5%\nwith FWER controlled via Bonferroni"),
+##'  paste0(sum(pval.bh <= thresh), " tests significant at 5%",
+##'  "\nwith FDR controlled via BH")), lty=c(2,3), bty="n", y.intersp=2)
+##' @export
+qqplotPval <- function(pvalues, plot.conf.int=TRUE,
+                       xlab=expression(Expected~~-log[10](italic(p)~values)),
+                       ylab=expression(Observed~~-log[10](italic(p)~values)),
+                       main=NULL, col=NULL){
+  stopifnot(is.numeric(pvalues),
+            is.vector(pvalues))
+  if(! is.null(col))
+    stopifnot(is.vector(col),
+              length(col) == length(pvalues))
+
+  if(is.null(col))
+    col <- rep(1, length(pvalues))
+
+  isna <- is.na(pvalues)
+  if(any(isna)){
+    warning(paste0(sum(isna), " NA are discarded"))
+    pvalues <- pvalues[! isna]
+    col <- col[! isna]
+  }
+
+  N <- length(pvalues)
+  expected <- - log10(1:N / N)
+  observed <- - log10(pvalues)
+  MAX <- max(c(expected, observed))
+
+  if(plot.conf.int){
+    c95 <- rep(0, N)
+    c05 <- rep(0, N)
+    for(j in 1:N){
+      c95[j] <- qbeta(0.95, j, N-j+1)
+      c05[j] <- qbeta(0.05, j, N-j+1)
+    }
+    c95 <- - log10(c95)
+    c05 <- - log10(c05)
+    plot(expected, c95, ylim=c(0,MAX), xlim=c(0,MAX), type="l",
+         axes=FALSE, xlab="", ylab="")
+    par(new=T)
+    plot(expected, c05, ylim=c(0,MAX), xlim=c(0,MAX), type="l",
+         axes=FALSE, xlab="", ylab="")
+    par(new=T)
+  }
+
+  if(is.null(main))
+    main <- paste0("Q-Q plot (", N, " p values)")
+
+  plot(x=sort(expected), y=sort(observed),
+       xlim=c(0,MAX), ylim=c(0,MAX),
+       las=1, col=col[order(observed)],
+       xlab=xlab, ylab=ylab, main=main)
+  abline(0, 1, col="red")
+
+  invisible(pvalues)
+}
+
+##' FDR
+##'
+##' Estimate pi0 (proba for a null hypothesis to be true) via the EBF procedure (Wen, arXiv:1311.3981).
+##' @param log10.bfs vector containing the log10(BF) of each test (NA will be discarded)
+##' @param verbose verbosity level (0/1)
+##' @return numeric
+##' @author Timothee Flutre
+##' @export
+estimatePi0WithEbf <- function(log10.bfs, verbose=1){
+  stopifnot(is.numeric(log10.bfs),
+            is.vector(log10.bfs))
+
+  isna <- is.na(log10.bfs)
+  if(any(isna)){
+    warning(paste0(sum(isna), " NA are discarded"))
+    log10.bfs <- log10.bfs[! isna]
+  }
+  if(verbose > 0)
+    message(paste0("nb of tests: ", length(log10.bfs)))
+
+  tmp <- log10.bfs[order(log10.bfs)] # sort in increasing order
+
+  d0 <- which(cumsum(10^tmp) / seq_along(10^tmp) >= 1)[1]
+  if(verbose > 0)
+    message(paste0("cutoff at the ", d0, "-th BF"))
+
+  pi0.ebf <- d0 / length(tmp)
+  if(verbose > 0)
+    message(paste0("estimate pi0-hat = ",
+                   format(x=pi0.ebf, scientific=TRUE, digits=6)))
+
+  return(pi0.ebf)
+}
+
+##' FDR
+##'
+##' Estimate pi0 (proba for a null hypothesis to be true) via the QBF procedure (Wen, arXiv:1311.3981).
+##' @param log10.bfs matrix with tests in rows and two columns, the true log10(BF) and the gamma-quantile log10(BF) under the null
+##' @param gamma level of the quantile (e.g. 0.5 for the median)
+##' @param verbose verbosity level (0/1)
+##' @return numeric
+##' @author Timothee Flutre
+##' @export
+estimatePi0WithQbf <- function(log10.bfs, gamma=0.5, verbose=1){
+  stopifnot(is.numeric(log10.bfs), is.matrix(log10.bfs),
+            ncol(log10.bfs) == 2)
+  if(verbose > 0)
+    message(paste0("nb of tests: ", nrow(log10.bfs)))
+
+  pi0.qbf <- sum(log10.bfs[,1] <= log10.bfs[,2]) / (nrow(log10.bfs) * gamma)
+  if(verbose > 0)
+    message(paste0("estimate pi0-hat = ",
+                   format(x=pi0.qbf, scientific=TRUE, digits=6)))
+
+  return(pi0.qbf)
+}
+
+##' FDR
+##'
+##' Call significant tests by controlling the Bayesian FDR via the procedure from Newton et al (Biostatistics, 2004) also described in Muller et al (JASA, 2006).
+##' @param log10.bfs vector containing the log10(BF) of each test
+##' @param pi0 estimate of the proba for a null hypothesis to be true
+##' @param fdr.level threshold below which a null is rejected
+##' @param verbose verbosity level (0/1)
+##' @return logical vector with TRUE if null is rejected (thus called significant)
+##' @author Timothee Flutre
+##' @export
+controlBayesFdr <- function(log10.bfs, pi0, fdr.level=0.05, verbose=1){
+  stopifnot(is.numeric(log10.bfs),
+            is.vector(log10.bfs))
+  if(verbose > 0)
+    message(paste0(length(log10.bfs), " tests and pi0-hat = ",
+                   format(x=pi0, scientific=TRUE, digits=6)))
+
+  ## compute the posterior probability of each test being null
+  post.null <- pi0 / (pi0 + (1-pi0) * 10^log10.bfs)
+
+  ## find the cutoff for which their cumulative mean is >= fdr.level
+  idx <- order(post.null)
+  post.null <- post.null[idx]
+  for(L in 1:length(post.null))
+    if(mean(post.null[1:L]) >= fdr.level)
+      break
+  log10.bf.L <- log10.bfs[idx[L]]
+  if(verbose > 0)
+    message(paste0(L, " significant tests, at cutoff log10(BF)=", log10.bf.L))
+
+  significants <- log10.bfs >= log10.bf.L
+
+  return(significants)
 }
 
 ##' MCMC diagnostics

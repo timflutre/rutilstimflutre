@@ -4,14 +4,21 @@
 \alias{plotHistPval}
 \title{P values}
 \usage{
-plotHistPval(pvalues, freq = FALSE, main = NULL, pi0 = NULL)
+plotHistPval(pvalues, breaks = seq(0, 1, 0.05), freq = FALSE, main = NULL,
+  col = "grey", border = "white", pi0 = NULL)
 }
 \arguments{
 \item{pvalues}{vector of raw p values (missing values will be omitted)}
 
+\item{breaks}{vector giving the breakpoints between histogram cells (see \code{\link[graphics]{hist}})}
+
 \item{freq}{as in \code{\link[graphics]{hist}}; if TRUE, the histogram graphic is a representation of frequencies, the "counts" component of the result; if FALSE, probability densities, component "density", are plotted (so that the histogram has a total area of one)}
 
 \item{main}{an overall title for the plot (default: "Density of <nb of non-NA p values> p values")}
+
+\item{col}{a colour to be used to fill the bars (see \code{\link[graphics]{hist}})}
+
+\item{border}{the color of the border around the bars (see \code{\link[graphics]{hist}})}
 
 \item{pi0}{estimate of the proportion of null hypotheses}
 }
@@ -25,7 +32,25 @@ For a given bin, the density of p values in this bin corresponds to the relative
 In the density scale, the area of a given bin is equal to its density times the bin width, thus the area of the whole histogram is equal to 1.
 Assuming all null hypotheses are true, the "density" histogram represents the density of the discrete version of the Uniform distribution, where the height of each bin is 1, so that the whole histogram area remains equal to 1.
 }
+\examples{
+set.seed(1859)
+P <- 1000; P1 <- 100; thresh <- 0.05
+pvalues.0 <- setNames(runif(n=P-P1, min=0, max=1),
+                      paste0("null",1:(P-P1)))
+pvalues.1 <- setNames(rbeta(n=P1, shape1=1, shape2=10^3),
+                      paste0("alt", 1:P1))
+pvalues <- c(pvalues.0, pvalues.1)
+pvalues[c(1,10)] <- NA
+plotHistPval(pvalues, pi0=(P-P1)/P, freq=TRUE)
+pval.bonf <- p.adjust(pvalues, method="bonferroni")
+sum(pval.bonf <= thresh, na.rm=TRUE) # 9
+pval.bh <- p.adjust(pvalues, method="BH")
+sum(pval.bh <= thresh, na.rm=TRUE) # 104
+}
 \author{
 Timothee Flutre
+}
+\seealso{
+\code{\link{qqplotPval}}
 }
 

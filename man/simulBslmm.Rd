@@ -9,7 +9,7 @@ simulBslmm(Q = 3, mu = 50, mean.a = 5, sd.a = 2, X, pi = NULL,
   err.df = Inf, seed = NULL)
 }
 \arguments{
-\item{Q}{number of years during which individuals are phenotyped (starting in 2010)}
+\item{Q}{number of fixed effects, i.e. the intercept plus the number of years during which individuals are phenotyped (starting in 2010)}
 
 \item{mu}{overall mean}
 

@@ -5,8 +5,9 @@
 \title{Animal model}
 \usage{
 jagsAM(dat, relmat, inits = NULL, priors = list(fix = list(dist = "c", par =
-  5), vc = list(dist = "hc", par = 5)), nb.chains = 1, burnin = 10^2,
-  nb.iters = 10^3, thin = 10, rm.jags.file = TRUE, verbose = 0)
+  5), vc = list(dist = "hc", par = 5)), nb.chains = 1, nb.adapt = 10^3,
+  burnin = 10^2, nb.iters = 10^3, thin = 10, progress.bar = NULL,
+  rm.jags.file = TRUE, verbose = 0)
 }
 \arguments{
 \item{dat}{data.frame containing the data corresponding to relmat; should have a column grep-able for "response" as well as a column "geno.add" used with matrix A; if a column "geno.dom" exists, it will be used with matrix D; any other column will be interpreted as corresponding to "fixed effects"}
@@ -15,15 +16,19 @@ jagsAM(dat, relmat, inits = NULL, priors = list(fix = list(dist = "c", par =
 
 \item{inits}{list of initial values (possible to use 1 sub-list per chain, see \code{\link[rjags]{jags.model}}); if NULL, JAGS will choose typical values (usually mean, median, or mode of the prior)}
 
-\item{priors}{list of specifying priors; each component is itself a list for which "dist" specifies the distribution and "par" the parameter; a component named "fix" is used for fixed effects,  so that ("c",5) means c[q] ~ Cauchy(0,5) and ("n",10^6) means c[q] ~ Normal(0,10^6), but note that the global intercept always is Normal(mean(y),10^6); a component named "vc" is used for variance components, so that ("hc",5) means stdev ~ half-Cauchy(0,5) and ("ig",0.001) means var ~ InvGamma(0.001,0.001)}
+\item{priors}{list of specifying priors; each component is itself a list for which "dist" specifies the distribution and "par" the parameter; a component named "fix" is used for fixed effects,  so that ("c",5) means c[q] ~ Cauchy(0,5) and ("n",10^6) means c[q] ~ Normal(0,10^6), but note that the global intercept always is Normal(mean(y),10^6); a component named "vc" is used for variance components, so that ("hc",5) means stdev ~ half-Cauchy(0,5) and ("ig",0.001) means var ~ InvGamma(shape=0.001,rate=0.001)}
 
-\item{nb.chains}{the number of parallel chains for the model (see \code{\link[rjags]{jags.model}})}
+\item{nb.chains}{number of independent chains to run (see \code{\link[rjags]{jags.model}})}
 
-\item{burnin}{number of initial iterations to discard}
+\item{nb.adapt}{number of iterations for adaptation (see \code{\link[rjags]{jags.model}})}
+
+\item{burnin}{number of initial iterations to discard (see the update function of the rjags package)}
 
 \item{nb.iters}{number of iterations to monitor (see \code{\link[rjags]{coda.samples}})}
 
-\item{thin}{thinning interval for monitors (see \code{\link[rjags]{coda.samples}})}
+\item{thin}{thinning interval for monitored iterations (see \code{\link[rjags]{coda.samples}})}
+
+\item{progress.bar}{type of progress bar (text/gui/none or NULL)}
 
 \item{rm.jags.file}{remove the file specifying the model written in the JAGS-dialect of the BUGS language}
 

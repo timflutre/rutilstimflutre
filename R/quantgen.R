@@ -2058,13 +2058,15 @@ inlaAM <- function(dat, relmat, family="gaussian",
 ##' @param dat data.frame containing the data corresponding to relmat; should have a column grep-able for "response" as well as a column "geno.add" used with matrix A; if a column "geno.dom" exists, it will be used with matrix D; any other column will be interpreted as corresponding to "fixed effects"
 ##' @param relmat list containing the matrices of genetic relationships (see \code{\link{estimGenRel}}); additive relationships (matrix A) are compulsory, with name "geno.add"; dominant relationships (matrix D) are optional, with name "geno.dom"; can be in the "matrix" class (base) or the "dsCMatrix" class (Matrix package)
 ##' @param inits list of initial values (possible to use 1 sub-list per chain, see \code{\link[rjags]{jags.model}}); if NULL, JAGS will choose typical values (usually mean, median, or mode of the prior)
-##' @param nb.chains the number of parallel chains for the model (see \code{\link[rjags]{jags.model}})
-##' @param burnin number of initial iterations to discard
+##' @param priors list of specifying priors; each component is itself a list for which "dist" specifies the distribution and "par" the parameter; a component named "fix" is used for fixed effects,  so that ("c",5) means c[q] ~ Cauchy(0,5) and ("n",10^6) means c[q] ~ Normal(0,10^6), but note that the global intercept always is Normal(mean(y),10^6); a component named "vc" is used for variance components, so that ("hc",5) means stdev ~ half-Cauchy(0,5) and ("ig",0.001) means var ~ InvGamma(shape=0.001,rate=0.001)
+##' @param nb.chains number of independent chains to run (see \code{\link[rjags]{jags.model}})
+##' @param nb.adapt number of iterations for adaptation (see \code{\link[rjags]{jags.model}})
+##' @param burnin number of initial iterations to discard (see the update function of the rjags package)
 ##' @param nb.iters number of iterations to monitor (see \code{\link[rjags]{coda.samples}})
-##' @param thin thinning interval for monitors (see \code{\link[rjags]{coda.samples}})
+##' @param thin thinning interval for monitored iterations (see \code{\link[rjags]{coda.samples}})
+##' @param progress.bar type of progress bar (text/gui/none or NULL)
 ##' @param rm.jags.file remove the file specifying the model written in the JAGS-dialect of the BUGS language
 ##' @param verbose verbosity level (0/1)
-##' @param priors list of specifying priors; each component is itself a list for which "dist" specifies the distribution and "par" the parameter; a component named "fix" is used for fixed effects,  so that ("c",5) means c[q] ~ Cauchy(0,5) and ("n",10^6) means c[q] ~ Normal(0,10^6), but note that the global intercept always is Normal(mean(y),10^6); a component named "vc" is used for variance components, so that ("hc",5) means stdev ~ half-Cauchy(0,5) and ("ig",0.001) means var ~ InvGamma(0.001,0.001)
 ##' @return \code{\link[coda]{mcmc.list}} object
 ##' @author Timothee Flutre
 ##' @seealso \code{\link{lmerAM}}, \code{\link{inlaAM}}
@@ -2090,9 +2092,11 @@ inlaAM <- function(dat, relmat, family="gaussian",
 ##' }
 ##' @export
 jagsAM <- function(dat, relmat, inits=NULL,
-                   priors=list(fix=list(dist="c", par=5), vc=list(dist="hc", par=5)),
-                   nb.chains=1, burnin=10^2, nb.iters=10^3, thin=10,
-                   rm.jags.file=TRUE, verbose=0){
+                   priors=list(fix=list(dist="c", par=5),
+                               vc=list(dist="hc", par=5)),
+                   nb.chains=1, nb.adapt=10^3, burnin=10^2,
+                   nb.iters=10^3, thin=10,
+                   progress.bar=NULL, rm.jags.file=TRUE, verbose=0){
   if(! requireNamespace("rjags", quietly=TRUE))
     stop("Pkg rjags needed for this function to work. Please install it.",
          call.=FALSE)
@@ -2198,13 +2202,13 @@ model {
   }
   jags <- rjags::jags.model(file=jags.file, data=data.list, inits=inits,
                             n.chains=nb.chains,
-                            n.adapt=ifelse(nb.iters >= 10^3, 500, 0),
+                            n.adapt=nb.adapt,
                             quiet=ifelse(verbose > 0, FALSE, TRUE))
   if(rm.jags.file)
     file.remove(jags.file)
 
   ## update model for burn-in period
-  update(jags, n.iter=burnin, progress.bar="none")
+  update(jags, n.iter=burnin, progress.bar=progress.bar)
 
   ## extract samples from model
   vn <- c("c", "sigma.A2")
@@ -2218,7 +2222,7 @@ model {
                              variable.names=vn,
                              n.iter=nb.iters,
                              thin=thin,
-                             progress.bar="none")
+                             progress.bar=progress.bar)
 
   return(fit)
 }
@@ -2226,7 +2230,7 @@ model {
 ##' BSLMM
 ##'
 ##' Simulate phenotypes according to the Bayesian sparse linear mixed model (Zhou, Carbonetto & Stephens, 2013)): y = W alpha + Z X_c beta-tilde + Z u + epsilon where y is N x 1; W is N x Q; alpha is Q x 1; Z is N x I; X_c is I x P; u is I x 1 and epsilon is N x 1. For all p, beta-tilde_p ~ pi Norm_1(0, sigma_betat^2/sigma^2) + (1 - pi) delta_0; u ~ Norm_I(0, (sigma_u^2/sigma^2) K) and epsilon ~ Norm_N(0, sigma^2 I).
-##' @param Q number of years during which individuals are phenotyped (starting in 2010)
+##' @param Q number of fixed effects, i.e. the intercept plus the number of years during which individuals are phenotyped (starting in 2010)
 ##' @param mu overall mean
 ##' @param mean.a mean of the prior on alpha[2:Q]
 ##' @param sd.a std dev of the prior on alpha[2:Q]
@@ -2289,13 +2293,13 @@ simulBslmm <- function(Q=3, mu=50, mean.a=5, sd.a=2,
 
   I <- nrow(X)
   P <- ncol(X)
-  if(Q > 0){
+  if(Q > 1){
     N <- Q * I
   } else
     N <- I
 
   ## incidence matrix of the non-genetic predictors having "fixed effects"
-  if(Q > 0){
+  if(Q > 1){
     levels.years <- as.character(seq(from=2010, to=2010+Q-1))
     if(N %% Q == 0){
       years <- rep(levels.years, each=N / Q)
@@ -2304,19 +2308,21 @@ simulBslmm <- function(Q=3, mu=50, mean.a=5, sd.a=2,
     years <- as.factor(years)
     W <- model.matrix(~ years)
   } else
-    W <- matrix(data=0, nrow=N, ncol=1)
+    W <- matrix(data=1, nrow=N, ncol=1)
 
   ## "fixed" effects
-  if(Q > 0){
+  if(Q > 1){
     alpha <- matrix(data=c(mu, rnorm(n=Q-1, mean=mean.a, sd=sd.a)),
                     nrow=Q, ncol=1)
+  } else if(Q == 1){
+    alpha <- matrix(data=mu, nrow=Q, ncol=1)
   } else
     alpha <- matrix(data=0, nrow=1, ncol=1)
 
   ## incidence matrices of the genetic predictors
   levels.inds <- rownames(X)
   inds <- rep(NA, N)
-  if(Q > 0){
+  if(Q > 1){
     for(year in levels.years)
       inds[years == year] <- levels.inds[1:sum(years == year)]
   } else
@@ -2813,74 +2819,6 @@ qtlrelPerChr <- function(y, X, snp.coords, thresh=0.01, chr.ids=NULL, W=NULL, Z=
   } # end of chromosome-by-chromosome inference
 
   return(out)
-}
-
-##' Q-Q plot for p values
-##'
-##' Produce a quantile-quantile plot for p values and display its confidence interval.
-##' A quantile is an order statistic, and the j-th order statistic from a Uniform(0,1) sample has a Beta(j,N-j+1) distribution (Casella & Berger, 2001, 2nd edition, p230). Let us assume we have N independent p values, \eqn{\{p_1,\ldots,p_N\}}, for instance: pvalues <- c(runif(99000,0,1), rbeta(1000,0.5,1)). Under the null, they are independent and identically uniformly distributed: \eqn{\forall i \; p_i \sim \mathcal{U}_{[0,1]}}. Therefore, the 95% confidence interval for the j-th quantile of the set of p values can be calculated with: qbeta(0.95, j, N-j+1).
-##' See also the qqman package.
-##' @param pvalues vector of raw p values (missing values will be omitted)
-##' @param plot.conf.int show the confidence interval
-##' @param xlab a title for the x axis (see default)
-##' @param ylab a title for the x axis (see default)
-##' @param main an overall title for the plot (default: "Q-Q plot (<length(pvalues)> p values)")
-##' @param col vector of plotting color(s) for the points (default is all points in black)
-##' @param ... graphical parameters other than xlim, ylim, xlab, ylab, las and col
-##' @return invisible vector of pvalues with NA omitted
-##' @author Timothee Flutre (inspired by an anonymous comment at http://gettinggeneticsdone.blogspot.fr/2009/11/qq-plots-of-p-values-in-r-using-ggplot2.html)
-##' @export
-qqplotPval <- function(pvalues, plot.conf.int=TRUE,
-                       xlab=expression(Expected~~-log[10](italic(p)~values)),
-                       ylab=expression(Observed~~-log[10](italic(p)~values)),
-                       main=NULL, col=NULL){
-  stopifnot(is.vector(pvalues))
-  if(! is.null(col))
-    stopifnot(is.vector(col),
-              length(col) == length(pvalues))
-
-  if(is.null(col))
-    col <- rep(1, length(pvalues))
-
-  idx.na <- is.na(pvalues)
-  if(any(idx.na)){
-    warning(paste0(sum(idx.na), " p values being NA are omitted"))
-    pvalues <- pvalues[! idx.na]
-    col <- col[! idx.na]
-  }
-
-  N <- length(pvalues)
-  expected <- - log10(1:N / N)
-  observed <- - log10(pvalues)
-  MAX <- max(c(expected, observed))
-
-  if(plot.conf.int){
-    c95 <- rep(0, N)
-    c05 <- rep(0, N)
-    for(j in 1:N){
-      c95[j] <- qbeta(0.95, j, N-j+1)
-      c05[j] <- qbeta(0.05, j, N-j+1)
-    }
-    c95 <- - log10(c95)
-    c05 <- - log10(c05)
-    plot(expected, c95, ylim=c(0,MAX), xlim=c(0,MAX), type="l",
-         axes=FALSE, xlab="", ylab="")
-    par(new=T)
-    plot(expected, c05, ylim=c(0,MAX), xlim=c(0,MAX), type="l",
-         axes=FALSE, xlab="", ylab="")
-    par(new=T)
-  }
-
-  if(is.null(main))
-    main <- paste0("Q-Q plot (", N, " p values)")
-
-  plot(x=sort(expected), y=sort(observed),
-       xlim=c(0,MAX), ylim=c(0,MAX),
-       las=1, col=col[order(observed)],
-       xlab=xlab, ylab=ylab, main=main)
-  abline(0, 1, col="red")
-
-  invisible(pvalues)
 }
 
 ##' Asymptotic Bayes factor
