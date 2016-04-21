@@ -41,3 +41,4 @@ of the package in DESCRIPTION and execute the following commands:
 $ Rscript -e 'library(devtools); devtools::document()'
 $ R CMD build rutilstimflutre
 $ R CMD check rutilstimflutre_<version>.tar.gz
+May be necessary to "export _R_CHECK_FORCE_SUGGESTS_=0" before "R CMD check".
