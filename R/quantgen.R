@@ -2632,7 +2632,7 @@ gemmaUlmmPerChr <- function(y, X, snp.coords, alleles=NULL, chr.ids=NULL, W,
 ##' @param y vector or one-column matrix of phenotypes (the order is important and should be in agreement with the other arguments X, W and Z)
 ##' @param X matrix of SNP genotypes encoded in number of copies of the 2nd allele, i.e. as allele doses in {0,1,2}, with individuals in rows and SNPs in columns
 ##' @param snp.coords data.frame with SNP identifiers as row names and two columns named "chr" and "coord" (or "pos")
-##' @param thresh threshold on minor allele frequencies below which SNPs are ignored via \code{\link{discardSnpsLowMaf}} (default=0.01, NULL to skip this step)
+##' @param thresh threshold on minor allele frequencies below which SNPs are ignored via \code{\link{discardSnpsLowMaf}} (default=0.01; NULL to skip this step; SNPs are ignored for testing, but all are still used to calculate the matrix of additive genetic relationships as rare SNPs are informative in this purpose)
 ##' @param chr.ids vector of chromosome identifiers to analyze (if NULL, the regular QTLRel procedure is launched, i.e. all chromosomes are used to estimate the variance components)
 ##' @param W incidence matrix of covariates (should not contain the column of 1's for the intercept; use \code{\link{model.matrix}} if necessary)
 ##' @param Z incidence matrix relating phenotypes to individuals (if nrow(y) and nrow(X) are different, diagonal otherwise; use \code{\link{model.matrix}} if necessary)
@@ -2694,7 +2694,7 @@ qtlrelPerChr <- function(y, X, snp.coords, thresh=0.01, chr.ids=NULL, W=NULL, Z=
 
   ## discard SNPs with low MAFs
   if(! is.null(thresh)){
-    X <- discardSnpsLowMaf(X)
+    X <- discardSnpsLowMaf(X=X, thresh=thresh, verbose=verbose)
     snp.coords <- snp.coords[colnames(X),]
   }
 

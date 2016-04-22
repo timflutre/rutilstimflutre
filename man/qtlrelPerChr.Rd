@@ -14,7 +14,7 @@ qtlrelPerChr(y, X, snp.coords, thresh = 0.01, chr.ids = NULL, W = NULL,
 
 \item{snp.coords}{data.frame with SNP identifiers as row names and two columns named "chr" and "coord" (or "pos")}
 
-\item{thresh}{threshold on minor allele frequencies below which SNPs are ignored via \code{\link{discardSnpsLowMaf}} (default=0.01, NULL to skip this step)}
+\item{thresh}{threshold on minor allele frequencies below which SNPs are ignored via \code{\link{discardSnpsLowMaf}} (default=0.01; NULL to skip this step; SNPs are ignored for testing, but all are still used to calculate the matrix of additive genetic relationships as rare SNPs are informative in this purpose)}
 
 \item{chr.ids}{vector of chromosome identifiers to analyze (if NULL, the regular QTLRel procedure is launched, i.e. all chromosomes are used to estimate the variance components)}
 
