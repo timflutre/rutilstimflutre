@@ -22,4 +22,7 @@ Estimate pi0 (proba for a null hypothesis to be true) via the QBF procedure (Wen
 \author{
 Timothee Flutre
 }
+\seealso{
+\code{\link{estimatePi0WithEbf}}, \code{\link{controlBayesFdr}}
+}
 

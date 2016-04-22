@@ -497,10 +497,13 @@ qqplotPval <- function(pvalues, plot.conf.int=TRUE,
 ##' @param verbose verbosity level (0/1)
 ##' @return numeric
 ##' @author Timothee Flutre
+##' @seealso \code{\link{estimatePi0WithQbf}}, \code{\link{controlBayesFdr}}
 ##' @export
 estimatePi0WithEbf <- function(log10.bfs, verbose=1){
   stopifnot(is.numeric(log10.bfs),
             is.vector(log10.bfs))
+
+  pi0.ebf <- 1
 
   isna <- is.na(log10.bfs)
   if(any(isna)){
@@ -513,13 +516,15 @@ estimatePi0WithEbf <- function(log10.bfs, verbose=1){
   tmp <- log10.bfs[order(log10.bfs)] # sort in increasing order
 
   d0 <- which(cumsum(10^tmp) / seq_along(10^tmp) >= 1)[1]
-  if(verbose > 0)
-    message(paste0("cutoff at the ", d0, "-th BF"))
+  if(length(d0) > 0 & ! is.na(d0)){
+    if(verbose > 0)
+      message(paste0("cutoff at the ", d0, "-th BF"))
 
-  pi0.ebf <- d0 / length(tmp)
-  if(verbose > 0)
-    message(paste0("estimate pi0-hat = ",
-                   format(x=pi0.ebf, scientific=TRUE, digits=6)))
+    pi0.ebf <- d0 / length(tmp)
+    if(verbose > 0)
+      message(paste0("estimate pi0-hat = ",
+                     format(x=pi0.ebf, scientific=TRUE, digits=6)))
+  }
 
   return(pi0.ebf)
 }
@@ -531,11 +536,14 @@ estimatePi0WithEbf <- function(log10.bfs, verbose=1){
 ##' @param gamma level of the quantile (e.g. 0.5 for the median)
 ##' @param verbose verbosity level (0/1)
 ##' @return numeric
+##' @seealso \code{\link{estimatePi0WithEbf}}, \code{\link{controlBayesFdr}}
 ##' @author Timothee Flutre
 ##' @export
 estimatePi0WithQbf <- function(log10.bfs, gamma=0.5, verbose=1){
-  stopifnot(is.numeric(log10.bfs), is.matrix(log10.bfs),
-            ncol(log10.bfs) == 2)
+  stopifnot(is.numeric(log10.bfs),
+            is.matrix(log10.bfs),
+            ncol(log10.bfs) == 2,
+            ! any(is.na(log10.bfs)))
   if(verbose > 0)
     message(paste0("nb of tests: ", nrow(log10.bfs)))
 
@@ -555,11 +563,18 @@ estimatePi0WithQbf <- function(log10.bfs, gamma=0.5, verbose=1){
 ##' @param fdr.level threshold below which a null is rejected
 ##' @param verbose verbosity level (0/1)
 ##' @return logical vector with TRUE if null is rejected (thus called significant)
+##' @seealso \code{\link{estimatePi0WithEbf}}, \code{\link{estimatePi0WithQbf}}
 ##' @author Timothee Flutre
+##' @examples
+##' set.seed(1859)
+##' log10.bfs <- rgamma(n=1000, shape=0.5, rate=1) - 0.5 # fake but looks realistic
+##' pi0 <- estimatePi0WithEbf(log10.bfs)
+##' signif <- controlBayesFdr(log10.bfs, pi0)
 ##' @export
 controlBayesFdr <- function(log10.bfs, pi0, fdr.level=0.05, verbose=1){
   stopifnot(is.numeric(log10.bfs),
-            is.vector(log10.bfs))
+            is.vector(log10.bfs),
+            ! is.na(pi0))
   if(verbose > 0)
     message(paste0(length(log10.bfs), " tests and pi0-hat = ",
                    format(x=pi0, scientific=TRUE, digits=6)))

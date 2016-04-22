@@ -21,7 +21,16 @@ logical vector with TRUE if null is rejected (thus called significant)
 \description{
 Call significant tests by controlling the Bayesian FDR via the procedure from Newton et al (Biostatistics, 2004) also described in Muller et al (JASA, 2006).
 }
+\examples{
+set.seed(1859)
+log10.bfs <- rgamma(n=1000, shape=0.5, rate=1) - 0.5 # fake but looks realistic
+pi0 <- estimatePi0WithEbf(log10.bfs)
+signif <- controlBayesFdr(log10.bfs, pi0)
+}
 \author{
 Timothee Flutre
+}
+\seealso{
+\code{\link{estimatePi0WithEbf}}, \code{\link{estimatePi0WithQbf}}
 }
 
