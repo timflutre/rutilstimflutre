@@ -42,14 +42,18 @@ A <- as.matrix(Matrix::nearPD(A)$mat) # not always necessary
 modelA <- simulAnimalModelMultivar(T=1, Q=3, A=A, sigma.A2=15, V.E=5)
 
 ## infer with lme4
-resA <- lmerAM(formula=response1 ~ year + (1|geno), dat=modelA$dat,
+fitA <- lmerAM(formula=response1 ~ year + (1|geno), dat=modelA$dat,
                relmat=list(geno=A), verbose=0)
-summary(resA$merMod)
+summary(fitA$merMod)
+REMLcrit(fitA$merMod)
+extractAIC(fitA$merMod)
+summary(residuals(fitA$merMod)) # "deviance residuals"
+summary(residuals(fitA$merMod) / sigma(fitA$merMod)) # "scaled/Pearson residuals"
 c(modelA$C); modelA$sigma.A2; modelA$V.E
-fixef(resA$merMod)
-vc <- as.data.frame(VarCorr(resA$merMod))
+fixef(fitA$merMod)
+vc <- as.data.frame(VarCorr(fitA$merMod))
 c(vc[vc$grp == "geno", "vcov"], vc[vc$grp == "Residual", "vcov"])
-blups.geno <- ranef(resA$merMod, condVar=TRUE, drop=TRUE)$geno
+blups.geno <- ranef(fitA$merMod, condVar=TRUE, drop=TRUE)$geno
 var.blups.geno <- setNames(attr(blups.geno, "postVar"), names(blups.geno))
 
 ## simulate phenotypes with additive and dominant parts of genotypic values
@@ -61,13 +65,13 @@ modelAD <- simulAnimalModelMultivar(T=1, Q=3, A=A, sigma.A2=15, V.E=5,
 ## infer with lme4
 modelAD$dat$geno.add <- modelAD$dat$geno
 modelAD$dat$geno.dom <- modelAD$dat$geno; modelAD$dat$geno <- NULL
-resAD <- lmerAM(formula=response1 ~ year + (1|geno.add) + (1|geno.dom),
+fitAD <- lmerAM(formula=response1 ~ year + (1|geno.add) + (1|geno.dom),
                 dat=modelAD$dat, relmat=list(geno.add=A, geno.dom=D),
                 verbose=0)
-summary(resAD$merMod)
+summary(fitAD$merMod)
 c(modelAD$C); modelAD$sigma.A2; modelAD$V.E; modelAD$sigma.D2
-fixef(resAD$merMod)
-vc <- as.data.frame(VarCorr(resAD$merMod))
+fixef(fitAD$merMod)
+vc <- as.data.frame(VarCorr(fitAD$merMod))
 c(vc[vc$grp == "geno.add", "vcov"], vc[vc$grp == "Residual", "vcov"],
   vc[vc$grp == "geno.dom", "vcov"])
 }

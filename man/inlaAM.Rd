@@ -42,8 +42,8 @@ modelA <- simulAnimalModelMultivar(T=1, Q=3, A=A, sigma.A2=15, V.E=5)
 ## infer with INLA
 library(INLA)
 modelA$dat$geno.add <- modelA$dat$geno; modelA$dat$geno <- NULL
-resA <- inlaAM(dat=modelA$dat, relmat=list(geno.add=A))
-summary(resA)
+fitA <- inlaAM(dat=modelA$dat, relmat=list(geno.add=A))
+summary(fitA)
 c(modelA$C); 1/modelA$sigma.A2; 1/modelA$V.E
 
 ## simulate phenotypes with additive and dominant parts of genotypic values
@@ -55,8 +55,8 @@ modelAD <- simulAnimalModelMultivar(T=1, Q=3, A=A, sigma.A2=15, V.E=5,
 ## infer with INLA
 modelAD$dat$geno.add <- modelAD$dat$geno
 modelAD$dat$geno.dom <- modelAD$dat$geno; modelAD$dat$geno <- NULL
-resAD <- inlaAM(dat=modelAD$dat, relmat=list(geno.add=A, geno.dom=D))
-summary(resAD)
+fitAD <- inlaAM(dat=modelAD$dat, relmat=list(geno.add=A, geno.dom=D))
+summary(fitAD)
 c(modelAD$C); 1/modelAD$sigma.A2; 1/modelAD$V.E; 1/modelAD$sigma.D2
 }
 }
