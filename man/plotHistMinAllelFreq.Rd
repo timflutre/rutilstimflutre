@@ -6,7 +6,7 @@
 \usage{
 plotHistMinAllelFreq(X = NULL, maf = NULL, main = NULL, xlim = c(0,
   0.5), col = "grey", border = "white", las = 1, breaks = "FD",
-  verbose = 1, ...)
+  add.ml.beta = FALSE, verbose = 1, ...)
 }
 \arguments{
 \item{X}{matrix of SNP genotypes encoded in number of copies of the 2nd allele, i.e. as allele doses in {0,1,2}, with individuals in rows and SNPs in columns (optional if maf is not null); if X is not NULL, minor allele frequencies will be estimated via \code{\link{estimMaf}}}
@@ -24,6 +24,8 @@ plotHistMinAllelFreq(X = NULL, maf = NULL, main = NULL, xlim = c(0,
 \item{las}{see ?par}
 
 \item{breaks}{see ?hist}
+
+\item{add.ml.beta}{if TRUE, add a curve corresponding to a Beta distribution with parameters inferred by maximum likelihood}
 
 \item{verbose}{verbosity level (0/1)}
 

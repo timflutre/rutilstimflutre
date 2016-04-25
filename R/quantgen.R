@@ -166,6 +166,7 @@ estimMaf <- function(X=NULL, afs=NULL){
 ##' @param border color for the border of the bars
 ##' @param las see ?par
 ##' @param breaks see ?hist
+##' @param add.ml.beta if TRUE, add a curve corresponding to a Beta distribution with parameters inferred by maximum likelihood
 ##' @param verbose verbosity level (0/1)
 ##' @param ... arguments to be passed to hist()
 ##' @return nothing
@@ -173,8 +174,10 @@ estimMaf <- function(X=NULL, afs=NULL){
 ##' @export
 plotHistMinAllelFreq <- function(X=NULL, maf=NULL, main=NULL, xlim=c(0,0.5),
                                  col="grey", border="white", las=1,
-                                 breaks="FD", verbose=1, ...){
-  stopifnot(! is.null(X) || ! is.null(maf))
+                                 breaks="FD", add.ml.beta=FALSE,
+                                 verbose=1, ...){
+  stopifnot(! is.null(X) || ! is.null(maf),
+            is.logical(add.ml.beta))
 
   if(! is.null(X) & is.null(maf)){
     stopifnot(.isValidGenosDose(X, check.coln=FALSE, check.rown=FALSE,
@@ -194,6 +197,23 @@ plotHistMinAllelFreq <- function(X=NULL, maf=NULL, main=NULL, xlim=c(0,0.5),
   tmp <- hist(x=maf, xlab="Minor allele frequency", ylab="Number of SNPs",
               main=main, xlim=xlim, col=col, border=border, las=las,
               breaks=breaks, ...)
+
+  if(add.ml.beta){
+    fn.beta <- function(theta, x){
+      sum(-dbeta(x, theta[1], theta[2], log=TRUE))
+    }
+    fit <- optim(par=c(0.3,0.3), fn=fn.beta, x=maf, method="L-BFGS-B",
+                 lower=c(0.0001,0.0001), upper=c(1,1))
+    ## http://stackoverflow.com/a/20078645/597069
+    x <- seq(min(maf), max(maf), length=100)
+    y <- dbeta(x, fit$par[1], fit$par[2])
+    y <- y * diff(tmp$mids[1:2]) * length(maf)
+    lines(x, y, col="red")
+    legend("topright", legend=paste0("Beta(", format(fit$par[1], digits=2),
+                                     ", ", format(fit$par[2], digits=2),
+                                     ") fitted via\nmaximum likelihood"),
+           col="red", lty=1, bty="n")
+  }
 }
 
 ##' Minor allele frequencies
