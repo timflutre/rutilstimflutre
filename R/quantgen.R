@@ -2251,6 +2251,107 @@ model {
   return(fit)
 }
 
+##' BVSR
+##'
+##' Simulate phenotypes according to the following model: Y = W c + Z X_A a + epsilon where Y is N x 1; W is N x Q; c is Q x 1; Z is N x I; X_A is I x P and epsilon is N x 1 with epsilon ~ Normal_N(0, sigma^2 Id) and c ~ Normal(mean_a, sd_a) so that sd_a is large ("fixed effect"). For SNP p, a_p ~ Prob(gamma_p=1) Normal_1(0, sigma_a^2) + Prob(gamma_p=0) delta_0, where Prog(gamma_p=1) is named pi, and delta_0 is Dirac's delta function at 0. For the case where pi is small, see Guan & Stephens (2011), Carbonetto & Stephens (2012), Peltola et al (2012).
+##' @param Q number of fixed effects, i.e. the intercept plus the number of years during which individuals are phenotyped (starting in 2010)
+##' @param mu overall mean
+##' @param mean.c mean of the prior on c[2:Q]
+##' @param sd.c std dev of the prior on c[2:Q]
+##' @param X matrix of SNP genotypes encoded in number of copies of the 2nd allele, i.e. as allele doses in {0,1,2}, with individuals in rows and SNPs in columns (SNPs with missing values or low MAF should be discarded beforehand); will be used in the simulations as X_A which is the column-centered version of X encoded in {-1,0,1}
+##' @param pi proportion of marker effects (a) that are non-zero; setting pi at 1 means simulating from the additive infinitesimal model (equivalent to ridge regression)
+##' @param pve.A proportion of phenotypic variance explained by SNPs with non-zero effect ("heritability"); PVE_A = V[X_A a] / V[y]; used along with option sigma.a2 to choose a value for sigma^2
+##' @param sigma.a2 prior variance of the non-zero additive effects
+##' @param perc.NA percentage of missing phenotypes, at random
+##' @param err.df degrees of freedom of errors' Student's t-distribution
+##' @param seed seed for the pseudo-random number generator
+##' @return list
+##' @author Timothee Flutre
+##' @export
+simulBvsr <- function(Q=3, mu=50, mean.c=5, sd.c=2,
+                      X, pi=1, pve.A=0.7, sigma.a2=10^(-3),
+                      perc.NA=0, err.df=Inf, seed=NULL){
+  stopifnot(.isValidGenosDose(X),
+            sd.c >= 0,
+            pi >= 0,
+            pi <= 1,
+            pve.A >= 0,
+            pve.A <= 1,
+            sigma.a2 >= 0,
+            perc.NA >= 0,
+            perc.NA <= 100)
+  if(! is.null(seed))
+    set.seed(seed)
+
+  I <- nrow(X)
+  P <- ncol(X)
+  if(Q > 1){
+    N <- Q * I
+  } else
+    N <- I
+
+  ## incidence matrix of the non-genetic predictors having "fixed effects"
+  if(Q > 1){
+    levels.years <- as.character(seq(from=2010, to=2010+Q-1))
+    if(N %% Q == 0){
+      years <- rep(levels.years, each=N / Q)
+    } else
+      years <- sort(sample(x=levels.years, size=N, replace=TRUE))
+    years <- as.factor(years)
+    W <- model.matrix(~ years)
+  } else
+    W <- matrix(data=1, nrow=N, ncol=1)
+
+  ## "fixed effects"
+  if(Q > 1){
+    c <- matrix(data=c(mu, rnorm(n=Q-1, mean=mean.c, sd=sd.c)),
+                nrow=Q, ncol=1)
+  } else if(Q == 1){
+    c <- matrix(data=mu, nrow=Q, ncol=1)
+  } else
+    c <- matrix(data=0, nrow=1, ncol=1)
+
+  ## incidence matrices of the genetic predictors
+  levels.inds <- rownames(X)
+  inds <- rep(NA, N)
+  if(Q > 1){
+    for(year in levels.years)
+      inds[years == year] <- levels.inds[1:sum(years == year)]
+  } else
+    inds <- levels.inds
+  inds <- as.factor(inds)
+  Z <- model.matrix(~ inds - 1)
+  X.A <- scale(x=X - 1, center=TRUE, scale=FALSE)
+
+  ## incidence vector of the causal genetic predictors
+  gamma <- setNames(object=rbinom(n=P, size=1, prob=pi), nm=colnames(X))
+
+  ## "random effects"
+  a <- setNames(object=rnorm(n=P, mean=0, sd=sqrt(sigma.a2)), nm=colnames(X))
+  a[gamma == 0] <- 0
+  g.A <- X.A %*% a
+
+  ## errors
+  sigma2 <- ((1 - pve.A) / pve.A) * var(g.A)
+  if(is.infinite(err.df)){
+    epsilon <- matrix(rnorm(n=N, mean=0, sd=sqrt(sigma2)))
+  } else
+    epsilon <- matrix(rt(n=N, df=err.df, ncp=0))
+
+  ## phenotypes
+  Y <- W %*% c + Z %*% X.A %*% a + epsilon
+  if(perc.NA > 0){
+    idx <- sample.int(n=N, size=floor(perc.NA/100 * N))
+    Y[idx, 1] <- NA
+  }
+
+  return(list(Y=Y,
+              W=W, c=c,
+              Z=Z, X.A=X.A, gamma=gamma,
+              pi=pi, pve.A=pve.A, sigma.a2=sigma.a2, sigma2=sigma2,
+              a=a, g.A=g.A))
+}
+
 ##' BSLMM
 ##'
 ##' Simulate phenotypes according to the Bayesian sparse linear mixed model (Zhou, Carbonetto & Stephens, 2013)): y = W alpha + Z X_c beta-tilde + Z u + epsilon where y is N x 1; W is N x Q; alpha is Q x 1; Z is N x I; X_c is I x P; u is I x 1 and epsilon is N x 1. For all p, beta-tilde_p ~ pi Norm_1(0, sigma_betat^2/sigma^2) + (1 - pi) delta_0; u ~ Norm_I(0, (sigma_u^2/sigma^2) K) and epsilon ~ Norm_N(0, sigma^2 I).
