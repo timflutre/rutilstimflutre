@@ -9,7 +9,7 @@ freadBedtoolsCoverageHist(files, verbose = 1)
 \arguments{
 \item{files}{character vector of relative or absolute filepaths (e.g. from Sys.glob).}
 
-\item{verbose}{verbosity level (0/default=1)}
+\item{verbose}{verbosity level (0/1)}
 }
 \value{
 list of data.tables

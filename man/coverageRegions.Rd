@@ -15,17 +15,17 @@ coverageRegions(path = NULL, pattern = NULL, covrg = NULL,
 
 \item{covrg}{list of data frames}
 
-\item{plot.it}{boolean (default=TRUE)}
+\item{plot.it}{logical}
 
 \item{xlim}{vector of limits for the x-axis}
 
 \item{ylim}{vector of limits for the y-axis}
 
-\item{points.type}{character indicating the type of plotting ("p"/default="l"/"b")}
+\item{points.type}{character indicating the type of plotting ("p"/"l"/"b")}
 
-\item{plot.legend}{boolean (default=TRUE)}
+\item{plot.legend}{logical}
 
-\item{verbose}{verbosity level (0/default=1)}
+\item{verbose}{verbosity level (0/1)}
 }
 \value{
 invisible list of covrg and cumcovrg

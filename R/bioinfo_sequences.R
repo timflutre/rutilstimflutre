@@ -65,7 +65,7 @@ gcContent <- function(x){
 ##' Requires the Biostrings package.
 ##' @title All pairwise alignments
 ##' @param x vector of sequences (e.g. "AGGT"), possibly with names
-##' @param type type of alignment (default="global", i.e. Needleman-Wunsch)
+##' @param type type of alignment ("global", i.e. Needleman-Wunsch)
 ##' @param ... arguments to be passed to Biostrings::pairwiseAlignment()
 ##' @return list of instances of class PairwiseAlignments
 ##' @author Timothee Flutre
@@ -299,7 +299,7 @@ barplotInsertSizes <- function(file, main=NULL, add.text=FALSE){
 ##'
 ##' Read output files from bedtools coverage with -hist into a list of data.tables. All lines starting by "all" must have been discarded beforehand.
 ##' @param files character vector of relative or absolute filepaths (e.g. from Sys.glob).
-##' @param verbose verbosity level (0/default=1)
+##' @param verbose verbosity level (0/1)
 ##' @return list of data.tables
 ##' @author Timothee Flutre
 ##' @export
@@ -425,12 +425,12 @@ depthsPerRegion <- function(dat, min.reg.len=30, max.reg.len=500,
 ##' @param path string
 ##' @param pattern character string containing a regular expression passed to gsub to be removed to simplify the file basenames used in the legend (e.g. "bedtools-coverage|\\.txt\\.gz")
 ##' @param covrg list of data frames
-##' @param plot.it boolean (default=TRUE)
+##' @param plot.it logical
 ##' @param xlim vector of limits for the x-axis
 ##' @param ylim vector of limits for the y-axis
-##' @param points.type character indicating the type of plotting ("p"/default="l"/"b")
-##' @param plot.legend boolean (default=TRUE)
-##' @param verbose verbosity level (0/default=1)
+##' @param points.type character indicating the type of plotting ("p"/"l"/"b")
+##' @param plot.legend logical
+##' @param verbose verbosity level (0/1)
 ##' @return invisible list of covrg and cumcovrg
 ##' @author Timothee Flutre
 ##' @export
@@ -796,7 +796,7 @@ confidenceGenoOneVar <- function(x, plot.it=FALSE){
 ##' @param seq.start start of the sequence to work on (if NULL, whole seq)
 ##' @param seq.end end of the sequence to work on (if NULL, whole seq)
 ##' @param min.gq minimum GQ below which GT is set to "."
-##' @param verbose verbosity level (0/default=1)
+##' @param verbose verbosity level (0/1)
 ##' @return the destination file path as an invisible character(1)
 ##' @author Timothee Flutre
 ##' @export
@@ -906,7 +906,7 @@ setGt2Na <- function(vcf.file, genome, out.file,
 ##' @param min.prop.spl.gq minimum proportion of samples with GQ above threshold
 ##' @param max.var.nb.gt.na maximum number of samples with missing GT
 ##' @param max.var.prop.gt.na maximum proportion of samples with missing GT
-##' @param verbose verbosity level (0/default=1)
+##' @param verbose verbosity level (0/1)
 ##' @return the destination file path as a character(1)
 ##' @author Timothee Flutre
 ##' @export
@@ -1096,49 +1096,51 @@ filterVariantCalls <- function(vcf.file, genome, out.file,
   invisible(dest)
 }
 
-##' Summary of GQ per variant
+##' Summary per variant
 ##'
-##' Compute the min, Q1, med, mean, Q3, max of the genotype qualities per variant.
+##' Compute the mean, sd, min, Q1, med, mean, Q3, max of the genotype qualities per variant, also reporting the number of samples and the number of missing data.
 ##' @param vcf.file path to the VCF file
 ##' @param genome genome identifier (e.g. "VITVI_12x2")
 ##' @param yieldSize number of records to yield each time the file is read from (see ?TabixFile)
-##' @param verbose verbosity level (0/default=1)
-##' @return matrix with one row per variant and 7 columns (min, q1, med, mean, q3, max, na)
+##' @param field genotype field of the VCF to parse (GQ/DP)
+##' @param verbose verbosity level (0/1)
+##' @return matrix with one row per variant and 9 columns (n, na, mean, sd, min, q1, med, q3, max)
 ##' @author Timothee Flutre
 ##' @export
-summaryGq <- function(vcf.file, genome, yieldSize=10^4, verbose=1){
-  stopifnot(file.exists(vcf.file))
+summaryVariant <- function(vcf.file, genome, yieldSize=10^4, field="GQ",
+                           verbose=1){
+  stopifnot(file.exists(vcf.file),
+            field %in% c("GQ", "DP"))
 
-  all.smry.gq <- list(min=c(),
-                      q1=c(),
-                      med=c(),
-                      mean=c(),
-                      q3=c(),
-                      max=c(),
-                      na=c())
+  all.smry <- list(n=c(), na=c(), mean=c(), sd=c(),
+                   min=c(), q1=c(), med=c(), q3=c(), max=c())
   var.names <- c()
+
   tabix.file <- Rsamtools::TabixFile(file=vcf.file,
                                      yieldSize=yieldSize)
   open(tabix.file)
   while(nrow(vcf <- VariantAnnotation::readVcf(file=tabix.file,
                                                genome=genome))){
-    gq <- VariantAnnotation::geno(vcf)[["GQ"]]
-    all.smry.gq$min <- append(all.smry.gq$min,
-                              suppressWarnings(apply(gq, 1, min, na.rm=TRUE)))
-    all.smry.gq$q1 <- append(all.smry.gq$q1,
-                             suppressWarnings(apply(gq, 1, quantile,
-                                                    probs=0.25, na.rm=TRUE)))
-    all.smry.gq$med <- append(all.smry.gq$med,
-                              suppressWarnings(apply(gq, 1, median, na.rm=TRUE)))
-    all.smry.gq$mean <- append(all.smry.gq$mean,
-                               suppressWarnings(apply(gq, 1, mean, na.rm=TRUE)))
-    all.smry.gq$q3 <- append(all.smry.gq$q3,
-                             suppressWarnings(apply(gq, 1, quantile,
-                                                    probs=0.75, na.rm=TRUE)))
-    all.smry.gq$max <- append(all.smry.gq$max,
-                              suppressWarnings(apply(gq, 1, max, na.rm=TRUE)))
-    all.smry.gq$na <- append(all.smry.gq$na, rowSums(t(apply(gq, 1, is.na))))
-    var.names <- append(var.names, rownames(gq))
+    mat <- VariantAnnotation::geno(vcf)[[field]]
+    all.smry$n <- append(all.smry$n, rep(ncol(mat), nrow(mat)))
+    all.smry$na <- append(all.smry$na, rowSums(t(apply(mat, 1, is.na))))
+    all.smry$mean <- append(all.smry$mean,
+                            suppressWarnings(apply(mat, 1, mean, na.rm=TRUE)))
+    all.smry$sd <- append(all.smry$sd,
+                          suppressWarnings(apply(mat, 1, sd, na.rm=TRUE)))
+    all.smry$min <- append(all.smry$min,
+                           suppressWarnings(apply(mat, 1, min, na.rm=TRUE)))
+    all.smry$q1 <- append(all.smry$q1,
+                          suppressWarnings(apply(mat, 1, quantile,
+                                                 probs=0.25, na.rm=TRUE)))
+    all.smry$med <- append(all.smry$med,
+                           suppressWarnings(apply(mat, 1, median, na.rm=TRUE)))
+    all.smry$q3 <- append(all.smry$q3,
+                          suppressWarnings(apply(mat, 1, quantile,
+                                                 probs=0.75, na.rm=TRUE)))
+    all.smry$max <- append(all.smry$max,
+                           suppressWarnings(apply(mat, 1, max, na.rm=TRUE)))
+    var.names <- append(var.names, rownames(mat))
   }
   close(tabix.file)
 
@@ -1147,12 +1149,12 @@ summaryGq <- function(vcf.file, genome, yieldSize=10^4, verbose=1){
     write(msg, stdout())
   }
 
-  all.smry.gq <- matrix(data=do.call(cbind, all.smry.gq),
-                        nrow=length(var.names),
-                        ncol=length(all.smry.gq),
-                        dimnames=list(var.names,
-                            names(all.smry.gq)))
-  return(all.smry.gq)
+  all.smry <- matrix(data=do.call(cbind, all.smry),
+                     nrow=length(var.names),
+                     ncol=length(all.smry),
+                     dimnames=list(var.names,
+                                   names(all.smry)))
+  return(all.smry)
 }
 
 ##' Convert GT to dosage
@@ -1231,8 +1233,8 @@ rngVcf2df <- function(vcf){
 ##' @param seq.id sequence identifier to work on (e.g. "chr2")
 ##' @param seq.start start of the sequence to work on (if NULL, whole seq)
 ##' @param seq.end end of the sequence to work on (if NULL, whole seq)
-##' @param uncertain boolean indicating whether the genotypes to convert should come from the "GT" field (uncertain=FALSE) or the "GP" or "GL" field (uncertain=TRUE)
-##' @param verbose verbosity level (0/default=1)
+##' @param uncertain logical indicating whether the genotypes to convert should come from the "GT" field (uncertain=FALSE) or the "GP" or "GL" field (uncertain=TRUE)
+##' @param verbose verbosity level (0/1)
 ##' @return an invisible list with both output file paths
 ##' @author Timothee Flutre
 ##' @export

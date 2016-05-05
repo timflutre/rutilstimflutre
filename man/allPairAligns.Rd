@@ -9,7 +9,7 @@ allPairAligns(x, type = "global", ...)
 \arguments{
 \item{x}{vector of sequences (e.g. "AGGT"), possibly with names}
 
-\item{type}{type of alignment (default="global", i.e. Needleman-Wunsch)}
+\item{type}{type of alignment ("global", i.e. Needleman-Wunsch)}
 
 \item{...}{arguments to be passed to Biostrings::pairwiseAlignment()}
 }

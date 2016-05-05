@@ -27,9 +27,9 @@ vcf2dosage(vcf.file, genome, gdose.file, amap.file, yieldSize = NA_integer_,
 
 \item{seq.end}{end of the sequence to work on (if NULL, whole seq)}
 
-\item{uncertain}{boolean indicating whether the genotypes to convert should come from the "GT" field (uncertain=FALSE) or the "GP" or "GL" field (uncertain=TRUE)}
+\item{uncertain}{logical indicating whether the genotypes to convert should come from the "GT" field (uncertain=FALSE) or the "GP" or "GL" field (uncertain=TRUE)}
 
-\item{verbose}{verbosity level (0/default=1)}
+\item{verbose}{verbosity level (0/1)}
 }
 \value{
 an invisible list with both output file paths

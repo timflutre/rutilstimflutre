@@ -52,7 +52,7 @@ filterVariantCalls(vcf.file, genome, out.file, yieldSize = NA_integer_,
 
 \item{max.var.prop.gt.na}{maximum proportion of samples with missing GT}
 
-\item{verbose}{verbosity level (0/default=1)}
+\item{verbose}{verbosity level (0/1)}
 }
 \value{
 the destination file path as a character(1)

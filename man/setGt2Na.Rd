@@ -27,7 +27,7 @@ setGt2Na(vcf.file, genome, out.file, yieldSize = NA_integer_,
 
 \item{min.gq}{minimum GQ below which GT is set to "."}
 
-\item{verbose}{verbosity level (0/default=1)}
+\item{verbose}{verbosity level (0/1)}
 }
 \value{
 the destination file path as an invisible character(1)
