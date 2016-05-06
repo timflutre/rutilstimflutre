@@ -139,13 +139,14 @@ statsAllPairAligns <- function(aligns, nb.sequences){
 ##' Load read counts
 ##'
 ##' Load read counts per individual and lane
-##' @param lanes.dir vector of paths to directories "lane_..." from "demultiplex.py --step 2"
+##' @param lanes.dir vector of paths to "lane" directories, each containing a "demultiplex" directory in which \href{https://github.com/timflutre/quantgen/blob/master/demultiplex.py}{demultiplex.py} was executed
 ##' @return data.frame with (individual,lane) in rows and counts in columns
 ##' @author Timothee Flutre
 ##' @export
 loadReadCountsPerIndAndLane <- function(lanes.dir){
   stopifnot(is.vector(lanes.dir),
-            length(lanes.dir) > 0)
+            length(lanes.dir) > 0,
+            is.character(lanes.dir))
 
   reads <- list()
 
@@ -153,7 +154,8 @@ loadReadCountsPerIndAndLane <- function(lanes.dir){
     lane <- gsub("lane_", "", basename(lane.dir))
     lane.file <- paste0(lane.dir, "/demultiplex/",
                         lane, "_stats-demultiplex.txt.gz")
-    stopifnot(file.exists(lane.file))
+    if(! file.exists(lane.file))
+      stop(paste0("file ", lane.file, " doesn't exist"))
     reads[[lane]] <- read.table(lane.file, header=TRUE)
     if(! all(colnames(reads[[lane]] %in% c("ind","barcode","assigned","lane"))))
       warning(paste0("look at header line of file '", lane.file, "'"))
