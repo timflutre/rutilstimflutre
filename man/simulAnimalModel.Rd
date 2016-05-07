@@ -39,6 +39,9 @@ y = W alpha + Z u + epsilon
 where y is N x 1; W is N x Q; Z is N x I
 u ~ Norm_I(0, G=sigma_u^2 A); epsilon_n ~ Student(nu, 0); Cov(u,e)=0
 }
+\note{
+If A is not positive definite, an error will be raised; in such cases, using the nearPD function from the Matrix package can be useful.
+}
 \author{
 Timothee Flutre
 }

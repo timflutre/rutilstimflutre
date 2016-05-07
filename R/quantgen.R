@@ -1569,6 +1569,7 @@ thinSnps <- function(method, threshold, snp.coords, only.chr=NULL){
 ##' @param seed seed for the pseudo-random number generator
 ##' @return list
 ##' @author Timothee Flutre
+##' @note If A is not positive definite, an error will be raised; in such cases, using the nearPD function from the Matrix package can be useful.
 ##' @export
 simulAnimalModel <- function(Q=3, mu=50, mean.a=5, sd.a=2,
                              A, lambda=3, sigma.u2=NULL, scale.halfCauchy=NULL,
@@ -1576,9 +1577,6 @@ simulAnimalModel <- function(Q=3, mu=50, mean.a=5, sd.a=2,
                              seed=NULL){
   if(! requireNamespace("MASS", quietly=TRUE))
     stop("Pkg MASS needed for this function to work. Please install it.",
-         call.=FALSE)
-  if(! requireNamespace("Matrix", quietly=TRUE))
-    stop("Pkg Matrix needed for this function to work. Please install it.",
          call.=FALSE)
   stopifnot(xor(is.null(sigma.u2), is.null(scale.halfCauchy)),
             is.matrix(A),
@@ -1611,7 +1609,6 @@ simulAnimalModel <- function(Q=3, mu=50, mean.a=5, sd.a=2,
   for(year in levels.years)
     inds[years == year] <- levels.inds[1:sum(years == year)]
   inds <- as.factor(inds)
-  ## Z <- as.matrix(Matrix::t(as(inds, Class="sparseMatrix")))
   Z <- model.matrix(~ inds - 1)
   dat$ind <- inds
 
@@ -1620,7 +1617,7 @@ simulAnimalModel <- function(Q=3, mu=50, mean.a=5, sd.a=2,
     sigma.u <- abs(rcauchy(n=1, location=0, scale=scale.halfCauchy))
     sigma.u2 <- sigma.u^2
   }
-  G <- as.matrix(Matrix::nearPD(sigma.u2 * A)$mat)
+  G <- sigma.u2 * A
   u <- setNames(object=MASS::mvrnorm(n=1, mu=rep(0, I), Sigma=G),
                 nm=rownames(A))
 
@@ -1787,7 +1784,6 @@ simulAnimalModelMultivar <- function(T=1,
     sigma.A2 <- sigma.A^2
   }
   U.G.A <- sigma.A2 * A
-  ## U.G.A <- as.matrix(Matrix::nearPD(sigma.A^2 * A)$mat)
   if(T == 1){
     G.A <- matrix(MASS::mvrnorm(n=1, mu=rep(0, I), Sigma=U.G.A))
     rownames(G.A) <- rownames(A)
@@ -1806,7 +1802,6 @@ simulAnimalModelMultivar <- function(T=1,
       sigma.D2 <- sigma.D^2
     }
     U.G.D <- sigma.D2 * D
-    ## U.G.D <- as.matrix(Matrix::nearPD(sigma.D^2 * D)$mat)
     if(T == 1){
       G.D <- matrix(MASS::mvrnorm(n=1, mu=rep(0, I), Sigma=U.G.D))
       rownames(G.D) <- rownames(D)
@@ -1864,7 +1859,7 @@ simulAnimalModelMultivar <- function(T=1,
 ##' @param verbose verbosity level (0/1)
 ##' @return list which first component is a \code{\link[lme4]{merMod}} object and second component a data.frame with confidence intervals (if ci.meth is not NULL)
 ##' @author Timothee Flutre (inspired by Ben Bolker at http://stackoverflow.com/q/19327088/597069)
-##' @note If A is not positive definite, an error will be raised (via \code{\link[base]{chol}}); in such cases, using \code{\link[Matrix]{nearPD}} can be useful.
+##' @note If A is not positive definite, an error will be raised (via \code{\link[base]{chol}}); in such cases, using the nearPD function from the Matrix package can be useful.
 ##' @seealso \code{\link{inlaAM}}, \code{\link{jagsAM}}
 ##' @examples
 ##' ## simulate genotypes
@@ -2409,9 +2404,6 @@ simulBslmm <- function(Q=3, mu=50, mean.a=5, sd.a=2,
   if(! requireNamespace("MASS", quietly=TRUE))
     stop("Pkg MASS needed for this function to work. Please install it.",
          call.=FALSE)
-  ## if(! requireNamespace("Matrix", quietly=TRUE))
-  ##   stop("Pkg Matrix needed for this function to work. Please install it.",
-  ##        call.=FALSE)
   stopifnot(.isValidGenosDose(X))
   if(! is.null(seed))
     set.seed(seed)
@@ -2453,7 +2445,6 @@ simulBslmm <- function(Q=3, mu=50, mean.a=5, sd.a=2,
   } else
     inds <- levels.inds
   inds <- as.factor(inds)
-  ## Z <- as.matrix(Matrix::t(as(inds, Class="sparseMatrix")))
   Z <- model.matrix(~ inds - 1)
   if(enforce.zhou){
     X.c <- scale(x=X, center=TRUE, scale=FALSE)
