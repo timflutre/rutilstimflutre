@@ -1,0 +1,232 @@
+---
+title: "Introduction to Bayesian statistics via the univariate Normal model with unknown mean and precision"
+author: "Timothée Flutre (INRA)"
+date: "`r Sys.Date()`"
+output:
+  rmarkdown::html_vignette:
+    toc: true
+vignette: >
+  %\VignetteIndexEntry{Intro Bayes (univ Normal, unknwo mu and tau)}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+<!--
+setwd("~/src/rutilstimflutre/vignettes/")
+
+library(devtools)
+build_vignettes()
+
+library(rmarkdown)
+render("intro-bayes_univ-normal_unknown-mean-precision.Rmd", "html_document")
+-->
+
+# Preamble
+
+References are:
+
+* ["Optimal statistical decisions", DeGroot (1970)](http://dx.doi.org/10.1002/0471729000), theorem 1 in section 9.6 on page 169
+
+* ["A first course in Bayesian statistical methods", Hoff (2009)](http://dx.doi.org/10.1007/978-0-387-92407-6), section 5.3 starting on page 73
+
+
+# Model
+
+## Likelihood
+
+* data, $\mathcal{D}$:
+
+\[
+\{y_1, \ldots, y_N \} = \{ \boldsymbol{y} \}
+\]
+
+* parameters, $\Theta$:
+
+\[
+\{ \mu, \tau \}
+\]
+
+* likelihood, $\mathcal{L}(\Theta) = p(\mathcal{D} | \Theta)$:
+
+\[
+\forall n \in \{1,\ldots,N\}, \; y_n | \mu, \tau \; \sim \; \mathcal{N}(\mu, 1/\tau)
+\]
+
+
+## Priors
+
+$p(\Theta) = p(\mu, \tau) = p(\tau) \times p(\mu | \tau)$
+
+* $\tau \sim \mathcal{G}(a_0, b_0)$
+
+* $\mu | \tau \sim \mathcal{N}(m_0, 1 / (\tau t_0))$
+
+Hyper-parameters:
+
+* shape $a_0$ and rate $b_0$
+
+* mean $m_0$ and precision $t_0$
+
+
+## Posteriors
+
+$p(\Theta | \mathcal{D}) \propto p(\Theta) \times p(\mathcal{D} | \Theta)$
+
+* $\tau | \boldsymbol{y} \sim \mathcal{G}(a_N, b_N)$
+
+* $\mu | \boldsymbol{y}, \tau \sim \mathcal{N}(m_N, t_N)$
+
+with:
+
+$a_N = a_0 + N/2$
+
+$b_N = b_0 + \frac{1}{2} \sum_n (y_n - \bar{y})^2 + \frac{t_0 N (y_n - \bar{y})^2}{2 (t_0 + N)}$
+
+$m_N = \frac{t_0 m_0 + N \bar{y}}{t_0 + N}$
+
+$t_N = t_0 + N$
+
+
+## Details
+
+TODO ...
+
+
+# Simulation
+
+```{r setup_simul}
+set.seed(7263)
+truth <- c()
+```
+
+## $\tau$
+
+```{r simul_tau}
+a.0 <- 3
+truth <- append(x=truth,
+                values=setNames(object=a.0, nm="a.0"))
+b.0 <- 2
+truth <- append(x=truth,
+                values=setNames(object=b.0, nm="b.0"))
+truth <- append(x=truth,
+                values=setNames(object=a.0 / b.0, nm="prior.mean.tau"))
+truth <- append(x=truth,
+                values=setNames(object=a.0 / b.0^2, nm="prior.var.tau"))
+plot(x=seq(0,11,0.1),
+     y=dgamma(x=seq(0,11,0.1), shape=a.0, rate=b.0),
+     main=paste0("Gamma(shape=", a.0, ", rate=", b.0, ")"),
+     xlab="x", ylab="pdf", type="l")
+(tau <- rgamma(n=1, shape=a.0, rate=b.0))
+truth <- append(x=truth,
+                values=setNames(object=tau, nm="tau"))
+truth <- append(x=truth,
+                values=setNames(object=1 / tau, nm="sigma2"))
+truth <- append(x=truth,
+                values=setNames(object=sqrt(1 / tau), nm="sigma"))
+```
+
+## $\mu$
+
+```{r simul_mu}
+m.0 <- 73
+truth <- append(x=truth,
+                values=setNames(object=m.0, nm="prior.mean.mu"))
+t.0 <- 10^(-1)
+truth <- append(x=truth,
+                values=setNames(object=1 / (tau * t.0), nm="prior.var.mu"))
+plot(x=seq(60,86,0.1),
+     y=dnorm(x=seq(60,86,0.1), mean=m.0, sd=sqrt(1/(tau*t.0))),
+     main=paste0("Normal(mean=", m.0, ", sd=",
+         format(sqrt(1/(tau*t.0)), digits=3), ")"),
+     xlab="x", ylab="pdf", type="l")
+(mu <- rnorm(n=1, mean=m.0, sd=sqrt(1/(tau * t.0))))
+truth <- append(x=truth,
+                values=setNames(object=mu, nm="mu"))
+```
+
+## Data
+
+```{r simul_data}
+N <- 5*10^1
+y <- rnorm(n=N, mean=mu, sd=sqrt(1/tau))
+summary(y)
+hist(y, breaks="FD", freq=FALSE, col="grey", border="white",
+     main="Simulated data",
+     ylim=c(0, dnorm(x=mu, mean=mu, sd=sqrt(1/tau))))
+abline(v=mu, col="red")
+curve(dnorm(x=x, mean=mu, sd=sqrt(1/tau)), add=TRUE, col="red")
+```
+
+
+# Inference
+
+## Maximum likelihood estimates
+
+```{r infer_mle}
+truth <- append(x=truth,
+                values=setNames(object=mean(y), nm="mle.mu"))
+truth <- append(x=truth,
+                values=setNames(object=1 / var(y), nm="mle.tau"))
+truth <- append(x=truth,
+                values=setNames(object=var(y), nm="mle.sigma2"))
+truth <- append(x=truth,
+                values=setNames(object=sd(y), nm="mle.sigma"))
+truth[grep("mle", names(truth))]
+```
+
+
+## Posteriors
+
+```{r posteriors}
+a.N <- a.0 + N / 2
+truth <- append(x=truth,
+                values=setNames(object=a.N, nm="a.N"))
+b.N <- b.0 + (1/2) * sum((y - mean(y))^2) +
+  (t.0 * N * (mean(y) - m.0)^2) / (2 * (t.0 + N))
+truth <- append(x=truth,
+                values=setNames(object=b.N, nm="b.N"))
+truth <- append(x=truth,
+                values=setNames(object=a.N / b.N, nm="post.mean.tau"))
+truth <- append(x=truth,
+                values=setNames(object=a.N / b.N^2, nm="post.var.tau"))
+truth <- append(x=truth,
+                values=setNames(object=b.N / (a.N - 1), nm="post.mean.sigma2"))
+truth <- append(x=truth,
+                values=setNames(object=b.N^2 / ((a.N - 1)^2 * (a.N - 2)),
+                    nm="post.var.sigma2"))
+m.N <- (t.0 * m.0 + N * mean(y)) / (t.0 + N)
+truth <- append(x=truth,
+                values=setNames(object=m.N, nm="post.mean.mu"))
+t.N <- (t.0 + N)
+truth <- append(x=truth,
+                values=setNames(object=1 / (t.N * a.N / b.N),
+                    nm="post.var.mu"))
+```
+
+
+# Evaluation
+
+```{r truth}
+truth
+```
+
+```{r infer_graphics, fig.width=7, fig.height=5}
+plot(x=0, y=0, type="n", xlim=c(65,82), ylim=c(0,2),
+     xlab="x", ylab="density",
+     main="Bayesian inference of a Normal with unknown mean and variance")
+curve(dnorm(x=x, mean=truth["prior.mean.mu"], sd=sqrt(truth["prior.var.mu"])),
+      add=TRUE, col="green", lwd=2)
+curve(dnorm(x=x, mean=mu, sd=sqrt(1/tau)), add=TRUE, col="black", lwd=2)
+curve(dnorm(x=x, mean=truth["post.mean.mu"], sd=sqrt(truth["post.var.mu"])),
+      add=TRUE, col="red", lwd=2, n=10^3+1)
+legend(x="topright", legend=c("prior(mu|tau)", "likelihood(y;mu,tau)",
+                         "posterior(mu|y,tau)"),
+       col=c("green","black","red"), lwd=2, bty="n")
+```
+
+
+# Appendix
+
+```{r info}
+print(sessionInfo(), locale=FALSE)
+```
