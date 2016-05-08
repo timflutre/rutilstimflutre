@@ -32,6 +32,14 @@ References are:
 
 # Model
 
+## Parametrization
+
+In this document, the Normal distribution, $\mathcal{N}$, is parametrized in terms of its mean and variance.
+Nevertheless, equations are easier to work with in terms of precision, which is the inverse of the variance.
+
+The Gamma distribution, $\mathcal{G}$, is parametrized in terms of shape and rate.
+
+
 ## Likelihood
 
 * data, $\mathcal{D}$:
@@ -63,9 +71,9 @@ $p(\Theta) = p(\mu, \tau) = p(\tau) \times p(\mu | \tau)$
 
 Hyper-parameters:
 
-* shape $a_0$ and rate $b_0$
+* shape $a_0 > 0$ and rate $b_0 > 0$
 
-* mean $m_0$ and precision $t_0$
+* mean $m_0 \in \mathbb{R}$ and precision $t_0 > 0$
 
 
 ## Posteriors
@@ -74,22 +82,30 @@ $p(\Theta | \mathcal{D}) \propto p(\Theta) \times p(\mathcal{D} | \Theta)$
 
 * $\tau | \boldsymbol{y} \sim \mathcal{G}(a_N, b_N)$
 
-* $\mu | \boldsymbol{y}, \tau \sim \mathcal{N}(m_N, t_N)$
+* $\mu | \boldsymbol{y}, \tau \sim \mathcal{N}(m_N, 1 / t_N)$
 
 with:
 
 $a_N = a_0 + N/2$
 
-$b_N = b_0 + \frac{1}{2} \sum_n (y_n - \bar{y})^2 + \frac{t_0 N (y_n - \bar{y})^2}{2 (t_0 + N)}$
+$b_N = b_0 + \frac{1}{2} \sum_n (y_n - \bar{y})^2 + \frac{t_0 N (\bar{y} - m_0)^2}{2 (t_0 + N)}$
 
 $m_N = \frac{t_0 m_0 + N \bar{y}}{t_0 + N}$
 
-$t_N = t_0 + N$
+$t_N = \tau (t_0 + N)$
 
 
 ## Details
 
-TODO ...
+TODO
+
+Bayesian inference uses posterior distributions: $p(\Theta | \mathcal{D}) = p(\mu, \tau | \boldsymbol{y}) = p(\tau | \boldsymbol{y}) \, p(\mu | \boldsymbol{y}, \tau)$
+
+Let us start with the conditional posterior of $\mu$:
+
+\begin{align*}
+p(\mu | \boldsymbol{y}, \tau) &\propto p(\mu | \tau) \, p(\boldsymbol{y} | \mu, \tau) \\
+\end{align*}
 
 
 # Simulation
@@ -137,7 +153,7 @@ truth <- append(x=truth,
 plot(x=seq(60,86,0.1),
      y=dnorm(x=seq(60,86,0.1), mean=m.0, sd=sqrt(1/(tau*t.0))),
      main=paste0("Normal(mean=", m.0, ", sd=",
-         format(sqrt(1/(tau*t.0)), digits=3), ")"),
+                 format(sqrt(1/(tau*t.0)), digits=3), ")"),
      xlab="x", ylab="pdf", type="l")
 (mu <- rnorm(n=1, mean=m.0, sd=sqrt(1/(tau * t.0))))
 truth <- append(x=truth,
@@ -193,14 +209,13 @@ truth <- append(x=truth,
                 values=setNames(object=b.N / (a.N - 1), nm="post.mean.sigma2"))
 truth <- append(x=truth,
                 values=setNames(object=b.N^2 / ((a.N - 1)^2 * (a.N - 2)),
-                    nm="post.var.sigma2"))
+                                nm="post.var.sigma2"))
 m.N <- (t.0 * m.0 + N * mean(y)) / (t.0 + N)
 truth <- append(x=truth,
-                values=setNames(object=m.N, nm="post.mean.mu"))
-t.N <- (t.0 + N)
+                values=setNames(object=m.N, nm="post.mean.mu.cond"))
+t.N <- (a.N / b.N) * (t.0 + N)
 truth <- append(x=truth,
-                values=setNames(object=1 / (t.N * a.N / b.N),
-                    nm="post.var.mu"))
+                values=setNames(object=1 / t.N, nm="post.var.mu.cond"))
 ```
 
 
@@ -211,17 +226,23 @@ truth
 ```
 
 ```{r infer_graphics, fig.width=7, fig.height=5}
-plot(x=0, y=0, type="n", xlim=c(65,82), ylim=c(0,2),
+plot(x=0, y=0, type="n",
+     xlim=c(truth["prior.mean.mu"] - 2 * sqrt(truth["prior.var.mu"]),
+            truth["prior.mean.mu"] + 2 * sqrt(truth["prior.var.mu"])),
+     ylim=c(0,2),
      xlab="x", ylab="density",
      main="Bayesian inference of a Normal with unknown mean and variance")
+abline(v=truth["mu"], lwd=2, lty=2)
 curve(dnorm(x=x, mean=truth["prior.mean.mu"], sd=sqrt(truth["prior.var.mu"])),
       add=TRUE, col="green", lwd=2)
 curve(dnorm(x=x, mean=mu, sd=sqrt(1/tau)), add=TRUE, col="black", lwd=2)
-curve(dnorm(x=x, mean=truth["post.mean.mu"], sd=sqrt(truth["post.var.mu"])),
+curve(dnorm(x=x, mean=truth["post.mean.mu.cond"],
+            sd=sqrt(truth["post.var.mu.cond"])),
       add=TRUE, col="red", lwd=2, n=10^3+1)
-legend(x="topright", legend=c("prior(mu|tau)", "likelihood(y;mu,tau)",
-                         "posterior(mu|y,tau)"),
-       col=c("green","black","red"), lwd=2, bty="n")
+legend(x="topright", legend=c("true mu|tau", "prior(mu|tau)",
+                              "likelihood(y;mu,tau)",
+                              "posterior(mu|y,tau)"),
+       col=c("black", "green","black","red"), lwd=2, lty=c(2,1,1,1), bty="n")
 ```
 
 
