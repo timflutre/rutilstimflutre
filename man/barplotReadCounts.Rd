@@ -9,7 +9,7 @@ barplotReadCounts(counts, xlab = paste0("Individuals (", ncol(counts), ")"),
   lines.h = c(10^5, 10^6, 5 * 10^6), mar = c(4, 4, 4, 1), xlab.line = 3)
 }
 \arguments{
-\item{counts}{matrix}
+\item{counts}{matrix; if colnames is not NULL, they will be used as labels of the x-axis}
 
 \item{xlab}{a title for the x axis}
 
@@ -19,9 +19,9 @@ barplotReadCounts(counts, xlab = paste0("Individuals (", ncol(counts), ")"),
 
 \item{lines.h}{the y-value(s) for horizontal line(s)}
 
-\item{mar}{see \code{par}}
+\item{mar}{see \code{\link[graphics]{par}}}
 
-\item{xlab.line}{see \code{line} from \code{mtext}}
+\item{xlab.line}{see \code{line} from \code{\link[graphics]{mtext}}}
 }
 \value{
 nothing

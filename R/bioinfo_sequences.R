@@ -201,13 +201,13 @@ formatReadCountsPerLane <- function(x){
 ##' Stacked barplot of read counts
 ##'
 ##' Make a stacked barplot from the output of \code{\link{formatReadCountsPerLane}}.
-##' @param counts matrix
+##' @param counts matrix; if colnames is not NULL, they will be used as labels of the x-axis
 ##' @param xlab a title for the x axis
 ##' @param ylab a title for the y axis
 ##' @param main an overall title for the plot
 ##' @param lines.h the y-value(s) for horizontal line(s)
-##' @param mar see \code{par}
-##' @param xlab.line see \code{line} from \code{mtext}
+##' @param mar see \code{\link[graphics]{par}}
+##' @param xlab.line see \code{line} from \code{\link[graphics]{mtext}}
 ##' @return nothing
 ##' @author Timothee Flutre
 ##' @export
@@ -225,15 +225,19 @@ barplotReadCounts <- function(counts,
     par(mar=mar)
   }
 
-  bp <- barplot(counts, xaxt="n", col=1:nrow(counts),
-                legend.text=TRUE,
-                args.legend=list(x="left", bty="n", border=nrow(counts):1),
-                ylab=ylab,
+  bp <- barplot(height=counts, width=1,
+                col=1:nrow(counts),
+                border=NA,
+                xaxt="n",
                 xlab="",
-                main=main)
+                ylab=ylab,
+                main=main,
+                legend.text=TRUE,
+                args.legend=list(x="left", bty="n", border=nrow(counts):1))
   axis(1, at=bp, labels=FALSE)
-  text(x=bp, y=par("usr")[3], srt=45, adj=c(1.2,2),
-       labels=colnames(counts), xpd=TRUE)
+  if(! is.null(colnames(counts)))
+    text(x=bp, y=par("usr")[3], srt=45, adj=c(1.2,2),
+         labels=colnames(counts), xpd=TRUE)
   mtext(text=xlab, side=1, line=xlab.line)
 
   if(! is.null(lines.h)){
