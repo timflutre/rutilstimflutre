@@ -2524,16 +2524,27 @@ simulBslmm <- function(Q=3, mu=50, mean.a=5, sd.a=2,
 ##' @param task.id identifier of the task (used in temporary and output file names)
 ##' @param verbose verbosity level (0/1)
 ##' @param clean remove files: none, some (temporary only), all (temporary and results)
+##' @param seed seed for the generator of pseudo-random numbers
 ##' @param burnin number of iterations to discard as burn-in (if model="bslmm")
 ##' @param nb.iters number of iterations (if model="bslmm")
 ##' @param thin thining (if model="bslmm")
 ##' @return invisible list
 ##' @author Timothee Flutre [aut,cre], Dalel Ahmed [ctb]
+##' @examples
+##' \dontrun{
+##' burnin <- 10^5
+##' nb.iters <- 10^6
+##' thin <- 10^2
+##' fit <- gemma(model="bslmm", burnin=burnin, nb.iters=nb.iters, thin=thin, ...)
+##' posterior.samples <- coda::mcmc(data=fit$hyperparams, start=burnin + 1,
+##'                                 end=burnin + nb.iters, thin=thin)
+##' }
 ##' @export
 gemma <- function(model="ulmm", y, X, snp.coords, alleles, maf=0.01, K.c=NULL,
                   W, out.dir=getwd(), task.id="gemma", verbose=1, clean="none",
-                  burnin=1000, nb.iters=7000, thin=10){
-  stopifnot(model %in% c("ulmm", "bslmm"))
+                  seed=1859, burnin=1000, nb.iters=7000, thin=10){
+  stopifnot(file.exists(Sys.which("gemma")),
+            model %in% c("ulmm", "bslmm"))
   if(is.matrix(y)){
     stopifnot(ncol(y) == 1)
     y <- as.vector(y)
@@ -2558,54 +2569,58 @@ gemma <- function(model="ulmm", y, X, snp.coords, alleles, maf=0.01, K.c=NULL,
             length(task.id) == 1,
             clean %in% c("none", "some", "all"))
 
+  output <- list()
+
   ## prepare input files
   tmp.files <- c()
   tmp.files <- c(tmp.files,
-                 bimbam=paste0(out.dir, "/genos_bimbam_", task.id, ".txt.gz"))
+                 genos=paste0(out.dir, "/genos_", task.id, ".txt.gz"))
   X.bimbam <- dose2bimbam(X=X, alleles=alleles,
-                          file=gzfile(tmp.files["bimbam"]))
+                          file=gzfile(tmp.files["genos"]))
   tmp.files <- c(tmp.files,
-                 coord=paste0(out.dir, "/snp_coordinates_", task.id, ".txt"))
+                 snp.coords=paste0(out.dir, "/snp-coords_", task.id, ".txt"))
   write.table(x=snp.coords,
-              file=tmp.files["coord"],
+              file=tmp.files["snp.coords"],
               quote=FALSE, sep="\t", row.names=FALSE, col.names=FALSE)
   if(is.null(K.c))
     K.c <- estimGenRel(X=X, thresh=maf, relationships="additive",
                        method="zhou", verbose=verbose)
   tmp.files <- c(tmp.files,
-                 kin=paste0(out.dir, "/kinship-center_", task.id, ".txt"))
+                 kinship.center=paste0(out.dir, "/kinship-center_", task.id,
+                                       ".txt"))
   write.table(x=K.c,
-              file=tmp.files["kin"],
+              file=tmp.files["kinship.center"],
               quote=FALSE, sep="\t", row.names=FALSE, col.names=FALSE)
   tmp.files <- c(tmp.files,
-                 covar=paste0(out.dir, "/covar_gemma_", task.id, ".txt"))
+                 covars=paste0(out.dir, "/covars_", task.id, ".txt"))
   write.table(x=W,
-              file=tmp.files["covar"],
+              file=tmp.files["covars"],
               quote=FALSE, sep="\t", row.names=FALSE, col.names=FALSE)
   tmp.files <- c(tmp.files,
-                 pheno=paste0(out.dir, "/phenotypes_", task.id, ".txt.gz"))
+                 phenos=paste0(out.dir, "/phenos_", task.id, ".txt.gz"))
   write.table(x=y,
-              file=gzfile(tmp.files["pheno"]),
+              file=gzfile(tmp.files["phenos"]),
               quote=FALSE, sep="\t", row.names=FALSE, col.names=FALSE)
 
   ## prepare cmd-line and execute it
   cmd <- paste0("cd ", out.dir,
                 "; gemma",
-                " -g genos_bimbam_", task.id, ".txt.gz",
+                " -g ", tmp.files["genos"],
                 " -maf ", maf,
-                " -p phenotypes_", task.id, ".txt.gz",
-                " -a snp_coordinates_", task.id, ".txt",
+                " -p ", tmp.files["phenos"],
+                " -a ", tmp.files["snp.coords"],
                 " -outdir ./",
                 " -o results_", task.id)
   if(model == "ulmm"){
-    cmd <- paste0(cmd, " -k kinship-center_", task.id, ".txt",
-                  " -c covar_gemma_", task.id, ".txt",
+    cmd <- paste0(cmd, " -k ", tmp.files["kinship.center"],
+                  " -c ", tmp.files["covars"],
                   " -lmm 4")
   } else if(model == "bslmm"){
     cmd <- paste0(cmd, " -bslmm 1",
                   " -w ", format(x=burnin, scientific=FALSE),
                   " -s ", format(x=nb.iters, scientific=FALSE),
-                  " -rpace ", thin)
+                  " -rpace ", thin,
+                  " -seed ", seed)
   }
   if(verbose <= 0){
     tmp.files <- c(tmp.files,
@@ -2615,9 +2630,9 @@ gemma <- function(model="ulmm", y, X, snp.coords, alleles, maf=0.01, K.c=NULL,
   if(verbose > 0)
     write(cmd, stdout())
   system(cmd)
+  output[["cmd"]] <- cmd
 
   ## load output files
-  output <- list()
   f <- paste0(out.dir, "/results_", task.id, ".log.txt")
   output[["log"]] <- readLines(f)
   if(clean == "all")

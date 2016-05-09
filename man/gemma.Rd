@@ -6,7 +6,7 @@
 \usage{
 gemma(model = "ulmm", y, X, snp.coords, alleles, maf = 0.01, K.c = NULL,
   W, out.dir = getwd(), task.id = "gemma", verbose = 1, clean = "none",
-  burnin = 1000, nb.iters = 7000, thin = 10)
+  seed = 1859, burnin = 1000, nb.iters = 7000, thin = 10)
 }
 \arguments{
 \item{model}{name of the model to fit (ulmm/bslmm)}
@@ -34,6 +34,8 @@ alleles in columns (first is "minor", second is "major")}
 
 \item{clean}{remove files: none, some (temporary only), all (temporary and results)}
 
+\item{seed}{seed for the generator of pseudo-random numbers}
+
 \item{burnin}{number of iterations to discard as burn-in (if model="bslmm")}
 
 \item{nb.iters}{number of iterations (if model="bslmm")}
@@ -45,6 +47,16 @@ invisible list
 }
 \description{
 See Zhou & Stephens (Nature Genetics, 2012) and Zhou et al (PLoS Genetics, 2013).
+}
+\examples{
+\dontrun{
+burnin <- 10^5
+nb.iters <- 10^6
+thin <- 10^2
+fit <- gemma(model="bslmm", burnin=burnin, nb.iters=nb.iters, thin=thin, ...)
+posterior.samples <- coda::mcmc(data=fit$hyperparams, start=burnin + 1,
+                                end=burnin + nb.iters, thin=thin)
+}
 }
 \author{
 Timothee Flutre [aut,cre], Dalel Ahmed [ctb]
