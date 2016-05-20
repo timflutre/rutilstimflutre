@@ -1551,100 +1551,6 @@ thinSnps <- function(method, threshold, snp.coords, only.chr=NULL){
   return(out.snp.ids)
 }
 
-##' Simulate phenotypes from a basic "animal model" (LMM).
-##'
-##' y = W alpha + Z u + epsilon
-##' where y is N x 1; W is N x Q; Z is N x I
-##' u ~ Norm_I(0, G=sigma_u^2 A); epsilon_n ~ Student(nu, 0); Cov(u,e)=0
-##' @param Q number of years
-##' @param mu overall mean
-##' @param mean.a mean of the prior on alpha[2:Q]
-##' @param sd.a std dev of the prior on alpha[2:Q]
-##' @param lambda ratio of variances (sigma_u^2 /sigma^2)
-##' @param sigma.u2 genetic variance (e.g. 15)
-##' @param scale.halfCauchy scale of the half-Cauchy prior for sigma_u (e.g. 5)
-##' @param A matrix of additive genetic relationships
-##' @param perc.NA percentage of missing phenotypes, at random
-##' @param err.df degrees of freedom of errors' Student's t-distribution
-##' @param seed seed for the pseudo-random number generator
-##' @return list
-##' @author Timothee Flutre
-##' @note If A is not positive definite, an error will be raised; in such cases, using the nearPD function from the Matrix package can be useful.
-##' @export
-simulAnimalModel <- function(Q=3, mu=50, mean.a=5, sd.a=2,
-                             A, lambda=3, sigma.u2=NULL, scale.halfCauchy=NULL,
-                             perc.NA=0, err.df=Inf,
-                             seed=NULL){
-  if(! requireNamespace("MASS", quietly=TRUE))
-    stop("Pkg MASS needed for this function to work. Please install it.",
-         call.=FALSE)
-  stopifnot(xor(is.null(sigma.u2), is.null(scale.halfCauchy)),
-            is.matrix(A),
-            nrow(A) == ncol(A),
-            ! is.null(rownames(A)),
-            ! is.null(colnames(A)),
-            rownames(A) == colnames(A),
-            perc.NA >= 0, perc.NA <= 100)
-  if(! is.null(seed))
-    set.seed(seed)
-
-  I <- nrow(A)
-  N <- Q * I
-
-  levels.years <- as.character(seq(from=2010, to=2010+Q-1))
-  if(N %% Q == 0){
-    years <- rep(levels.years, each=N / Q)
-  } else
-    years <- sort(sample(x=levels.years, size=N, replace=TRUE))
-  years <- as.factor(years)
-  W <- model.matrix(~ years)
-  dat <- data.frame(year=years)
-
-  ## "fixed" effects
-  alpha <- matrix(data=c(mu, rnorm(n=Q-1, mean=mean.a, sd=sd.a)),
-                  nrow=Q, ncol=1)
-
-  levels.inds <- rownames(A)
-  inds <- rep(NA, N)
-  for(year in levels.years)
-    inds[years == year] <- levels.inds[1:sum(years == year)]
-  inds <- as.factor(inds)
-  Z <- model.matrix(~ inds - 1)
-  dat$ind <- inds
-
-  ## additive genetic component
-  if(is.null(sigma.u2)){
-    sigma.u <- abs(rcauchy(n=1, location=0, scale=scale.halfCauchy))
-    sigma.u2 <- sigma.u^2
-  }
-  G <- sigma.u2 * A
-  u <- setNames(object=MASS::mvrnorm(n=1, mu=rep(0, I), Sigma=G),
-                nm=rownames(A))
-
-  ## errors
-  sigma2 <- sigma.u2 / lambda
-  h2 <- sigma.u2 / (sigma.u2 + sigma2)
-  if(is.infinite(err.df)){
-    epsilon <- rnorm(n=N, mean=0, sd=sqrt(sigma2))
-  } else
-    epsilon <- rt(n=N, df=err.df, ncp=0)
-
-  ## phenotypes
-  y <- W %*% alpha + Z %*% u + epsilon
-  if(perc.NA > 0){
-    idx <- sample.int(n=N, size=floor(perc.NA/100 * N))
-    y[idx] <- NA
-  }
-  dat$response <- y[,1]
-
-  return(list(y=y,
-              W=W, alpha=alpha,
-              Z=Z, G=G, u=u, sigma.u2=sigma.u2,
-              sigma2=sigma2,
-              h2=h2,
-              dat=dat))
-}
-
 ##' Animal model
 ##'
 ##' Given T traits, I genotypes, Q covariates and N=I*Q phenotypes per trait, simulate phenotypes via the following "animal model": Y = W C + Z G_A + Z G_D + E, where Y is N x T; W is N x Q; Z is N x I; G_A ~ Normal_IxT(0, sigma_A^2 A, V_{G_A}); G_D ~ Normal_IxT(0, sigma_D^2 D, V_{G_D}); E ~ Normal_NxT(0, Id_N, V_E).
@@ -1846,6 +1752,59 @@ simulAnimalModelMultivar <- function(T=1,
               sigma.D2=sigma.D2, V.G.D=V.G.D, G.D=G.D,
               V.E=V.E,
               dat=dat))
+}
+
+##' Animal model
+##'
+##' Given T=1 trait, I genotypes, Q covariates and N=I*Q phenotypes per trait, compute the BLUEs and BLUPs of the following "animal model" via Henderson's mixed model equations: y = W c + Z g_A + e, where y is N x 1; W is N x Q; Z is N x I; g_A ~ Normal_Ix1(0, sigma_A^2 A); e ~ Normal_Nx1(0, V.E Id_N).
+##' @param y vector of phenotypes
+##' @param W incidence matrix of fixed effects
+##' @param Z incidence matrix of random effects, the breeding values
+##' @param sigma.A2 variance component of the breeding values
+##' @param Ainv inverse of A, the matrix of additive genetic relationships
+##' @param V.E variance component of the errors
+##' @return vector of length QI containing the BLUEs of c and the BLUPs of g_A
+##' @author Timothee Flutre
+##' @examples
+##' set.seed(1859)
+##' I <- 100 # genotypes
+##' P <- 2000 # SNPs
+##' X <- matrix(sample(0:2, size=I*P, replace=TRUE), nrow=I, ncol=P,
+##'             dimnames=list(paste0("geno", 1:I), paste0("snp", 1:P)))
+##' A <- estimGenRel(X, relationships="additive", method="vanraden1", verbose=0)
+##' A <- as.matrix(Matrix::nearPD(A)$mat) # not always necessary
+##' model <- simulAnimalModelMultivar(T=1, Q=3, A=A, sigma.A2=15, V.E=5)
+##' fit <- mme(y=model$Y[,1,drop=FALSE], W=model$W, Z=model$Z,
+##'            sigma.A2=model$sigma.A2, Ainv=solve(A), V.E=model$V.E)
+##' cbind(model$C, fit[1:3])
+##' cor(model$G.A, fit[4:length(fit)])
+##' @export
+mme <- function(y, W, Z, sigma.A2, Ainv, V.E){
+  stopifnot(is.matrix(y),
+            is.matrix(W),
+            is.matrix(Z),
+            is.matrix(Ainv),
+            ncol(y) == 1,
+            nrow(y) == nrow(W),
+            nrow(W) == nrow(Z),
+            nrow(Ainv) == ncol(Z))
+
+  lambda <- V.E / sigma.A2
+
+  lhs <- matrix(data=NA, nrow=ncol(W)+ncol(Z), ncol=ncol(W)+ncol(Z))
+  lhs[1:ncol(W), 1:ncol(W)] <- crossprod(W, W) # faster than t(W) %*% W
+  lhs[(ncol(W)+1):nrow(lhs), 1:ncol(W)] <- crossprod(Z, W)
+  lhs[1:ncol(W), (ncol(W)+1):ncol(lhs)] <- crossprod(W, Z)
+  lhs[(ncol(W)+1):nrow(lhs), (ncol(W)+1):ncol(lhs)] <-
+    crossprod(Z, Z) + lambda * Ainv
+
+  rhs <- matrix(data=NA, nrow=nrow(lhs), ncol=1)
+  rhs[1:ncol(W), 1] <- crossprod(W, y)
+  rhs[(ncol(W)+1):nrow(rhs), 1] <- crossprod(Z, y)
+
+  theta.hat <- solve(lhs, rhs) # faster than solve(lhs) %*% rhs
+
+  return(c(theta.hat))
 }
 
 ##' Animal model
