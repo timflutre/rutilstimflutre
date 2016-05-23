@@ -1553,23 +1553,23 @@ thinSnps <- function(method, threshold, snp.coords, only.chr=NULL){
 
 ##' Animal model
 ##'
-##' Given T traits, I genotypes, Q covariates and N=I*Q phenotypes per trait, simulate phenotypes via the following "animal model": Y = W C + Z G_A + Z G_D + E, where Y is N x T; W is N x Q; Z is N x I; G_A ~ Normal_IxT(0, sigma_A^2 A, V_{G_A}); G_D ~ Normal_IxT(0, sigma_D^2 D, V_{G_D}); E ~ Normal_NxT(0, Id_N, V_E).
+##' Given T traits, I genotypes, Q covariates and N=I*Q phenotypes per trait, simulate phenotypes via the following "animal model": \eqn{Y = W C + Z G_A + Z G_D + E}, where Y is N x T; W is N x Q; Z is N x I; G_A ~ Normal_IxT(0, A, V_{G_A}) with A being IxI and V_{G_A} being TxT; G_D ~ Normal_IxT(0, D, V_{G_D}) with D being IxI and V_{G_D} being TxT; E ~ Normal_NxT(0, Id_N, V_E) with Id_N being NxN and V_E being TxT. Note that using the matrix Normal (MN) is equivalent to using the multivariate Normal (MVN) via the vec operator and Kronecker product: \eqn{Y ~ MN(M, U, V) <=> vec(Y) ~ MVN(vec(M), V \otimes U)}.
 ##' @param T number of traits
 ##' @param Q number of covariates (as "fixed effects", e.g. replicates)
 ##' @param mu T-vector of overall means (one per trait), i.e. C[1,1:T]
 ##' @param mean.C mean of the univariate Normal prior on C[2:Q,1:T] (ignored if Q=1)
 ##' @param sd.C std dev of the univariate Normal prior on C[2:Q,1:T] (ignored if Q=1)
 ##' @param A IxI matrix of additive genetic relationships between genotypes (see \code{\link{estimGenRel}} with VanRaden's estimator)
-##' @param scale.halfCauchy scale of the half-Cauchy prior for sigma_A, sigma_D and sqrt{V_E} (e.g. 5; used if sigma.A2=NULL, whatever the value of T; used if D!=NULL and sigma.D2=NULL, whatever the value of T; used if V.E=NULL when T=1)
-##' @param sigma.A2 variance component of the additive genetic relationships (e.g. 15)
-##' @param V.G.A TxT matrix of additive genetic variance-covariance between traits (ignored if T=1)
-##' @param nu.V.G.A degrees of freedom of the Wishart prior for V_{G_A} (ignored if T=1 or V.G.A!=NULL)
+##' @param V.G.A TxT matrix of additive genetic variance-covariance between traits (e.g. 15 when T=1)
+##' @param scale.hC.G.A scale of the half-Cauchy prior for sqrt{V_{G_A}} (e.g. 5; used if V.G.A=NULL and T=1)
+##' @param nu.G.A degrees of freedom of the Wishart prior for V_{G_A} (used if V.G.A=NULL and T>1)
 ##' @param D IxI matrix of dominant genetic relationships between genotypes (see \code{\link{estimGenRel}} with Vitezica's estimator)
-##' @param sigma.D2 variance component of the dominant genetic relationships (e.g. 3)
-##' @param V.G.D TxT matrix of dominant genetic variance-covariance between traits (ignored if T=1)
-##' @param nu.V.G.D degrees of freedom of the Wishart prior for V_{G_D} (ignored if T=1 or V.G.D!=NULL)
-##' @param V.E TxT matrix of error variance-covariance between traits (ignored if T=1 and err.df!=Inf)
-##' @param nu.V.E degrees of freedom of the Wishart prior for V_E (ignored if T=1 or V.E!=NULL)
+##' @param V.G.D TxT matrix of dominant genetic variance-covariance between traits (e.g. 3 when T=1; used if D!=NULL)
+##' @param scale.hC.G.D scale of the half-Cauchy prior for sqrt{V_{G_D}} (e.g. 5; used if D!=NULL, V.G.D=NULL and T=1)
+##' @param nu.G.D degrees of freedom of the Wishart prior for V_{G_D} (used if D!=NULL, V.G.D=NULL and T>1)
+##' @param V.E TxT matrix of error variance-covariance between traits (used if T=1 and err.df=Inf)
+##' @param scale.hC.E scale of the half-Cauchy prior for sqrt{V_E} (e.g. 5; used if V.E=NULL and T=1 and err.df=Inf)
+##' @param nu.E degrees of freedom of the Wishart prior for V_E (used if V.E=NULL and T>1)
 ##' @param err.df degrees of freedom of the Student's t-distribution of the errors (e.g. 3; Inf means Normal distribution; will be Inf if T>1)
 ##' @param perc.NA percentage of missing phenotypes, at random
 ##' @param seed seed for the pseudo-random number generator
@@ -1585,29 +1585,26 @@ thinSnps <- function(method, threshold, snp.coords, only.chr=NULL){
 ##' A <- as.matrix(Matrix::nearPD(A)$mat) # not always necessary
 ##'
 ##' # one trait with heritability h2=0.75, no covariate, Normal errors, no NA
-##' model <- simulAnimalModelMultivar(T=1, Q=1, A=A, sigma.A2=15, V.E=5)
+##' model <- simulAnimalModel(T=1, Q=1, A=A, V.G.A=15, V.E=5)
 ##'
 ##' # one trait with heritability h2=0.75, three covariates, Normal errors, no NA
-##' model <- simulAnimalModelMultivar(T=1, Q=3, A=A, sigma.A2=15, V.E=5)
+##' model <- simulAnimalModel(T=1, Q=3, A=A, V.G.A=15, V.E=5)
 ##'
 ##' # one trait with heritability h2=0.75, no covariate, Student errors, no NA
-##' model <- simulAnimalModelMultivar(T=1, Q=1, A=A, sigma.A2=15, err.df=3)
+##' model <- simulAnimalModel(T=1, Q=1, A=A, V.G.A=15, err.df=3)
 ##'
 ##' # one trait with heritability drawn at random, no covariate, Normal errors, no NA
-##' model <- simulAnimalModelMultivar(T=1, Q=1, A=A, scale.halfCauchy=5)
+##' model <- simulAnimalModel(T=1, Q=1, A=A, scale.hC.G.A=10, V.E=5)
 ##'
 ##' # two traits with heritabilities drawn at random, no covariate, Normal errors, no NA
-##' model <- simulAnimalModelMultivar(T=2, Q=1, A=A, scale.halfCauchy=5, nu.V.E=3)
+##' model <- simulAnimalModel(T=2, Q=1, A=A, nu.G.A=5, nu.E=3)
 ##' @export
-simulAnimalModelMultivar <- function(T=1,
-                                     Q=3, mu=rep(50,T), mean.C=5, sd.C=2,
-                                     A,
-                                     scale.halfCauchy=NULL,
-                                     sigma.A2=NULL, V.G.A=NULL, nu.V.G.A=T,
-                                     D=NULL, sigma.D2=NULL,
-                                     V.G.D=NULL, nu.V.G.D=T,
-                                     V.E=NULL, nu.V.E=T,
-                                     err.df=Inf, perc.NA=0, seed=NULL){
+simulAnimalModel <- function(T=1,
+                             Q=3, mu=rep(50,T), mean.C=5, sd.C=2,
+                             A, V.G.A=NULL, scale.hC.G.A=NULL, nu.G.A=T,
+                             D=NULL, V.G.D=NULL, scale.hC.G.D=NULL, nu.G.D=T,
+                             V.E=NULL, scale.hC.E=NULL, nu.E=T,
+                             err.df=Inf, perc.NA=0, seed=NULL){
   if(! requireNamespace("MASS", quietly=TRUE))
     stop("Pkg MASS needed for this function to work. Please install it.",
          call.=FALSE)
@@ -1617,19 +1614,16 @@ simulAnimalModelMultivar <- function(T=1,
             ! is.null(rownames(A)),
             ! is.null(colnames(A)),
             rownames(A) == colnames(A))
-  if(is.null(sigma.A2))
-    stopifnot(! is.null(scale.halfCauchy))
-  if(T > 1){
-    if(is.null(V.G.A)){
-      stopifnot(! is.null(nu.V.G.A))
-    } else
-      stopifnot(is.matrix(V.G.A),
-                nrow(V.G.A) == ncol(V.G.A))
+  if(! is.null(V.G.A)){
+    stopifnot(! is.matrix(V.G.A),
+              nrow(V.G.A) == ncol(V.G.A))
+  } else{
+    if(T == 1){
+      stopifnot(! is.null(scale.hC.G.A))
+    } else{
+      stopifnot(! is.null(nu.G.A))
+    }
   }
-  if(T == 1 & is.infinite(err.df) & is.null(V.E))
-    stopifnot(! is.null(scale.halfCauchy))
-  if(T > 1 & is.null(V.E))
-    stopifnot(! is.null(nu.V.E))
   if(! is.null(D)){
     stopifnot(is.matrix(D),
               nrow(D) == ncol(D),
@@ -1637,16 +1631,21 @@ simulAnimalModelMultivar <- function(T=1,
               ! is.null(colnames(D)),
               rownames(D) == colnames(D),
               rownames(D) == rownames(A))
-    if(is.null(sigma.D2))
-      stopifnot(! is.null(scale.halfCauchy))
-    if(T > 1){
-      if(is.null(V.G.D)){
-        stopifnot(! is.null(nu.V.G.D))
-      } else
-        stopifnot(is.matrix(V.G.D),
-                  nrow(V.G.D) == ncol(V.G.D))
+    if(! is.null(V.G.D)){
+      stopifnot(! is.matrix(V.G.D),
+                nrow(V.G.D) == ncol(V.G.D))
+    } else{
+      if(T == 1){
+        stopifnot(! is.null(scale.hC.G.D))
+      } else{
+        stopifnot(! is.null(nu.G.D))
+      }
     }
   }
+  if(T == 1 & is.infinite(err.df) & is.null(V.E))
+    stopifnot(! is.null(scale.hC.E))
+  if(T > 1 & is.null(V.E))
+    stopifnot(! is.null(nu.E))
   stopifnot(perc.NA >= 0, perc.NA <= 100)
   if(! is.null(seed))
     set.seed(seed)
@@ -1685,38 +1684,36 @@ simulAnimalModelMultivar <- function(T=1,
 
   ## additive genetic component
   G.A <- matrix(0, I, T)
-  if(is.null(sigma.A2)){
-    sigma.A <- abs(rcauchy(n=1, location=0, scale=scale.halfCauchy))
-    sigma.A2 <- sigma.A^2
-  }
-  U.G.A <- sigma.A2 * A
   if(T == 1){
-    G.A <- matrix(MASS::mvrnorm(n=1, mu=rep(0, I), Sigma=U.G.A))
-    rownames(G.A) <- rownames(A)
-  } else{
+    if(is.null(V.G.A)){
+      sqrt.V.G.A <- abs(rcauchy(n=1, location=0, scale=scale.hC.G.A))
+      V.G.A <- sqrt.V.G.A^2
+    }
+    G.A <- matrix(MASS::mvrnorm(n=1, mu=rep(0, I), Sigma=V.G.A * A))
+  } else{ # T > 1
     if(is.null(V.G.A))
-      V.G.A <- rWishart(n=1, df=nu.V.G.A, Sigma=diag(T))[,,1]
+      V.G.A <- rWishart(n=1, df=nu.G.A, Sigma=diag(T))[,,1]
     G.A <- rmatnorm(n=1, M=matrix(data=0, nrow=I, ncol=T),
-                    U=U.G.A, V=V.G.A)[,,1]
+                    U=A, V=V.G.A)[,,1]
   }
+  rownames(G.A) <- rownames(A)
 
   ## dominant genetic component
   G.D <- matrix(0, I, T)
   if(! is.null(D)){
-    if(is.null(sigma.D2)){
-      sigma.D <- abs(rcauchy(n=1, location=0, scale=scale.halfCauchy))
-      sigma.D2 <- sigma.D^2
-    }
-    U.G.D <- sigma.D2 * D
     if(T == 1){
-      G.D <- matrix(MASS::mvrnorm(n=1, mu=rep(0, I), Sigma=U.G.D))
-      rownames(G.D) <- rownames(D)
-    } else{
+      if(is.null(V.G.D)){
+        sqrt.V.G.D <- abs(rcauchy(n=1, location=0, scale=scale.hC.G.D))
+        V.G.D <- sqrt.V.G.D^2
+      }
+      G.D <- matrix(MASS::mvrnorm(n=1, mu=rep(0, I), Sigma=V.G.D * D))
+    } else{ # T > 1
       if(is.null(V.G.D))
-        V.G.D <- rWishart(n=1, df=nu.V.G.D, Sigma=diag(T))[,,1]
+        V.G.D <- rWishart(n=1, df=nu.G.D, Sigma=diag(T))[,,1]
       G.D <- rmatnorm(n=1, M=matrix(data=0, nrow=I, ncol=T),
-                      U=U.G.D, V=V.G.D)[,,1]
+                      U=D, V=V.G.D)[,,1]
     }
+    rownames(G.D) <- rownames(D)
   }
 
   ## errors
@@ -1724,15 +1721,15 @@ simulAnimalModelMultivar <- function(T=1,
   if(T == 1){
     if(is.infinite(err.df)){
       if(is.null(V.E)){
-        stdev.E <- abs(rcauchy(n=1, location=0, scale=scale.halfCauchy))
-        V.E <- stdev.E^2
+        sqrt.V.E <- abs(rcauchy(n=1, location=0, scale=scale.hC.E))
+        V.E <- sqrt.V.E^2
       }
       E <- matrix(rnorm(n=N, mean=0, sd=sqrt(V.E)))
     } else
       E <- matrix(rt(n=N, df=err.df, ncp=0))
   } else{ # T > 1
     if(is.null(V.E))
-      V.E <- rWishart(n=1, df=nu.V.E, Sigma=diag(T))[,,1]
+      V.E <- rWishart(n=1, df=nu.E, Sigma=diag(T))[,,1]
     E <- rmatnorm(n=1, M=matrix(data=0, nrow=N, ncol=T),
                   U=diag(N), V=V.E)[,,1]
   }
@@ -1748,8 +1745,8 @@ simulAnimalModelMultivar <- function(T=1,
 
   return(list(Y=Y,
               W=W, C=C,
-              Z=Z, sigma.A2=sigma.A2, V.G.A=V.G.A, G.A=G.A,
-              sigma.D2=sigma.D2, V.G.D=V.G.D, G.D=G.D,
+              Z=Z, V.G.A=V.G.A, G.A=G.A,
+              V.G.D=V.G.D, G.D=G.D,
               V.E=V.E,
               dat=dat))
 }
@@ -1773,9 +1770,9 @@ simulAnimalModelMultivar <- function(T=1,
 ##'             dimnames=list(paste0("geno", 1:I), paste0("snp", 1:P)))
 ##' A <- estimGenRel(X, relationships="additive", method="vanraden1", verbose=0)
 ##' A <- as.matrix(Matrix::nearPD(A)$mat) # not always necessary
-##' model <- simulAnimalModelMultivar(T=1, Q=3, A=A, sigma.A2=15, V.E=5)
+##' model <- simulAnimalModel(T=1, Q=3, A=A, V.G.A=15, V.E=5)
 ##' fit <- mme(y=model$Y[,1,drop=FALSE], W=model$W, Z=model$Z,
-##'            sigma.A2=model$sigma.A2, Ainv=solve(A), V.E=model$V.E)
+##'            sigma.A2=model$V.G.A, Ainv=solve(A), V.E=model$V.E)
 ##' cbind(model$C, fit[1:3])
 ##' cor(model$G.A, fit[4:length(fit)])
 ##' @export
@@ -1831,7 +1828,7 @@ mme <- function(y, W, Z, sigma.A2, Ainv, V.E){
 ##' ## simulate phenotypes with only additive part of genotypic values
 ##' A <- estimGenRel(X, relationships="additive", method="vanraden1", verbose=0)
 ##' A <- as.matrix(Matrix::nearPD(A)$mat) # not always necessary
-##' modelA <- simulAnimalModelMultivar(T=1, Q=3, A=A, sigma.A2=15, V.E=5)
+##' modelA <- simulAnimalModel(T=1, Q=3, A=A, V.G.A=15, V.E=5)
 ##'
 ##' ## infer with lme4
 ##' fitA <- lmerAM(formula=response1 ~ year + (1|geno), dat=modelA$dat,
@@ -1851,8 +1848,8 @@ mme <- function(y, W, Z, sigma.A2, Ainv, V.E){
 ##' ## simulate phenotypes with additive and dominant parts of genotypic values
 ##' D <- estimGenRel(X, relationships="dominant", method="vitezica", verbose=0)
 ##' D <- as.matrix(Matrix::nearPD(D)$mat) # not always necessary
-##' modelAD <- simulAnimalModelMultivar(T=1, Q=3, A=A, sigma.A2=15, V.E=5,
-##'                                     D=D, sigma.D2=3)
+##' modelAD <- simulAnimalModel(T=1, Q=3, A=A, V.G.A=15, V.E=5,
+##'                             D=D, V.G.D=3)
 ##'
 ##' ## infer with lme4
 ##' modelAD$dat$geno.add <- modelAD$dat$geno
@@ -1959,7 +1956,7 @@ lmerAM <- function(formula, dat, relmat, REML=TRUE, ci.meth=NULL, verbose=1){
 ##' ## simulate phenotypes with only additive part of genotypic values
 ##' A <- estimGenRel(X, relationships="additive", method="vanraden1", verbose=0)
 ##' A <- as.matrix(Matrix::nearPD(A)$mat) # not always necessary
-##' modelA <- simulAnimalModelMultivar(T=1, Q=3, A=A, sigma.A2=15, V.E=5)
+##' modelA <- simulAnimalModel(T=1, Q=3, A=A, V.G.A=15, V.E=5)
 ##'
 ##' ## infer with INLA
 ##' library(INLA)
@@ -1971,8 +1968,8 @@ lmerAM <- function(formula, dat, relmat, REML=TRUE, ci.meth=NULL, verbose=1){
 ##' ## simulate phenotypes with additive and dominant parts of genotypic values
 ##' D <- estimGenRel(X, relationships="dominant", method="vitezica", verbose=0)
 ##' D <- as.matrix(Matrix::nearPD(D)$mat) # not always necessary
-##' modelAD <- simulAnimalModelMultivar(T=1, Q=3, A=A, sigma.A2=15, V.E=5,
-##'                                     D=D, sigma.D2=3)
+##' modelAD <- simulAnimalModel(T=1, Q=3, A=A, V.G.A=15, V.E=5,
+##'                             D=D, V.G.D=3)
 ##'
 ##' ## infer with INLA
 ##' modelAD$dat$geno.add <- modelAD$dat$geno
@@ -2059,7 +2056,7 @@ inlaAM <- function(dat, relmat, family="gaussian",
 ##' ## simulate phenotypes with only additive part of genotypic values
 ##' A <- estimGenRel(X, relationships="additive", method="vanraden1", verbose=0)
 ##' A <- as.matrix(Matrix::nearPD(A)$mat) # not always necessary
-##' modelA <- simulAnimalModelMultivar(T=1, Q=3, A=A, sigma.A2=15, V.E=5)
+##' modelA <- simulAnimalModel(T=1, Q=3, A=A, V.G.A=15, V.E=5)
 ##'
 ##' ## infer with rjags
 ##' modelA$dat$geno.add <- modelA$dat$geno; modelA$dat$geno <- NULL

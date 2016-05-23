@@ -39,7 +39,7 @@ X <- matrix(sample(0:2, size=I*P, replace=TRUE), nrow=I, ncol=P,
 ## simulate phenotypes with only additive part of genotypic values
 A <- estimGenRel(X, relationships="additive", method="vanraden1", verbose=0)
 A <- as.matrix(Matrix::nearPD(A)$mat) # not always necessary
-modelA <- simulAnimalModelMultivar(T=1, Q=3, A=A, sigma.A2=15, V.E=5)
+modelA <- simulAnimalModel(T=1, Q=3, A=A, V.G.A=15, V.E=5)
 
 ## infer with lme4
 fitA <- lmerAM(formula=response1 ~ year + (1|geno), dat=modelA$dat,
@@ -59,8 +59,8 @@ var.blups.geno <- setNames(attr(blups.geno, "postVar"), names(blups.geno))
 ## simulate phenotypes with additive and dominant parts of genotypic values
 D <- estimGenRel(X, relationships="dominant", method="vitezica", verbose=0)
 D <- as.matrix(Matrix::nearPD(D)$mat) # not always necessary
-modelAD <- simulAnimalModelMultivar(T=1, Q=3, A=A, sigma.A2=15, V.E=5,
-                                    D=D, sigma.D2=3)
+modelAD <- simulAnimalModel(T=1, Q=3, A=A, V.G.A=15, V.E=5,
+                            D=D, V.G.D=3)
 
 ## infer with lme4
 modelAD$dat$geno.add <- modelAD$dat$geno

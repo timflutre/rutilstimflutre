@@ -51,7 +51,7 @@ X <- matrix(sample(0:2, size=I*P, replace=TRUE), nrow=I, ncol=P,
 ## simulate phenotypes with only additive part of genotypic values
 A <- estimGenRel(X, relationships="additive", method="vanraden1", verbose=0)
 A <- as.matrix(Matrix::nearPD(A)$mat) # not always necessary
-modelA <- simulAnimalModelMultivar(T=1, Q=3, A=A, sigma.A2=15, V.E=5)
+modelA <- simulAnimalModel(T=1, Q=3, A=A, V.G.A=15, V.E=5)
 
 ## infer with rjags
 modelA$dat$geno.add <- modelA$dat$geno; modelA$dat$geno <- NULL

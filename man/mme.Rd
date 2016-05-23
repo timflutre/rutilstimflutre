@@ -33,9 +33,9 @@ X <- matrix(sample(0:2, size=I*P, replace=TRUE), nrow=I, ncol=P,
             dimnames=list(paste0("geno", 1:I), paste0("snp", 1:P)))
 A <- estimGenRel(X, relationships="additive", method="vanraden1", verbose=0)
 A <- as.matrix(Matrix::nearPD(A)$mat) # not always necessary
-model <- simulAnimalModelMultivar(T=1, Q=3, A=A, sigma.A2=15, V.E=5)
+model <- simulAnimalModel(T=1, Q=3, A=A, V.G.A=15, V.E=5)
 fit <- mme(y=model$Y[,1,drop=FALSE], W=model$W, Z=model$Z,
-           sigma.A2=model$sigma.A2, Ainv=solve(A), V.E=model$V.E)
+           sigma.A2=model$V.G.A, Ainv=solve(A), V.E=model$V.E)
 cbind(model$C, fit[1:3])
 cor(model$G.A, fit[4:length(fit)])
 }
