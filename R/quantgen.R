@@ -1838,7 +1838,7 @@ mme <- function(y, W, Z, sigma.A2, Ainv, V.E){
 ##' extractAIC(fitA$merMod)
 ##' summary(residuals(fitA$merMod)) # "deviance residuals"
 ##' summary(residuals(fitA$merMod) / sigma(fitA$merMod)) # "scaled/Pearson residuals"
-##' c(modelA$C); modelA$sigma.A2; modelA$V.E
+##' c(modelA$C); modelA$V.G.A; modelA$V.E
 ##' fixef(fitA$merMod)
 ##' vc <- as.data.frame(VarCorr(fitA$merMod))
 ##' c(vc[vc$grp == "geno", "vcov"], vc[vc$grp == "Residual", "vcov"])
@@ -1858,7 +1858,7 @@ mme <- function(y, W, Z, sigma.A2, Ainv, V.E){
 ##'                 dat=modelAD$dat, relmat=list(geno.add=A, geno.dom=D),
 ##'                 verbose=0)
 ##' summary(fitAD$merMod)
-##' c(modelAD$C); modelAD$sigma.A2; modelAD$V.E; modelAD$sigma.D2
+##' c(modelAD$C); modelAD$V.G.A; modelAD$V.E; modelAD$V.G.D
 ##' fixef(fitAD$merMod)
 ##' vc <- as.data.frame(VarCorr(fitAD$merMod))
 ##' c(vc[vc$grp == "geno.add", "vcov"], vc[vc$grp == "Residual", "vcov"],
@@ -1963,7 +1963,7 @@ lmerAM <- function(formula, dat, relmat, REML=TRUE, ci.meth=NULL, verbose=1){
 ##' modelA$dat$geno.add <- modelA$dat$geno; modelA$dat$geno <- NULL
 ##' fitA <- inlaAM(dat=modelA$dat, relmat=list(geno.add=A))
 ##' summary(fitA)
-##' c(modelA$C); 1/modelA$sigma.A2; 1/modelA$V.E
+##' c(modelA$C); 1/modelA$V.G.A; 1/modelA$V.E
 ##'
 ##' ## simulate phenotypes with additive and dominant parts of genotypic values
 ##' D <- estimGenRel(X, relationships="dominant", method="vitezica", verbose=0)
@@ -1976,7 +1976,7 @@ lmerAM <- function(formula, dat, relmat, REML=TRUE, ci.meth=NULL, verbose=1){
 ##' modelAD$dat$geno.dom <- modelAD$dat$geno; modelAD$dat$geno <- NULL
 ##' fitAD <- inlaAM(dat=modelAD$dat, relmat=list(geno.add=A, geno.dom=D))
 ##' summary(fitAD)
-##' c(modelAD$C); 1/modelAD$sigma.A2; 1/modelAD$V.E; 1/modelAD$sigma.D2
+##' c(modelAD$C); 1/modelAD$V.G.A; 1/modelAD$V.E; 1/modelAD$V.G.D
 ##' }
 ##' @export
 inlaAM <- function(dat, relmat, family="gaussian",
@@ -2061,8 +2061,8 @@ inlaAM <- function(dat, relmat, family="gaussian",
 ##' ## infer with rjags
 ##' modelA$dat$geno.add <- modelA$dat$geno; modelA$dat$geno <- NULL
 ##' fitA <- jagsAM(dat=modelA$dat, relmat=list(geno.add=A))
-##' plotMcmcChain(fitA[[1]], "sigma.A2", 1:4, modelA$sigma.A2)
-##' cbind(truth=c(c(modelA$C), modelA$sigma.A2, modelA$V.E),
+##' plotMcmcChain(fitA[[1]], "V.G.A", 1:4, modelA$V.G.A)
+##' cbind(truth=c(c(modelA$C), modelA$V.G.A, modelA$V.E),
 ##'       summaryMcmcChain(fitA[[1]], c("c[1]", "c[2]", "c[3]", "sigma.A2", "V.E")))
 ##' }
 ##' @export

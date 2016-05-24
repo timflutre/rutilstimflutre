@@ -56,8 +56,8 @@ modelA <- simulAnimalModel(T=1, Q=3, A=A, V.G.A=15, V.E=5)
 ## infer with rjags
 modelA$dat$geno.add <- modelA$dat$geno; modelA$dat$geno <- NULL
 fitA <- jagsAM(dat=modelA$dat, relmat=list(geno.add=A))
-plotMcmcChain(fitA[[1]], "sigma.A2", 1:4, modelA$sigma.A2)
-cbind(truth=c(c(modelA$C), modelA$sigma.A2, modelA$V.E),
+plotMcmcChain(fitA[[1]], "V.G.A", 1:4, modelA$V.G.A)
+cbind(truth=c(c(modelA$C), modelA$V.G.A, modelA$V.E),
       summaryMcmcChain(fitA[[1]], c("c[1]", "c[2]", "c[3]", "sigma.A2", "V.E")))
 }
 }

@@ -44,7 +44,7 @@ library(INLA)
 modelA$dat$geno.add <- modelA$dat$geno; modelA$dat$geno <- NULL
 fitA <- inlaAM(dat=modelA$dat, relmat=list(geno.add=A))
 summary(fitA)
-c(modelA$C); 1/modelA$sigma.A2; 1/modelA$V.E
+c(modelA$C); 1/modelA$V.G.A; 1/modelA$V.E
 
 ## simulate phenotypes with additive and dominant parts of genotypic values
 D <- estimGenRel(X, relationships="dominant", method="vitezica", verbose=0)
@@ -57,7 +57,7 @@ modelAD$dat$geno.add <- modelAD$dat$geno
 modelAD$dat$geno.dom <- modelAD$dat$geno; modelAD$dat$geno <- NULL
 fitAD <- inlaAM(dat=modelAD$dat, relmat=list(geno.add=A, geno.dom=D))
 summary(fitAD)
-c(modelAD$C); 1/modelAD$sigma.A2; 1/modelAD$V.E; 1/modelAD$sigma.D2
+c(modelAD$C); 1/modelAD$V.G.A; 1/modelAD$V.E; 1/modelAD$V.G.D
 }
 }
 \author{

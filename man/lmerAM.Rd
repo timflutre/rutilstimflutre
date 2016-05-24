@@ -49,7 +49,7 @@ REMLcrit(fitA$merMod)
 extractAIC(fitA$merMod)
 summary(residuals(fitA$merMod)) # "deviance residuals"
 summary(residuals(fitA$merMod) / sigma(fitA$merMod)) # "scaled/Pearson residuals"
-c(modelA$C); modelA$sigma.A2; modelA$V.E
+c(modelA$C); modelA$V.G.A; modelA$V.E
 fixef(fitA$merMod)
 vc <- as.data.frame(VarCorr(fitA$merMod))
 c(vc[vc$grp == "geno", "vcov"], vc[vc$grp == "Residual", "vcov"])
@@ -69,7 +69,7 @@ fitAD <- lmerAM(formula=response1 ~ year + (1|geno.add) + (1|geno.dom),
                 dat=modelAD$dat, relmat=list(geno.add=A, geno.dom=D),
                 verbose=0)
 summary(fitAD$merMod)
-c(modelAD$C); modelAD$sigma.A2; modelAD$V.E; modelAD$sigma.D2
+c(modelAD$C); modelAD$V.G.A; modelAD$V.E; modelAD$V.G.D
 fixef(fitAD$merMod)
 vc <- as.data.frame(VarCorr(fitAD$merMod))
 c(vc[vc$grp == "geno.add", "vcov"], vc[vc$grp == "Residual", "vcov"],
