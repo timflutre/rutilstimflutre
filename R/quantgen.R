@@ -469,9 +469,7 @@ simulCoalescent <- function(nb.inds=100,
                             get.trees=FALSE,
                             get.tmrca=FALSE,
                             verbose=1){
-  if(! requireNamespace("scrm", quietly=TRUE))
-    stop("Pkg scrm needed for this function to work. Please install it.",
-         call.=FALSE)
+  requireNamespaces("scrm")
   stopifnot(nb.inds > nb.pops)
   if(! is.null(other))
     stopifnot(is.character(other),
@@ -1034,15 +1032,7 @@ makeCrosses <- function(haplos, crosses, loc.crossovers=NULL,
 }
 
 .df2gr <- function(snp.coords.df){
-  if(! requireNamespace("GenomicRanges", quietly=TRUE))
-    stop("Pkg GenomicRanges needed for this function to work. Please install it.",
-         call.=FALSE)
-  if(! requireNamespace("S4Vectors", quietly=TRUE))
-    stop("Pkg S4Vectors needed for this function to work. Please install it.",
-         call.=FALSE)
-  if(! requireNamespace("IRanges", quietly=TRUE))
-    stop("Pkg IRanges needed for this function to work. Please install it.",
-         call.=FALSE)
+  requireNamespaces(c("GenomicRanges", "S4Vectors", "IRanges"))
   stopifnot(.isValidSnpCoords(snp.coords.df))
   snp.coords.gr <-
     GenomicRanges::GRanges(seqnames=S4Vectors::Rle(snp.coords.df$chr),
@@ -1063,15 +1053,7 @@ makeCrosses <- function(haplos, crosses, loc.crossovers=NULL,
 ##' @author Timothee Flutre
 ##' @export
 distSnpPairs <- function(snp.pairs, snp.coords, nb.cores=1, verbose=1){
-  if(! requireNamespace("GenomicRanges", quietly=TRUE))
-    stop("Pkg GenomicRanges needed for this function to work. Please install it.",
-         call.=FALSE)
-  if(! requireNamespace("S4Vectors", quietly=TRUE))
-    stop("Pkg S4Vectors needed for this function to work. Please install it.",
-         call.=FALSE)
-  if(! requireNamespace("IRanges", quietly=TRUE))
-    stop("Pkg IRanges needed for this function to work. Please install it.",
-         call.=FALSE)
+  requireNamespaces(c("GenomicRanges", "S4Vectors", "IRanges"))
   stopifnot(is.data.frame(snp.pairs),
             ncol(snp.pairs) >= 2,
             all(c("loc1", "loc2") %in% colnames(snp.pairs)),
@@ -1257,7 +1239,7 @@ estimLd <- function(X, K=NULL, pops=NULL, snp.coords,
                     only.chr=NULL, only.pop=NULL,
                     use.ldcorsv=FALSE, verbose=1){
   if(use.ldcorsv & ! requireNamespace("LDcorSV", quietly=TRUE))
-    stop("Pkg LDcorSV needed for this function to work. Please install it.",
+    stop("Pkg 'LDcorSV' needed for this function to work.",
          call.=FALSE)
   stopifnot(.isValidGenosDose(X),
             .isValidSnpCoords(snp.coords))
@@ -1477,9 +1459,7 @@ plotLd <- function(x, y, estim="r2", main,
 ##' @author Timothee Flutre
 ##' @export
 distConsecutiveSnps <- function(snp.coords, only.chr=NULL, nb.cores=1){
-  if(! requireNamespace("parallel", quietly=TRUE))
-    stop("Pkg parallel needed for this function to work. Please install it.",
-         call.=FALSE)
+  requireNamespaces("parallel")
   stopifnot(.isValidSnpCoords(snp.coords))
   if(! "coord" %in% colnames(snp.coords))
     colnames(snp.coords)[colnames(snp.coords) == "pos"] <- "coord"
@@ -1514,9 +1494,7 @@ distConsecutiveSnps <- function(snp.coords, only.chr=NULL, nb.cores=1){
 ##' @author Timothee Flutre
 ##' @export
 thinSnps <- function(method, threshold, snp.coords, only.chr=NULL){
-  if(! requireNamespace("GenomicRanges", quietly=TRUE))
-    stop("Pkg GenomicRanges needed for this function to work. Please install it.",
-         call.=FALSE)
+  requireNamespaces("GenomicRanges")
   stopifnot(method %in% c("index", "coord"))
   stopifnot(! is.null(snp.coords),
             .isValidSnpCoords(snp.coords),
@@ -1605,9 +1583,7 @@ simulAnimalModel <- function(T=1,
                              D=NULL, V.G.D=NULL, scale.hC.G.D=NULL, nu.G.D=T,
                              V.E=NULL, scale.hC.E=NULL, nu.E=T,
                              err.df=Inf, perc.NA=0, seed=NULL){
-  if(! requireNamespace("MASS", quietly=TRUE))
-    stop("Pkg MASS needed for this function to work. Please install it.",
-         call.=FALSE)
+  requireNamespaces("MASS")
   stopifnot(length(mu) == T,
             is.matrix(A),
             nrow(A) == ncol(A),
@@ -1865,12 +1841,7 @@ mme <- function(y, W, Z, sigma.A2, Ainv, V.E){
 ##'   vc[vc$grp == "geno.dom", "vcov"])
 ##' @export
 lmerAM <- function(formula, dat, relmat, REML=TRUE, ci.meth=NULL, verbose=1){
-  if(! requireNamespace("lme4", quietly=TRUE))
-    stop("Pkg lme4 needed for this function to work. Please install it.",
-         call.=FALSE)
-  if(! requireNamespace("Matrix", quietly=TRUE))
-    stop("Pkg Matrix needed for this function to work. Please install it.",
-         call.=FALSE)
+  requireNamespaces(c("lme4", "Matrix"))
   stopifnot(is.data.frame(dat),
             all(! duplicated(colnames(dat))),
             is.list(relmat),
@@ -1981,9 +1952,7 @@ lmerAM <- function(formula, dat, relmat, REML=TRUE, ci.meth=NULL, verbose=1){
 ##' @export
 inlaAM <- function(dat, relmat, family="gaussian",
                    nb.threads=1, verbose=0, silent=TRUE){
-  if(! requireNamespace("INLA", quietly=TRUE))
-    stop("Pkg INLA needed for this function to work. Please install it.",
-         call.=FALSE)
+  requireNamespaces("INLA")
   stopifnot(is.data.frame(dat),
             sum(grepl("response", colnames(dat))) == 1,
             "geno.add" %in% colnames(dat),
@@ -2072,9 +2041,7 @@ jagsAM <- function(dat, relmat, inits=NULL,
                    nb.chains=1, nb.adapt=10^3, burnin=10^2,
                    nb.iters=10^3, thin=10,
                    progress.bar=NULL, rm.jags.file=TRUE, verbose=0){
-  if(! requireNamespace("rjags", quietly=TRUE))
-    stop("Pkg rjags needed for this function to work. Please install it.",
-         call.=FALSE)
+  requireNamespaces("rjags")
   stopifnot(is.data.frame(dat),
             sum(grepl("response", colnames(dat))) == 1,
             "geno.add" %in% colnames(dat),
@@ -2357,9 +2324,7 @@ simulBslmm <- function(Q=3, mu=50, mean.a=5, sd.a=2,
                        X, pi=NULL, h=NULL, rho=NULL, tau=1,
                        enforce.zhou=TRUE, perc.NA=0, err.df=Inf,
                        seed=NULL){
-  if(! requireNamespace("MASS", quietly=TRUE))
-    stop("Pkg MASS needed for this function to work. Please install it.",
-         call.=FALSE)
+  requireNamespaces("MASS")
   stopifnot(.isValidGenosDose(X))
   if(! is.null(seed))
     set.seed(seed)

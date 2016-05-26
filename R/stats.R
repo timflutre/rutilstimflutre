@@ -611,9 +611,7 @@ controlBayesFdr <- function(log10.bfs, pi0, fdr.level=0.05, verbose=1){
 ##' @export
 plotMcmcChain <- function(res.mcmc, param.name, subplots=1:4,
                           pe=NULL, hi=NULL){
-  if(! requireNamespace("coda", quietly=TRUE))
-    stop("Pkg coda needed for this function to work. Please install it.",
-         call.=FALSE)
+  requireNamespaces("coda")
   stopifnot(coda::is.mcmc(res.mcmc),
             is.character(param.name),
             param.name %in% colnames(res.mcmc),
@@ -698,9 +696,7 @@ plotMcmcChain <- function(res.mcmc, param.name, subplots=1:4,
 ##' @author Timothee Flutre
 ##' @export
 summaryMcmcChain <- function(res.mcmc, param.names){
-  if(! requireNamespace("coda", quietly=TRUE))
-    stop("Pkg coda needed for this function to work. Please install it.",
-         call.=FALSE)
+  requireNamespaces("coda")
   stopifnot(coda::is.mcmc(res.mcmc),
             all(is.character(param.names)),
             all(param.names %in% colnames(res.mcmc)))

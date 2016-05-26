@@ -20,4 +20,7 @@ Read output files from bedtools coverage with -hist into a list of data.tables. 
 \author{
 Timothee Flutre
 }
+\seealso{
+\code{\link{depthsPerSample}}, \code{\link{depthsPerRegion}}
+}
 

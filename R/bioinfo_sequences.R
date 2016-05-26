@@ -10,17 +10,10 @@
 ##' @author Timothee Flutre
 ##' @export
 summaryFasta <- function(fa.file, letters=c("A","T","G","C","N"), algo=NULL){
-  if(! requireNamespace("Biostrings", quietly=TRUE))
-    stop("Pkg Biostrings needed for this function to work. Please install it.",
-         call.=FALSE)
-  if(! requireNamespace("BiocGenerics", quietly=TRUE))
-    stop("Pkg BiocGenerics needed for this function to work. Please install it.",
-         call.=FALSE)
+  requireNamespaces(c("Biostrings", "BiocGenerics"))
   stopifnot(file.exists(fa.file))
   if(! is.null(algo)){
-    if(! requireNamespace("digest", quietly=TRUE))
-      stop("Pkg digest needed for this function to work. Please install it.",
-           call.=FALSE)
+    requireNamespaces("digest")
     stopifnot(algo %in% c("md5", "sha1"))
   }
 
@@ -49,9 +42,7 @@ summaryFasta <- function(fa.file, letters=c("A","T","G","C","N"), algo=NULL){
 ##' @author Timothee Flutre
 ##' @export
 gcContent <- function(x){
-  if(! requireNamespace("Biostrings", quietly=TRUE))
-    stop("Pkg Biostrings needed for this function to work. Please install it.",
-         call.=FALSE)
+  requireNamespaces("Biostrings")
   stopifnot(is.character(x))
 
   sapply(x, function(xi){
@@ -71,9 +62,7 @@ gcContent <- function(x){
 ##' @author Timothee Flutre
 ##' @export
 allPairAligns <- function(x, type="global", ...){
-  if(! requireNamespace("Biostrings", quietly=TRUE))
-    stop("Pkg Biostrings needed for this function to work. Please install it.",
-         call.=FALSE)
+  requireNamespaces("Biostrings")
 	stopifnot(is.character(x))
 
 	aligns <- list()
@@ -106,9 +95,7 @@ allPairAligns <- function(x, type="global", ...){
 ##' @author Timothee Flutre
 ##' @export
 statsAllPairAligns <- function(aligns, nb.sequences){
-  if(! requireNamespace("Biostrings", quietly=TRUE))
-    stop("Pkg Biostrings needed for this function to work. Please install it.",
-         call.=FALSE)
+  requireNamespaces("Biostrings")
 	stopifnot(is.list(aligns))
 
 	scores <- matrix(data=NA, nrow=nb.sequences, ncol=nb.sequences)
@@ -246,6 +233,71 @@ barplotReadCounts <- function(counts,
   }
 }
 
+##' Coverage
+##'
+##' Calculate the depth (average number of times each position in the genome has been sequenced) and breadth (fraction of the genome that is covered by reads) of coverage from a set of BAM file(s), using \code{samtools depth} (see \href{http://dx.doi.org/10.1093/bib/bbu029}{Molnar & Ilie (2015)}).
+##' @param bamFiles vector of paths to BAM file(s), each of them having an index file with the same name but finishing by ".bai"; if there are several BAM files, all of them should contain reads aligned on the same set of sequences (i.e. the same reference genome)
+##' @param seq.ids sequence identifier(s) to focus on, e.g. "chr2" or c("chr2","chr5"); if NULL, all of them
+##' @param min.mapq only count reads with mapping quality greater than the given value
+##' @param verbose verbosity level (0/1/2)
+##' @param nb.cores the number of cores to use to parallelize over bamFiles, i.e. at most how many child processes will be run simultaneously (not on Windows)
+##' @return list with one component per BAM file, each being a matrix with columns "nb.bases", "mapped.bases", "count.sum", "breadth", "depth"
+##' @seealso \code{\link{freadBedtoolsCoverageHist}}
+##' @author Timothee Flutre (with the help of Martin Morgan)
+##' @export
+coverageBams <- function(bamFiles, seq.ids=NULL, min.mapq=5, verbose=1, nb.cores=1){
+  requireNamespaces(c("parallel", "Rsamtools", "IRanges", "data.table"))
+  stopifnot(is.character(bamFiles),
+            all(sapply(bamFiles, file.exists)))
+  if(! is.null(seq.ids))
+    stop("seq.ids=NULL is not (yet) implemented")
+
+  chr=pos=count=V1=NULL
+
+  if(verbose > 0)
+    write("extract sequence lengths ...", stdout()); flush(stdout())
+  tmp <- Rsamtools::scanBamHeader(files=bamFiles, what="targets")
+  tmp <- lapply(tmp, function(x){x$targets})
+  seq.lengths <- tmp[[1]]
+  if(length(tmp) > 1){
+    for(i in 2:length(tmp))
+      if(! identical(tmp[[i]], seq.lengths))
+        stop(paste0(bamFiles[i], " has different target sequences than ",
+                    bamFiles[1]))
+  }
+  if(! is.null(seq.ids)){
+    for(seq.id in seq.ids)
+      if(! seq.id %in% names(seq.lengths))
+        stop(paste0(seq.id, " not in ", bamFiles[1]))
+    seq.lengths <- seq.lengths[seq.ids]
+  }
+  if(verbose > 1)
+    print(seq.lengths)
+  rl <- IRanges::RangesList()
+  for(seq.id in names(seq.lengths))
+    rl[[seq.id]] <- IRanges::IRanges(start=1, end=seq.lengths[seq.id],
+                                     names=seq.id)
+
+  if(verbose > 0)
+    write("compute coverage ...", stdout()); flush(stdout())
+  out <- parallel::mclapply(bamFiles, function(bamFile){
+    if(verbose > 0)
+      write(bamFile, stdout()); flush(stdout())
+    cmd <- paste0("samtools depth -Q ", min.mapq, " ", bamFile)
+    cvg <- data.table::fread(input=cmd,
+                             col.names=c("chr", "pos", "count"))
+    tmp <- cbind(nb.bases=seq.lengths,
+                 mapped.bases=cvg[, length(count), chr][, V1],
+                 count.sum=cvg[, sum(count), chr][, V1])
+    cbind(tmp,
+          breadth=tmp[,"mapped.bases"] / tmp[,"nb.bases"],
+          depth=tmp[,"count.sum"] / tmp[,"nb.bases"])
+  }, mc.cores=nb.cores, mc.silent=ifelse(nb.cores == 1, FALSE, TRUE))
+  names(out) <- basename(bamFiles)
+
+  return(out)
+}
+
 ##' Bar plot of insert sizes
 ##'
 ##' Creates a bar plot with vertical bars of insert sizes from histogram data as calculated by Picard CollectInsertSizeMetrics.
@@ -307,6 +359,7 @@ barplotInsertSizes <- function(file, main=NULL, add.text=FALSE){
 ##' @param files character vector of relative or absolute filepaths (e.g. from Sys.glob).
 ##' @param verbose verbosity level (0/1)
 ##' @return list of data.tables
+##' @seealso \code{\link{depthsPerSample}}, \code{\link{depthsPerRegion}}
 ##' @author Timothee Flutre
 ##' @export
 freadBedtoolsCoverageHist <- function(files, verbose=1){
@@ -758,9 +811,7 @@ infoVariantCalls <- function(x, type="SNP", thresh.qual=20, thresh.qd=2,
 ##' @author Timothee Flutre
 ##' @export
 confidenceGenoOneVar <- function(x, plot.it=FALSE){
-  if(! requireNamespace("VariantAnnotation", quietly=TRUE))
-    stop("Pkg VariantAnnotation needed for this function to work. Please install it.",
-         call.=FALSE)
+  requireNamespaces("VariantAnnotation")
   stopifnot(class(x) == "CollapsedVCF",
             nrow(x) == 1,
             VariantAnnotation::isSNV(x))
@@ -810,21 +861,8 @@ setGt2Na <- function(vcf.file, genome, out.file,
                      yieldSize=NA_integer_, dict.file=NULL,
                      seq.id=NULL, seq.start=NULL, seq.end=NULL,
                      min.gq=90, verbose=1){
-  if(! requireNamespace("IRanges", quietly=TRUE))
-    stop("Pkg IRanges needed for this function to work. Please install it.",
-         call.=FALSE)
-  if(! requireNamespace("GenomicRanges", quietly=TRUE))
-    stop("Pkg GenomicRanges needed for this function to work. Please install it.",
-         call.=FALSE)
-  if(! requireNamespace("VariantAnnotation", quietly=TRUE))
-    stop("Pkg VariantAnnotation needed for this function to work. Please install it.",
-         call.=FALSE)
-  if(! requireNamespace("Rsamtools", quietly=TRUE))
-    stop("Pkg Rsamtools needed for this function to work. Please install it.",
-         call.=FALSE)
-  if(! requireNamespace("S4Vectors", quietly=TRUE))
-    stop("Pkg S4Vectors needed for this function to work. Please install it.",
-         call.=FALSE)
+  requireNamespaces(c("IRanges", "GenomicRanges", "VariantAnnotation",
+                      "Rsamtools", "S4Vectors"))
   stopifnot(file.exists(vcf.file),
             xor(is.na(yieldSize), is.null(seq.id)))
   if(! is.null(seq.id) & is.null(seq.start) & is.null(seq.end))
@@ -926,21 +964,8 @@ filterVariantCalls <- function(vcf.file, genome, out.file,
                                min.spl.gq=NULL, min.prop.spl.gq=NULL,
                                max.var.nb.gt.na=NULL, max.var.prop.gt.na=NULL,
                                verbose=1){
-  if(! requireNamespace("IRanges", quietly=TRUE))
-    stop("Pkg IRanges needed for this function to work. Please install it.",
-         call.=FALSE)
-  if(! requireNamespace("GenomicRanges", quietly=TRUE))
-    stop("Pkg GenomicRanges needed for this function to work. Please install it.",
-         call.=FALSE)
-  if(! requireNamespace("VariantAnnotation", quietly=TRUE))
-    stop("Pkg VariantAnnotation needed for this function to work. Please install it.",
-         call.=FALSE)
-  if(! requireNamespace("Rsamtools", quietly=TRUE))
-    stop("Pkg Rsamtools needed for this function to work. Please install it.",
-         call.=FALSE)
-  if(! requireNamespace("S4Vectors", quietly=TRUE))
-    stop("Pkg S4Vectors needed for this function to work. Please install it.",
-         call.=FALSE)
+  requireNamespaces(c("IRanges", "GenomicRanges", "VariantAnnotation",
+                      "Rsamtools", "S4Vectors"))
   stopifnot(file.exists(vcf.file))
   if(! is.null(seq.id) & is.null(seq.start) & is.null(seq.end))
     stopifnot(! is.null(dict),
@@ -1171,12 +1196,7 @@ summaryVariant <- function(vcf.file, genome, yieldSize=10^4, field="GQ",
 ##' @author Timothee Flutre
 ##' @export
 gtVcf2dose <- function(vcf){
-  if(! requireNamespace("S4Vectors", quietly=TRUE))
-    stop("Pkg S4Vectors needed for this function to work. Please install it.",
-         call.=FALSE)
-  if(! requireNamespace("VariantAnnotation", quietly=TRUE))
-    stop("Pkg VariantAnnotation needed for this function to work. Please install it.",
-         call.=FALSE)
+  requireNamespaces(c("S4Vectors", "VariantAnnotation"))
   idx <- S4Vectors::elementLengths(VariantAnnotation::alt(vcf)) == 1L
   if(!all(idx)) {
     warning("only coercing single-element 'alt' records")
@@ -1199,18 +1219,8 @@ gtVcf2dose <- function(vcf){
 ##' @author Timothee Flutre
 ##' @export
 rngVcf2df <- function(vcf){
-  if(! requireNamespace("S4Vectors", quietly=TRUE))
-    stop("Pkg S4Vectors needed for this function to work. Please install it.",
-         call.=FALSE)
-  if(! requireNamespace("VariantAnnotation", quietly=TRUE))
-    stop("Pkg VariantAnnotation needed for this function to work. Please install it.",
-         call.=FALSE)
-  if(! requireNamespace("GenomeInfoDb", quietly=TRUE))
-    stop("Pkg GenomeInfoDb needed for this function to work. Please install it.",
-         call.=FALSE)
-  if(! requireNamespace("BiocGenerics", quietly=TRUE))
-    stop("Pkg BiocGenerics needed for this function to work. Please install it.",
-         call.=FALSE)
+  requireNamespaces(c("S4Vectors", "VariantAnnotation", "GenomeInfoDb",
+                      "BiocGenerics"))
   idx <- S4Vectors::elementLengths(VariantAnnotation::alt(vcf)) == 1L
   if(!all(idx)) {
     warning("only coercing single-element 'alt' records")
@@ -1248,21 +1258,8 @@ vcf2dosage <- function(vcf.file, genome, gdose.file, amap.file,
                        yieldSize=NA_integer_, dict.file=NULL,
                        seq.id=NULL, seq.start=NULL, seq.end=NULL,
                        uncertain=FALSE, verbose=1){
-  if(! requireNamespace("IRanges", quietly=TRUE))
-    stop("Pkg IRanges needed for this function to work. Please install it.",
-         call.=FALSE)
-  if(! requireNamespace("GenomicRanges", quietly=TRUE))
-    stop("Pkg GenomicRanges needed for this function to work. Please install it.",
-         call.=FALSE)
-  if(! requireNamespace("VariantAnnotation", quietly=TRUE))
-    stop("Pkg VariantAnnotation needed for this function to work. Please install it.",
-         call.=FALSE)
-  if(! requireNamespace("Rsamtools", quietly=TRUE))
-    stop("Pkg Rsamtools needed for this function to work. Please install it.",
-         call.=FALSE)
-  if(! requireNamespace("snpStats", quietly=TRUE))
-    stop("Pkg snpStats needed for this function to work. Please install it.",
-         call.=FALSE)
+  requireNamespaces(c("IRanges", "GenomicRanges", "VariantAnnotation",
+                      "Rsamtools", "snpStats"))
   stopifnot(file.exists(vcf.file),
             xor(is.na(yieldSize), is.null(seq.id)))
   if(! is.null(seq.id) & is.null(seq.start) & is.null(seq.end))

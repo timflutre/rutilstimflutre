@@ -15,6 +15,76 @@ context("VCF")
                VariantAnnotation::geno(expected)$GT)
 }
 
+test_that("coverageBams", {
+  if(all(file.exists(Sys.which("bwa")), file.exists(Sys.which("samtools")))){
+    tmpd <- tempdir()
+    set.seed(1)
+
+    ## reference genome: 2 100-bp long, identical chromosomes
+    faFile <- paste0(tmpd, "/refgenome.fa")
+    chrs <- Biostrings::DNAStringSet(c(chr1=paste(sample(c("A","T","G","C"),
+                                                         100, replace=TRUE),
+                                                  collapse=""),
+                                       chr2=paste(sample(c("A","T","G","C"),
+                                                         100, replace=TRUE),
+                                                  collapse="")))
+    Biostrings::writeXStringSet(x=chrs, filepath=faFile, format="fasta")
+
+    ## reads: 1 perfectly matching, 1 matching with internal indel
+    fqFile <- paste0(tmpd, "/reads.fq")
+    r1 <- chrs[[1]][11:80]
+    r2 <- c(r1[1:30], r1[38:length(r1)])
+    r3 <- chrs[[2]][11:80]
+    reads <- Biostrings::DNAStringSet(c(read1=r1, read2=r2, read3=r3))
+    Biostrings::writeXStringSet(x=reads, filepath=fqFile, format="fastq")
+
+    ## alignment
+    bamFile <- paste0(tmpd, "/align.bam")
+    args <- paste0("index -p ", tmpd, "/", strsplit(basename(faFile),
+                                                    "\\.")[[1]][1],
+                   " ", faFile)
+    system2("bwa", args, stdout=NULL, stderr=NULL)
+    cmd <- paste0("bwa mem -R \'@RG\tID:ind1' -M ", tmpd, "/",
+                  strsplit(basename(faFile), "\\.")[[1]][1],
+                  " ", fqFile,
+                  " | samtools fixmate -O bam - - ",
+                  " | samtools sort -o ", bamFile, " -O bam -")
+    system(cmd, ignore.stdout=TRUE, ignore.stderr=TRUE)
+    args <- paste0("index ", bamFile, " ", bamFile, ".bai")
+    system2("samtools", args)
+
+    ## view alignments
+    args <- paste0("view ", bamFile)
+    system2("samtools", args)
+
+    ## coverage via samtools
+    cmd <- paste0("samtools depth -Q 5 ", bamFile)
+    ## cmd <- paste0("samtools depth -Q 5 -r chr1:1-1000000 ", bamFile)
+    cvg <- data.table::fread(input=cmd,
+                             col.names=c("chr", "pos", "count"))
+    nrow(cvg)
+    sum(cvg$count)
+
+    ## expected
+    expected <- list()
+    expected[[basename(bamFile)]] <-
+      matrix(c(Biostrings::width(chrs), c(70, 70), c(133, 70)),
+             nrow=length(chrs), ncol=3,
+             dimnames=list(names(chrs),
+                           c("nb.bases", "mapped.bases", "count.sum")))
+    expected[[1]] <- cbind(expected[[1]],
+                           breadth=expected[[1]][,"mapped.bases"] /
+                             expected[[1]][,"nb.bases"],
+                           depth=expected[[1]][,"count.sum"] /
+                             expected[[1]][,"nb.bases"])
+
+    ## observed
+    observed <- coverageBams(bamFiles=bamFile)
+
+    expect_equal(observed, expected)
+  }
+})
+
 test_that("setGt2Na", {
   genome <- "fakeGenomeV0"
   yieldSize <- 100
