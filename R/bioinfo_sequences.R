@@ -21,7 +21,7 @@ summaryFasta <- function(fa.file, letters=c("A","T","G","C","N"), algo=NULL){
 
   records <- Biostrings::readDNAStringSet(filepath=fa.file, format="fasta")
   out$nb.records <- length(records)
-  out$rec.lengths <- setNames(BiocGenerics::width(records),
+  out$rec.lengths <- stats::setNames(BiocGenerics::width(records),
                               names(records))
 
   lf <- Biostrings::letterFrequency(x=records, letters=letters)
@@ -143,7 +143,7 @@ loadReadCountsPerIndAndLane <- function(lanes.dir){
                         lane, "_stats-demultiplex.txt.gz")
     if(! file.exists(lane.file))
       stop(paste0("file ", lane.file, " doesn't exist"))
-    reads[[lane]] <- read.table(lane.file, header=TRUE)
+    reads[[lane]] <- utils::read.table(lane.file, header=TRUE)
     if(! all(colnames(reads[[lane]] %in% c("ind","barcode","assigned","lane"))))
       warning(paste0("look at header line of file '", lane.file, "'"))
   }
@@ -209,10 +209,10 @@ barplotReadCounts <- function(counts,
 
   if(! is.null(mar)){
     stopifnot(length(mar) == 4)
-    par(mar=mar)
+    graphics::par(mar=mar)
   }
 
-  bp <- barplot(height=counts, width=1,
+  bp <- graphics::barplot(height=counts, width=1,
                 col=1:nrow(counts),
                 border=NA,
                 xaxt="n",
@@ -221,38 +221,66 @@ barplotReadCounts <- function(counts,
                 main=main,
                 legend.text=TRUE,
                 args.legend=list(x="left", bty="n", border=nrow(counts):1))
-  axis(1, at=bp, labels=FALSE)
+  graphics::axis(1, at=bp, labels=FALSE)
   if(! is.null(colnames(counts)))
-    text(x=bp, y=par("usr")[3], srt=45, adj=c(1.2,2),
+    graphics::text(x=bp, y=graphics::par("usr")[3], srt=45, adj=c(1.2,2),
          labels=colnames(counts), xpd=TRUE)
-  mtext(text=xlab, side=1, line=xlab.line)
+  graphics::mtext(text=xlab, side=1, line=xlab.line)
 
   if(! is.null(lines.h)){
     for(h in lines.h)
-      abline(h=h, lty=2)
+      graphics::abline(h=h, lty=2)
   }
 }
 
 ##' Coverage
 ##'
-##' Calculate the depth (average number of times each position in the genome has been sequenced) and breadth (fraction of the genome that is covered by reads) of coverage from a set of BAM file(s), using \code{samtools depth} (see \href{http://dx.doi.org/10.1093/bib/bbu029}{Molnar & Ilie (2015)}).
+##' Calculate the depth (average number of times each position in the genome has been sequenced) and breadth (fraction of the genome that is covered by reads) of coverage from a set of BAM file(s) (see \href{http://dx.doi.org/10.1093/bib/bbu029}{Molnar & Ilie (2015)}). Results are identical to those from \code{samtools depth}.
 ##' @param bamFiles vector of paths to BAM file(s), each of them having an index file with the same name but finishing by ".bai"; if there are several BAM files, all of them should contain reads aligned on the same set of sequences (i.e. the same reference genome)
+##' @param yieldSize number of records to yield each time the file is read from (see \code{\link[Rsamtools]{BamFile}})
 ##' @param seq.ids sequence identifier(s) to focus on, e.g. "chr2" or c("chr2","chr5"); if NULL, all of them
-##' @param min.mapq only count reads with mapping quality greater than the given value
+##' @param max.depth see \code{\link[Rsamtools]{PileupParam}}
+##' @param min.base.quality see \code{\link[Rsamtools]{PileupParam}}
+##' @param min.mapq see \code{\link[Rsamtools]{PileupParam}}
+##' @param min.nucleotide.depth see \code{\link[Rsamtools]{PileupParam}}
+##' @param distinguish.strands see \code{\link[Rsamtools]{PileupParam}}
+##' @param distinguish.nucleotides see \code{\link[Rsamtools]{PileupParam}}
+##' @param ignore.query.Ns see \code{\link[Rsamtools]{PileupParam}}
+##' @param include.deletions see \code{\link[Rsamtools]{PileupParam}}
+##' @param include.insertions see \code{\link[Rsamtools]{PileupParam}}
+##' @param is.paired see \code{\link[Rsamtools]{scanBamFlag}}
+##' @param is.proper.pair see \code{\link[Rsamtools]{scanBamFlag}}
+##' @param is.unmapped.query see \code{\link[Rsamtools]{scanBamFlag}}
+##' @param has.unmapped.mate see \code{\link[Rsamtools]{scanBamFlag}}
+##' @param is.minus.strand see \code{\link[Rsamtools]{scanBamFlag}}
+##' @param is.mate.minus.strand see \code{\link[Rsamtools]{scanBamFlag}}
+##' @param is.first.mate.read see \code{\link[Rsamtools]{scanBamFlag}}
+##' @param is.second.mate.read see \code{\link[Rsamtools]{scanBamFlag}}
+##' @param is.secondary.align see \code{\link[Rsamtools]{scanBamFlag}}
+##' @param is.not.passing.qc see \code{\link[Rsamtools]{scanBamFlag}}
+##' @param is.dupl see \code{\link[Rsamtools]{scanBamFlag}}
 ##' @param verbose verbosity level (0/1/2)
 ##' @param nb.cores the number of cores to use to parallelize over bamFiles, i.e. at most how many child processes will be run simultaneously (not on Windows)
 ##' @return list with one component per BAM file, each being a matrix with columns "nb.bases", "mapped.bases", "count.sum", "breadth", "depth"
 ##' @seealso \code{\link{freadBedtoolsCoverageHist}}
 ##' @author Timothee Flutre (with the help of Martin Morgan)
 ##' @export
-coverageBams <- function(bamFiles, seq.ids=NULL, min.mapq=5, verbose=1, nb.cores=1){
-  requireNamespaces(c("parallel", "Rsamtools", "IRanges", "data.table"))
+coverageBams <- function(bamFiles, yieldSize=10^4, seq.ids=NULL,
+                         max.depth=10^4, min.base.quality=1,
+                         min.mapq=5, min.nucleotide.depth=1,
+                         distinguish.strands=FALSE,
+                         distinguish.nucleotides=FALSE, ignore.query.Ns=FALSE,
+                         include.deletions=FALSE, include.insertions=FALSE,
+                         is.paired=NA, is.proper.pair=NA,
+                         is.unmapped.query=FALSE, has.unmapped.mate=NA,
+                         is.minus.strand=NA, is.mate.minus.strand=NA,
+                         is.first.mate.read=NA, is.second.mate.read=NA,
+                         is.secondary.align=FALSE, is.not.passing.qc=FALSE,
+                         is.dupl=FALSE,
+                         verbose=1, nb.cores=1){
+  requireNamespaces(c("parallel", "Rsamtools", "IRanges"))
   stopifnot(is.character(bamFiles),
             all(sapply(bamFiles, file.exists)))
-  if(! is.null(seq.ids))
-    stop("seq.ids=NULL is not (yet) implemented")
-
-  chr=pos=count=V1=NULL
 
   if(verbose > 0)
     write("extract sequence lengths ...", stdout()); flush(stdout())
@@ -280,15 +308,42 @@ coverageBams <- function(bamFiles, seq.ids=NULL, min.mapq=5, verbose=1, nb.cores
 
   if(verbose > 0)
     write("compute coverage ...", stdout()); flush(stdout())
+  fl <- Rsamtools::scanBamFlag(isPaired=is.paired,
+                               isProperPair=is.proper.pair,
+                               isUnmappedQuery=is.unmapped.query,
+                               hasUnmappedMate=has.unmapped.mate,
+                               isMinusStrand=is.minus.strand,
+                               isMateMinusStrand=is.mate.minus.strand,
+                               isFirstMateRead=is.first.mate.read,
+                               isSecondMateRead=is.second.mate.read,
+                               isSecondaryAlignment=is.secondary.align,
+                               isNotPassingQualityControls=is.not.passing.qc,
+                               isDuplicate=is.dupl)
+  sbp <- Rsamtools::ScanBamParam(which=rl, flag=fl)
+  pp <- Rsamtools::PileupParam(max_depth=max.depth,
+                               min_base_quality=min.base.quality,
+                               min_mapq=min.mapq,
+                               min_nucleotide_depth=min.nucleotide.depth,
+                               distinguish_strands=distinguish.strands,
+                               distinguish_nucleotides=distinguish.nucleotides,
+                               ignore_query_Ns=ignore.query.Ns,
+                               include_deletions=include.deletions,
+                               include_insertions=include.insertions)
   out <- parallel::mclapply(bamFiles, function(bamFile){
     if(verbose > 0)
       write(bamFile, stdout()); flush(stdout())
-    cmd <- paste0("samtools depth -Q ", min.mapq, " ", bamFile)
-    cvg <- data.table::fread(input=cmd,
-                             col.names=c("chr", "pos", "count"))
+    ## cmd <- paste0("samtools depth -Q ", min.mapq, " ", bamFile)
+    ## cvg <- data.table::fread(input=cmd,
+    ##                          col.names=c("chr", "pos", "count"))
+    ## tmp <- cbind(nb.bases=seq.lengths,
+    ##              mapped.bases=cvg[, length(count), chr][, V1],
+    ##              count.sum=cvg[, sum(count), chr][, V1])
+    p <- Rsamtools::pileup(file=bamFile, yieldSize=yieldSize,
+                           scanBamParam=sbp, pileupParam=pp)
+    p$seqnames <- p$seqnames[, drop=TRUE]
     tmp <- cbind(nb.bases=seq.lengths,
-                 mapped.bases=cvg[, length(count), chr][, V1],
-                 count.sum=cvg[, sum(count), chr][, V1])
+                 mapped.bases=tapply(p$count, p$seqnames, length),
+                 count.sum=tapply(p$count, p$seqnames, sum))
     cbind(tmp,
           breadth=tmp[,"mapped.bases"] / tmp[,"nb.bases"],
           depth=tmp[,"count.sum"] / tmp[,"nb.bases"])
@@ -310,7 +365,7 @@ coverageBams <- function(bamFiles, seq.ids=NULL, min.mapq=5, verbose=1, nb.cores
 barplotInsertSizes <- function(file, main=NULL, add.text=FALSE){
   stopifnot(file.exists(file))
 
-  dat <- read.table(file=file, skip=10, header=TRUE)
+  dat <- utils::read.table(file=file, skip=10, header=TRUE)
   if(! ncol(dat) == 2)
     stop(paste0("file ", file, " doesn't seem to come from",
                 " Picard CollectInsertSizeMetrics"))
@@ -324,28 +379,28 @@ barplotInsertSizes <- function(file, main=NULL, add.text=FALSE){
   q75.insert.size <- rev(dat$insert.size[cumsum(dat$count) <=
                                            0.75 * tot.count])[1]
 
-  bp <- barplot(height=dat$count, width=1,
+  bp <- graphics::barplot(height=dat$count, width=1,
                 xlab="Insert size (in bp)",
                 ylab="Counts",
                 main=main)
-  axis(side=1, at=c(0, bp[seq(100, max(dat$insert.size), 100)]),
+  graphics::axis(side=1, at=c(0, bp[seq(100, max(dat$insert.size), 100)]),
        labels=c(0, seq(100, max(dat$insert.size), 100)))
 
-  abline(v=bp[q25.insert.size], lty=2)
-  abline(v=bp[med.insert.size], lty=2)
-  abline(v=bp[q75.insert.size], lty=2)
+  graphics::abline(v=bp[q25.insert.size], lty=2)
+  graphics::abline(v=bp[med.insert.size], lty=2)
+  graphics::abline(v=bp[q75.insert.size], lty=2)
 
   if(add.text){
-    text(x=bp[floor(0.6*max(dat$insert.size))],
+    graphics::text(x=bp[floor(0.6*max(dat$insert.size))],
          y=0.6*max(dat$count), adj=0,
          labels=paste0("Q25 = ", format(q25.insert.size, digits=2), " bp"))
-    text(x=bp[floor(0.6*max(dat$insert.size))],
+    graphics::text(x=bp[floor(0.6*max(dat$insert.size))],
          y=0.7*max(dat$count), adj=0,
          labels=paste0("median = ", format(med.insert.size, digits=2), " bp"))
-    text(x=bp[floor(0.6*max(dat$insert.size))],
+    graphics::text(x=bp[floor(0.6*max(dat$insert.size))],
          y=0.8*max(dat$count), adj=0,
          labels=paste0("Q75 = ", format(q75.insert.size, digits=2), " bp"))
-    text(x=bp[floor(0.6*max(dat$insert.size))],
+    graphics::text(x=bp[floor(0.6*max(dat$insert.size))],
          y=0.9*max(dat$count), adj=0,
          labels=paste0("total count = ", format(tot.count, digits=2)))
   }
@@ -363,7 +418,7 @@ barplotInsertSizes <- function(file, main=NULL, add.text=FALSE){
 ##' @author Timothee Flutre
 ##' @export
 freadBedtoolsCoverageHist <- function(files, verbose=1){
-  colClasses <- sapply(read.table(files[1], nrows=5), class)
+  colClasses <- sapply(utils::read.table(files[1], nrows=5), class)
   ldat <-
     lapply(1:length(files), function (i, verbose){
              if(verbose > 0){
@@ -417,13 +472,13 @@ depthsPerSample <- function(dat, min.reg.len=30, max.reg.len=500,
                          end - start <= max.reg.len,
                        .(depth.n=.N,
                          depth.min=min(.SD[,depth]),
-                         depth.med=as.double(median(.SD[,depth])),
+                         depth.med=as.double(stats::median(.SD[,depth])),
                          depth.mean=mean(.SD[,depth]),
                          depth.max=max(.SD[,depth]),
-                         depth.q65=quantile(.SD[,depth], 0.65),
-                         depth.q70=quantile(.SD[,depth], 0.70),
-                         depth.q75=quantile(.SD[,depth], 0.75),
-                         depth.q80=quantile(.SD[,depth], 0.80),
+                         depth.q65=stats::quantile(.SD[,depth], 0.65),
+                         depth.q70=stats::quantile(.SD[,depth], 0.70),
+                         depth.q75=stats::quantile(.SD[,depth], 0.75),
+                         depth.q80=stats::quantile(.SD[,depth], 0.80),
                          regions.ok=nrow(unique(.SD[depth >= min.reg.dep &
                                                       depth <= max.reg.dep &
                                                         fraction >= min.reg.frac,
@@ -465,7 +520,7 @@ depthsPerRegion <- function(dat, min.reg.len=30, max.reg.len=500,
                          end - start <= max.reg.len,
                        .(depth.n=.N,
                          depth.min=min(.SD[,depth]),
-                         depth.med=as.double(median(.SD[,depth])),
+                         depth.med=as.double(stats::median(.SD[,depth])),
                          depth.max=max(.SD[,depth]),
                          samples.ok=nrow(unique(.SD[depth >= min.reg.dep &
                                                       depth <= max.reg.dep &
@@ -506,7 +561,7 @@ coverageRegions <- function(path=NULL, pattern=NULL, covrg=NULL, plot.it=TRUE,
     }
     covrg <- list()
     for(i in seq_along(files))
-      covrg[[i]] <- read.table(files[i], sep="\t",
+      covrg[[i]] <- utils::read.table(files[i], sep="\t",
                                col.names=c("chrom","depth", "nb.bases",
                                    "size","fraction"))
     if(is.null(pattern)){
@@ -524,18 +579,18 @@ coverageRegions <- function(path=NULL, pattern=NULL, covrg=NULL, plot.it=TRUE,
       xlim <- c(min(sapply(cumcovrg, min)), max(sapply(cumcovrg, max)))
     labs <- names(covrg)
     cols <- 1:length(covrg)
-    plot(x=covrg[[1]][0:500,2], y=cumcovrg[[1]][0:500], type="n",
+    graphics::plot(x=covrg[[1]][0:500,2], y=cumcovrg[[1]][0:500], type="n",
          xlab="Depth", ylab="Fraction of bases >= depth",
          main="Region coverage",
          xlim=xlim, ylim=ylim, las=1)
     for(i in seq_along(covrg))
-      points(covrg[[i]][0:500, 2], cumcovrg[[i]][0:500], type=points.type, lwd=1,
+      graphics::points(covrg[[i]][0:500, 2], cumcovrg[[i]][0:500], type=points.type, lwd=1,
              col=cols[i])
     if(plot.legend)
-      legend("topright", legend=labs, col=cols, lty=1, lwd=1, bty="n")
-    abline(h=0.10, lty=2, col="grey60")
-    abline(h=0.50, lty=2, col="grey60")
-    abline(h=0.90, lty=2, col="grey60")
+      graphics::legend("topright", legend=labs, col=cols, lty=1, lwd=1, bty="n")
+    graphics::abline(h=0.10, lty=2, col="grey60")
+    graphics::abline(h=0.50, lty=2, col="grey60")
+    graphics::abline(h=0.90, lty=2, col="grey60")
   }
 
   invisible(list(covrg=covrg, cumcovrg=cumcovrg))
@@ -835,7 +890,7 @@ confidenceGenoOneVar <- function(x, plot.it=FALSE){
   }
 
   if("DP" %in% names(genos) && plot.it)
-    plot(x=genos[["DP"]][1,], y=genos[["GQ"]][1,],
+    graphics::plot(x=genos[["DP"]][1,], y=genos[["GQ"]][1,],
          xlab="DP", ylab="GQ", main=names(x))
 
   invisible(out)
@@ -1158,16 +1213,16 @@ summaryVariant <- function(vcf.file, genome, yieldSize=10^4, field="GQ",
     all.smry$mean <- append(all.smry$mean,
                             suppressWarnings(apply(mat, 1, mean, na.rm=TRUE)))
     all.smry$sd <- append(all.smry$sd,
-                          suppressWarnings(apply(mat, 1, sd, na.rm=TRUE)))
+                          suppressWarnings(apply(mat, 1, stats::sd, na.rm=TRUE)))
     all.smry$min <- append(all.smry$min,
                            suppressWarnings(apply(mat, 1, min, na.rm=TRUE)))
     all.smry$q1 <- append(all.smry$q1,
-                          suppressWarnings(apply(mat, 1, quantile,
+                          suppressWarnings(apply(mat, 1, stats::quantile,
                                                  probs=0.25, na.rm=TRUE)))
     all.smry$med <- append(all.smry$med,
-                           suppressWarnings(apply(mat, 1, median, na.rm=TRUE)))
+                           suppressWarnings(apply(mat, 1, stats::median, na.rm=TRUE)))
     all.smry$q3 <- append(all.smry$q3,
-                          suppressWarnings(apply(mat, 1, quantile,
+                          suppressWarnings(apply(mat, 1, stats::quantile,
                                                  probs=0.75, na.rm=TRUE)))
     all.smry$max <- append(all.smry$max,
                            suppressWarnings(apply(mat, 1, max, na.rm=TRUE)))
@@ -1220,13 +1275,13 @@ gtVcf2dose <- function(vcf){
 ##' @export
 rngVcf2df <- function(vcf){
   requireNamespaces(c("S4Vectors", "VariantAnnotation", "GenomeInfoDb",
-                      "BiocGenerics"))
+                      "BiocGenerics", "SummarizedExperiment"))
   idx <- S4Vectors::elementLengths(VariantAnnotation::alt(vcf)) == 1L
   if(!all(idx)) {
     warning("only coercing single-element 'alt' records")
   }
   vcf <- vcf[idx]
-  tmp <- GenomicRanges::rowRanges(vcf)
+  tmp <- SummarizedExperiment::rowRanges(vcf)
   out <- data.frame(chrom=as.character(GenomeInfoDb::seqnames(tmp)),
                     start=BiocGenerics::start(tmp) - 1,
                     end=BiocGenerics::end(tmp),
@@ -1259,7 +1314,7 @@ vcf2dosage <- function(vcf.file, genome, gdose.file, amap.file,
                        seq.id=NULL, seq.start=NULL, seq.end=NULL,
                        uncertain=FALSE, verbose=1){
   requireNamespaces(c("IRanges", "GenomicRanges", "VariantAnnotation",
-                      "Rsamtools", "snpStats"))
+                      "Rsamtools"))
   stopifnot(file.exists(vcf.file),
             xor(is.na(yieldSize), is.null(seq.id)))
   if(! is.null(seq.id) & is.null(seq.start) & is.null(seq.end))
@@ -1300,11 +1355,11 @@ vcf2dosage <- function(vcf.file, genome, gdose.file, amap.file,
     atmp <- rngVcf2df(vcf)
     cat(paste(colnames(gtmp), collapse="\t"), file=gdose.con,
         append=TRUE, sep="\n")
-    write.table(x=gtmp,
+    utils::write.table(x=gtmp,
                 file=gdose.con, append=TRUE,
                 quote=FALSE, sep="\t", row.names=TRUE,
                 col.names=FALSE)
-    write.table(x=atmp, file=amap.con, append=TRUE,
+    utils::write.table(x=atmp, file=amap.con, append=TRUE,
                 quote=FALSE, sep="\t", row.names=FALSE, col.names=FALSE)
   } else{
     open(tabix.file)
@@ -1317,9 +1372,9 @@ vcf2dosage <- function(vcf.file, genome, gdose.file, amap.file,
         cat(paste(colnames(gtmp), collapse="\t"), file=gdose.con,
             append=TRUE, sep="\n")
       nb.variants <- nb.variants + nrow(vcf)
-      write.table(x=gtmp, file=gdose.con, append=TRUE,
+      utils::write.table(x=gtmp, file=gdose.con, append=TRUE,
                   quote=FALSE, sep="\t", row.names=TRUE, col.names=FALSE)
-      write.table(x=atmp, file=amap.con, append=TRUE,
+      utils::write.table(x=atmp, file=amap.con, append=TRUE,
                   quote=FALSE, sep="\t", row.names=FALSE, col.names=FALSE)
     }
     close(tabix.file)

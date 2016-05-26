@@ -554,34 +554,36 @@ test_that("calcAvgPwDiffBtwHaplos", {
 })
 
 test_that("estimLd_cor-r2", {
-  N <- 4 # individuals
-  P <- 5 # SNPs
-  X <- matrix(c(2,1,0,1, 2,0,0,1, 1,0,0,1, 0,0,0,1, 1,0,1,2), nrow=N, ncol=P,
-              dimnames=list(inds=paste0("ind", 1:N), snps=paste0("snp", 1:P)))
-  snp.coords <- data.frame(chr=c(rep("chr1", P-1), "chr2"),
-                           pos=c(2, 17, 25, 33, 5),
-                           stringsAsFactors=FALSE)
-  rownames(snp.coords) <- colnames(X)
+  if(all(requireNamespace("LDcorSV"))){
+    N <- 4 # individuals
+    P <- 5 # SNPs
+    X <- matrix(c(2,1,0,1, 2,0,0,1, 1,0,0,1, 0,0,0,1, 1,0,1,2), nrow=N, ncol=P,
+                dimnames=list(inds=paste0("ind", 1:N), snps=paste0("snp", 1:P)))
+    snp.coords <- data.frame(chr=c(rep("chr1", P-1), "chr2"),
+                             pos=c(2, 17, 25, 33, 5),
+                             stringsAsFactors=FALSE)
+    rownames(snp.coords) <- colnames(X)
 
-  expected <- data.frame(loc1=c(rep("snp1",3), rep("snp2",2), "snp3"),
-                         loc2=c("snp2","snp3","snp4","snp3","snp4","snp4"),
-                         cor2=c(cor(X[,"snp1"], X[,"snp2"])^2,
-                                cor(X[,"snp1"], X[,"snp3"])^2,
-                                cor(X[,"snp1"], X[,"snp4"])^2,
-                                cor(X[,"snp2"], X[,"snp3"])^2,
-                                cor(X[,"snp2"], X[,"snp4"])^2,
-                                cor(X[,"snp3"], X[,"snp4"])^2),
-                         stringsAsFactors=TRUE)
+    expected <- data.frame(loc1=c(rep("snp1",3), rep("snp2",2), "snp3"),
+                           loc2=c("snp2","snp3","snp4","snp3","snp4","snp4"),
+                           cor2=c(cor(X[,"snp1"], X[,"snp2"])^2,
+                                  cor(X[,"snp1"], X[,"snp3"])^2,
+                                  cor(X[,"snp1"], X[,"snp4"])^2,
+                                  cor(X[,"snp2"], X[,"snp3"])^2,
+                                  cor(X[,"snp2"], X[,"snp4"])^2,
+                                  cor(X[,"snp3"], X[,"snp4"])^2),
+                           stringsAsFactors=TRUE)
 
-  observed <- estimLd(X=X, snp.coords=snp.coords, only.chr="chr1")
+    observed <- estimLd(X=X, snp.coords=snp.coords, only.chr="chr1")
 
-  expect_equal(observed, expected)
+    expect_equal(observed, expected)
 
-  ## check that LDcorSV returns the same results
-  colnames(expected)[3] <- "r2"
-  observed <- estimLd(X=X, snp.coords=snp.coords, only.chr="chr1",
-                      use.ldcorsv=TRUE)
-  expect_equal(observed, expected)
+    ## check that LDcorSV returns the same results
+    colnames(expected)[3] <- "r2"
+    observed <- estimLd(X=X, snp.coords=snp.coords, only.chr="chr1",
+                        use.ldcorsv=TRUE)
+    expect_equal(observed, expected)
+  }
 })
 
 test_that("distConsecutiveSnps", {

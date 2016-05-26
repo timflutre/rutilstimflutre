@@ -4,8 +4,8 @@
 \alias{plotWithScale}
 \title{Plot a scale, e.g. to add on the side of image()}
 \usage{
-plotWithScale(z, zlim, col = heat.colors(12), breaks, horiz = TRUE,
-  ylim = NULL, xlim = NULL, ...)
+plotWithScale(z, zlim, col = grDevices::heat.colors(12), breaks,
+  horiz = TRUE, ylim = NULL, xlim = NULL, ...)
 }
 \arguments{
 \item{z}{vector}

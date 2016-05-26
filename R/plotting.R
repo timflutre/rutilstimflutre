@@ -14,16 +14,16 @@
 regplot <- function(x, y, ...){
   x <- as.numeric(x)
   y <- as.numeric(y)
-  plot(x, y, ...)
-  fit <- lm(y ~ x)
-  abline(fit, col="red")
+  graphics::plot(x, y, ...)
+  fit <- stats::lm(y ~ x)
+  graphics::abline(fit, col="red")
   newx <- seq(min(x), max(x), length.out=length(x))
-  pred.ci <- predict(fit, newdata=data.frame(x=newx), interval="confidence")
-  lines(newx, pred.ci[,"lwr"], lty=2)
-  lines(newx, pred.ci[,"upr"], lty=2)
-  pred.pi <- predict(fit, newdata=data.frame(x=newx), interval="prediction")
-  lines(newx, pred.pi[,"lwr"], lty=3)
-  lines(newx, pred.pi[,"upr"], lty=3)
+  pred.ci <- stats::predict(fit, newdata=data.frame(x=newx), interval="confidence")
+  graphics::lines(newx, pred.ci[,"lwr"], lty=2)
+  graphics::lines(newx, pred.ci[,"upr"], lty=2)
+  pred.pi <- stats::predict(fit, newdata=data.frame(x=newx), interval="prediction")
+  graphics::lines(newx, pred.pi[,"lwr"], lty=3)
+  graphics::lines(newx, pred.pi[,"upr"], lty=3)
 }
 
 ##' Plot a Hinton diagram
@@ -72,34 +72,34 @@ hinton <- function(m, main="", max.sqrt.m=NULL){
     ylab <- names(dimnames(m))[1]
   }
 
-  opar <- par(mar=c(ifelse(xlab == "", 1, 3),
+  opar <- graphics::par(mar=c(ifelse(xlab == "", 1, 3),
                     ifelse(ylab == "", 1, 3), 5, 1) + 0.1)
 
-  plot(0, xlim=c(0.25,cols+0.75), ylim=c(-rows-0.75, -0.25),
+  graphics::plot(0, xlim=c(0.25,cols+0.75), ylim=c(-rows-0.75, -0.25),
        type="n", xaxt="n", yaxt="n", xlab="", ylab="")
 
-  rect(left, bottom, right, top, col=box.colors)
+  graphics::rect(left, bottom, right, top, col=box.colors)
 
   if(main != "")
-    title(main=main, line=3)
+    graphics::title(main=main, line=3)
 
   if(! is.null(colnames(m))){
-    axis(side=3, at=1:cols, labels=FALSE)
-    text(x=1:cols, y=par("usr")[4] + 0.25, labels=colnames(m), adj=0, srt=45, xpd=TRUE)
+    graphics::axis(side=3, at=1:cols, labels=FALSE)
+    graphics::text(x=1:cols, y=graphics::par("usr")[4] + 0.25, labels=colnames(m), adj=0, srt=45, xpd=TRUE)
   } else
-    axis(side=3, at=1:cols, labels=1:cols)
+    graphics::axis(side=3, at=1:cols, labels=1:cols)
 
   if(! is.null(rownames(m))){
-    axis(side=2, at=-(1:rows), labels=rownames(m), las=1)
+    graphics::axis(side=2, at=-(1:rows), labels=rownames(m), las=1)
   } else
-    axis(side=2, at=-(1:rows), labels=1:rows, las=1)
+    graphics::axis(side=2, at=-(1:rows), labels=1:rows, las=1)
 
   if(xlab != "")
-    mtext(xlab, side=1, line=1)
+    graphics::mtext(xlab, side=1, line=1)
   if(ylab != "")
-    mtext(ylab, side=2, line=2)
+    graphics::mtext(ylab, side=2, line=2)
 
-  on.exit(par(opar))
+  on.exit(graphics::par(opar))
 }
 
 ##' Plot a scale, e.g. to add on the side of image()
@@ -116,7 +116,7 @@ hinton <- function(m, main="", max.sqrt.m=NULL){
 ##' @param ... arguments to be passed to plot()
 ##' @author Timothee Flutre
 ##' @export
-plotWithScale <- function(z, zlim, col = heat.colors(12),
+plotWithScale <- function(z, zlim, col = grDevices::heat.colors(12),
                           breaks, horiz=TRUE, ylim=NULL, xlim=NULL, ...){
   if(! missing(breaks))
     if(length(breaks) != (length(col)+1))
@@ -150,14 +150,14 @@ plotWithScale <- function(z, zlim, col = heat.colors(12),
   if(missing(ylim))
     ylim <- YLIM
 
-  plot(1, 1, t="n", ylim=ylim, xlim=xlim, xaxt=xaxt, yaxt=yaxt,
+  graphics::plot(1, 1, t="n", ylim=ylim, xlim=xlim, xaxt=xaxt, yaxt=yaxt,
        xaxs="i", yaxs="i", bty="n", ...)
 
   for(i in seq(poly)){
     if(horiz){
-      polygon(poly[[i]], c(0,0,1,1), col=col[i], border=NA)
+      graphics::polygon(poly[[i]], c(0,0,1,1), col=col[i], border=NA)
     } else
-      polygon(c(0,0,1,1), poly[[i]], col=col[i], border=NA)
+      graphics::polygon(c(0,0,1,1), poly[[i]], col=col[i], border=NA)
   }
 }
 
@@ -184,10 +184,10 @@ imageWithScale <- function(z, main=NULL, idx.rownames=NULL, idx.colnames=NULL,
   if(is.null(breaks))
     breaks <- seq(min(z), max(z), length.out=100)
 
-  layout(matrix(c(1,2), nrow=1, ncol=2), widths=c(7,1))
+  graphics::layout(matrix(c(1,2), nrow=1, ncol=2), widths=c(7,1))
   ## layout.show(2) # for debugging purposes
 
-  col.pal <- colorRampPalette(c("black", "red", "yellow"), space="rgb")
+  col.pal <- grDevices::colorRampPalette(c("black", "red", "yellow"), space="rgb")
 
   ## plot the heatmap
   custom.mar <- c(1, 5, 6, 1)
@@ -195,25 +195,25 @@ imageWithScale <- function(z, main=NULL, idx.rownames=NULL, idx.colnames=NULL,
       custom.mar[2] <- 1
   if(is.null(idx.colnames))
       custom.mar[3] <- 3
-  opar <- par(mar=custom.mar)
-  image(t(z)[,nrow(z):1], axes=FALSE, col=col.pal(length(breaks)-1))
+  opar <- graphics::par(mar=custom.mar)
+  graphics::image(t(z)[,nrow(z):1], axes=FALSE, col=col.pal(length(breaks)-1))
   if(! is.null(main))
-    mtext(text=main, side=3, line=ifelse(is.null(idx.colnames), 1, 4),
-          font=2, cex=1.3)
+    graphics::mtext(text=main, side=3, line=ifelse(is.null(idx.colnames), 1, 4),
+                    font=2, cex=1.3)
   if(! is.null(idx.colnames))
-      text(x=seq(0,1,length.out=length(idx.colnames)), y=par("usr")[4]+0.02,
-           srt=45, adj=0, labels=colnames(z)[idx.colnames], xpd=TRUE)
+    graphics::text(x=seq(0,1,length.out=length(idx.colnames)), y=graphics::par("usr")[4]+0.02,
+                   srt=45, adj=0, labels=colnames(z)[idx.colnames], xpd=TRUE)
   if(! is.null(idx.rownames))
-      mtext(text=rev(rownames(z)[idx.rownames]), side=2, line=1,
-            at=seq(0,1,length.out=length(idx.rownames)),
-            las=2)
-  on.exit(par(opar))
+    graphics::mtext(text=rev(rownames(z)[idx.rownames]), side=2, line=1,
+                    at=seq(0,1,length.out=length(idx.rownames)),
+                    las=2)
+  on.exit(graphics::par(opar))
 
   ## plot the scale
-  opar <- par(mar=c(1,0,6,3))
+  opar <- graphics::par(mar=c(1,0,6,3))
   plotWithScale(z, col=col.pal(length(breaks)-1), breaks=breaks, horiz=FALSE,
                 yaxt="n")
-  axis(4, at=format(breaks[seq.int(from=1,to=100,length.out=5)], digits=2),
+  graphics::axis(4, at=format(breaks[seq.int(from=1,to=100,length.out=5)], digits=2),
        las=2, lwd=0, lwd.ticks=1)
-  on.exit(par(opar))
+  on.exit(graphics::par(opar))
 }

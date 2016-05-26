@@ -90,7 +90,7 @@ makeExamplePlantFile <- function(out.dir){
       file=f, append=TRUE)
   cat("# lines starting with '#' will be ignored\n",
       file=f, append=TRUE)
-  suppressWarnings(write.table(x=plants, file=f, append=TRUE, quote=FALSE,
+  suppressWarnings(utils::write.table(x=plants, file=f, append=TRUE, quote=FALSE,
                                sep="\t", na="", row.names=FALSE,
                                col.names=TRUE))
 
@@ -134,7 +134,7 @@ makeExampleDataFile <- function(out.dir){
       file=f, append=TRUE)
   cat("# lines starting with '#' will be ignored\n",
       file=f, append=TRUE)
-  suppressWarnings(write.table(x=dat, file=f, append=TRUE, quote=FALSE,
+  suppressWarnings(utils::write.table(x=dat, file=f, append=TRUE, quote=FALSE,
                                sep="\t", row.names=FALSE, col.names=TRUE))
 
   invisible(dat)
@@ -157,7 +157,7 @@ readCheckBreedPlantFile <- function(f=NULL, df=NULL, max.nb.hd=1000){
 
   if(is.null(df)){
     stopifnot(file.exists(f))
-    df <- read.table(f, header=TRUE, sep="\t", stringsAsFactors=FALSE)
+    df <- utils::read.table(f, header=TRUE, sep="\t", stringsAsFactors=FALSE)
   }
 
   stopifnot(is.data.frame(df),
@@ -194,7 +194,7 @@ readCheckBreedDataFile <- function(f=NULL, df=NULL, max.nb.plots, subset.snps,
 
   if(is.null(df)){
     stopifnot(file.exists(f))
-    df <- read.table(f, header=TRUE, sep="\t", stringsAsFactors=FALSE)
+    df <- utils::read.table(f, header=TRUE, sep="\t", stringsAsFactors=FALSE)
   }
 
   stopifnot(is.data.frame(df),
@@ -241,7 +241,7 @@ countRequestedBreedTypes <- function(df){
   types <- NULL
 
   if("parent1" %in% colnames(df)){
-    types <- setNames(c(sum(df$parent1 != df$parent2 &
+    types <- stats::setNames(c(sum(df$parent1 != df$parent2 &
                             ! is.na(df$parent2)),
                         sum(df$parent1 == df$parent2 &
                             ! is.na(df$parent2)),
@@ -249,7 +249,7 @@ countRequestedBreedTypes <- function(df){
                       c("allofecundation", "autofecundation",
                         "haplodiploidization"))
   } else if("ind" %in% colnames(df)){
-    types <- setNames(c(ifelse("pheno" %in% df$task,
+    types <- stats::setNames(c(ifelse("pheno" %in% df$task,
                                sum(as.numeric(df$details[df$task ==
                                                                 "pheno"])),
                                0),

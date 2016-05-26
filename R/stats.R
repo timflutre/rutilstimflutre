@@ -180,13 +180,14 @@ pca <- function(X, ct=TRUE, sc=FALSE, plot=FALSE, main="PCA", cols=NULL){
   names(prop.vars) <- colnames(rotation)
 
   if(plot){
-    plot(x=rotation[,1], y=rotation[,2], las=1,
+    graphics::plot(x=rotation[,1], y=rotation[,2], las=1,
          xlab=paste0("PC1 (", format(100 * prop.vars[1], digits=3), "%)"),
          ylab=paste0("PC2 (", format(100 * prop.vars[2], digits=3), "%)"),
          main=main, type=ifelse(is.null(cols), "p", "n"))
-    abline(h=0, lty=2); abline(v=0, lty=2)
+    graphics::abline(h=0, lty=2);
+    graphics::abline(v=0, lty=2)
     if(! is.null(cols))
-      points(x=rotation[,1], y=rotation[,2], col=cols, pch=20)
+      graphics::points(x=rotation[,1], y=rotation[,2], col=cols, pch=20)
   }
 
   return(list(rotation=rotation,
@@ -206,7 +207,7 @@ getNbPCsMinimAvgSqPartCor <- function(X){
     warning("input matrix doesn't seem to have genes/snps in rows and samples in columns")
   mu <- apply(X, 1, mean, na.rm=TRUE)
   X <- X - mu
-  X2 <- cor(X, use="complete.obs")
+  X2 <- stats::cor(X, use="complete.obs")
   a <- eigen(X2)
   a$values[a$values<0] <- 0
   b <- diag(a$values, nrow=length(a$values))
@@ -243,16 +244,16 @@ quantNorm <- function(x, break.ties.rand=TRUE, seed=1859){
   stopifnot(is.vector(x), is.numeric(x), is.logical(break.ties.rand),
             is.numeric(seed))
 
-  out <- setNames(object=rep(NA, length(x)), nm=names(x))
+  out <- stats::setNames(object=rep(NA, length(x)), nm=names(x))
 
   if(break.ties.rand){
     if(! is.null(seed))
       set.seed(seed)
     idx <- sample.int(n=length(x))
-    tmp <- qqnorm(y=x[idx], plot.it=FALSE)$x
+    tmp <- stats::qqnorm(y=x[idx], plot.it=FALSE)$x
     out <- tmp[sort(idx, index.return=TRUE)$ix]
   } else
-    out <- qqnorm(y=x, plot.it=FALSE)$x
+    out <- stats::qqnorm(y=x, plot.it=FALSE)$x
 
   return(out)
 }
@@ -294,7 +295,7 @@ rmatnorm <- function(n=1, M, U, V){
 
   ## for X ~ MN(M, AA', B'B): draw Z ~ MN(0, I, I), then X = M + A Z B
   tmp <- lapply(1:n, function(i){
-    Z <- matrix(data=rnorm(n=nrow(M) * ncol(M), mean=0, sd=1),
+    Z <- matrix(data=stats::rnorm(n=nrow(M) * ncol(M), mean=0, sd=1),
                 nrow=nrow(M), ncol=ncol(M))
     matrix(data=M + chol.tU %*% Z %*% chol.V,
            nrow=nrow(M), ncol=ncol(M))
@@ -361,16 +362,16 @@ plotHistPval <- function(pvalues, breaks=seq(0, 1, 0.05), freq=FALSE,
   if(is.null(main))
     main <- paste0("Histogram of ", length(pvalues), " p values")
 
-  out <- hist(pvalues, breaks=breaks, xlim=c(0,1), freq=freq, las=1,
+  out <- graphics::hist(pvalues, breaks=breaks, xlim=c(0,1), freq=freq, las=1,
               xlab=expression(italic(p)~values), main=main,
               ## ylab=ifelse(freq, "Frequency", "Density"),
               col=col, border=border)
 
   ## height one would expect if all tested hypotheses were null
   if(freq){
-    abline(h=length(pvalues) / length(breaks), lty=2)
+    graphics::abline(h=length(pvalues) / length(breaks), lty=2)
   } else
-    abline(h=1, lty=2)
+    graphics::abline(h=1, lty=2)
 
   legs <- paste0("expected ", ifelse(freq, "frequency", "density"),
                  " if all hypotheses are null")
@@ -381,9 +382,9 @@ plotHistPval <- function(pvalues, breaks=seq(0, 1, 0.05), freq=FALSE,
   ## height of the estimate of the proportion of null hypotheses
   if(! is.null(pi0)){
     if(freq){
-      abline(h=pi0 * length(pvalues) / length(breaks), lty=3)
+      graphics::abline(h=pi0 * length(pvalues) / length(breaks), lty=3)
     } else
-      abline(h=pi0, lty=3)
+      graphics::abline(h=pi0, lty=3)
     legs <- c(legs, paste0("estimated ", ifelse(freq, "frequency", "density"),
                            " of null hypotheses"))
     cols <- c(cols, "black")
@@ -391,7 +392,7 @@ plotHistPval <- function(pvalues, breaks=seq(0, 1, 0.05), freq=FALSE,
     lwds <- c(lwds, 1)
   }
 
-  legend("topright", legend=legs, col=cols, lty=ltys, lwd=lwds, bty="n")
+  graphics::legend("topright", legend=legs, col=cols, lty=ltys, lwd=lwds, bty="n")
 
   invisible(out)
 }
@@ -465,27 +466,27 @@ qqplotPval <- function(pvalues, plot.conf.int=TRUE,
     c95 <- rep(0, N)
     c05 <- rep(0, N)
     for(j in 1:N){
-      c95[j] <- qbeta(0.95, j, N-j+1)
-      c05[j] <- qbeta(0.05, j, N-j+1)
+      c95[j] <- stats::qbeta(0.95, j, N-j+1)
+      c05[j] <- stats::qbeta(0.05, j, N-j+1)
     }
     c95 <- - log10(c95)
     c05 <- - log10(c05)
-    plot(expected, c95, ylim=c(0,MAX), xlim=c(0,MAX), type="l",
+    graphics::plot(expected, c95, ylim=c(0,MAX), xlim=c(0,MAX), type="l",
          axes=FALSE, xlab="", ylab="")
-    par(new=T)
-    plot(expected, c05, ylim=c(0,MAX), xlim=c(0,MAX), type="l",
+    graphics::par(new=T)
+    graphics::plot(expected, c05, ylim=c(0,MAX), xlim=c(0,MAX), type="l",
          axes=FALSE, xlab="", ylab="")
-    par(new=T)
+    graphics::par(new=T)
   }
 
   if(is.null(main))
     main <- paste0("Q-Q plot (", N, " p values)")
 
-  plot(x=sort(expected), y=sort(observed),
+  graphics::plot(x=sort(expected), y=sort(observed),
        xlim=c(0,MAX), ylim=c(0,MAX),
        las=1, col=col[order(observed)],
        xlab=xlab, ylab=ylab, main=main)
-  abline(0, 1, col="red")
+  graphics::abline(0, 1, col="red")
 
   invisible(pvalues)
 }
@@ -621,8 +622,8 @@ plotMcmcChain <- function(res.mcmc, param.name, subplots=1:4,
 
   changed.par <- FALSE
   if(1 %in% subplots & 2 %in% subplots & 3 %in% subplots & 4 %in% subplots &
-     all(par("mfrow") == c(1, 1))){
-    par(mfrow=c(2,2))
+     all(graphics::par("mfrow") == c(1, 1))){
+    graphics::par(mfrow=c(2,2))
     changed.par <- TRUE
   }
 
@@ -633,10 +634,10 @@ plotMcmcChain <- function(res.mcmc, param.name, subplots=1:4,
                     ylab="Trace",
                     main=paste0(param.name))
     if(! is.null(pe)){
-      abline(h=pe, col="red")
+      graphics::abline(h=pe, col="red")
       if(! is.null(hi)){
-        abline(h=pe + 2 * hi, col="red", lty=2)
-        abline(h=pe - 2 * hi, col="red", lty=2)
+        graphics::abline(h=pe + 2 * hi, col="red", lty=2)
+        graphics::abline(h=pe - 2 * hi, col="red", lty=2)
       }
     }
   }
@@ -661,10 +662,10 @@ plotMcmcChain <- function(res.mcmc, param.name, subplots=1:4,
                    auto.layout=FALSE,
                    ask=FALSE)
     if(! is.null(pe)){
-      abline(h=pe, col="red")
+      graphics::abline(h=pe, col="red")
       if(! is.null(hi)){
-        abline(h=pe + 2 * hi, col="red", lty=2)
-        abline(h=pe - 2 * hi, col="red", lty=2)
+        graphics::abline(h=pe + 2 * hi, col="red", lty=2)
+        graphics::abline(h=pe - 2 * hi, col="red", lty=2)
       }
     }
   }
@@ -675,16 +676,16 @@ plotMcmcChain <- function(res.mcmc, param.name, subplots=1:4,
                    ylab="Density",
                    main=paste0(param.name))
     if(! is.null(pe)){
-      abline(v=pe, col="red")
+      graphics::abline(v=pe, col="red")
       if(! is.null(hi)){
-        abline(v=pe + 2 * hi, col="red", lty=2)
-        abline(v=pe - 2 * hi, col="red", lty=2)
+        graphics::abline(v=pe + 2 * hi, col="red", lty=2)
+        graphics::abline(v=pe - 2 * hi, col="red", lty=2)
       }
     }
   }
 
   if(changed.par)
-    par(mfrow=c(1,1))
+    graphics::par(mfrow=c(1,1))
 }
 
 ##' MCMC results
@@ -712,8 +713,8 @@ summaryMcmcChain <- function(res.mcmc, param.names){
     c(coda::effectiveSize(samples),
       mean(samples),
       sqrt(safespectrum0(samples) / length(samples)),
-      sd(samples),
-      quantile(samples, c(0.025, 0.5, 0.975)))
+      stats::sd(samples),
+      stats::quantile(samples, c(0.025, 0.5, 0.975)))
   }))
   colnames(out) <- c("ess", "mean", "se.mean", "sd",
                      "0.025q", "0.5q", "0.975q")

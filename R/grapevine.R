@@ -17,7 +17,7 @@
 plotMapSxGDomaineChapitre <- function(map,
                                       main="default",
                                       lang="FR",
-                                      col.block=setNames(
+                                      col.block=stats::setNames(
                                           c("grey81", "bisque1"),
                                           c("A","B")),
                                       show.plant.types=TRUE,
@@ -54,7 +54,7 @@ plotMapSxGDomaineChapitre <- function(map,
   }
 
   if(! is.null(mar))
-    par(mar=mar)
+    graphics::par(mar=mar)
 
   range.ranks <- c(min(map$rank), max(map$rank))
   range.locations <- c(min(map$location), max(map$location))
@@ -77,33 +77,33 @@ plotMapSxGDomaineChapitre <- function(map,
   }
   xlab <- paste0(xlab, " (", length(unique(map$rank)), ")")
   ylab <- paste0(ylab, " (", length(unique(map$location)), ")")
-  plot(0, type="n", axes=FALSE, xlim=c(range.x[1], range.x[2]+x.off), ylim=range.y,
+  graphics::plot(0, type="n", axes=FALSE, xlim=c(range.x[1], range.x[2]+x.off), ylim=range.y,
        main=NULL, xlab=xlab, ylab=ylab)
   if(! is.null(main))
-    title(main=main)
-  axis(side=1, at=range.x[1]:range.x[2], labels=sort(unique(map$rank)))
-  axis(side=2, at=seq(range.y[1], range.y[2]+1, by=5), labels=FALSE, tick=TRUE)
-  axis(side=2, at=seq(range.y[1], range.y[2], by=5)+2.5, las=1,
+    graphics::title(main=main)
+  graphics::axis(side=1, at=range.x[1]:range.x[2], labels=sort(unique(map$rank)))
+  graphics::axis(side=2, at=seq(range.y[1], range.y[2]+1, by=5), labels=FALSE, tick=TRUE)
+  graphics::axis(side=2, at=seq(range.y[1], range.y[2], by=5)+2.5, las=1,
        labels=sort(unique(map$location)), tick=FALSE)
 
   if(! is.null(col.block)){
     off <- 0.5
-    rect(xleft=min(map$x[map$block == "A"]) - off,
+    graphics::rect(xleft=min(map$x[map$block == "A"]) - off,
          ybottom=min(map$y[map$block == "A"]) - off,
          xright=max(map$x[map$block == "A"]) + off,
          ytop=max(map$y[map$block == "A"]) + off,
          col=col.block["A"], border=NA)
-    rect(xleft=min(map$x[map$block == "B"]) - off,
+    graphics::rect(xleft=min(map$x[map$block == "B"]) - off,
          ybottom=min(map$y[map$block == "B"]) - off,
          xright=max(map$x[map$block == "B"]) + off,
          ytop=max(map$y[map$block == "B"]) + off,
          col=col.block["B"], border=NA)
     if(lang == "FR"){
-      legend("right", legend=paste("bloc", names(col.block)),
+      graphics::legend("right", legend=paste("bloc", names(col.block)),
              col=col.block, fill=col.block, border=col.block,
              pch=NA, bty="n")
     } else if(lang == "EN")
-        legend("right", legend=paste("block", names(col.block)),
+      graphics::legend("right", legend=paste("block", names(col.block)),
                col=col.block, fill=col.block, border=col.block,
                pch=NA, bty="n")
   }
@@ -126,25 +126,25 @@ plotMapSxGDomaineChapitre <- function(map,
       for(pu in unique(map$pu)){
         idx <- which(map$pu == pu)
         y <- map$y[idx]
-        map$y.pu[idx] <- rep(median(y-0.5), length(y))
+        map$y.pu[idx] <- rep(stats::median(y-0.5), length(y))
       }
     }
     which.y <- "y.pu"
   }
   if(show.plant.types || show.pu.type){
-    points(x=map$x[map$control],
+    graphics::points(x=map$x[map$control],
            y=map[[which.y]][map$control],
            col=symbols["control","col"],
            pch=symbols["control","pch"], cex=0.8)
-    points(x=map$x[map$parent],
+    graphics::points(x=map$x[map$parent],
            y=map[[which.y]][map$parent],
            col=symbols["parent","col"],
            pch=symbols["parent","pch"], cex=0.8)
-    points(x=map$x[!map$control & !map$parent],
+    graphics::points(x=map$x[!map$control & !map$parent],
            y=map[[which.y]][!map$control & !map$parent],
            col=symbols["F1","col"],
            pch=symbols["F1","pch"], cex=0.2)
-    legend("topright", legend=symbols$leg, col=symbols$col,
+    graphics::legend("topright", legend=symbols$leg, col=symbols$col,
            pch=symbols$pch, bty="n", pt.cex=c(0.8,0.8,0.2))
   }
 

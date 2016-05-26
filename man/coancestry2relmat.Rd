@@ -8,11 +8,11 @@ coancestry2relmat(x, estim.coancestry, estim.inbreeding = NULL,
   rel.type = "coancestries", debug = FALSE)
 }
 \arguments{
-\item{x}{list returned by \code{\link[related]{coancestry}}}
+\item{x}{list returned by \code{related::coancestry}}
 
-\item{estim.coancestry}{name of the coancestry estimator (e.g. "dyadml") as used in \code{\link[related]{coancestry}}}
+\item{estim.coancestry}{name of the coancestry estimator (e.g. "dyadml") as used in \code{related::coancestry}}
 
-\item{estim.inbreeding}{name of the inbreeding estimator (e.g. "LR") as used in \code{\link[related]{coancestry}}}
+\item{estim.inbreeding}{name of the inbreeding estimator (e.g. "LR") as used in \code{related::coancestry}}
 
 \item{rel.type}{type of relatedness, "coancestries" or "relationships" (i.e. 2 x coancestries)}
 
@@ -22,7 +22,7 @@ coancestry2relmat(x, estim.coancestry, estim.inbreeding = NULL,
 matrix
 }
 \description{
-Reformat the output of \code{\link[related]{coancestry}} (http://frasierlab.wordpress.com/software/) into a matrix.
+Reformat the output of \code{related::coancestry} (http://frasierlab.wordpress.com/software/) into a matrix.
 By default, off-diagonal elements  correspond to coancestry coefficients between two individuals, and each diagonal element corresponds to (1 + f) / 2 where f corresponds to the inbreeding coefficient of the given individual.
 To learn more about genetic relatedness, see Weir et al (2006), Astle & Balding (2009) and Legarra (2016).
 }

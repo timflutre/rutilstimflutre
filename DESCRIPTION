@@ -1,6 +1,6 @@
 Package: rutilstimflutre
 Title: Timothee Flutre's personal R code
-Version: 0.60.0
+Version: 0.61.0
 Authors@R: c(
     person("Timothee", "Flutre", email="timothee.flutre@supagro.inra.fr", role=c("aut", "ctb", "cre")),
     person("Dalel", "Ahmed", role="ctb", comment="few functions during internship"),
@@ -10,7 +10,7 @@ Authors@R: c(
     )
 Description: Miscellaneous R functions.
 Depends:
-    R (>= 3.0.0),
+    R (>= 3.2.0),
     data.table,
     lme4,
     Matrix
@@ -26,20 +26,24 @@ Suggests:
     digest,
     GenomeInfoDb,
     GenomicRanges,
+    graphics,
+    grDevices,
     igraph,
     INLA,
     IRanges,
+    knitr,
     LDcorSV,
     MASS,
     QTLRel,
     rjags,
+    rmarkdown,
     Rsamtools,
     S4Vectors,
     scrm,
-    snpStats,
+    stats,
+    SummarizedExperiment,
     testthat,
-    VariantAnnotation,
-    knitr,
-    rmarkdown
+    utils,
+    VariantAnnotation
 RoxygenNote: 5.0.1
 VignetteBuilder: knitr

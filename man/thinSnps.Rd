@@ -11,7 +11,7 @@ thinSnps(method, threshold, snp.coords, only.chr = NULL)
 
 \item{threshold}{keep every "threshold" SNPs (if method="index"), keep SNPs with more than "threshold" base pairs between them (if method="coord")}
 
-\item{snp.coords}{data.frame with SNP identifiers as row names, and two columns, "chr" and "coord" or "pos"; SNPs will be sorted according to their coordinates per chromosome (use \code{\link[gtools]{mixedsort}} if you want to also sort chromosomes)}
+\item{snp.coords}{data.frame with SNP identifiers as row names, and two columns, "chr" and "coord" or "pos"; SNPs will be sorted according to their coordinates per chromosome (use \code{gtools::mixedsort} if you want to also sort chromosomes)}
 
 \item{only.chr}{identifier of a given chromosome}
 }

@@ -18,9 +18,9 @@ qtlrelPerChr(y, X, snp.coords, thresh = 0.01, chr.ids = NULL, W = NULL,
 
 \item{chr.ids}{vector of chromosome identifiers to analyze (if NULL, the regular QTLRel procedure is launched, i.e. all chromosomes are used to estimate the variance components)}
 
-\item{W}{incidence matrix of covariates (should not contain the column of 1's for the intercept; use \code{\link{model.matrix}} if necessary)}
+\item{W}{incidence matrix of covariates (should not contain the column of 1's for the intercept; use \code{\link[stats]{model.matrix}} if necessary)}
 
-\item{Z}{incidence matrix relating phenotypes to individuals (if nrow(y) and nrow(X) are different, diagonal otherwise; use \code{\link{model.matrix}} if necessary)}
+\item{Z}{incidence matrix relating phenotypes to individuals (if nrow(y) and nrow(X) are different, diagonal otherwise; use \code{\link[stats]{model.matrix}} if necessary)}
 
 \item{method.A}{method to estimate the additive relationships (see \code{\link{estimGenRel}})}
 
@@ -37,26 +37,28 @@ Second the allele effects are tested SNP per SNP: for all p in {1,..,P}, y = W a
 As the SNPs can be in linkage disequilibrium, it is advised (Yang et al, Nature Genetics, 2014) to perform the procedure chromosome per chromosome, which is the goal of this function; but I advise to also run it with chr.ids=NULL.
 }
 \examples{
-set.seed(1859)
-I <- 100
-P <- 2000
-Q <- 3
-N <- Q * I
-dat <- data.frame(ind=as.factor(rep(paste0("ind", 1:I), times=Q)),
-                  year=as.factor(rep(paste0(2003:(2003+Q-1)), each=I)))
-W <- model.matrix(~ year, dat)
-alpha <- rnorm(n=Q, mean=50, sd=30)
-X <- matrix(sample(0:2, size=I*P, replace=TRUE), nrow=I, ncol=P,
-            dimnames=list(dat$ind[1:I], paste0("snp", 1:P)))
-beta <- rnorm(n=P, mean=0, sd=2)
-Z <- model.matrix(~ ind - 1, dat)
-dat$response <- as.vector(W \%*\% alpha + Z \%*\% X \%*\% beta + rnorm(N))
-snp.coords <- data.frame(chr=sample(paste0("chr",1:10), P, TRUE),
-                         coord=sample.int(10^6, P))
-rownames(snp.coords) <- colnames(X)
-res <- qtlrelPerChr(dat$response, X, snp.coords, 0.01, "chr1", W=W[,-1], Z=Z)
-if(interactive())
-   res <- qtlrelPerChr(dat$response, X, snp.coords, 0.01, NULL, W=W[,-1], Z=Z)
+if(require(QTLRel)){
+  set.seed(1859)
+  I <- 100
+  P <- 2000
+  Q <- 3
+  N <- Q * I
+  dat <- data.frame(ind=as.factor(rep(paste0("ind", 1:I), times=Q)),
+                    year=as.factor(rep(paste0(2003:(2003+Q-1)), each=I)))
+  W <- stats::model.matrix(~ year, dat)
+  alpha <- rnorm(n=Q, mean=50, sd=30)
+  X <- matrix(sample(0:2, size=I*P, replace=TRUE), nrow=I, ncol=P,
+              dimnames=list(dat$ind[1:I], paste0("snp", 1:P)))
+  beta <- rnorm(n=P, mean=0, sd=2)
+  Z <- stats::model.matrix(~ ind - 1, dat)
+  dat$response <- as.vector(W \%*\% alpha + Z \%*\% X \%*\% beta + rnorm(N))
+  snp.coords <- data.frame(chr=sample(paste0("chr",1:10), P, TRUE),
+                           coord=sample.int(10^6, P))
+  rownames(snp.coords) <- colnames(X)
+  res <- qtlrelPerChr(dat$response, X, snp.coords, 0.01, "chr1", W=W[,-1], Z=Z)
+  if(interactive())
+     res <- qtlrelPerChr(dat$response, X, snp.coords, 0.01, NULL, W=W[,-1], Z=Z)
+ }
 }
 \author{
 Timothee Flutre

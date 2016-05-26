@@ -110,7 +110,7 @@ plotGridMissGenos <- function(X, main="Missing genotypes", xlab="Individuals",
   stopifnot(.isValidGenosDose(X, check.coln=FALSE, check.rown=FALSE,
                               check.na=FALSE))
 
-  image(1:nrow(X), 1:ncol(X), is.na(X), col=c("white","black"),
+  graphics::image(1:nrow(X), 1:ncol(X), is.na(X), col=c("white","black"),
         main=main, xlab=xlab, ylab=ylab)
 }
 
@@ -194,22 +194,22 @@ plotHistMinAllelFreq <- function(X=NULL, maf=NULL, main=NULL, xlim=c(0,0.5),
   if(is.null(main))
     main <- paste0("MAFs of ", length(maf), " SNPs")
 
-  tmp <- hist(x=maf, xlab="Minor allele frequency", ylab="Number of SNPs",
+  tmp <- graphics::hist(x=maf, xlab="Minor allele frequency", ylab="Number of SNPs",
               main=main, xlim=xlim, col=col, border=border, las=las,
               breaks=breaks, ...)
 
   if(add.ml.beta){
     fn.beta <- function(theta, x){
-      sum(-dbeta(x, theta[1], theta[2], log=TRUE))
+      sum(-stats::dbeta(x, theta[1], theta[2], log=TRUE))
     }
-    fit <- optim(par=c(0.3,0.3), fn=fn.beta, x=maf, method="L-BFGS-B",
+    fit <- stats::optim(par=c(0.3,0.3), fn=fn.beta, x=maf, method="L-BFGS-B",
                  lower=c(0.0001,0.0001), upper=c(1,1))
     ## http://stackoverflow.com/a/20078645/597069
     x <- seq(min(maf), max(maf), length=100)
-    y <- dbeta(x, fit$par[1], fit$par[2])
+    y <- stats::dbeta(x, fit$par[1], fit$par[2])
     y <- y * diff(tmp$mids[1:2]) * length(maf)
-    lines(x, y, col="red")
-    legend("topright", legend=paste0("Beta(", format(fit$par[1], digits=2),
+    graphics::lines(x, y, col="red")
+    graphics::legend("topright", legend=paste0("Beta(", format(fit$par[1], digits=2),
                                      ", ", format(fit$par[2], digits=2),
                                      ") fitted via\nmaximum likelihood"),
            col="red", lty=1, bty="n")
@@ -266,19 +266,19 @@ dose2bimbam <- function(X=NULL, tX=NULL, alleles, file=NULL){
     }
     tmp <- cbind(alleles, tX)
     if(! is.null(file))
-        write.table(x=tmp, file=file, quote=FALSE, sep="\t", row.names=TRUE,
-                    col.names=FALSE)
+      utils::write.table(x=tmp, file=file, quote=FALSE, sep="\t", row.names=TRUE,
+                         col.names=FALSE)
     return(tmp)
 }
 
 ##' Genetic relatedness
 ##'
-##' Reformat the output of \code{\link[related]{coancestry}} (http://frasierlab.wordpress.com/software/) into a matrix.
+##' Reformat the output of \code{related::coancestry} (http://frasierlab.wordpress.com/software/) into a matrix.
 ##' By default, off-diagonal elements  correspond to coancestry coefficients between two individuals, and each diagonal element corresponds to (1 + f) / 2 where f corresponds to the inbreeding coefficient of the given individual.
 ##' To learn more about genetic relatedness, see Weir et al (2006), Astle & Balding (2009) and Legarra (2016).
-##' @param x list returned by \code{\link[related]{coancestry}}
-##' @param estim.coancestry name of the coancestry estimator (e.g. "dyadml") as used in \code{\link[related]{coancestry}}
-##' @param estim.inbreeding name of the inbreeding estimator (e.g. "LR") as used in \code{\link[related]{coancestry}}
+##' @param x list returned by \code{related::coancestry}
+##' @param estim.coancestry name of the coancestry estimator (e.g. "dyadml") as used in \code{related::coancestry}
+##' @param estim.inbreeding name of the inbreeding estimator (e.g. "LR") as used in \code{related::coancestry}
 ##' @param rel.type type of relatedness, "coancestries" or "relationships" (i.e. 2 x coancestries)
 ##' @param debug boolean (TRUE to check the output matrix is indeed symmetric)
 ##' @return matrix
@@ -509,7 +509,7 @@ simulCoalescent <- function(nb.inds=100,
     message(cmd)
   sum.stats <- scrm::scrm(cmd)
   if(verbose > 1)
-    print(str(sum.stats))
+    print(utils::str(sum.stats))
 
   prefix <- "chr"
   names(sum.stats$seg_sites) <- paste0(prefix, 1:nb.reps)
@@ -528,7 +528,7 @@ simulCoalescent <- function(nb.inds=100,
   idx <- sample.int(nb.samples)
   if(nb.pops > 1){
     H <- haplosList2Matrix(sum.stats$seg_sites)
-    kmH <- kmeans(H, nb.pops)
+    kmH <- stats::kmeans(H, nb.pops)
   }
   for(chr in 1:nb.reps){
     if(nb.pops > 1)
@@ -612,7 +612,7 @@ calcAvgPwDiffBtwHaplos <- function(haplos.chr){
   pi <- 0
 
   n <- nrow(haplos.chr)
-  k <- as.matrix(dist(haplos.chr, "manhattan"))
+  k <- as.matrix(stats::dist(haplos.chr, "manhattan"))
   k[lower.tri(k)] <- 0
 
   ## naive implementation:
@@ -640,18 +640,18 @@ plotHaplosMatrix <- function(haplos, main="Haplotypes"){
   stopifnot(is.matrix(haplos),
             ! is.null(dimnames(haplos)))
 
-  opar <- par(mar=c(1,6,5,2))
+  opar <- graphics::par(mar=c(1,6,5,2))
 
-  image(t(haplos)[,nrow(haplos):1], axes=FALSE, col=c("white","black"))
+  graphics::image(t(haplos)[,nrow(haplos):1], axes=FALSE, col=c("white","black"))
 
-  title(main=main, line=3)
-  axis(side=3, at=seq(1, ncol(haplos), length.out=7) / ncol(haplos),
+  graphics::title(main=main, line=3)
+  graphics::axis(side=3, at=seq(1, ncol(haplos), length.out=7) / ncol(haplos),
        labels=colnames(haplos)[seq(1, ncol(haplos), length.out=7)])
-  axis(side=2, at=rev(seq(1, nrow(haplos), length.out=10) / nrow(haplos)),
+  graphics::axis(side=2, at=rev(seq(1, nrow(haplos), length.out=10) / nrow(haplos)),
        labels=rownames(haplos)[seq(1, nrow(haplos), length.out=10)],
        las=1, padj=0)
 
-  on.exit(par(opar))
+  on.exit(graphics::par(opar))
 }
 
 ##' Individual names
@@ -912,7 +912,7 @@ drawLocCrossovers <- function(crosses, nb.snps, lambda=2){
   parent.names <- parent.names[! is.na(parent.names)]
   nb.gametes <- length(parent.names)
   nb.chroms <- length(nb.snps)
-  nb.crossovers <- rpois(nb.gametes * nb.chroms, lambda)
+  nb.crossovers <- stats::rpois(nb.gametes * nb.chroms, lambda)
   nb.crossovers[nb.crossovers == 0] <- 1 # at least 1 per chromosome
 
   ## draw the location of each crossing-over
@@ -1212,7 +1212,7 @@ estimGenRel <- function(X, afs=NULL, thresh=NULL, relationships="additive",
     }
   } else if(relationships == "gaussian"){
     M <- X - 1 # recode genotypes as {-1,0,1}
-    gen.dist <- as.matrix(dist(x=M, method="euclidean")) / (2 * sqrt(P))
+    gen.dist <- as.matrix(stats::dist(x=M, method="euclidean")) / (2 * sqrt(P))
     gen.rel <- exp(-(gen.dist / theta)^2)
   }
 
@@ -1257,7 +1257,7 @@ estimLd <- function(X, K=NULL, pops=NULL, snp.coords,
               length(pops) == nrow(X),
               ! is.null(names(pops)),
               names(pops) == rownames(X))
-    W.s <- model.matrix(~ as.factor(pops))[, -1]
+    W.s <- stats::model.matrix(~ as.factor(pops))[, -1]
     rownames(W.s) <- names(pops)
   }
   if(! is.null(only.chr))
@@ -1293,10 +1293,10 @@ estimLd <- function(X, K=NULL, pops=NULL, snp.coords,
                                    S=NA,
                                    data="G", supinfo=FALSE, na.presence=FALSE)
       } else{
-        tmp <- cor(X)^2
+        tmp <- stats::cor(X)^2
         tmp[upper.tri(tmp)] <- NA
         diag(tmp) <- NA
-        ld <- data.frame(t(combn(colnames(X), 2)),
+        ld <- data.frame(t(utils::combn(colnames(X), 2)),
                          tmp[! is.na(tmp)],
                          stringsAsFactors=TRUE)
         colnames(ld) <- c("loc1", "loc2", "cor2")
@@ -1380,15 +1380,15 @@ plotLd <- function(x, y, estim="r2", main,
   ## plot the pairwise estimates of LD
   lpars <- list(col="red", cex=2)
   if(use.density){
-    smoothScatter(x, y,
+    graphics::smoothScatter(x, y,
                   main=main,
                   xlab=xlab,
                   ylab=ylab,
                   las=1)
-    pred <- loess.smooth(x, y, span=span, degree=degree, evaluation=evaluation)
-    do.call(lines, c(list(pred), lpars))
+    pred <- stats::loess.smooth(x, y, span=span, degree=degree, evaluation=evaluation)
+    do.call(graphics::lines, c(list(pred), lpars))
   } else{
-    scatter.smooth(x, y, lpars=lpars,
+    stats::scatter.smooth(x, y, lpars=lpars,
                    main=main, xlab=xlab, ylab=ylab, las=1,
                    span=span, degree=degree, evaluation=evaluation)
   }
@@ -1396,11 +1396,11 @@ plotLd <- function(x, y, estim="r2", main,
   ## add the "significance" horizontal line
   ## reject H0:"D=0" at 5% if X2 = n x hat(r^2) >= Chi2(1)
   if(! is.null(sample.size)){
-    X2 <- qchisq(p=0.05, df=1, lower.tail=FALSE)
+    X2 <- stats::qchisq(p=0.05, df=1, lower.tail=FALSE)
     tmp <- X2 / sample.size
     if(estim == "r")
       tmp <- sqrt(tmp)
-    abline(h=tmp,
+    graphics::abline(h=tmp,
            col=ifelse(use.density, "black", "blue"),
            lty=2, lwd=2)
   }
@@ -1412,13 +1412,13 @@ plotLd <- function(x, y, estim="r2", main,
     ok <- (10 + scaled.dist) / (22 + 13 * scaled.dist + scaled.dist^2)
     if(estim == "r")
       ok <- sqrt(ok)
-    points(x, ok, pch=".", col="purple", cex=1.2)
+    graphics::points(x, ok, pch=".", col="purple", cex=1.2)
   }
   if(add.sved){
     sved <- 1 / (1 + scaled.dist)
     if(estim == "r")
       sved <- sqrt(sved)
-    points(x, sved, pch=".", col="green", cex=1.2)
+    graphics::points(x, sved, pch=".", col="green", cex=1.2)
   }
 
   ## add the legend
@@ -1446,7 +1446,7 @@ plotLd <- function(x, y, estim="r2", main,
     ltys <- c(ltys, 1)
     lwds <- c(lwds, 2)
   }
-  legend("topright", legend=legs, col=cols, lty=ltys, lwd=lwds, bty="n")
+  graphics::legend("topright", legend=legs, col=cols, lty=ltys, lwd=lwds, bty="n")
 }
 
 ##' Distance between consecutive SNPs
@@ -1488,7 +1488,7 @@ distConsecutiveSnps <- function(snp.coords, only.chr=NULL, nb.cores=1){
 ##' Thin SNPs according to various methods: based on their index or based on their genomic coordinate.
 ##' @param method index or coord
 ##' @param threshold keep every "threshold" SNPs (if method="index"), keep SNPs with more than "threshold" base pairs between them (if method="coord")
-##' @param snp.coords data.frame with SNP identifiers as row names, and two columns, "chr" and "coord" or "pos"; SNPs will be sorted according to their coordinates per chromosome (use \code{\link[gtools]{mixedsort}} if you want to also sort chromosomes)
+##' @param snp.coords data.frame with SNP identifiers as row names, and two columns, "chr" and "coord" or "pos"; SNPs will be sorted according to their coordinates per chromosome (use \code{gtools::mixedsort} if you want to also sort chromosomes)
 ##' @param only.chr identifier of a given chromosome
 ##' @return vector of SNP identifiers
 ##' @author Timothee Flutre
@@ -1516,7 +1516,7 @@ thinSnps <- function(method, threshold, snp.coords, only.chr=NULL){
       idx <- seq(1, nrow(tmp), threshold)
       rownames(tmp)[idx]
     } else if(method == "coord"){
-      tiles <- GenomicRanges::tileGenome(seqlengths=setNames(max(tmp$coord),
+      tiles <- GenomicRanges::tileGenome(seqlengths=stats::setNames(max(tmp$coord),
                                                              chr.id),
                                          tilewidth=threshold)
       tmp.gr <- .df2gr(tmp)
@@ -1639,14 +1639,14 @@ simulAnimalModel <- function(T=1,
   if(Q == 1){
     W <- matrix(1, nrow=N, ncol=Q)
   } else
-    W <- model.matrix(~ years)
+    W <- stats::model.matrix(~ years)
   dat <- data.frame(year=years)
 
   ## "fixed" effects
   if(Q == 1){
     C <- matrix(data=mu, nrow=Q, ncol=T)
   } else
-    C <- matrix(data=c(mu, rnorm(n=(Q-1)*T, mean=mean.C, sd=sd.C)),
+    C <- matrix(data=c(mu, stats::rnorm(n=(Q-1)*T, mean=mean.C, sd=sd.C)),
                 byrow=TRUE, nrow=Q, ncol=T)
 
   ## incidence matrix of genetic "random" effects
@@ -1655,20 +1655,20 @@ simulAnimalModel <- function(T=1,
   for(year in levels.years)
     genos[years == year] <- levels.genos[1:sum(years == year)]
   genos <- as.factor(genos)
-  Z <- model.matrix(~ genos - 1)
+  Z <- stats::model.matrix(~ genos - 1)
   dat$geno <- genos
 
   ## additive genetic component
   G.A <- matrix(0, I, T)
   if(T == 1){
     if(is.null(V.G.A)){
-      sqrt.V.G.A <- abs(rcauchy(n=1, location=0, scale=scale.hC.G.A))
+      sqrt.V.G.A <- abs(stats::rcauchy(n=1, location=0, scale=scale.hC.G.A))
       V.G.A <- sqrt.V.G.A^2
     }
     G.A <- matrix(MASS::mvrnorm(n=1, mu=rep(0, I), Sigma=V.G.A * A))
   } else{ # T > 1
     if(is.null(V.G.A))
-      V.G.A <- rWishart(n=1, df=nu.G.A, Sigma=diag(T))[,,1]
+      V.G.A <- stats::rWishart(n=1, df=nu.G.A, Sigma=diag(T))[,,1]
     G.A <- rmatnorm(n=1, M=matrix(data=0, nrow=I, ncol=T),
                     U=A, V=V.G.A)[,,1]
   }
@@ -1679,13 +1679,13 @@ simulAnimalModel <- function(T=1,
   if(! is.null(D)){
     if(T == 1){
       if(is.null(V.G.D)){
-        sqrt.V.G.D <- abs(rcauchy(n=1, location=0, scale=scale.hC.G.D))
+        sqrt.V.G.D <- abs(stats::rcauchy(n=1, location=0, scale=scale.hC.G.D))
         V.G.D <- sqrt.V.G.D^2
       }
       G.D <- matrix(MASS::mvrnorm(n=1, mu=rep(0, I), Sigma=V.G.D * D))
     } else{ # T > 1
       if(is.null(V.G.D))
-        V.G.D <- rWishart(n=1, df=nu.G.D, Sigma=diag(T))[,,1]
+        V.G.D <- stats::rWishart(n=1, df=nu.G.D, Sigma=diag(T))[,,1]
       G.D <- rmatnorm(n=1, M=matrix(data=0, nrow=I, ncol=T),
                       U=D, V=V.G.D)[,,1]
     }
@@ -1697,15 +1697,15 @@ simulAnimalModel <- function(T=1,
   if(T == 1){
     if(is.infinite(err.df)){
       if(is.null(V.E)){
-        sqrt.V.E <- abs(rcauchy(n=1, location=0, scale=scale.hC.E))
+        sqrt.V.E <- abs(stats::rcauchy(n=1, location=0, scale=scale.hC.E))
         V.E <- sqrt.V.E^2
       }
-      E <- matrix(rnorm(n=N, mean=0, sd=sqrt(V.E)))
+      E <- matrix(stats::rnorm(n=N, mean=0, sd=sqrt(V.E)))
     } else
-      E <- matrix(rt(n=N, df=err.df, ncp=0))
+      E <- matrix(stats::rt(n=N, df=err.df, ncp=0))
   } else{ # T > 1
     if(is.null(V.E))
-      V.E <- rWishart(n=1, df=nu.E, Sigma=diag(T))[,,1]
+      V.E <- stats::rWishart(n=1, df=nu.E, Sigma=diag(T))[,,1]
     E <- rmatnorm(n=1, M=matrix(data=0, nrow=N, ncol=T),
                   U=diag(N), V=V.E)[,,1]
   }
@@ -1898,7 +1898,7 @@ lmerAM <- function(formula, dat, relmat, REML=TRUE, ci.meth=NULL, verbose=1){
   ci <- NULL
   if(! is.null(ci.meth)){
     write("compute confidence intervals ...", stdout())
-    suppressMessages(ci <- confint(fit, method=ci.meth, oldNames=FALSE))
+    suppressMessages(ci <- lme4::confint.merMod(fit, method=ci.meth, oldNames=FALSE))
   }
 
   return(list(merMod=fit, ci=ci))
@@ -1982,7 +1982,7 @@ inlaAM <- function(dat, relmat, family="gaussian",
       formula <- paste0(formula, " + ", cn)
 
   ## finalize formula
-  formula <- as.formula(formula)
+  formula <- stats::as.formula(formula)
 
   ## fit the model with INLA
   fit <- INLA::inla(formula=formula,
@@ -2062,7 +2062,7 @@ jagsAM <- function(dat, relmat, inits=NULL,
   model.txt <- paste0(
       "# Goal: fit an \"animal model\" with rjags",
       "\n# Author: Timothee Flutre (INRA)",
-      "\n# Source: rutilstimflutre ", packageVersion("rutilstimflutre"),
+      "\n# Source: rutilstimflutre ", utils::packageVersion("rutilstimflutre"),
       "\n# Date: ", format(st, "%Y-%m-%d %H:%M:%S"))
   model.txt <- paste0(model.txt, "
 
@@ -2130,11 +2130,11 @@ model {
   for(j in 1:ncol(dat))
     if(! grepl("response", colnames(dat)[j]) & colnames(dat)[j] != "geno.add" &
        colnames(dat)[j] != "geno.dom"){
-      W <- cbind(W, model.matrix(~ dat[,j])[,-1])
+      W <- cbind(W, stats::model.matrix(~ dat[,j])[,-1])
     }
   colnames(W) <- gsub("dat\\[, j\\]", "", colnames(W))
   data.list <- list(N=nrow(dat), Q=ncol(W),
-                    y=y, W=W, Z=model.matrix(~ dat[,"geno.add"] - 1),
+                    y=y, W=W, Z=stats::model.matrix(~ dat[,"geno.add"] - 1),
                     mean.mu=mean(y), par.c=priors$fix$par,
                     par.vc=priors$vc$par, A=relmat[["geno.add"]],
                     mean.g.A=rep(0, nlevels(dat[,"geno.add"])))
@@ -2150,7 +2150,7 @@ model {
     file.remove(jags.file)
 
   ## update model for burn-in period
-  update(jags, n.iter=burnin, progress.bar=progress.bar)
+  stats::update(jags, n.iter=burnin, progress.bar=progress.bar)
 
   ## extract samples from model
   vn <- c("c", "sigma.A2")
@@ -2216,13 +2216,13 @@ simulBvsr <- function(Q=3, mu=50, mean.c=5, sd.c=2,
     } else
       years <- sort(sample(x=levels.years, size=N, replace=TRUE))
     years <- as.factor(years)
-    W <- model.matrix(~ years)
+    W <- stats::model.matrix(~ years)
   } else
     W <- matrix(data=1, nrow=N, ncol=1)
 
   ## "fixed effects"
   if(Q > 1){
-    c <- matrix(data=c(mu, rnorm(n=Q-1, mean=mean.c, sd=sd.c)),
+    c <- matrix(data=c(mu, stats::rnorm(n=Q-1, mean=mean.c, sd=sd.c)),
                 nrow=Q, ncol=1)
   } else if(Q == 1){
     c <- matrix(data=mu, nrow=Q, ncol=1)
@@ -2238,23 +2238,23 @@ simulBvsr <- function(Q=3, mu=50, mean.c=5, sd.c=2,
   } else
     inds <- levels.inds
   inds <- as.factor(inds)
-  Z <- model.matrix(~ inds - 1)
+  Z <- stats::model.matrix(~ inds - 1)
   X.A <- scale(x=X - 1, center=TRUE, scale=FALSE)
 
   ## incidence vector of the causal genetic predictors
-  gamma <- setNames(object=rbinom(n=P, size=1, prob=pi), nm=colnames(X))
+  gamma <- stats::setNames(object=stats::rbinom(n=P, size=1, prob=pi), nm=colnames(X))
 
   ## "random effects"
-  a <- setNames(object=rnorm(n=P, mean=0, sd=sqrt(sigma.a2)), nm=colnames(X))
+  a <- stats::setNames(object=stats::rnorm(n=P, mean=0, sd=sqrt(sigma.a2)), nm=colnames(X))
   a[gamma == 0] <- 0
   g.A <- X.A %*% a
 
   ## errors
-  sigma2 <- ((1 - pve.A) / pve.A) * var(g.A)
+  sigma2 <- ((1 - pve.A) / pve.A) * stats::var(g.A)
   if(is.infinite(err.df)){
-    epsilon <- matrix(rnorm(n=N, mean=0, sd=sqrt(sigma2)))
+    epsilon <- matrix(stats::rnorm(n=N, mean=0, sd=sqrt(sigma2)))
   } else
-    epsilon <- matrix(rt(n=N, df=err.df, ncp=0))
+    epsilon <- matrix(stats::rt(n=N, df=err.df, ncp=0))
 
   ## phenotypes
   Y <- W %*% c + Z %*% X.A %*% a + epsilon
@@ -2344,13 +2344,13 @@ simulBslmm <- function(Q=3, mu=50, mean.a=5, sd.a=2,
     } else
       years <- sort(sample(x=levels.years, size=N, replace=TRUE))
     years <- as.factor(years)
-    W <- model.matrix(~ years)
+    W <- stats::model.matrix(~ years)
   } else
     W <- matrix(data=1, nrow=N, ncol=1)
 
   ## "fixed" effects
   if(Q > 1){
-    alpha <- matrix(data=c(mu, rnorm(n=Q-1, mean=mean.a, sd=sd.a)),
+    alpha <- matrix(data=c(mu, stats::rnorm(n=Q-1, mean=mean.a, sd=sd.a)),
                     nrow=Q, ncol=1)
   } else if(Q == 1){
     alpha <- matrix(data=mu, nrow=Q, ncol=1)
@@ -2366,7 +2366,7 @@ simulBslmm <- function(Q=3, mu=50, mean.a=5, sd.a=2,
   } else
     inds <- levels.inds
   inds <- as.factor(inds)
-  Z <- model.matrix(~ inds - 1)
+  Z <- stats::model.matrix(~ inds - 1)
   if(enforce.zhou){
     X.c <- scale(x=X, center=TRUE, scale=FALSE)
     K <- tcrossprod(X.c, X.c) / P
@@ -2380,14 +2380,14 @@ simulBslmm <- function(Q=3, mu=50, mean.a=5, sd.a=2,
   s.a <- (1 / (N*P)) * sum(colSums(X.c^2))
   s.b <- (1/N)  * sum(diag(K))
   if(is.null(pi))
-    pi <- exp(runif(n=1, min=log(1/P), max=log(1)))
+    pi <- exp(stats::runif(n=1, min=log(1/P), max=log(1)))
   if(is.null(h))
-    h <- runif(n=1, min=0, max=1)
+    h <- stats::runif(n=1, min=0, max=1)
   if(is.null(rho)){
     if(pi == 0){
       rho <- 0
     } else
-      rho <- runif(n=1, min=0, max=1)
+      rho <- stats::runif(n=1, min=0, max=1)
   }
   sigma.betat2 <- (h * rho) / ((1 - h) * P * pi * s.a) # -> sigma_a^2 in paper
   if(is.nan(sigma.betat2))
@@ -2398,21 +2398,21 @@ simulBslmm <- function(Q=3, mu=50, mean.a=5, sd.a=2,
     tau <- 1
 
   ## sparse genetic effects
-  betat <- setNames(object=rep(0, P), nm=colnames(X))
-  gamma <- setNames(object=rbinom(n=P, size=1, prob=pi), nm=colnames(X))
-  betat[gamma == 1] <- rnorm(n=sum(gamma == 1), mean=0,
+  betat <- stats::setNames(object=rep(0, P), nm=colnames(X))
+  gamma <- stats::setNames(object=stats::rbinom(n=P, size=1, prob=pi), nm=colnames(X))
+  betat[gamma == 1] <- stats::rnorm(n=sum(gamma == 1), mean=0,
                              sd=sqrt(sigma.betat2 * tau^(-1)))
 
   ## polygenic effects
-  u <- setNames(object=MASS::mvrnorm(n=1, mu=rep(0, I),
+  u <- stats::setNames(object=MASS::mvrnorm(n=1, mu=rep(0, I),
                                      Sigma=sigma.u2 * tau^(-1) * K),
                 nm=rownames(X))
 
   ## errors
   if(is.infinite(err.df)){
-    epsilon <- matrix(rnorm(n=N, mean=0, sd=sqrt(tau^(-1))))
+    epsilon <- matrix(stats::rnorm(n=N, mean=0, sd=sqrt(tau^(-1))))
   } else
-    epsilon <- matrix(rt(n=N, df=err.df, ncp=0))
+    epsilon <- matrix(stats::rt(n=N, df=err.df, ncp=0))
 
   ## phenotypes
   y <- W %*% alpha + Z %*% X.c %*% betat + Z %*% u + epsilon
@@ -2500,7 +2500,7 @@ gemma <- function(model="ulmm", y, X, snp.coords, alleles, maf=0.01, K.c=NULL,
                           file=gzfile(tmp.files["genos"]))
   tmp.files <- c(tmp.files,
                  snp.coords=paste0(out.dir, "/snp-coords_", task.id, ".txt"))
-  write.table(x=snp.coords,
+  utils::write.table(x=snp.coords,
               file=tmp.files["snp.coords"],
               quote=FALSE, sep="\t", row.names=FALSE, col.names=FALSE)
   if(is.null(K.c))
@@ -2509,17 +2509,17 @@ gemma <- function(model="ulmm", y, X, snp.coords, alleles, maf=0.01, K.c=NULL,
   tmp.files <- c(tmp.files,
                  kinship.center=paste0(out.dir, "/kinship-center_", task.id,
                                        ".txt"))
-  write.table(x=K.c,
+  utils::write.table(x=K.c,
               file=tmp.files["kinship.center"],
               quote=FALSE, sep="\t", row.names=FALSE, col.names=FALSE)
   tmp.files <- c(tmp.files,
                  covars=paste0(out.dir, "/covars_", task.id, ".txt"))
-  write.table(x=W,
+  utils::write.table(x=W,
               file=tmp.files["covars"],
               quote=FALSE, sep="\t", row.names=FALSE, col.names=FALSE)
   tmp.files <- c(tmp.files,
                  phenos=paste0(out.dir, "/phenos_", task.id, ".txt.gz"))
-  write.table(x=y,
+  utils::write.table(x=y,
               file=gzfile(tmp.files["phenos"]),
               quote=FALSE, sep="\t", row.names=FALSE, col.names=FALSE)
 
@@ -2560,14 +2560,14 @@ gemma <- function(model="ulmm", y, X, snp.coords, alleles, maf=0.01, K.c=NULL,
     file.remove(f)
   if(model == "ulmm"){
     f <- paste0(out.dir, "/results_", task.id, ".assoc.txt")
-    tmp <- read.table(file=f, sep="\t", header=TRUE, stringsAsFactors=FALSE)
+    tmp <- utils::read.table(file=f, sep="\t", header=TRUE, stringsAsFactors=FALSE)
     rownames(tmp) <- tmp$rs
     output[["tests"]] <- tmp
     if(clean == "all")
       file.remove(f)
   } else if(model == "bslmm"){
     f <- paste0(out.dir, "/results_", task.id, ".hyp.txt")
-    output[["hyperparams"]] <- read.table(file=f,
+    output[["hyperparams"]] <- utils::read.table(file=f,
                                           sep="\t",
                                           skip=1, stringsAsFactors=FALSE,
                                           header=FALSE,
@@ -2577,7 +2577,7 @@ gemma <- function(model="ulmm", y, X, snp.coords, alleles, maf=0.01, K.c=NULL,
     if(clean == "all")
       file.remove(f)
     f <- paste0(out.dir, "/results_", task.id, ".param.txt")
-    output[["params"]] <- read.table(file=f,
+    output[["params"]] <- utils::read.table(file=f,
                                      sep="\t", skip=1,
                                      stringsAsFactors=FALSE, header=FALSE,
                                      col.names=c("chr", "rs", "ps", "n_miss",
@@ -2682,36 +2682,39 @@ gemmaUlmmPerChr <- function(y, X, snp.coords, alleles=NULL, chr.ids=NULL, W,
 ##' @param snp.coords data.frame with SNP identifiers as row names and two columns named "chr" and "coord" (or "pos")
 ##' @param thresh threshold on minor allele frequencies below which SNPs are ignored via \code{\link{discardSnpsLowMaf}} (default=0.01; NULL to skip this step; SNPs are ignored for testing, but all are still used to calculate the matrix of additive genetic relationships as rare SNPs are informative in this purpose)
 ##' @param chr.ids vector of chromosome identifiers to analyze (if NULL, the regular QTLRel procedure is launched, i.e. all chromosomes are used to estimate the variance components)
-##' @param W incidence matrix of covariates (should not contain the column of 1's for the intercept; use \code{\link{model.matrix}} if necessary)
-##' @param Z incidence matrix relating phenotypes to individuals (if nrow(y) and nrow(X) are different, diagonal otherwise; use \code{\link{model.matrix}} if necessary)
+##' @param W incidence matrix of covariates (should not contain the column of 1's for the intercept; use \code{\link[stats]{model.matrix}} if necessary)
+##' @param Z incidence matrix relating phenotypes to individuals (if nrow(y) and nrow(X) are different, diagonal otherwise; use \code{\link[stats]{model.matrix}} if necessary)
 ##' @param method.A method to estimate the additive relationships (see \code{\link{estimGenRel}})
 ##' @param verbose verbosity level (0/1)
 ##' @return a list with three data.frames as components, variance.components, fixed.effects and scan
 ##' @author Timothee Flutre
 ##' @examples
-##' set.seed(1859)
-##' I <- 100
-##' P <- 2000
-##' Q <- 3
-##' N <- Q * I
-##' dat <- data.frame(ind=as.factor(rep(paste0("ind", 1:I), times=Q)),
-##'                   year=as.factor(rep(paste0(2003:(2003+Q-1)), each=I)))
-##' W <- model.matrix(~ year, dat)
-##' alpha <- rnorm(n=Q, mean=50, sd=30)
-##' X <- matrix(sample(0:2, size=I*P, replace=TRUE), nrow=I, ncol=P,
-##'             dimnames=list(dat$ind[1:I], paste0("snp", 1:P)))
-##' beta <- rnorm(n=P, mean=0, sd=2)
-##' Z <- model.matrix(~ ind - 1, dat)
-##' dat$response <- as.vector(W %*% alpha + Z %*% X %*% beta + rnorm(N))
-##' snp.coords <- data.frame(chr=sample(paste0("chr",1:10), P, TRUE),
-##'                          coord=sample.int(10^6, P))
-##' rownames(snp.coords) <- colnames(X)
-##' res <- qtlrelPerChr(dat$response, X, snp.coords, 0.01, "chr1", W=W[,-1], Z=Z)
-##' if(interactive())
-##'    res <- qtlrelPerChr(dat$response, X, snp.coords, 0.01, NULL, W=W[,-1], Z=Z)
+##' if(require(QTLRel)){
+##'   set.seed(1859)
+##'   I <- 100
+##'   P <- 2000
+##'   Q <- 3
+##'   N <- Q * I
+##'   dat <- data.frame(ind=as.factor(rep(paste0("ind", 1:I), times=Q)),
+##'                     year=as.factor(rep(paste0(2003:(2003+Q-1)), each=I)))
+##'   W <- stats::model.matrix(~ year, dat)
+##'   alpha <- rnorm(n=Q, mean=50, sd=30)
+##'   X <- matrix(sample(0:2, size=I*P, replace=TRUE), nrow=I, ncol=P,
+##'               dimnames=list(dat$ind[1:I], paste0("snp", 1:P)))
+##'   beta <- rnorm(n=P, mean=0, sd=2)
+##'   Z <- stats::model.matrix(~ ind - 1, dat)
+##'   dat$response <- as.vector(W %*% alpha + Z %*% X %*% beta + rnorm(N))
+##'   snp.coords <- data.frame(chr=sample(paste0("chr",1:10), P, TRUE),
+##'                            coord=sample.int(10^6, P))
+##'   rownames(snp.coords) <- colnames(X)
+##'   res <- qtlrelPerChr(dat$response, X, snp.coords, 0.01, "chr1", W=W[,-1], Z=Z)
+##'   if(interactive())
+##'      res <- qtlrelPerChr(dat$response, X, snp.coords, 0.01, NULL, W=W[,-1], Z=Z)
+##'  }
 ##' @export
 qtlrelPerChr <- function(y, X, snp.coords, thresh=0.01, chr.ids=NULL, W=NULL, Z=NULL,
                          method.A="vanraden1", verbose=1){
+  requireNamespaces("QTLRel")
   if(is.matrix(y))
     stopifnot(ncol(y) == 1)
   y <- as.vector(y)
@@ -2910,7 +2913,7 @@ calcExactBayesFactorServinStephens <- function(G, Y, sigma.a, sigma.d,
                                                log10=TRUE){
   stopifnot(is.vector(G), is.vector(Y))
 
-  subset <- complete.cases(Y) & complete.cases(G)
+  subset <- stats::complete.cases(Y) & stats::complete.cases(G)
   Y <- Y[subset]
   G <- G[subset]
   stopifnot(length(Y) == length(G))
@@ -3159,7 +3162,7 @@ plotPedigree <- function(inds, mothers, fathers, generations, sexes=NULL,
     vertex.size <- 1/200 * params("vertex", "size")
     if(length(vertex.size) != 1 && !is.null(v))
       vertex.size <- vertex.size[v]
-    symbols(x=coords[,1], y=coords[,2], bg=vertex.color,
+    graphics::symbols(x=coords[,1], y=coords[,2], bg=vertex.color,
             stars=cbind(vertex.size, vertex.size, vertex.size),
             add=TRUE, inches=FALSE)
   }

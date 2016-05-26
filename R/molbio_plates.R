@@ -32,7 +32,7 @@ initPlates <- function(n, nrow, ncol, names){
 ##' @author Timothee Flutre
 ##' @export
 descPlate <- function(plate, plate.name, verbose=1){
-  out <- setNames(object=rep(NA, 3),
+  out <- stats::setNames(object=rep(NA, 3),
                   nm=c("nb.wells", "nb.empty.wells", "nb.samples"))
 
   out["nb.wells"] <- nrow(plate) * ncol(plate)
@@ -69,13 +69,13 @@ loadPlates <- function(files, verbose=1){
     if(verbose > 0)
       write(paste0("load '", plate.name, "'"), stdout())
     if(file.ext == "csv"){
-      plate <- read.csv(file=files[i], stringsAsFactors=FALSE,
+      plate <- utils::read.csv(file=files[i], stringsAsFactors=FALSE,
                         row.names=1)
       if(ncol(plate) == 0)
-        plate <- read.csv2(file=files[i], stringsAsFactors=FALSE,
+        plate <- utils::read.csv2(file=files[i], stringsAsFactors=FALSE,
                            row.names=1)
     } else
-      plate <- read.table(file=files[i], header=TRUE, sep="\t",
+      plate <- utils::read.table(file=files[i], header=TRUE, sep="\t",
                           row.names=1, stringsAsFactors=FALSE)
     if(ncol(plate) == 0)
       stop(paste0("no column detected for '", plate.name, "'",
@@ -107,16 +107,16 @@ loadPlates <- function(files, verbose=1){
 plotPlate <- function(plate, main="Plate"){
   stopifnot(is.matrix(plate))
 
-  par(mar=c(3, 3, 5, 1) + 0.1)
-  plot(x=0, y=0, type="n",
+  graphics::par(mar=c(3, 3, 5, 1) + 0.1)
+  graphics::plot(x=0, y=0, type="n",
        xlim=c(0.7, ncol(plate)+0.3),
        ylim=c(0.7, nrow(plate)+0.3),
        main="", xlab="", ylab="", xaxt="n", yaxt="n")
-  mtext(text=main, side=3, line=3, cex=2, font=2)
-  axis(side=3, at=1:ncol(plate), labels=colnames(plate))
-  axis(side=2, at=1:nrow(plate), labels=rev(rownames(plate)), las=1)
+  graphics::mtext(text=main, side=3, line=3, cex=2, font=2)
+  graphics::axis(side=3, at=1:ncol(plate), labels=colnames(plate))
+  graphics::axis(side=2, at=1:nrow(plate), labels=rev(rownames(plate)), las=1)
 
-  text(x=rep(1:ncol(plate), each=nrow(plate)),
+  graphics::text(x=rep(1:ncol(plate), each=nrow(plate)),
        y=rep(nrow(plate):1, ncol(plate)),
        c(plate))
 }
@@ -201,9 +201,9 @@ randPlate <- function(plate, rand.scheme="1x96", seed=NULL, file=NULL){
 
   if(! is.null(file)){
     write(x=paste0("#seed=", seed), file=file, append=FALSE)
-    write.table(x=t(c("", colnames(out))), file=file, append=TRUE,
+    utils::write.table(x=t(c("", colnames(out))), file=file, append=TRUE,
                 quote=FALSE, sep="\t", row.names=FALSE, col.names=FALSE)
-    write.table(x=out, file=file, append=TRUE, quote=FALSE, sep="\t",
+    utils::write.table(x=out, file=file, append=TRUE, quote=FALSE, sep="\t",
                 row.names=TRUE, col.names=FALSE)
   }
 
