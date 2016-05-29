@@ -1,0 +1,124 @@
+---
+title: "Priors for the regression"
+author: "Timothée Flutre (INRA)"
+date: "`r Sys.Date()`"
+output:
+  rmarkdown::html_vignette:
+    toc: true
+vignette: >
+  %\VignetteIndexEntry{Priors for regression}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+<!--
+setwd("~/src/rutilstimflutre/vignettes/")
+
+library(devtools)
+build_vignettes()
+
+library(rmarkdown)
+render("priors-regression.Rmd", "html_document")
+-->
+
+# Preamble
+
+License: [CC BY-SA 4.0](http://creativecommons.org/licenses/by-sa/4.0/)
+
+References:
+
+* [Gelman et al (2008)](http://dx.doi.org/10.1214/08-aoas191)
+
+* [Gelman (2006)](http://dx.doi.org/10.1214/06-ba117a)
+
+
+# Coefficients
+
+Compare the Cauchy prior with the Normal prior for regression coefficients, for instance:
+
+* $c \sim \mathcal{N}(\text{exp}=0, \; \text{stdev}=5)$
+
+* $c \sim \mathcal{C}(\text{loc}=0, \; \text{scale}=5)$
+
+```{r cauchy_normal, fig.width=8, fig.height=6}
+plot(x=0, y=0, type="n", xlim=c(-20,20), ylim=c(0,0.08),
+     xlab=expression(c), ylab="Density", las=1,
+     main="Priors on regression coefficients")
+curve(expr=dnorm(x, mean=0, sd=5), from=-25, to=25, n=10^3, add=TRUE,
+      col="black")
+curve(expr=dcauchy(x, location=0, scale=5), from=-25, to=25, add=TRUE,
+      col="red")
+curve(expr=dcauchy(x, location=0, scale=25), from=-25, to=25, add=TRUE,
+      col="orange")
+abline(v=0, lty=2); abline(h=0, lty=2)
+legend("topright", legend=c("c ~ Normal(0, 5)","c ~ Cauchy(0, 5)","c ~ Cauchy(0, 25)"),
+       col=c("black","red","orange"), lty=1, bty="n")
+```
+
+
+# Variance components
+
+Compare the half-Cauchy prior with the Inverse-Gamma prior for variance components, for instance:
+
+* $\text{variance} \sim \mathcal{IG}(\text{shape}=0.001, \; \text{scale}=1/0.001) \; \; \leftarrow$ classically used by default (e.g. in [OpenBUGS](https://en.wikipedia.org/wiki/OpenBUGS)), but too informative
+
+* $\text{stdev} \sim \mathcal{hC}(\text{loc}=0, \; \text{scale}=5)$
+
+Note that the $x$-axis of the following plots are in units of standard deviation ($\sigma$), not variance ($\sigma^2$):
+
+```{r halfcauchy_invgamma, fig.width=8, fig.height=6}
+dinvgamma <- function(x, shape, scale){
+  return((scale^shape / gamma(shape)) * (x^(- shape - 1)) * exp(- scale / x))
+}
+pdfSigma <- function(x, shape, scale){ # see legend of fig 1 of Gelman (2006)
+  dgamma(x^(-2), shape=shape, scale=scale) * abs(- 2 * x^(-3))
+}
+plot(x=0, y=0, type="n", xlim=c(0,10), ylim=c(0,0.27),
+     xlab=expression(sigma), ylab="Density", las=1,
+     main="Priors on variance components")
+curve(pdfSigma(x, shape=0.001, scale=1/0.001), from=0, to=30, n=10^4,
+      add=TRUE, col="black")
+curve(pdfSigma(x, shape=0.01, scale=1/0.01), from=0, to=30, n=10^4,
+      add=TRUE, col="black", lty=2)
+curve(pdfSigma(x, shape=0.1, scale=1/0.1), from=0, to=30, n=10^3,
+      add=TRUE, col="black", lty=3)
+curve(expr=2*dcauchy(x, location=0, scale=5), from=0, to=15, n=10^3,
+      add=TRUE, col="red")
+curve(expr=2*dcauchy(x, location=0, scale=15), from=0, to=15, n=10^3,
+      add=TRUE, col="green")
+curve(expr=2*dcauchy(x, location=0, scale=25), from=0, to=15, n=10^3,
+      add=TRUE, col="orange")
+legend("topright", legend=c("variance ~ inv-Gamma(0.001, 1/0.001)",
+                            "variance ~ inv-Gamma(0.01, 1/0.01)",
+                            "variance ~ inv-Gamma(0.1, 1/0.1)",
+                            "stdev ~ half-Cauchy(0, 5)",
+                            "stdev ~ half-Cauchy(0, 15)",
+                            "stdev ~ half-Cauchy(0, 25)"),
+       col=c(rep("black",3),"red","green","orange"), lty=c(1,2,3,1,1,1), bty="n")
+```
+
+And here is a focus on the half-Cauchy (note the different ranges of $x$ and $y$ axes compare to the previous plot):
+
+```{r focus_halfcauchy, fig.width=8, fig.height=6}
+plot(x=0, y=0, type="n", xlim=c(0,200), ylim=c(0,0.05),
+     xlab=expression(sigma), ylab="Density", las=1,
+     main="Focus on the half-Cauchy")
+abline(h=0, lty=2); abline(v=0, lty=2)
+curve(expr=2*dcauchy(x, location=0, scale=5), from=0, to=200, n=10^3,
+      add=TRUE, col="red")
+curve(expr=2*dcauchy(x, location=0, scale=15), from=0, to=200, n=10^3,
+      add=TRUE, col="green")
+curve(expr=2*dcauchy(x, location=0, scale=25), from=0, to=200, n=10^3,
+      add=TRUE, col="orange")
+legend("topright", legend=c("stdev ~ half-Cauchy(0, 5)",
+                            "stdev ~ half-Cauchy(0, 15)",
+                            "stdev ~ half-Cauchy(0, 25)"),
+       col=c("red","green","orange"), lty=1, bty="n")
+```
+
+
+# Appendix
+
+```{r info}
+print(sessionInfo(), locale=FALSE)
+```

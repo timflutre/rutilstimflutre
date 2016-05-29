@@ -23,7 +23,9 @@ render("intro-bayes_univ-normal_unknown-mean-precision.Rmd", "html_document")
 
 # Preamble
 
-References are:
+License: [CC BY-SA 4.0](http://creativecommons.org/licenses/by-sa/4.0/)
+
+References:
 
 * ["Optimal statistical decisions", DeGroot (1970)](http://dx.doi.org/10.1002/0471729000), theorem 1 in section 9.6 on page 169
 
