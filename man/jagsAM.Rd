@@ -43,10 +43,7 @@ Given I genotypes, Q covariates and N=I*Q phenotypes for the trait, fit an "anim
 \examples{
 \dontrun{## simulate genotypes
 set.seed(1859)
-I <- 100 # genotypes
-P <- 2000 # SNPs
-X <- matrix(sample(0:2, size=I*P, replace=TRUE), nrow=I, ncol=P,
-            dimnames=list(paste0("geno", 1:I), paste0("snp", 1:P)))
+X <- simulGenosDose(nb.genos=100, nb.snps=2000)
 
 ## simulate phenotypes with only additive part of genotypic values
 A <- estimGenRel(X, relationships="additive", method="vanraden1", verbose=0)

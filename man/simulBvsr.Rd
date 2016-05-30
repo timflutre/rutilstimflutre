@@ -17,7 +17,7 @@ simulBvsr(Q = 3, mu = 50, mean.c = 5, sd.c = 2, X, pi = 1,
 
 \item{sd.c}{std dev of the prior on c[2:Q]}
 
-\item{X}{matrix of SNP genotypes encoded in number of copies of the 2nd allele, i.e. as allele doses in {0,1,2}, with individuals in rows and SNPs in columns (SNPs with missing values or low MAF should be discarded beforehand); will be used in the simulations as X_A which is the column-centered version of X encoded in {-1,0,1}}
+\item{X}{matrix of SNP genotypes encoded in number of copies of the 2nd allele, i.e. as allele doses in {0,1,2}, with individuals in rows and SNPs in columns (SNPs with missing values or low MAF should be discarded beforehand); will be used in the simulations as X_A which is the column-centered version of X when encoded in {-1,0,1}}
 
 \item{pi}{proportion of marker effects (a) that are non-zero; setting pi at 1 means simulating from the additive infinitesimal model (equivalent to ridge regression)}
 
@@ -36,6 +36,28 @@ list
 }
 \description{
 Simulate phenotypes according to the following model: Y = W c + Z X_A a + epsilon where Y is N x 1; W is N x Q; c is Q x 1; Z is N x I; X_A is I x P and epsilon is N x 1 with epsilon ~ Normal_N(0, sigma^2 Id) and c ~ Normal(mean_a, sd_a) so that sd_a is large ("fixed effect"). For SNP p, a_p ~ Prob(gamma_p=1) Normal_1(0, sigma_a^2) + Prob(gamma_p=0) delta_0, where Prog(gamma_p=1) is named pi, and delta_0 is Dirac's delta function at 0. For the case where pi is small, see Guan & Stephens (2011), Carbonetto & Stephens (2012), Peltola et al (2012).
+}
+\examples{
+## simulate genotypes
+set.seed(1859)
+I <- 100
+X <- simulGenosDose(nb.genos=I, nb.snps=2000)
+
+# additive sparse genetic architecture
+Q <- 3
+model <- simulBvsr(Q=Q, X=X, pi=0.1, pve.A=0.7, sigma.a2=10^(-3))
+
+\dontrun{if(all(require(lme4), require(varbvs))){
+  dat <- data.frame(response=model$Y[,1],
+                    year=factor(rep(2010:(2010+Q-1), each=I)),
+                    geno=factor(rep(rownames(X), Q)))
+  fit1 <- lmer(formula=response ~ year + (1|geno), data=dat)
+  blues <- fixef(fit1)
+  blups <- ranef(fit1, drop=TRUE)$geno[rownames(X)]
+  cor(model$g.A, blups)
+  fit2 <- varbvs(X=model$X.A, Z=NULL, y=blups, verbose=FALSE)
+  summary(fit2)
+}}
 }
 \author{
 Timothee Flutre

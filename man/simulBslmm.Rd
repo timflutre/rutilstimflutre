@@ -43,10 +43,7 @@ Simulate phenotypes according to the Bayesian sparse linear mixed model (Zhou, C
 }
 \examples{
 set.seed(1859)
-I <- 100 # genotypes
-P <- 2000 # SNPs
-X <- matrix(sample(0:2, size=I*P, replace=TRUE), nrow=I, ncol=P,
-            dimnames=list(paste0("geno", 1:I), paste0("snp", 1:P)))
+X <- simulGenosDose(nb.genos=100, nb.snps=2000)
 afs <- estimAf(X)
 
 ## particular case: LMM (only u contributes)

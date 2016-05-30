@@ -55,11 +55,11 @@ list
 Given T traits, I genotypes, Q covariates and N=I*Q phenotypes per trait, simulate phenotypes via the following "animal model": \eqn{Y = W C + Z G_A + Z G_D + E}, where Y is N x T; W is N x Q; Z is N x I; G_A ~ Normal_IxT(0, A, V_{G_A}) with A being IxI and V_{G_A} being TxT; G_D ~ Normal_IxT(0, D, V_{G_D}) with D being IxI and V_{G_D} being TxT; E ~ Normal_NxT(0, Id_N, V_E) with Id_N being NxN and V_E being TxT. Note that using the matrix Normal (MN) is equivalent to using the multivariate Normal (MVN) via the vec operator and Kronecker product: \eqn{Y ~ MN(M, U, V) <=> vec(Y) ~ MVN(vec(M), V \otimes U)}.
 }
 \examples{
+## simulate genotypes
 set.seed(1859)
-I <- 100 # genotypes
-P <- 2000 # SNPs
-X <- matrix(sample(0:2, size=I*P, replace=TRUE), nrow=I, ncol=P,
-            dimnames=list(paste0("geno", 1:I), paste0("snp", 1:P)))
+X <- simulGenosDose(nb.genos=100, nb.snps=2000)
+
+## estimate the additive genetic relationships
 A <- estimGenRel(X, relationships="additive", method="vanraden1", verbose=0)
 A <- as.matrix(Matrix::nearPD(A)$mat) # not always necessary
 

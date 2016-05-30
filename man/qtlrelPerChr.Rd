@@ -47,8 +47,7 @@ if(require(QTLRel)){
                     year=as.factor(rep(paste0(2003:(2003+Q-1)), each=I)))
   W <- stats::model.matrix(~ year, dat)
   alpha <- rnorm(n=Q, mean=50, sd=30)
-  X <- matrix(sample(0:2, size=I*P, replace=TRUE), nrow=I, ncol=P,
-              dimnames=list(dat$ind[1:I], paste0("snp", 1:P)))
+  X <- simulGenosDose(nb.genos=I, nb.snps=P)
   beta <- rnorm(n=P, mean=0, sd=2)
   Z <- stats::model.matrix(~ ind - 1, dat)
   dat$response <- as.vector(W \%*\% alpha + Z \%*\% X \%*\% beta + rnorm(N))

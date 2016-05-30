@@ -439,6 +439,42 @@ segSites2snpCoords <- function(seg.sites, snp.ids, chrom.len, prefix="chr"){
   return(snp.coords)
 }
 
+##' Genotypes
+##'
+##' Simulate SNP genotypes as allele dose additively encoded, i.e. 0,1,2.
+##' @param nb.genos number of genotypes (i.e. individuals)
+##' @param nb.snps number of SNPs
+##' @param geno.ids vector of genotype identifiers (if NULL, will be "geno001", etc)
+##' @param snp.ids vector of SNP identifiers (if NULL, will be "snp001", etc)
+##' @param mafs vector of minor allele frequencies; by default, they are uniformly distributed between 0.05 and 0.5
+##' @return matrix with individuals in rows and SNPs in columns
+##' @author Peter Carbonetto [aut], Timothee Flutre [ctb]
+##' @export
+simulGenosDose <- function(nb.genos, nb.snps, geno.ids=NULL, snp.ids=NULL, mafs=NULL){
+  if(! is.null(geno.ids))
+    stopifnot(length(geno.ids) == nb.genos)
+  if(! is.null(snp.ids))
+    stopifnot(length(snp.ids) == nb.snps)
+  if(! is.null(mafs))
+    stopifnot(length(mafs) == nb.snps)
+
+  if(is.null(geno.ids))
+    geno.ids <- sprintf(fmt=paste0("geno%0", floor(log10(nb.genos))+1, "i"),
+                        1:nb.genos)
+
+  snp.ids <- sprintf(fmt=paste0("snp%0", floor(log10(nb.snps))+1, "i"),
+                     1:nb.snps)
+  if(is.null(mafs))
+    mafs <- stats::setNames(0.05 + 0.45 * stats::runif(nb.snps), snp.ids)
+
+  X <- matrix(data=(stats::runif(nb.genos * nb.snps) < mafs) +
+                (stats::runif(nb.genos * nb.snps) < mafs),
+              nrow=nb.genos, ncol=nb.snps, byrow=TRUE,
+              dimnames=list(geno.ids, snp.ids))
+
+  return(X)
+}
+
 ##' Coalescent with recombination
 ##'
 ##' Simulate haplotypes according to an approximation to the coalescent with recombination named the Sequential Coalescent with Recombination Model. Requires the scrm package (Staab et al, 2014).
@@ -1554,11 +1590,11 @@ thinSnps <- function(method, threshold, snp.coords, only.chr=NULL){
 ##' @return list
 ##' @author Timothee Flutre
 ##' @examples
+##' ## simulate genotypes
 ##' set.seed(1859)
-##' I <- 100 # genotypes
-##' P <- 2000 # SNPs
-##' X <- matrix(sample(0:2, size=I*P, replace=TRUE), nrow=I, ncol=P,
-##'             dimnames=list(paste0("geno", 1:I), paste0("snp", 1:P)))
+##' X <- simulGenosDose(nb.genos=100, nb.snps=2000)
+##'
+##' ## estimate the additive genetic relationships
 ##' A <- estimGenRel(X, relationships="additive", method="vanraden1", verbose=0)
 ##' A <- as.matrix(Matrix::nearPD(A)$mat) # not always necessary
 ##'
@@ -1739,14 +1775,18 @@ simulAnimalModel <- function(T=1,
 ##' @return vector of length QI containing the BLUEs of c and the BLUPs of g_A
 ##' @author Timothee Flutre
 ##' @examples
+##' ## simulate genotypes
 ##' set.seed(1859)
-##' I <- 100 # genotypes
-##' P <- 2000 # SNPs
-##' X <- matrix(sample(0:2, size=I*P, replace=TRUE), nrow=I, ncol=P,
-##'             dimnames=list(paste0("geno", 1:I), paste0("snp", 1:P)))
+##' X <- simulGenosDose(nb.genos=100, nb.snps=2000)
+##'
+##' ## estimate the additive genetic relationships
 ##' A <- estimGenRel(X, relationships="additive", method="vanraden1", verbose=0)
 ##' A <- as.matrix(Matrix::nearPD(A)$mat) # not always necessary
+##'
+##' ## simulate phenotypes
 ##' model <- simulAnimalModel(T=1, Q=3, A=A, V.G.A=15, V.E=5)
+##'
+##' ## calculate BLUEs and BLUPs
 ##' fit <- mme(y=model$Y[,1,drop=FALSE], W=model$W, Z=model$Z,
 ##'            sigma.A2=model$V.G.A, Ainv=solve(A), V.E=model$V.E)
 ##' cbind(model$C, fit[1:3])
@@ -1796,10 +1836,7 @@ mme <- function(y, W, Z, sigma.A2, Ainv, V.E){
 ##' @examples
 ##' ## simulate genotypes
 ##' set.seed(1859)
-##' I <- 100 # genotypes
-##' P <- 2000 # SNPs
-##' X <- matrix(sample(0:2, size=I*P, replace=TRUE), nrow=I, ncol=P,
-##'             dimnames=list(paste0("geno", 1:I), paste0("snp", 1:P)))
+##' X <- simulGenosDose(nb.genos=100, nb.snps=2000)
 ##'
 ##' ## simulate phenotypes with only additive part of genotypic values
 ##' A <- estimGenRel(X, relationships="additive", method="vanraden1", verbose=0)
@@ -1917,37 +1954,35 @@ lmerAM <- function(formula, dat, relmat, REML=TRUE, ci.meth=NULL, verbose=1){
 ##' @author Timothee Flutre
 ##' @seealso \code{\link{lmerAM}}, \code{\link{jagsAM}}
 ##' @examples
-##' \dontrun{## simulate genotypes
-##' set.seed(1859)
-##' I <- 100 # genotypes
-##' P <- 2000 # SNPs
-##' X <- matrix(sample(0:2, size=I*P, replace=TRUE), nrow=I, ncol=P,
-##'             dimnames=list(paste0("geno", 1:I), paste0("snp", 1:P)))
+##' if(require(INLA)){
+##'   ## simulate genotypes
+##'   set.seed(1859)
+##'   X <- simulGenosDose(nb.genos=100, nb.snps=2000)
 ##'
-##' ## simulate phenotypes with only additive part of genotypic values
-##' A <- estimGenRel(X, relationships="additive", method="vanraden1", verbose=0)
-##' A <- as.matrix(Matrix::nearPD(A)$mat) # not always necessary
-##' modelA <- simulAnimalModel(T=1, Q=3, A=A, V.G.A=15, V.E=5)
+##'   ## simulate phenotypes with only additive part of genotypic values
+##'   A <- estimGenRel(X, relationships="additive", method="vanraden1", verbose=0)
+##'   A <- as.matrix(Matrix::nearPD(A)$mat) # not always necessary
+##'   modelA <- simulAnimalModel(T=1, Q=3, A=A, V.G.A=15, V.E=5)
 ##'
-##' ## infer with INLA
-##' library(INLA)
-##' modelA$dat$geno.add <- modelA$dat$geno; modelA$dat$geno <- NULL
-##' fitA <- inlaAM(dat=modelA$dat, relmat=list(geno.add=A))
-##' summary(fitA)
-##' c(modelA$C); 1/modelA$V.G.A; 1/modelA$V.E
+##'   ## infer with INLA
+##'   library(INLA)
+##'   modelA$dat$geno.add <- modelA$dat$geno; modelA$dat$geno <- NULL
+##'   fitA <- inlaAM(dat=modelA$dat, relmat=list(geno.add=A))
+##'   summary(fitA)
+##'   c(modelA$C); 1/modelA$V.G.A; 1/modelA$V.E
 ##'
-##' ## simulate phenotypes with additive and dominant parts of genotypic values
-##' D <- estimGenRel(X, relationships="dominant", method="vitezica", verbose=0)
-##' D <- as.matrix(Matrix::nearPD(D)$mat) # not always necessary
-##' modelAD <- simulAnimalModel(T=1, Q=3, A=A, V.G.A=15, V.E=5,
-##'                             D=D, V.G.D=3)
+##'   ## simulate phenotypes with additive and dominant parts of genotypic values
+##'   D <- estimGenRel(X, relationships="dominant", method="vitezica", verbose=0)
+##'   D <- as.matrix(Matrix::nearPD(D)$mat) # not always necessary
+##'   modelAD <- simulAnimalModel(T=1, Q=3, A=A, V.G.A=15, V.E=5,
+##'                               D=D, V.G.D=3)
 ##'
-##' ## infer with INLA
-##' modelAD$dat$geno.add <- modelAD$dat$geno
-##' modelAD$dat$geno.dom <- modelAD$dat$geno; modelAD$dat$geno <- NULL
-##' fitAD <- inlaAM(dat=modelAD$dat, relmat=list(geno.add=A, geno.dom=D))
-##' summary(fitAD)
-##' c(modelAD$C); 1/modelAD$V.G.A; 1/modelAD$V.E; 1/modelAD$V.G.D
+##'   ## infer with INLA
+##'   modelAD$dat$geno.add <- modelAD$dat$geno
+##'   modelAD$dat$geno.dom <- modelAD$dat$geno; modelAD$dat$geno <- NULL
+##'   fitAD <- inlaAM(dat=modelAD$dat, relmat=list(geno.add=A, geno.dom=D))
+##'   summary(fitAD)
+##'   c(modelAD$C); 1/modelAD$V.G.A; 1/modelAD$V.E; 1/modelAD$V.G.D
 ##' }
 ##' @export
 inlaAM <- function(dat, relmat, family="gaussian",
@@ -2017,10 +2052,7 @@ inlaAM <- function(dat, relmat, family="gaussian",
 ##' @examples
 ##' \dontrun{## simulate genotypes
 ##' set.seed(1859)
-##' I <- 100 # genotypes
-##' P <- 2000 # SNPs
-##' X <- matrix(sample(0:2, size=I*P, replace=TRUE), nrow=I, ncol=P,
-##'             dimnames=list(paste0("geno", 1:I), paste0("snp", 1:P)))
+##' X <- simulGenosDose(nb.genos=100, nb.snps=2000)
 ##'
 ##' ## simulate phenotypes with only additive part of genotypic values
 ##' A <- estimGenRel(X, relationships="additive", method="vanraden1", verbose=0)
@@ -2176,7 +2208,7 @@ model {
 ##' @param mu overall mean
 ##' @param mean.c mean of the prior on c[2:Q]
 ##' @param sd.c std dev of the prior on c[2:Q]
-##' @param X matrix of SNP genotypes encoded in number of copies of the 2nd allele, i.e. as allele doses in {0,1,2}, with individuals in rows and SNPs in columns (SNPs with missing values or low MAF should be discarded beforehand); will be used in the simulations as X_A which is the column-centered version of X encoded in {-1,0,1}
+##' @param X matrix of SNP genotypes encoded in number of copies of the 2nd allele, i.e. as allele doses in {0,1,2}, with individuals in rows and SNPs in columns (SNPs with missing values or low MAF should be discarded beforehand); will be used in the simulations as X_A which is the column-centered version of X when encoded in {-1,0,1}
 ##' @param pi proportion of marker effects (a) that are non-zero; setting pi at 1 means simulating from the additive infinitesimal model (equivalent to ridge regression)
 ##' @param pve.A proportion of phenotypic variance explained by SNPs with non-zero effect ("heritability"); PVE_A = V[X_A a] / V[y]; used along with option sigma.a2 to choose a value for sigma^2
 ##' @param sigma.a2 prior variance of the non-zero additive effects
@@ -2185,6 +2217,27 @@ model {
 ##' @param seed seed for the pseudo-random number generator
 ##' @return list
 ##' @author Timothee Flutre
+##' @examples
+##' ## simulate genotypes
+##' set.seed(1859)
+##' I <- 100
+##' X <- simulGenosDose(nb.genos=I, nb.snps=2000)
+##'
+##' # additive sparse genetic architecture
+##' Q <- 3
+##' model <- simulBvsr(Q=Q, X=X, pi=0.1, pve.A=0.7, sigma.a2=10^(-3))
+##'
+##' \dontrun{if(all(require(lme4), require(varbvs))){
+##'   dat <- data.frame(response=model$Y[,1],
+##'                     year=factor(rep(2010:(2010+Q-1), each=I)),
+##'                     geno=factor(rep(rownames(X), Q)))
+##'   fit1 <- lmer(formula=response ~ year + (1|geno), data=dat)
+##'   blues <- fixef(fit1)
+##'   blups <- ranef(fit1, drop=TRUE)$geno[rownames(X)]
+##'   cor(model$g.A, blups)
+##'   fit2 <- varbvs(X=model$X.A, Z=NULL, y=blups, verbose=FALSE)
+##'   summary(fit2)
+##' }}
 ##' @export
 simulBvsr <- function(Q=3, mu=50, mean.c=5, sd.c=2,
                       X, pi=1, pve.A=0.7, sigma.a2=10^(-3),
@@ -2242,10 +2295,12 @@ simulBvsr <- function(Q=3, mu=50, mean.c=5, sd.c=2,
   X.A <- scale(x=X - 1, center=TRUE, scale=FALSE)
 
   ## incidence vector of the causal genetic predictors
-  gamma <- stats::setNames(object=stats::rbinom(n=P, size=1, prob=pi), nm=colnames(X))
+  gamma <- stats::setNames(object=stats::rbinom(n=P, size=1, prob=pi),
+                           nm=colnames(X))
 
   ## "random effects"
-  a <- stats::setNames(object=stats::rnorm(n=P, mean=0, sd=sqrt(sigma.a2)), nm=colnames(X))
+  a <- stats::setNames(object=stats::rnorm(n=P, mean=0, sd=sqrt(sigma.a2)),
+                       nm=colnames(X))
   a[gamma == 0] <- 0
   g.A <- X.A %*% a
 
@@ -2290,10 +2345,7 @@ simulBvsr <- function(Q=3, mu=50, mean.c=5, sd.c=2,
 ##' @author Timothee Flutre
 ##' @examples
 ##' set.seed(1859)
-##' I <- 100 # genotypes
-##' P <- 2000 # SNPs
-##' X <- matrix(sample(0:2, size=I*P, replace=TRUE), nrow=I, ncol=P,
-##'             dimnames=list(paste0("geno", 1:I), paste0("snp", 1:P)))
+##' X <- simulGenosDose(nb.genos=100, nb.snps=2000)
 ##' afs <- estimAf(X)
 ##'
 ##' ## particular case: LMM (only u contributes)
@@ -2699,8 +2751,7 @@ gemmaUlmmPerChr <- function(y, X, snp.coords, alleles=NULL, chr.ids=NULL, W,
 ##'                     year=as.factor(rep(paste0(2003:(2003+Q-1)), each=I)))
 ##'   W <- stats::model.matrix(~ year, dat)
 ##'   alpha <- rnorm(n=Q, mean=50, sd=30)
-##'   X <- matrix(sample(0:2, size=I*P, replace=TRUE), nrow=I, ncol=P,
-##'               dimnames=list(dat$ind[1:I], paste0("snp", 1:P)))
+##'   X <- simulGenosDose(nb.genos=I, nb.snps=P)
 ##'   beta <- rnorm(n=P, mean=0, sd=2)
 ##'   Z <- stats::model.matrix(~ ind - 1, dat)
 ##'   dat$response <- as.vector(W %*% alpha + Z %*% X %*% beta + rnorm(N))

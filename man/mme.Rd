@@ -26,14 +26,18 @@ vector of length QI containing the BLUEs of c and the BLUPs of g_A
 Given T=1 trait, I genotypes, Q covariates and N=I*Q phenotypes per trait, compute the BLUEs and BLUPs of the following "animal model" via Henderson's mixed model equations: y = W c + Z g_A + e, where y is N x 1; W is N x Q; Z is N x I; g_A ~ Normal_Ix1(0, sigma_A^2 A); e ~ Normal_Nx1(0, V.E Id_N).
 }
 \examples{
+## simulate genotypes
 set.seed(1859)
-I <- 100 # genotypes
-P <- 2000 # SNPs
-X <- matrix(sample(0:2, size=I*P, replace=TRUE), nrow=I, ncol=P,
-            dimnames=list(paste0("geno", 1:I), paste0("snp", 1:P)))
+X <- simulGenosDose(nb.genos=100, nb.snps=2000)
+
+## estimate the additive genetic relationships
 A <- estimGenRel(X, relationships="additive", method="vanraden1", verbose=0)
 A <- as.matrix(Matrix::nearPD(A)$mat) # not always necessary
+
+## simulate phenotypes
 model <- simulAnimalModel(T=1, Q=3, A=A, V.G.A=15, V.E=5)
+
+## calculate BLUEs and BLUPs
 fit <- mme(y=model$Y[,1,drop=FALSE], W=model$W, Z=model$Z,
            sigma.A2=model$V.G.A, Ainv=solve(A), V.E=model$V.E)
 cbind(model$C, fit[1:3])
