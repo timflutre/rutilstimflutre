@@ -5,8 +5,7 @@
 \title{BVSR}
 \usage{
 simulBvsr(Q = 3, mu = 50, mean.c = 5, sd.c = 2, X, pi = 1,
-  pve.A = 0.7, sigma.a2 = 10^(-3), perc.NA = 0, err.df = Inf,
-  seed = NULL)
+  pve.A = 0.7, sigma.a2 = 1, perc.NA = 0, err.df = Inf, seed = NULL)
 }
 \arguments{
 \item{Q}{number of fixed effects, i.e. the intercept plus the number of years during which individuals are phenotyped (starting in 2010)}
@@ -35,28 +34,44 @@ simulBvsr(Q = 3, mu = 50, mean.c = 5, sd.c = 2, X, pi = 1,
 list
 }
 \description{
-Simulate phenotypes according to the following model: Y = W c + Z X_A a + epsilon where Y is N x 1; W is N x Q; c is Q x 1; Z is N x I; X_A is I x P and epsilon is N x 1 with epsilon ~ Normal_N(0, sigma^2 Id) and c ~ Normal(mean_a, sd_a) so that sd_a is large ("fixed effect"). For SNP p, a_p ~ Prob(gamma_p=1) Normal_1(0, sigma_a^2) + Prob(gamma_p=0) delta_0, where Prog(gamma_p=1) is named pi, and delta_0 is Dirac's delta function at 0. For the case where pi is small, see Guan & Stephens (2011), Carbonetto & Stephens (2012), Peltola et al (2012).
+Simulate phenotypes according to the following model: Y = W c + Z X_A a + epsilon where Y is N x 1; W is N x Q; c is Q x 1; Z is N x I; X_A is I x P and epsilon is N x 1 with epsilon ~ Normal_N(0, sigma^2 Id) and c ~ Normal(mean_a, sd_a) so that sd_a is large ("fixed effect"). For SNP p, a_p ~ Prob(gamma_p=1) Normal_1(0, sigma_a^2) + Prob(gamma_p=0) delta_0, where Prog(gamma_p=1) is named pi, and delta_0 is Dirac's delta function at 0. For the case where pi is small, see Guan & Stephens (2011), Carbonetto & Stephens (2012), Peltola et al (2012), Verzelen (2012).
 }
 \examples{
 ## simulate genotypes
 set.seed(1859)
-I <- 100
-X <- simulGenosDose(nb.genos=I, nb.snps=2000)
+I <- 200
+P <- 2000
+X <- simulGenosDose(nb.genos=I, nb.snps=P)
 
-# additive sparse genetic architecture
+## additive sparse genetic architecture
+## choose pi so that sum(gamma * (1 + log(P / sum(gamma)))) < I
 Q <- 3
-model <- simulBvsr(Q=Q, X=X, pi=0.1, pve.A=0.7, sigma.a2=10^(-3))
+model <- simulBvsr(Q=Q, X=X, pi=0.01, pve.A=0.7, sigma.a2=1)
 
 \dontrun{if(all(require(lme4), require(varbvs))){
   dat <- data.frame(response=model$Y[,1],
                     year=factor(rep(2010:(2010+Q-1), each=I)),
                     geno=factor(rep(rownames(X), Q)))
   fit1 <- lmer(formula=response ~ year + (1|geno), data=dat)
-  blues <- fixef(fit1)
+  cbind(model$c, blues <- fixef(fit1))
   blups <- ranef(fit1, drop=TRUE)$geno[rownames(X)]
   cor(model$g.A, blups)
+
   fit2 <- varbvs(X=model$X.A, Z=NULL, y=blups, verbose=FALSE)
-  summary(fit2)
+  print(fit2s <- summary(fit2))
+
+  (pi.hat <- 10^(fit2s$logodds$x0) / (1 + 10^(fit2s$logodds$x0)))
+  (pi.hat.low <- 10^(fit2s$logodds$a) / (1 + 10^(fit2s$logodds$a)))
+  (pi.hat.high <- 10^(fit2s$logodds$b) / (1 + 10^(fit2s$logodds$b)))
+
+  w <- c(normalizelogweights(fit2$logw))
+  pips <- c(fit2$alpha \%*\% w)
+  cols <- rep("black", P)
+  cols[model$gamma != 0] <- "red"
+  plot(x=1:P, y=pips, col=cols)
+
+  y.pred <- predict(fit2, X=model$X.A, Z=NULL)
+  cor(blups, y.pred)
 }}
 }
 \author{

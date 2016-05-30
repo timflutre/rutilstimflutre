@@ -31,7 +31,7 @@ If A is not positive definite, an error will be raised (via \code{\link[base]{ch
 \examples{
 ## simulate genotypes
 set.seed(1859)
-X <- simulGenosDose(nb.genos=100, nb.snps=2000)
+X <- simulGenosDose(nb.genos=200, nb.snps=2000)
 
 ## simulate phenotypes with only additive part of genotypic values
 A <- estimGenRel(X, relationships="additive", method="vanraden1", verbose=0)

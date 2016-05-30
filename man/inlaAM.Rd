@@ -30,7 +30,7 @@ Given I genotypes, Q covariates and N=I*Q phenotypes for the trait, fit an "anim
 if(require(INLA)){
   ## simulate genotypes
   set.seed(1859)
-  X <- simulGenosDose(nb.genos=100, nb.snps=2000)
+  X <- simulGenosDose(nb.genos=200, nb.snps=2000)
 
   ## simulate phenotypes with only additive part of genotypic values
   A <- estimGenRel(X, relationships="additive", method="vanraden1", verbose=0)

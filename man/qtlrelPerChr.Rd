@@ -39,7 +39,7 @@ As the SNPs can be in linkage disequilibrium, it is advised (Yang et al, Nature 
 \examples{
 if(require(QTLRel)){
   set.seed(1859)
-  I <- 100
+  I <- 200
   P <- 2000
   Q <- 3
   N <- Q * I

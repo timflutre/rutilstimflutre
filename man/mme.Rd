@@ -28,7 +28,7 @@ Given T=1 trait, I genotypes, Q covariates and N=I*Q phenotypes per trait, compu
 \examples{
 ## simulate genotypes
 set.seed(1859)
-X <- simulGenosDose(nb.genos=100, nb.snps=2000)
+X <- simulGenosDose(nb.genos=200, nb.snps=2000)
 
 ## estimate the additive genetic relationships
 A <- estimGenRel(X, relationships="additive", method="vanraden1", verbose=0)
