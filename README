@@ -26,15 +26,18 @@ See also citation() for citing R itself.
 
 For users, the easiest is to directly install the package from GitHub:
 R> library(devtools); install_github("timflutre/rutilstimflutre")
+
 In the case where the package is officially released as a "bundled package"
 (e.g. as on CRAN), you can install it directly from inside R via:
 R> install.packages("path/to/rutilstimflutre_<version>.tar.gz")
+
 For advanced users, when retrieving the bundled package (that is, as a tar.gz),
 you can install it from the command-line via:
 $ R CMD INSTALL rutilstimflutre_<version>.tar.gz
 
 Once the package is installed, start using it:
 R> library(rutilstimflutre)
+R> help(package=rutilstimflutre)
 
 For developpers, when editing the content of this repo, increment the version
 of the package in DESCRIPTION and execute the following commands:
