@@ -2,8 +2,7 @@
 
 ##' Convert genotypes
 ##'
-##' Convert SNP genotype data from alleles (say, "AA" and "AT") to minor allele doses (here, 0 and 1 if "T" is the minor allele).
-##' Not particularly efficient, but at least it exists.
+##' Convert SNP genotype data from alleles (say, "AA" and "AT") to minor allele doses (here, 0 and 1 if "T" is the minor allele). Not particularly efficient, but at least it exists.
 ##' @param x data.frame with SNPs in rows and individuals in columns, the SNP identifiers being in the first column
 ##' @param na.string a character to be interpreted as NA values
 ##' @param verbose verbosity level (0/1)
@@ -77,6 +76,49 @@ alleles2dose <- function(x, na.string="--", verbose=1){
              ! is.null(rownames(X)),
              TRUE),
       ifelse(check.na, sum(is.na(X)) == 0, TRUE))
+}
+
+##' Convert genotypes
+##'
+##' Convert SNP genotypes from minor allele doses (say, 0 and 1) into alleles (say, "AA" and "AT" with "T" being the minor allele). Not particularly efficient, but at least it exists.
+##' @param X matrix of SNP genotypes encoded in number of copies of the 2nd allele, i.e. as allele doses in {0,1,2}, with individuals in rows and SNPs in columns
+##' @param tX matrix with SNPs in rows and individuals in columns
+##' @param alleles data.frame with SNPs in rows (names as row names) and alleles in columns (first is "minor", second is "major")
+##' @param na.string a character used to replace NA values (for instance "??")
+##' @return data.frame with SNPs in rows and individuals in columns
+##' @author Timothee Flutre
+##' @export
+dose2alleles <- function(X=NULL, tX=NULL, alleles, na.string){
+  stopifnot(xor(is.null(X), is.null(tX)),
+            is.data.frame(alleles),
+            ncol(alleles) == 2,
+            colnames(alleles) == c("minor", "major"),
+            ! is.null(row.names(alleles)))
+  if(! is.null(X)){
+    stopifnot(.isValidGenosDose(X, check.na=FALSE))
+    tX <- t(X)
+  }
+
+  out <- as.data.frame(tX, row.names=rownames(tX), col.names=colnames(tX))
+  for(i in 1:nrow(tX)){ # for each SNP
+    idx <- which(tX[i,] == 0)
+    if(length(idx) > 0)
+      out[i, idx] <- paste0(alleles[i, "major"], alleles[i, "major"],
+                            collapse="")
+    idx <- which(tX[i,] == 1)
+    if(length(idx) > 0)
+      out[i, idx] <- paste0(alleles[i, "major"], alleles[i, "minor"],
+                            collapse="")
+    idx <- which(tX[i,] == 2)
+    if(length(idx) > 0)
+      out[i, idx] <- paste0(alleles[i, "minor"], alleles[i, "minor"],
+                            collapse="")
+    idx <- which(is.na(tX[i,]))
+    if(length(idx) > 0)
+      out[i, idx] <- na.string
+  }
+
+  return(out)
 }
 
 ##' Missing genotypes
@@ -246,29 +288,53 @@ discardSnpsLowMaf <- function(X, mafs=NULL, thresh=0.01, verbose=1){
   return(X)
 }
 
-##' Convert genotype data to the "mean genotype" file format from BimBam
+##' Convert genotypes
 ##'
-##' The format is specified in BimBam's manual http://www.haplotype.org/download/bimbam-manual.pdf#page=6
+##' Convert SNP genotypes to the file formats used by BimBam, as specified in its \href{http://www.haplotype.org/download/bimbam-manual.pdf}{manual}.
 ##' @param X matrix of SNP genotypes encoded in number of copies of the 2nd allele, i.e. as allele doses in {0,1,2}, with individuals in rows and SNPs in columns
 ##' @param tX matrix with SNPs in rows and individuals in columns
 ##' @param alleles data.frame with SNPs in rows (names as row names) and alleles in columns (first is "minor", second is "major")
-##' @param file write the genotype data to this file if non NULL (for instance 'genotypes_bimbam.txt' or gzfile('genotypes_bimbam.txt.gz'))
-##' @return data.frame
+##' @param file write the genotype data to this file if non NULL (for instance 'genotypes_bimbam.txt' or 'genotypes_bimbam.txt.gz', but don't use \code{\link[base]{gzfile}})
+##' @param format BimBam's format in which the data should be saved (mean/basic)
+##' @return invisible data.frame
 ##' @author Timothee Flutre
 ##' @export
-dose2bimbam <- function(X=NULL, tX=NULL, alleles, file=NULL){
-    stopifnot(xor(is.null(X), is.null(tX)),
-              ! is.null(row.names(alleles)),
-              colnames(alleles) == c("minor","major"))
-    if(! is.null(X)){
-      stopifnot(.isValidGenosDose(X, check.coln=FALSE, check.rown=FALSE))
-      tX <- t(X)
-    }
-    tmp <- cbind(alleles, tX)
+dose2bimbam <- function(X=NULL, tX=NULL, alleles, file=NULL, format="mean"){
+  stopifnot(xor(is.null(X), is.null(tX)),
+            is.data.frame(alleles),
+            ncol(alleles) == 2,
+            colnames(alleles) == c("minor", "major"),
+            ! is.null(row.names(alleles)),
+            format %in% c("mean", "basic"))
+  if(! is.null(X)){
+    stopifnot(.isValidGenosDose(X, check.coln=FALSE, check.rown=FALSE))
+    tX <- t(X)
+  }
+
+  if(format == "mean"){
+    out <- cbind(alleles, tX)
     if(! is.null(file))
-      utils::write.table(x=tmp, file=file, quote=FALSE, sep="\t", row.names=TRUE,
-                         col.names=FALSE)
-    return(tmp)
+      utils::write.table(x=out, file=file, quote=FALSE, sep="\t",
+                         row.names=TRUE, col.names=FALSE)
+  } else if(format == "basic"){
+    out <- dose2alleles(tX=tX, alleles=alleles, na.string="??")
+    if(! is.null(file)){
+      tmp <- strsplit(file, "\\.")[[1]]
+      if(tmp[length(tmp)] == "gz")
+        file <- paste0(tmp[1:(length(tmp)-1)], collapse=".")
+      cat(paste0(ncol(tX), "\n", nrow(tX), "\n"), file=file, sep="")
+      sep <- ", "
+      cat(paste0("IND", sep, paste0(colnames(out), collapse=sep), "\n"),
+          file=file, sep="", append=TRUE)
+      tmp <- do.call(rbind, lapply(1:nrow(out), function(i){
+        paste0(rownames(out)[i], sep, paste0(out[i,], collapse=sep), "\n")
+      }))
+      cat(tmp, file=file, sep="", append=TRUE)
+      system2(command="gzip", args=file)
+    }
+  }
+
+  invisible(out)
 }
 
 ##' Genetic relatedness
@@ -492,13 +558,25 @@ simulGenosDose <- function(nb.genos, nb.snps, geno.ids=NULL, snp.ids=NULL, mafs=
 ##' @param verbose verbosity level (0/1/2)
 ##' @return list with haplotypes (list), genotypes as allele doses (matrix) and SNP coordinates (data.frame)
 ##' @author Timothee Flutre
+##' @examples
+##' \dontrun{## simulate haplotypes and genotypes in a single population
+##' nb.genos <- 200
+##' Ne <- 10^4
+##' chrom.len <- 10^5
+##' mu <- 10^(-8)
+##' c <- 10^(-8)
+##' genomes <- simulCoalescent(nb.inds=nb.genos,
+##'                            pop.mut.rate=4 * Ne * mu * chrom.len,
+##'                            pop.recomb.rate=4 * Ne * c * chrom.len,
+##'                            chrom.len=chrom.len)
+##' }
 ##' @export
 simulCoalescent <- function(nb.inds=100,
                             ind.ids=NULL,
-                            nb.reps=20,
-                            pop.mut.rate=50,
-                            pop.recomb.rate=5,
-                            chrom.len=10^3,
+                            nb.reps=10,
+                            pop.mut.rate=40,
+                            pop.recomb.rate=40,
+                            chrom.len=10^4,
                             other=NULL,
                             nb.pops=1,
                             mig.rate=5,
@@ -2504,8 +2582,7 @@ simulBslmm <- function(Q=3, mu=50, mean.a=5, sd.a=2,
 ##' @param y N-vector of phenotypes
 ##' @param X NxP matrix of SNP genotypes encoded in number of copies of the 2nd allele, i.e. as allele doses in {0,1,2}, with individuals in rows and SNPs in columns
 ##' @param snp.coords data.frame with 3 columns (snp, coord, chr)
-##' @param alleles data.frame with SNPs in rows (names as row names) and
-##' alleles in columns (first is "minor", second is "major")
+##' @param alleles data.frame with SNPs in rows (names as row names) and alleles in columns (first is "minor", second is "major")
 ##' @param maf SNPs with minor allele frequency strictly below this threshold will be discarded
 ##' @param K.c NxN kinship matrix; if NULL, will be estimated using X via \code{\link{estimGenRel}} with relationships="additive" and method="zhou"
 ##' @param W NxQ matrix of covariates with individuals in rows (names as row names), a first column of 1 and a second column of covariates values
@@ -2588,8 +2665,8 @@ gemma <- function(model="ulmm", y, X, snp.coords, alleles, maf=0.01, K.c=NULL,
   tmp.files <- c()
   tmp.files <- c(tmp.files,
                  genos=paste0(out.dir, "/genos_", task.id, ".txt.gz"))
-  X.bimbam <- dose2bimbam(X=X, alleles=alleles,
-                          file=gzfile(tmp.files["genos"]))
+  dose2bimbam(X=X, alleles=alleles,
+              file=gzfile(tmp.files["genos"]))
   tmp.files <- c(tmp.files,
                  snp.coords=paste0(out.dir, "/snp-coords_", task.id, ".txt"))
   utils::write.table(x=snp.coords,

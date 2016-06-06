@@ -1,6 +1,25 @@
 library(rutilstimflutre)
 context("Quantgen")
 
+test_that("dose2alleles", {
+  N <- 2 # individuals
+  P <- 4 # SNPs
+  X <- matrix(c(1,1, NA,0, 2,1, 1,NA), nrow=N, ncol=P,
+              dimnames=list(paste0("ind", 1:N), paste0("snp", 1:P)))
+  alleles <- data.frame(minor=c("A","A","T","G"), major=c("T","T","A","C"),
+                        stringsAsFactors=FALSE)
+  rownames(alleles) <- colnames(X)
+
+  expected <- data.frame(ind1=c("TA", "??", "TT", "CG"),
+                         ind2=c("TA", "TT", "AT", "??"),
+                         stringsAsFactors=FALSE)
+  rownames(expected) <- colnames(X)
+
+  observed <- dose2alleles(tX=t(X), alleles=alleles, na.string="??")
+
+  expect_equal(observed, expected)
+})
+
 test_that("calcFreqMissGenos", {
   N <- 2 # individuals
   P <- 4 # SNPs
@@ -574,14 +593,15 @@ test_that("estimLd_cor-r2", {
                                   cor(X[,"snp3"], X[,"snp4"])^2),
                            stringsAsFactors=TRUE)
 
-    observed <- estimLd(X=X, snp.coords=snp.coords, only.chr="chr1")
+    observed <- estimLd(X=X, snp.coords=snp.coords, only.chr="chr1",
+                        verbose=0)
 
     expect_equal(observed, expected)
 
     ## check that LDcorSV returns the same results
     colnames(expected)[3] <- "r2"
     observed <- estimLd(X=X, snp.coords=snp.coords, only.chr="chr1",
-                        use.ldcorsv=TRUE)
+                        use.ldcorsv=TRUE, verbose=0)
     expect_equal(observed, expected)
   }
 })
@@ -670,5 +690,5 @@ test_that("mme", {
 
   observed <- mme(y=y, W=X, Z=Z, sigma.A2=sigma.a.2, Ainv=Ainv, V.E=sigma.e.2)
 
-  expect_equal(print(observed, digits=1), print(expected, digits=1))
+  expect_equal(format(observed, digits=1), format(expected, digits=1))
 })

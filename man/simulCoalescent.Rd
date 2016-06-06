@@ -4,8 +4,8 @@
 \alias{simulCoalescent}
 \title{Coalescent with recombination}
 \usage{
-simulCoalescent(nb.inds = 100, ind.ids = NULL, nb.reps = 20,
-  pop.mut.rate = 50, pop.recomb.rate = 5, chrom.len = 10^3,
+simulCoalescent(nb.inds = 100, ind.ids = NULL, nb.reps = 10,
+  pop.mut.rate = 40, pop.recomb.rate = 40, chrom.len = 10^4,
   other = NULL, nb.pops = 1, mig.rate = 5, get.trees = FALSE,
   get.tmrca = FALSE, verbose = 1)
 }
@@ -39,6 +39,19 @@ list with haplotypes (list), genotypes as allele doses (matrix) and SNP coordina
 }
 \description{
 Simulate haplotypes according to an approximation to the coalescent with recombination named the Sequential Coalescent with Recombination Model. Requires the scrm package (Staab et al, 2014).
+}
+\examples{
+\dontrun{## simulate haplotypes and genotypes in a single population
+nb.genos <- 200
+Ne <- 10^4
+chrom.len <- 10^5
+mu <- 10^(-8)
+c <- 10^(-8)
+genomes <- simulCoalescent(nb.inds=nb.genos,
+                           pop.mut.rate=4 * Ne * mu * chrom.len,
+                           pop.recomb.rate=4 * Ne * c * chrom.len,
+                           chrom.len=chrom.len)
+}
 }
 \author{
 Timothee Flutre

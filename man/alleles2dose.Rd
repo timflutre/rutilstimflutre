@@ -17,8 +17,7 @@ alleles2dose(x, na.string = "--", verbose = 1)
 list of a matrix (allele doses, SNPs in columns and individuals in rows) and a vector (minor alleles)
 }
 \description{
-Convert SNP genotype data from alleles (say, "AA" and "AT") to minor allele doses (here, 0 and 1 if "T" is the minor allele).
-Not particularly efficient, but at least it exists.
+Convert SNP genotype data from alleles (say, "AA" and "AT") to minor allele doses (here, 0 and 1 if "T" is the minor allele). Not particularly efficient, but at least it exists.
 }
 \author{
 Timothee Flutre
