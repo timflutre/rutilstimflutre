@@ -319,9 +319,7 @@ dose2bimbam <- function(X=NULL, tX=NULL, alleles, file=NULL, format="mean"){
   } else if(format == "basic"){
     out <- dose2alleles(tX=tX, alleles=alleles, na.string="??")
     if(! is.null(file)){
-      tmp <- strsplit(file, "\\.")[[1]]
-      if(tmp[length(tmp)] == "gz")
-        file <- paste0(tmp[1:(length(tmp)-1)], collapse=".")
+      file <- removeFileExtension(file, "gz")
       cat(paste0(ncol(tX), "\n", nrow(tX), "\n"), file=file, sep="")
       sep <- ", "
       cat(paste0("IND", sep, paste0(colnames(out), collapse=sep), "\n"),
@@ -1641,6 +1639,196 @@ thinSnps <- function(method, threshold, snp.coords, only.chr=NULL){
   }))
 
   return(out.snp.ids)
+}
+
+##' Convert genotypes
+##'
+##'
+##' @param X matrix of SNP genotypes encoded in number of copies of the 2nd allele, i.e. as allele doses in {0,1,2}, with individuals in rows and SNPs in columns
+##' @param snp.coords data.frame with SNP identifiers as row names, and two columns, "chr" and "coord" or "pos"
+##' @param alleles data.frame with SNPs in rows (names as row names) and alleles in columns (first is "minor", second is "major")
+##' @param file write the genotype data to this file (for instance 'genotypes_fastphase.txt' or 'genotypes_fastphase.txt.gz', but don't use \code{\link[base]{gzfile}})
+##' @return nothing
+##' @author Timothee Flutre
+##' @export
+writeInputsForFastPhase <- function(X, snp.coords, alleles, file){
+  stopifnot(file.exists(Sys.which("fcgene")),
+            .isValidGenosDose(X, check.na=FALSE),
+            .isValidSnpCoords(snp.coords))
+
+  ## save SNP genotypes as "r-formatted" file for fcGENE
+  tmp.geno.file <- tempfile(pattern="genotypes_", fileext=".txt")
+  sep <- "\t"
+  txt <- paste0("SAMPLE_ID", sep, paste0(colnames(X), collapse=sep), "\n")
+  cat(txt, file=tmp.geno.file, sep="")
+  tmp <- do.call(rbind, lapply(1:nrow(X), function(i){
+    paste0(rownames(X)[i], sep, paste0(X[i,], collapse=sep), "\n")
+  }))
+  cat(tmp, file=tmp.geno.file, sep="", append=TRUE)
+
+  ## save "snpinfo"
+  tmp.snpinfo.file <- tempfile(pattern="snpinfo_", fileext=".txt")
+  snp.info <- data.frame(snpid=rownames(snp.coords),
+                         rsid=rownames(snp.coords),
+                         position=snp.coords$pos,
+                         allele1=alleles$minor,
+                         allele2=alleles$major,
+                         stringsAsFactors=FALSE)
+  utils::write.table(x=snp.info, file=tmp.snpinfo.file, quote=FALSE, sep="\t",
+                     row.names=FALSE)
+
+  ## convert with fcGENE
+  tmp.out.prefix <- tempfile(pattern="output")
+  args <- paste0("--rgeno ", tmp.geno.file,
+                 " --snpinfo ", tmp.snpinfo.file,
+                 " --oformat fastphase",
+                 " --out ", tmp.out.prefix)
+  retVal <- system2(command="fcgene", args=args, stdout=TRUE, stderr=TRUE)
+
+  ## rename (and compress if necessary)
+  use.gzip <- grepl(".gz", file)
+  if(use.gzip)
+    file <- removeFileExtension(file, "gz")
+  file.rename(from=paste0(tmp.out.prefix, ".inp"), to=file)
+  if(use.gzip)
+    system2(command="gzip", args=file)
+
+  ## clean
+  tmp <- file.remove(c(tmp.geno.file, tmp.snpinfo.file,
+                       paste0(tmp.out.prefix, "_fcgene.log"),
+                       paste0(tmp.out.prefix, "_pedinfo.txt"),
+                       paste0(tmp.out.prefix, "_snpinfo.txt")))
+}
+
+##' Imputation
+##'
+##' Extract the haplotypes from the output file of fastPHASE.
+##' @param file character
+##' @param snp.ids vector of SNP identifiers
+##' @return matrix with genotypes in rows (2 per individual) and SNPs in columns
+##' @author Timothee Flutre
+##' @export
+readGenosFastPhase <- function(file, snp.ids){
+  stopifnot(file.exists(file),
+            is.vector(snp.ids))
+
+  lines <- readLines(file, warn=FALSE)
+  idx <- which(grepl("SSS", lines))
+  lines <- lines[(idx+1):length(lines)]
+  stopifnot(length(lines) %% 3 == 0)
+
+  genos <- matrix(data=NA, nrow=2 * (length(lines) / 3), ncol=nchar(lines[2]))
+  rownames(genos) <- paste0(rep(lines[seq(1,length(lines),3)], each=2),
+                             c("_g1", "_g2"))
+  colnames(genos) <- snp.ids
+  for(i in seq(1, length(lines), 3)){
+    ind.id <- paste0(lines[i], "_g1")
+    ind.idx <- which(rownames(genos) == ind.id)
+    genos[ind.idx:(ind.idx+1),] <- do.call(rbind, strsplit(lines[(i+1):(i+2)], ""))
+  }
+
+  return(genos)
+}
+
+##' Imputation
+##'
+##' Extract the haplotypes from the output file of fastPHASE.
+##' @param file character
+##' @param snp.ids vector of SNP identifiers
+##' @return matrix with haplotypes in rows (2 per individual) and SNPs in columns
+##' @author Timothee Flutre
+##' @export
+readHaplosFastPhase <- function(file, snp.ids){
+  stopifnot(file.exists(file),
+            is.vector(snp.ids))
+
+  lines <- readLines(file, warn=FALSE)
+  idx <- (which(grepl("BEGIN GENOTYPES", lines))+1):(which(grepl("END GENOTYPES", lines))-1)
+  lines <- lines[idx]
+  lines <- gsub(" ", "", lines)
+  stopifnot(length(lines) %% 3 == 0)
+
+  haplos <- matrix(data=NA, nrow=2 * (length(lines) / 3), ncol=nchar(lines[2]))
+  rownames(haplos) <- paste0(rep(lines[seq(1,length(lines),3)], each=2),
+                             c("_h1", "_h2"))
+  colnames(haplos) <- snp.ids
+  for(i in seq(1, length(lines), 3)){
+    ind.id <- paste0(lines[i], "_h1")
+    ind.idx <- which(rownames(haplos) == ind.id)
+    haplos[ind.idx:(ind.idx+1),] <- do.call(rbind, strsplit(lines[(i+1):(i+2)], ""))
+  }
+
+  return(haplos)
+}
+
+##' Imputation
+##'
+##' Impute SNP genotypes via fastPHASE (Scheet and Stephens, 2006).
+##' @param X NxP matrix of SNP genotypes encoded in number of copies of the 2nd allele, i.e. as allele doses in {0,1,2}, with individuals in rows and SNPs in columns
+##' @param snp.coords data.frame with SNP identifiers as row names, and two columns, "chr" and "coord" or "pos"
+##' @param alleles data.frame with SNPs in rows (names as row names) and alleles in columns (first is "minor", second is "major")
+##' @param out.dir directory in which the output files will be saved
+##' @param task.id identifier of the task (used in temporary and output file names)
+##' @param nb.starts number of random starts of the EM algorithm
+##' @param nb.iters number of iterations of the EM algorithm
+##' @param nb.samp.haplos number of haplotypes sampled from the posterior distribution obtained from a particular random start of the EM algorithm
+##' @param estim.haplos estimate haplotypes by minimizing individual error
+##' @param nb.clusters number of clusters
+##' @param seed seed for random number generation
+##' @param clean remove files
+##' @param verbose verbosity level (0/1)
+##' @return list with matrix of genotypes before imputation, and matrix of haplotypes (2 per individual, in rows) after imputation
+##' @author Timothee Flutre
+##' @export
+fastphase <- function(X, snp.coords, alleles, out.dir=getwd(),
+                      task.id="fastphase", nb.starts=20, nb.iters=25,
+                      nb.samp.haplos=50, estim.haplos=FALSE,
+                      nb.clusters=10, seed=1859, clean=FALSE,
+                      verbose=1){
+  stopifnot(file.exists(Sys.which("fastPHASE")),
+            .isValidGenosDose(X, check.na=FALSE))
+
+  if(verbose > 0){
+    txt <- "prepare input files..."
+    write(txt, stdout())
+  }
+  tmp.files <- c()
+  tmp.files <- c(tmp.files,
+                 genos=paste0(out.dir, "/genos_", task.id, ".txt"))
+  writeInputsForFastPhase(X, snp.coords, alleles, tmp.files["genos"])
+
+  if(verbose > 0){
+    txt <- "run fastPHASE..."
+    write(txt, stdout())
+  }
+  args <- paste0("-o", task.id,
+                 " -T", nb.starts,
+                 " -C", nb.iters,
+                 " -H", nb.samp.haplos,
+                 " -K", nb.clusters,
+                 " -S", seed)
+  if(estim.haplos)
+    args <- paste0(args, " -i")
+  args <- paste0(args, " ", tmp.files["genos"])
+  if(verbose > 0)
+    message(paste("fastPHASE", args))
+  system2(command="fastPHASE", args=args, stdout=TRUE, stderr=TRUE)
+
+  if(verbose > 0){
+    txt <- "load files..."
+    write(txt, stdout())
+  }
+  tmp.files["haplos"] <- paste0(out.dir, "/", task.id, "_hapguess_switch.out")
+  out <- list(genos=readGenosFastPhase(tmp.files["genos"],
+                                       rownames(snp.coords)),
+              haplos=readHaplosFastPhase(tmp.files["haplos"],
+                                         rownames(snp.coords)))
+
+  if(clean)
+    for(f in tmp.files)
+      file.remove(f)
+
+  return(out)
 }
 
 ##' Animal model
