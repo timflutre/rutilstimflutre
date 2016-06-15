@@ -2119,6 +2119,7 @@ mme <- function(y, W, Z, sigma.A2, Ainv, V.E){
 ##' summary(residuals(fitA$merMod) / sigma(fitA$merMod)) # "scaled/Pearson residuals"
 ##' c(modelA$C); modelA$V.G.A; modelA$V.E
 ##' fixef(fitA$merMod)
+##' coefficients(summary(fitA$merMod))[, "Std. Error"]
 ##' vc <- as.data.frame(VarCorr(fitA$merMod))
 ##' c(vc[vc$grp == "geno", "vcov"], vc[vc$grp == "Residual", "vcov"])
 ##' blups.geno <- ranef(fitA$merMod, condVar=TRUE, drop=TRUE)$geno
@@ -2200,7 +2201,8 @@ lmerAM <- function(formula, dat, relmat, REML=TRUE, ci.meth=NULL, verbose=1){
 
   ci <- NULL
   if(! is.null(ci.meth)){
-    write("compute confidence intervals ...", stdout())
+    if(verbose > 0)
+      write("compute confidence intervals ...", stdout())
     suppressMessages(ci <- lme4::confint.merMod(fit, method=ci.meth, oldNames=FALSE))
   }
 
