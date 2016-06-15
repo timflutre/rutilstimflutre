@@ -1,6 +1,6 @@
 Package: rutilstimflutre
 Title: Timothee Flutre's personal R code
-Version: 0.65.1
+Version: 0.66.0
 Authors@R: c(
     person("Timothee", "Flutre", email="timothee.flutre@supagro.inra.fr", role=c("aut", "ctb", "cre")),
     person("Carbonetto", "Peter", role="aut", comment="function from varbvs example"),
@@ -14,7 +14,8 @@ Depends:
     R (>= 3.2.0),
     data.table,
     lme4,
-    Matrix
+    Matrix,
+    Rcpp
 License: GPL-3 | AGPL-3
 Copyright: Institut National de la Recherche Agronomique (INRA)
 LazyData: true
@@ -39,6 +40,7 @@ Suggests:
     rjags,
     rmarkdown,
     Rsamtools,
+    rstan,
     S4Vectors,
     scrm,
     stats,

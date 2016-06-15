@@ -62,6 +62,6 @@ cbind(truth=c(c(modelA$C), modelA$V.G.A, modelA$V.E),
 Timothee Flutre
 }
 \seealso{
-\code{\link{lmerAM}}, \code{\link{inlaAM}}
+\code{\link{lmerAM}}, \code{\link{inlaAM}}, \code{\link{stanAM}}
 }
 

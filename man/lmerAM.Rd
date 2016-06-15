@@ -77,6 +77,6 @@ c(vc[vc$grp == "geno.add", "vcov"], vc[vc$grp == "Residual", "vcov"],
 Timothee Flutre (inspired by Ben Bolker at http://stackoverflow.com/q/19327088/597069)
 }
 \seealso{
-\code{\link{inlaAM}}, \code{\link{jagsAM}}
+\code{\link{inlaAM}}, \code{\link{jagsAM}}, \code{\link{stanAM}}
 }
 

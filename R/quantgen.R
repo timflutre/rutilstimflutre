@@ -2098,7 +2098,7 @@ mme <- function(y, W, Z, sigma.A2, Ainv, V.E){
 ##' @return list which first component is a \code{\link[lme4]{merMod}} object and second component a data.frame with confidence intervals (if ci.meth is not NULL)
 ##' @author Timothee Flutre (inspired by Ben Bolker at http://stackoverflow.com/q/19327088/597069)
 ##' @note If A is not positive definite, an error will be raised (via \code{\link[base]{chol}}); in such cases, using the nearPD function from the Matrix package can be useful.
-##' @seealso \code{\link{inlaAM}}, \code{\link{jagsAM}}
+##' @seealso \code{\link{inlaAM}}, \code{\link{jagsAM}}, \code{\link{stanAM}}
 ##' @examples
 ##' ## simulate genotypes
 ##' set.seed(1859)
@@ -2220,7 +2220,7 @@ lmerAM <- function(formula, dat, relmat, REML=TRUE, ci.meth=NULL, verbose=1){
 ##' @param silent if equal to TRUE, then the inla-program would be silent (see \code{\link[INLA]{inla}})
 ##' @return \code{\link[INLA]{inla}} object
 ##' @author Timothee Flutre
-##' @seealso \code{\link{lmerAM}}, \code{\link{jagsAM}}
+##' @seealso \code{\link{lmerAM}}, \code{\link{jagsAM}}, \code{\link{stanAM}}
 ##' @examples
 ##' if(require(INLA)){
 ##'   ## simulate genotypes
@@ -2316,7 +2316,7 @@ inlaAM <- function(dat, relmat, family="gaussian",
 ##' @param verbose verbosity level (0/1)
 ##' @return \code{\link[coda]{mcmc.list}} object
 ##' @author Timothee Flutre
-##' @seealso \code{\link{lmerAM}}, \code{\link{inlaAM}}
+##' @seealso \code{\link{lmerAM}}, \code{\link{inlaAM}}, \code{\link{stanAM}}
 ##' @examples
 ##' \dontrun{## simulate genotypes
 ##' set.seed(1859)
@@ -2465,6 +2465,274 @@ model {
                              n.iter=nb.iters,
                              thin=thin,
                              progress.bar=progress.bar)
+
+  return(fit)
+}
+
+##' Animal model
+##'
+##'
+##' @param stan.file path to a file; if NULL, a temporary one will be created
+##' @param errors.Student use a Student's t distribution for the errors (useful to handle outliers)
+##' @param missing.phenos indicating if there is any missing phenotypes to impute jointly with the other unknown variables
+##' @return invisible path to stan.file
+##' @author Timothee Flutre
+##' @seealso \code{\link{stanAM}}
+##' @export
+stanAMwriteModel <- function(stan.file=NULL,
+                             errors.Student=FALSE,
+                             missing.phenos=FALSE){
+  st <- Sys.time()
+  if(is.null(stan.file))
+    stan.file <- tempfile(paste0("stanAM_", format(st, "%Y-%m-%d-%H-%M-%S"), "_"),
+                          getwd(), ".stan")
+
+  ## meta-data
+  model.code <- "# model: stanAM
+# copyright: Inra
+# license: AGPL-3+
+# persons: Timothée Flutre [cre,aut]"
+  model.code <- paste0(model.code, "
+# date: ", format(Sys.time(), "%Y-%m-%d %H:%M:%S"), "
+")
+
+  ## block: data
+  model.code <- paste0(model.code, "
+data {
+  int<lower=0> Q;         // num years
+  int<lower=0> I;         // num genotypes
+  real loc_mu;            // prior mean of the intercept
+  real<lower=0> scale_mu; // prior sd of the intercept
+  matrix[I,I] A;          // additive genetic relationships matrix")
+  if(missing.phenos){
+    model.code <- paste0(model.code, "
+  int<lower=0> N_obs;     // num observed phenotypes
+  int<lower=0> N_mis;     // num missing phenotypes
+  matrix[N_obs,Q] W_obs;  // incidence matrix
+  matrix[N_mis,Q] W_mis;  // incidence matrix
+  matrix[N_obs,I] Z_obs;  // incidence matrix
+  matrix[N_mis,I] Z_mis;  // incidence matrix
+  vector[N_obs] y_obs;    // observed phenotypes")
+  } else{
+    model.code <- paste0(model.code, "
+  int<lower=0> N;         // num phenotypic measurements
+  matrix[N,Q] W;          // incidence matrix
+  matrix[N,I] Z;          // incidence matrix
+  vector[N] y;            // phenotypes")
+  }
+  if(errors.Student){
+    model.code <- paste0(model.code, "
+  real<lower=0> nu;       // degrees of freedom of the Student's t
+")
+  } else{
+    model.code <- paste0(model.code, "
+")
+  }
+  model.code <- paste0(model.code, "}\n")
+
+  ## block: transformed data
+  model.code <- paste0(model.code, "
+transformed data {
+  matrix[I,I] CA;
+  CA <- cholesky_decompose(A);")
+  model.code <- paste0(model.code, "
+}
+")
+
+  ## block: parameters
+  model.code <- paste0(model.code, "
+parameters {
+  vector[Q] c;
+  real<lower=0> sigma_E;
+  vector[I] g_A_z;          // primitive of g_A
+  real<lower=0> sigma_g_A;")
+  if(missing.phenos){
+    model.code <- paste0(model.code, "
+  vector[N_mis] y_mis;")
+  }
+  model.code <- paste0(model.code, "
+}
+")
+
+  ## block: model
+  model.code <- paste0(model.code, "
+model {
+  vector[I] g_A;
+  c[1] ~ cauchy(loc_mu, scale_mu); // intercept
+  for(q in 2:Q)
+    c[q] ~ cauchy(0, 5);
+  sigma_E ~ cauchy(0, 5);  // implicit half-Cauchy
+  sigma_g_A ~ cauchy(0, 5);
+  g_A_z ~ normal(0, 1);
+  g_A <- sigma_g_A * (CA * g_A_z);// implies g_A ~ multi_normal(0, sigma_g_A^2 * A)")
+  if(errors.Student){
+    if(missing.phenos){
+      model.code <- paste0(model.code, "
+  y_obs ~ student_t(nu, W_obs * c + Z_obs * g_A, sigma_E);
+  y_mis ~ student_t(nu, W_mis * c + Z_mis * g_A, sigma_E);
+")
+    } else{
+      model.code <- paste0(model.code, "
+  y ~ student_t(nu, W * c + Z * g_A, sigma_E);
+")
+    }
+  } else{
+    if(missing.phenos){
+      model.code <- paste0(model.code, "
+  y_obs ~ normal(W_obs * c + Z_obs * g_A, sigma_E);
+  y_mis ~ normal(W_mis * c + Z_mis * g_A, sigma_E);
+")
+    } else{
+      model.code <- paste0(model.code, "
+  y ~ normal(W * c + Z * g_A, sigma_E);
+")
+    }
+  }
+  model.code <- paste0(model.code, "}")
+
+  model.code <- paste0(model.code, "
+
+generated quantities {
+  vector[I] g_A;
+  g_A <- sigma_g_A * (CA * g_A_z);
+")
+  model.code <- paste0(model.code, "}")
+
+  cat(model.code, file=stan.file)
+
+  invisible(stan.file)
+}
+
+##' Animal model
+##'
+##' Given I genotypes, Q covariates and N=I*Q phenotypes for the trait, fit an "animal model" with the rstan package via the following likelihood: y = W c + Z g_A + Z g_D + epsilon, where y is Nx1; W is NxQ; Z is NxI; g_A ~ Normal_I(0, sigma_A^2 A) with A the known matrix of additive genetic relationships; g_D ~ Normal_I(0, sigma_D^2 D) with D the known matrix of dominant genetic relationships; epsilon ~ Normal_N(0, sigma^2 Id_N); Cov(g_A,g_D)=0; Cov(g_A,e)=0; Cov(g_D,e)=0. Missing phenotypes are jointly imputed with the other unknown variables, and the errors can follow a Student's t distribution to handle outliers.
+##' @param dat data.frame containing the data corresponding to relmat; should have a column grep-able for "response" as well as a column "geno.add" used with matrix A; if a column "geno.dom" exists, it will be used with matrix D; any other column will be interpreted as corresponding to "fixed effects"
+##' @param relmat list containing the matrices of genetic relationships (see \code{\link{estimGenRel}}); additive relationships (matrix A) are compulsory, with name "geno.add"; dominant relationships (matrix D) are optional, with name "geno.dom"; can be in the "matrix" class (base) or the "dsCMatrix" class (Matrix package)
+##' @param errors.Student use a Student's t distribution for the errors (useful to handle outliers)
+##' @param nb.chains number of independent chains to run
+##' @param nb.iters number of iterations to monitor
+##' @param burnin number of initial iterations to discard
+##' @param thin thinning interval for monitored iterations
+##' @param compile.only only compile the model, don't run it
+##' @param rm.stan.file remove the file specifying the model written in the STAN language
+##' @param rm.sm.file remove the file corresponding to the compiled model
+##' @param verbose verbosity level (0/1)
+##' @return path to compiled file if \code{compile.only=TRUE}, object of class \code{\link[rstan]{stanfit-class}} otherwise
+##' @author Timothee Flutre
+##' @seealso \code{\link{lmerAM}}, \code{\link{inlaAM}}, \code{\link{jagsAM}}
+##' @examples
+##' \dontrun{## simulate genotypes
+##' set.seed(1859)
+##' X <- simulGenosDose(nb.genos=200, nb.snps=2000)
+##'
+##' ## simulate phenotypes with only additive part of genotypic values
+##' A <- estimGenRel(X, relationships="additive", method="vanraden1", verbose=0)
+##' A <- as.matrix(Matrix::nearPD(A)$mat) # not always necessary
+##' modelA <- simulAnimalModel(T=1, Q=3, A=A, V.G.A=15, V.E=5)
+##'
+##' ## infer with rstan
+##' modelA$dat$geno.add <- modelA$dat$geno; modelA$dat$geno <- NULL
+##' fitA <- stanAM(dat=modelA$dat, relmat=list(geno.add=A))
+##' fitA <- rstan::As.mcmc.list(fitA)
+##' plotMcmcChain(fitA[[1]], "sigma_g_A", 1:4, sqrt(modelA$V.G.A))
+##' cbind(truth=c(c(modelA$C), sqrt(modelA$V.G.A), sqrt(modelA$V.E)),
+##'       summaryMcmcChain(fitA[[1]], c("c[1]", "c[2]", "c[3]", "sigma_g_A", "sigma_E")))
+##' }
+##' @export
+stanAM <- function(dat, relmat, errors.Student=FALSE,
+                   nb.chains=1, nb.iters=10^3, burnin=10^2, thin=10,
+                   compile.only=FALSE, rm.stan.file=TRUE, rm.sm.file=FALSE,
+                   verbose=0){
+  requireNamespaces("rstan")
+  stopifnot(is.data.frame(dat),
+            sum(grepl("response", colnames(dat))) == 1,
+            "geno.add" %in% colnames(dat),
+            is.list(relmat),
+            ! is.null(names(relmat)),
+            "geno.add" %in% names(relmat))
+
+  ## make the input matrices from the input data.frame
+  y <- dat[, grepl("response", colnames(dat))]
+  if(all(is.matrix(y), ncol(y) == 1))
+    y <- y[,1]
+  is_y_obs <- (! is.na(y))
+  W <- matrix(1, nrow=nrow(dat), ncol=1)
+  colnames(W) <- "mu"
+  for(j in 1:ncol(dat))
+    if(! grepl("response", colnames(dat)[j]) & colnames(dat)[j] != "geno.add" &
+       colnames(dat)[j] != "geno.dom"){
+      W <- cbind(W, stats::model.matrix(~ dat[,j])[,-1])
+    }
+  colnames(W) <- gsub("dat\\[, j\\]", "", colnames(W))
+  Z <- stats::model.matrix(~ dat[,"geno.add"] - 1)
+  N <- nrow(W)
+  Q <- ncol(W)
+  I <- ncol(Z)
+
+  ## define model in STAN language in separate file
+  st <- Sys.time()
+  stan.file <- tempfile(paste0("stanAM_", format(st, "%Y-%m-%d-%H-%M-%S"), "_"),
+                        getwd(), ".stan")
+  stanAMwriteModel(stan.file, errors.Student, sum(is_y_obs) != N)
+
+  ## compile, or make the input list and run
+  sm.file <- tempfile(paste0("stanAM_", format(st, "%Y-%m-%d-%H-%M-%S"), "_"),
+                      getwd(), "_sm.RData")
+  if(compile.only){
+    if(verbose > 0)
+      write(paste0("compile..."), stdout())
+    rt <- rstan::stanc(file=stan.file, model_name="stanAM")
+    sm <- rstan::stan_model(stanc_ret=rt,
+                            verbose=ifelse(verbose > 0, TRUE, FALSE))
+    save(sm, file=sm.file)
+    return(sm.file)
+  } else{
+    ldat <- list(Q=Q,
+                 I=I,
+                 loc_mu=mean(y, na.rm=TRUE),
+                 scale_mu=5,
+                 A=relmat[["geno.add"]])
+    if(sum(is_y_obs) != N){
+      ldat$N_obs <- sum(is_y_obs)
+      ldat$N_mis <- sum(! is_y_obs)
+      ldat$W_obs<- W[is_y_obs,]
+      ldat$W_mis<- W[! is_y_obs,]
+      ldat$Z_obs <- Z[is_y_obs,]
+      ldat$Z_mis <- Z[! is_y_obs,]
+      ldat$y_obs <- y[is_y_obs]
+    } else{
+      ldat$N <- N
+      ldat$W<- W
+      ldat$Z <- Z
+      ldat$y <- y
+    }
+    if(errors.Student){
+      ldat$nu <- 3
+    }
+    if(file.exists(sm.file)){
+      if(verbose > 0)
+        write(paste0("run..."), stdout())
+      load(sm.file)
+      fit <- rstan::sampling(sm,
+                             data=ldat,
+                             iter=nb.iters + burnin,
+                             warmup=burnin,
+                             thin=thin,
+                             chains=nb.chains)
+    } else
+      if(verbose > 0)
+        write(paste0("compile and run..."), stdout())
+      fit <- rstan::stan(file=stan.file,
+                         data=ldat,
+                         iter=nb.iters + burnin,
+                         warmup=burnin,
+                         thin=thin,
+                         chains=nb.chains)
+  }
+  if(rm.stan.file)
+    file.remove(stan.file)
+  if(rm.sm.file)
+    file.remove(sm.file)
 
   return(fit)
 }

@@ -62,6 +62,6 @@ if(require(INLA)){
 Timothee Flutre
 }
 \seealso{
-\code{\link{lmerAM}}, \code{\link{jagsAM}}
+\code{\link{lmerAM}}, \code{\link{jagsAM}}, \code{\link{stanAM}}
 }
 

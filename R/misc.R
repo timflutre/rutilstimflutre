@@ -1,6 +1,7 @@
 ##' @import data.table
 ##' @import lme4
 ##' @import Matrix
+##' @import Rcpp
 
 .onAttach <- function(libname, pkgname) {
   msg <- paste0("package '", pkgname,
