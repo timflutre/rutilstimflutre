@@ -2613,6 +2613,8 @@ generated quantities {
 ##' @param nb.iters number of iterations to monitor
 ##' @param burnin number of initial iterations to discard
 ##' @param thin thinning interval for monitored iterations
+##' @param out.dir working directory in which the stan and sm files will be written
+##' @param task.id identifier of the task (used in temporary file names)
 ##' @param compile.only only compile the model, don't run it
 ##' @param rm.stan.file remove the file specifying the model written in the STAN language
 ##' @param rm.sm.file remove the file corresponding to the compiled model
@@ -2641,7 +2643,9 @@ generated quantities {
 ##' @export
 stanAM <- function(dat, relmat, errors.Student=FALSE,
                    nb.chains=1, nb.iters=10^3, burnin=10^2, thin=10,
-                   compile.only=FALSE, rm.stan.file=TRUE, rm.sm.file=FALSE,
+                   out.dir=getwd(),
+                   task.id=format(Sys.time(), "%Y-%m-%d-%H-%M-%S"),
+                   compile.only=FALSE, rm.stan.file=FALSE, rm.sm.file=FALSE,
                    verbose=0){
   requireNamespaces("rstan")
   stopifnot(is.data.frame(dat),
@@ -2649,7 +2653,8 @@ stanAM <- function(dat, relmat, errors.Student=FALSE,
             "geno.add" %in% colnames(dat),
             is.list(relmat),
             ! is.null(names(relmat)),
-            "geno.add" %in% names(relmat))
+            "geno.add" %in% names(relmat),
+            dir.exists(out.dir))
 
   ## make the input matrices from the input data.frame
   y <- dat[, grepl("response", colnames(dat))]
@@ -2670,14 +2675,11 @@ stanAM <- function(dat, relmat, errors.Student=FALSE,
   I <- ncol(Z)
 
   ## define model in STAN language in separate file
-  st <- Sys.time()
-  stan.file <- tempfile(paste0("stanAM_", format(st, "%Y-%m-%d-%H-%M-%S"), "_"),
-                        getwd(), ".stan")
+  stan.file <- paste0(out.dir, "/stanAM_", task.id, ".stan")
   stanAMwriteModel(stan.file, errors.Student, sum(is_y_obs) != N)
 
   ## compile, or make the input list and run
-  sm.file <- tempfile(paste0("stanAM_", format(st, "%Y-%m-%d-%H-%M-%S"), "_"),
-                      getwd(), "_sm.RData")
+  sm.file <- paste0(out.dir, "/stanAM_", task.id, "_sm.RData")
   if(compile.only){
     if(verbose > 0)
       write(paste0("compile..."), stdout())
