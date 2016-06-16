@@ -2473,6 +2473,7 @@ model {
 ##'
 ##'
 ##' @param stan.file path to a file; if NULL, a temporary one will be created
+##' @param include.dom include a variance component for dominant genetic relationships
 ##' @param errors.Student use a Student's t distribution for the errors (useful to handle outliers)
 ##' @param missing.phenos indicating if there is any missing phenotypes to impute jointly with the other unknown variables
 ##' @return invisible path to stan.file
@@ -2480,6 +2481,7 @@ model {
 ##' @seealso \code{\link{stanAM}}
 ##' @export
 stanAMwriteModel <- function(stan.file=NULL,
+                             include.dom=FALSE,
                              errors.Student=FALSE,
                              missing.phenos=FALSE){
   st <- Sys.time()
@@ -2504,6 +2506,9 @@ data {
   real loc_mu;            // prior mean of the intercept
   real<lower=0> scale_mu; // prior sd of the intercept
   matrix[I,I] A;          // additive genetic relationships matrix")
+  if(include.dom)
+    model.code <- paste0(model.code, "
+  matrix[I,I] D;          // dominant genetic relationships matrix")
   if(missing.phenos){
     model.code <- paste0(model.code, "
   int<lower=0> N_obs;     // num observed phenotypes
@@ -2533,8 +2538,15 @@ data {
   ## block: transformed data
   model.code <- paste0(model.code, "
 transformed data {
-  matrix[I,I] CA;
+  matrix[I,I] CA;")
+  if(include.dom)
+    model.code <- paste0(model.code, "
+  matrix[I,I] CD;")
+  model.code <- paste0(model.code, "
   CA <- cholesky_decompose(A);")
+  if(include.dom)
+    model.code <- paste0(model.code, "
+  CD <- cholesky_decompose(D);")
   model.code <- paste0(model.code, "
 }
 ")
@@ -2546,6 +2558,10 @@ parameters {
   real<lower=0> sigma_E;
   vector[I] g_A_z;          // primitive of g_A
   real<lower=0> sigma_g_A;")
+  if(include.dom)
+    model.code <- paste0(model.code, "
+  vector[I] g_D_z;          // primitive of g_D
+  real<lower=0> sigma_g_D;")
   if(missing.phenos){
     model.code <- paste0(model.code, "
   vector[N_mis] y_mis;")
@@ -2557,34 +2573,61 @@ parameters {
   ## block: model
   model.code <- paste0(model.code, "
 model {
-  vector[I] g_A;
+  vector[I] g_A;")
+  if(include.dom)
+    model.code <- paste0(model.code, "
+  vector[I] g_D;")
+  model.code <- paste0(model.code, "
   c[1] ~ cauchy(loc_mu, scale_mu); // intercept
   for(q in 2:Q)
     c[q] ~ cauchy(0, 5);
   sigma_E ~ cauchy(0, 5);  // implicit half-Cauchy
   sigma_g_A ~ cauchy(0, 5);
   g_A_z ~ normal(0, 1);
-  g_A <- sigma_g_A * (CA * g_A_z);// implies g_A ~ multi_normal(0, sigma_g_A^2 * A)")
+  g_A <- sigma_g_A * (CA * g_A_z); // implies g_A ~ multi_normal(0, sigma_g_A^2 * A)")
+  if(include.dom)
+    model.code <- paste0(model.code, "
+  sigma_g_D ~ cauchy(0, 5);
+  g_D_z ~ normal(0, 1);
+  g_D <- sigma_g_D * (CD * g_D_z);")
   if(errors.Student){
     if(missing.phenos){
       model.code <- paste0(model.code, "
-  y_obs ~ student_t(nu, W_obs * c + Z_obs * g_A, sigma_E);
-  y_mis ~ student_t(nu, W_mis * c + Z_mis * g_A, sigma_E);
+  y_obs ~ student_t(nu, W_obs * c + Z_obs * g_A")
+      if(include.dom)
+        model.code <- paste0(model.code, " + Z_obs * g_D")
+      model.code <- paste0(model.code, ", sigma_E);
+  y_mis ~ student_t(nu, W_mis * c + Z_mis * g_A")
+      if(include.dom)
+        model.code <- paste0(model.code, " + Z_mis * g_D")
+      model.code <- paste0(model.code, ", sigma_E);
 ")
     } else{
       model.code <- paste0(model.code, "
-  y ~ student_t(nu, W * c + Z * g_A, sigma_E);
+  y ~ student_t(nu, W * c + Z * g_A")
+      if(include.dom)
+        model.code <- paste0(model.code, " + Z * g_D")
+      model.code <- paste0(model.code, ", sigma_E);
 ")
     }
   } else{
     if(missing.phenos){
       model.code <- paste0(model.code, "
-  y_obs ~ normal(W_obs * c + Z_obs * g_A, sigma_E);
-  y_mis ~ normal(W_mis * c + Z_mis * g_A, sigma_E);
+  y_obs ~ normal(W_obs * c + Z_obs * g_A")
+      if(include.dom)
+        model.code <- paste0(model.code, " + Z_obs * g_D")
+      model.code <- paste0(model.code, ", sigma_E);
+  y_mis ~ normal(W_mis * c + Z_mis * g_A")
+      if(include.dom)
+        model.code <- paste0(model.code, " + Z_mis * g_D")
+      model.code <- paste0(model.code, ", sigma_E);
 ")
     } else{
       model.code <- paste0(model.code, "
-  y ~ normal(W * c + Z * g_A, sigma_E);
+  y ~ normal(W * c + Z * g_A")
+      if(include.dom)
+        model.code <- paste0(model.code, " + Z * g_D")
+      model.code <- paste0(model.code, ", sigma_E);
 ")
     }
   }
@@ -2593,10 +2636,18 @@ model {
   model.code <- paste0(model.code, "
 
 generated quantities {
-  vector[I] g_A;
-  g_A <- sigma_g_A * (CA * g_A_z);
+  vector[I] g_A;")
+  if(include.dom)
+    model.code <- paste0(model.code, "
+  vector[I] g_D;")
+  model.code <- paste0(model.code, "
+  g_A <- sigma_g_A * (CA * g_A_z);")
+  if(include.dom)
+    model.code <- paste0(model.code, "
+  g_D <- sigma_g_D * (CD * g_D_z);
 ")
-  model.code <- paste0(model.code, "}")
+  model.code <- paste0(model.code, "
+}")
 
   cat(model.code, file=stan.file)
 
@@ -2639,6 +2690,22 @@ generated quantities {
 ##' plotMcmcChain(fitA[[1]], "sigma_g_A", 1:4, sqrt(modelA$V.G.A))
 ##' cbind(truth=c(c(modelA$C), sqrt(modelA$V.G.A), sqrt(modelA$V.E)),
 ##'       summaryMcmcChain(fitA[[1]], c("c[1]", "c[2]", "c[3]", "sigma_g_A", "sigma_E")))
+##'
+##' ## simulate phenotypes with additive and dominant parts of genotypic values
+##' D <- estimGenRel(X, relationships="dominant", method="vitezica", verbose=0)
+##' D <- as.matrix(Matrix::nearPD(D)$mat) # not always necessary
+##' modelAD <- simulAnimalModel(T=1, Q=3, A=A, V.G.A=15, V.E=5,
+##'                             D=D, V.G.D=3)
+##'
+##' ## infer with rstan
+##' modelAD$dat$geno.add <- modelAD$dat$geno; modelAD$dat$geno <- NULL
+##' fitAD <- stanAM(dat=modelAD$dat, relmat=list(geno.add=A, geno.dom=D))
+##' fitAD <- rstan::As.mcmc.list(fitAD)
+##' plotMcmcChain(fitAD[[1]], "sigma_g_A", 1:4, sqrt(modelAD$V.G.A))
+##' plotMcmcChain(fitAD[[1]], "sigma_g_D", 1:4, sqrt(modelAD$V.G.D))
+##' cbind(truth=c(c(modelAD$C), sqrt(modelAD$V.G.A), sqrt(modelAD$V.G.D), sqrt(modelAD$V.E)),
+##'       summaryMcmcChain(fitAD[[1]], c("c[1]", "c[2]", "c[3]", "sigma_g_A", "sigma_g_D", "sigma_E")))
+##' plot(as.vector(fitAD[[1]][,"sigma_g_A"]), as.vector(fitAD[[1]][,"sigma_g_D"]))
 ##' }
 ##' @export
 stanAM <- function(dat, relmat, errors.Student=FALSE,
@@ -2654,7 +2721,10 @@ stanAM <- function(dat, relmat, errors.Student=FALSE,
             is.list(relmat),
             ! is.null(names(relmat)),
             "geno.add" %in% names(relmat),
+            nrow(relmat[["geno.add"]]) == ncol(relmat[["geno.add"]]),
             dir.exists(out.dir))
+  if("geno.dom" %in% names(relmat))
+    stopifnot(nrow(relmat[["geno.add"]]) == nrow(relmat[["geno.dom"]]))
 
   ## make the input matrices from the input data.frame
   y <- dat[, grepl("response", colnames(dat))]
@@ -2670,13 +2740,15 @@ stanAM <- function(dat, relmat, errors.Student=FALSE,
     }
   colnames(W) <- gsub("dat\\[, j\\]", "", colnames(W))
   Z <- stats::model.matrix(~ dat[,"geno.add"] - 1)
+  stopifnot(ncol(Z) == nrow(relmat[["geno.add"]]))
   N <- nrow(W)
   Q <- ncol(W)
   I <- ncol(Z)
 
   ## define model in STAN language in separate file
   stan.file <- paste0(out.dir, "/stanAM_", task.id, ".stan")
-  stanAMwriteModel(stan.file, errors.Student, sum(is_y_obs) != N)
+  stanAMwriteModel(stan.file, "geno.dom" %in% names(relmat), errors.Student,
+                   sum(is_y_obs) != N)
 
   ## compile, or make the input list and run
   sm.file <- paste0(out.dir, "/stanAM_", task.id, "_sm.RData")
@@ -2694,6 +2766,8 @@ stanAM <- function(dat, relmat, errors.Student=FALSE,
                  loc_mu=mean(y, na.rm=TRUE),
                  scale_mu=5,
                  A=relmat[["geno.add"]])
+    if("geno.dom" %in% names(relmat))
+      ldat$D <- relmat[["geno.dom"]]
     if(sum(is_y_obs) != N){
       ldat$N_obs <- sum(is_y_obs)
       ldat$N_mis <- sum(! is_y_obs)

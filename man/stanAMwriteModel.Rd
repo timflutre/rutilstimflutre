@@ -4,11 +4,13 @@
 \alias{stanAMwriteModel}
 \title{Animal model}
 \usage{
-stanAMwriteModel(stan.file = NULL, errors.Student = FALSE,
-  missing.phenos = FALSE)
+stanAMwriteModel(stan.file = NULL, include.dom = FALSE,
+  errors.Student = FALSE, missing.phenos = FALSE)
 }
 \arguments{
 \item{stan.file}{path to a file; if NULL, a temporary one will be created}
+
+\item{include.dom}{include a variance component for dominant genetic relationships}
 
 \item{errors.Student}{use a Student's t distribution for the errors (useful to handle outliers)}
 

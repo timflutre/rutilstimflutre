@@ -60,6 +60,22 @@ fitA <- rstan::As.mcmc.list(fitA)
 plotMcmcChain(fitA[[1]], "sigma_g_A", 1:4, sqrt(modelA$V.G.A))
 cbind(truth=c(c(modelA$C), sqrt(modelA$V.G.A), sqrt(modelA$V.E)),
       summaryMcmcChain(fitA[[1]], c("c[1]", "c[2]", "c[3]", "sigma_g_A", "sigma_E")))
+
+## simulate phenotypes with additive and dominant parts of genotypic values
+D <- estimGenRel(X, relationships="dominant", method="vitezica", verbose=0)
+D <- as.matrix(Matrix::nearPD(D)$mat) # not always necessary
+modelAD <- simulAnimalModel(T=1, Q=3, A=A, V.G.A=15, V.E=5,
+                            D=D, V.G.D=3)
+
+## infer with rstan
+modelAD$dat$geno.add <- modelAD$dat$geno; modelAD$dat$geno <- NULL
+fitAD <- stanAM(dat=modelAD$dat, relmat=list(geno.add=A, geno.dom=D))
+fitAD <- rstan::As.mcmc.list(fitAD)
+plotMcmcChain(fitAD[[1]], "sigma_g_A", 1:4, sqrt(modelAD$V.G.A))
+plotMcmcChain(fitAD[[1]], "sigma_g_D", 1:4, sqrt(modelAD$V.G.D))
+cbind(truth=c(c(modelAD$C), sqrt(modelAD$V.G.A), sqrt(modelAD$V.G.D), sqrt(modelAD$V.E)),
+      summaryMcmcChain(fitAD[[1]], c("c[1]", "c[2]", "c[3]", "sigma_g_A", "sigma_g_D", "sigma_E")))
+plot(as.vector(fitAD[[1]][,"sigma_g_A"]), as.vector(fitAD[[1]][,"sigma_g_D"]))
 }
 }
 \author{
