@@ -1396,3 +1396,124 @@ vcf2dosage <- function(vcf.file, genome, gdose.file, amap.file,
   invisible(list(gdose.file=paste0(gdose.file, ".gz"),
                  amap.file=paste0(amap.file, ".gz")))
 }
+
+##' MUMmer
+##'
+##' Load alignment coordinates from \href{http://mummer.sourceforge.net/}{MUMmer}.
+##' @param file.coords path to the file with the coordinates obtained via \code{show-coords -c -l -r -T ... | gzip > ...} (must be gzipped)
+##' @param algo nucmer or promer (the latter isn't available yet)
+##' @param keep.nlong.qry keep the N queries having the longest cumulated alignments on the reference (keep all of them by default)
+##' @param ref.lim limits on reference coordinates outside which alignments are discarded (keep all of them by default)
+##' @param verbose verbosity level (0/1)
+##' @return data.frame with the coordinates
+##' @author Timothee Flutre
+##' @seealso \code{\link{plotMummer}}
+##' @export
+loadMummer <- function(file.coords, algo="nucmer", keep.nlong.qry=NULL,
+                       ref.lim=NULL, verbose=1){
+  stopifnot(file.exists(file.coords),
+            algo %in% c("nucmer"))
+  if(! is.null(keep.nlong.qry))
+    stopifnot(is.numeric(keep.nlong.qry),
+              length(keep.nlong.qry) == 1)
+  if(! is.null(ref.lim))
+    stopifnot(is.numeric(ref.lim),
+              length(ref.lim) == 2)
+
+  coords <- utils::read.table(file.coords, skip=4, stringsAsFactors=FALSE)
+  stopifnot(ncol(coords) == 13)
+  colnames(coords) <- c("ref.start", "ref.end",
+                        "qry.start", "qry.end",
+                        "ref.aln.len", "qry.aln.len",
+                        "perc.id",
+                        "ref.len", "qry.len",
+                        "ref.cov", "qry.cov",
+                        "ref", "qry")
+  if(verbose > 0){
+    msg <- paste0("nb of references: ", length(unique(coords[,"ref"])),
+                  "\nnb of queries: ", length(unique(coords[,"qry"])),
+                  "\nnb of alignments: ", nrow(coords))
+    write(msg, stdout())
+  }
+
+  if(! is.null(keep.nlong.qry) &&
+     keep.nlong.qry < length(unique(coords[,"qry"]))){
+    cumlen <- tapply(coords[,"qry.aln.len"], factor(coords[,"qry"]), sum)
+    cumlen <- sort(cumlen, decreasing=TRUE)
+    coords <- coords[coords[,"qry"] %in% names(cumlen)[1:keep.nlong.qry],]
+    if(verbose > 0){
+      msg <- paste0("after query filtering:",
+                    "\nnb of references: ", length(unique(coords[,"ref"])),
+                    "\nnb of queries: ", length(unique(coords[,"qry"])),
+                    "\nnb of alignments: ", nrow(coords))
+      write(msg, stdout())
+    }
+  }
+
+  if(! is.null(ref.lim)){
+    ref.strand.plus <- coords[,"ref.start"] < coords[,"ref.end"]
+    idx.plus <- which(coords[ref.strand.plus, "ref.start"] >= ref.lim[1] &
+                      coords[ref.strand.plus, "ref.end"] <= ref.lim[2])
+    idx.minus <- which(coords[!ref.strand.plus, "ref.end"] >= ref.lim[1] &
+                       coords[!ref.strand.plus, "ref.start"] <= ref.lim[2])
+    coords <- coords[c(idx.plus, idx.minus),]
+    if(verbose > 0){
+      msg <- paste0("after alignment filtering:",
+                    "\nnb of references: ", length(unique(coords[,"ref"])),
+                    "\nnb of queries: ", length(unique(coords[,"qry"])),
+                    "\nnb of alignments: ", nrow(coords))
+      write(msg, stdout())
+    }
+  }
+
+  return(coords)
+}
+
+##' MUMmer
+##'
+##' Plot alignment coordinates from \href{http://mummer.sourceforge.net/}{MUMmer}.
+##' @param coords data.frame (see \code{\link{loadMummer}}); should only contain a single reference
+##' @param main main title
+##' @param xlim x-axis limits
+##' @param col segment color(s)
+##' @return nothing
+##' @author Timothee Flutre
+##' @seealso \code{\link{loadMummer}}
+##' @examples
+##' \dontrun{## MUMmer should have been executed beforehand
+##' coords <- loadMummer(file.coords)
+##' pdf("plot_mummer.pdf", width=7, height=10)
+##' par(mar=c(4, 7, 3, 1))
+##' plotMummer(coords, col=c(1,2))
+##' dev.off()
+##' }
+##' @export
+plotMummer <- function(coords, main="MUMmer", xlim=NULL, col=c("black", "red")){
+  stopifnot(is.data.frame(coords),
+            length(unique(coords[,"ref"])) == 1)
+
+  ## identify alignment strands
+  ref.strand.plus <- coords[,"ref.start"] < coords[,"ref.end"]
+  qry.strand.plus <- coords[,"qry.start"] < coords[,"qry.end"]
+
+  ## determine axes limits
+  if(is.null(xlim))
+    xlim <- c(min(coords[ref.strand.plus, "ref.start"],
+                  coords[!ref.strand.plus, "ref.end"]),
+              max(coords[ref.strand.plus, "ref.end"],
+                  coords[!ref.strand.plus, "ref.start"]))
+  ylim <- c(1, length(unique(coords[,"qry"])))
+
+  ## plot empty box
+  xlab <- unique(coords[,"ref"])
+  graphics::plot(x=0, y=0, type="n", xlim=xlim, ylim=ylim, yaxt="n",
+                 main=main, xlab=xlab, ylab="")
+  graphics::axis(side=2, at=seq(ylim[1], ylim[2], 1),
+                 labels=unique(coords[,"qry"]), las=1)
+
+  ## add alignments
+  y <- match(coords[,"qry"], unique(coords[,"qry"]))
+  graphics::segments(x0=coords[,"ref.start"], y0=y,
+                     x1=coords[,"ref.end"], y1=y,
+                     col=col)
+}
