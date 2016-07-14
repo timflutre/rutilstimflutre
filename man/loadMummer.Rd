@@ -8,7 +8,7 @@ loadMummer(file.coords, algo = "nucmer", asGRanges = TRUE,
   keep.nlong.qry = NULL, ref.lim = NULL, verbose = 1)
 }
 \arguments{
-\item{file.coords}{path to the file with the coordinates obtained via \code{show-coords -c -l -r -T ... | gzip > ...} (must be gzipped)}
+\item{file.coords}{path to the file with alignment coordinates obtained via \code{show-coords} (see the example)}
 
 \item{algo}{nucmer or promer (the latter isn't available yet)}
 
