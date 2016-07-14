@@ -4,13 +4,15 @@
 \alias{loadMummer}
 \title{MUMmer}
 \usage{
-loadMummer(file.coords, algo = "nucmer", keep.nlong.qry = NULL,
-  ref.lim = NULL, verbose = 1)
+loadMummer(file.coords, algo = "nucmer", asGRanges = TRUE,
+  keep.nlong.qry = NULL, ref.lim = NULL, verbose = 1)
 }
 \arguments{
 \item{file.coords}{path to the file with the coordinates obtained via \code{show-coords -c -l -r -T ... | gzip > ...} (must be gzipped)}
 
 \item{algo}{nucmer or promer (the latter isn't available yet)}
+
+\item{asGRanges}{if TRUE, returns a \code{\link[GenomicRanges]{GRanges}} object}
 
 \item{keep.nlong.qry}{keep the N queries having the longest cumulated alignments on the reference (keep all of them by default)}
 
@@ -19,15 +21,28 @@ loadMummer(file.coords, algo = "nucmer", keep.nlong.qry = NULL,
 \item{verbose}{verbosity level (0/1)}
 }
 \value{
-data.frame with the coordinates
+GRanges or data.frame
 }
 \description{
 Load alignment coordinates from \href{http://mummer.sourceforge.net/}{MUMmer}.
+}
+\examples{
+\dontrun{## MUMmer should be run beforehand, for instance:
+## nucmer --maxmatch -p out-nucmer reference.fa queries.fa
+## delta-filter -l 1000 -q out-nucmer.delta > out-nucmer_filter.delta
+## show-coords -c -l -L 1000 -r -T out-nucmer_filter.delta | gzip > out-nucmer_filter_coords.txt.gz
+coords <- loadMummer("out-nucmer_filter_coords.txt.gz")
+library(GenomicRanges)
+loc <- GRanges(seqnames=Rle("chr2"),
+               ranges=IRanges(start=5, end=17))
+idx <- subjectHits(findOverlaps(query=sl, subject=coords.gr))
+plotAligns(coords=as.data.frame(ranges(coords.gr[idx,])))
+}
 }
 \author{
 Timothee Flutre
 }
 \seealso{
-\code{\link{plotMummer}}
+\code{\link{mummer2granges}}
 }
 
