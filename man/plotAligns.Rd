@@ -27,10 +27,10 @@ Plot alignments of several queries on the same reference.
 \examples{
 \dontrun{coords <- data.frame(start=c(2, 21, 29, 50),
                      end=c(10, 25, 45, 53),
-                     names=c("qry1", "qry2", "qry2", "qry3"),
+                     names=c("seq1", "seq2", "seq2", "seq3"),
                      stringsAsFactors=FALSE)
 par(mar=c(4, 7, 3, 1))
-plotAligns(coords, col=c(1, 1, 2, 1))
+plotAligns(coords, xlab="chr1", col=c(1, 1, 2, 1))
 }
 }
 \author{

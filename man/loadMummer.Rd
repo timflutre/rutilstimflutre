@@ -28,14 +28,14 @@ Load alignment coordinates from \href{http://mummer.sourceforge.net/}{MUMmer}.
 }
 \examples{
 \dontrun{## MUMmer should be run beforehand, for instance:
-## nucmer --maxmatch -p out-nucmer reference.fa queries.fa
+## nucmer --maxmatch -p out-nucmer chroms.fa seqs.fa
 ## delta-filter -l 1000 -q out-nucmer.delta > out-nucmer_filter.delta
 ## show-coords -c -l -L 1000 -r -T out-nucmer_filter.delta | gzip > out-nucmer_filter_coords.txt.gz
 coords <- loadMummer("out-nucmer_filter_coords.txt.gz")
 library(GenomicRanges)
-loc <- GRanges(seqnames=Rle("chr2"),
+loc <- GRanges(seqnames=Rle("chr1"),
                ranges=IRanges(start=5, end=17))
-idx <- subjectHits(findOverlaps(query=sl, subject=coords.gr))
+idx <- subjectHits(findOverlaps(query=loc, subject=coords.gr))
 plotAligns(coords=as.data.frame(ranges(coords.gr[idx,])))
 }
 }

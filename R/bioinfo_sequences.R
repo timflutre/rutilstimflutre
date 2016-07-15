@@ -1397,6 +1397,56 @@ vcf2dosage <- function(vcf.file, genome, gdose.file, amap.file,
                  amap.file=paste0(amap.file, ".gz")))
 }
 
+##' BLAST
+##'
+##' Load alignment coordinates from the \href{http://blast.ncbi.nlm.nih.gov/Blast.cgi}{NCBI BLAST}.
+##' @param file.coords path to the file with alignment coordinates obtained with \code{-outfmt "6 std qlen sstrand"}
+##' @param reformat.strand if TRUE, "plus" is replaced by "+", and "minus" by "-"
+##' @param apply.sort if TRUE, return the alignments sorted in increasing order for qseqid, then increasing for evalue, then decreasing for bitscore, then decreasing for length, then decreasing for pident, then increasing for sseqid
+##' @param verbose verbosity level (0/1)
+##' @return data.frame with 14 columns
+##' @author Timothee Flutre
+##' @examples
+##' \dontrun{## BLAST should be run beforehand, for instance:
+##' ## zcat chroms.fa.gz | makeblastdb -dbtype nucl -in - -title chroms -out chroms -logfile makeblastdb_chroms.log
+##' ## echo "zcat seqs.fa.gz | blastn -query - -task megablast -db chroms -out /dev/stdout -outfmt \"6 std qlen sstrand\" | gzip > megablast_chroms_seqs.txt.gz"  | qsub ...
+##' coords <- loadBlast("megablast_chroms_seqs.txt.gz")
+##' }
+##' @export
+loadBlast <- function(file.coords, reformat.strand=TRUE, apply.sort=TRUE, verbose=1){
+  stopifnot(file.exists(file.coords),
+            is.logical(reformat.strand),
+            is.logical(apply.sort))
+
+  coords <- utils::read.table(file.coords, sep="\t", stringsAsFactors=FALSE,
+                              col.names=c("qseqid", "sseqid", "pident",
+                                          "length", "mismatch", "gapopen",
+                                          "qstart", "qend", "sstart", "send",
+                                          "evalue", "bitscore", "qlen", "sstrand"))
+
+  if(reformat.strand){
+    coords$sstrand <- gsub("plus", "+", coords$sstrand)
+    coords$sstrand <- gsub("minus", "-", coords$sstrand)
+  }
+
+  if(apply.sort)
+    coords <- coords[order(coords$qseqid,
+                           coords$evalue,
+                           -coords$bitscore,
+                           -coords$length,
+                           -coords$pident,
+                           coords$sseqid), ]
+
+  if(verbose > 0){
+    msg <- paste0("nb of alignments: ", nrow(coords),
+                  "\nnb of queries: ", length(unique(coords[,"qseqid"])),
+                  "\nnb of subjects: ", length(unique(coords[,"sseqid"])))
+    write(msg, stdout())
+  }
+
+  return(coords)
+}
+
 ##' MUMmer
 ##'
 ##' Convert a data.frame containing alignments coordinates from MUMmer into a GRanges object.
@@ -1453,14 +1503,14 @@ mummer2granges <- function(coords){
 ##' @seealso \code{\link{mummer2granges}}
 ##' @examples
 ##' \dontrun{## MUMmer should be run beforehand, for instance:
-##' ## nucmer --maxmatch -p out-nucmer reference.fa queries.fa
+##' ## nucmer --maxmatch -p out-nucmer chroms.fa seqs.fa
 ##' ## delta-filter -l 1000 -q out-nucmer.delta > out-nucmer_filter.delta
 ##' ## show-coords -c -l -L 1000 -r -T out-nucmer_filter.delta | gzip > out-nucmer_filter_coords.txt.gz
 ##' coords <- loadMummer("out-nucmer_filter_coords.txt.gz")
 ##' library(GenomicRanges)
-##' loc <- GRanges(seqnames=Rle("chr2"),
+##' loc <- GRanges(seqnames=Rle("chr1"),
 ##'                ranges=IRanges(start=5, end=17))
-##' idx <- subjectHits(findOverlaps(query=sl, subject=coords.gr))
+##' idx <- subjectHits(findOverlaps(query=loc, subject=coords.gr))
 ##' plotAligns(coords=as.data.frame(ranges(coords.gr[idx,])))
 ##' }
 ##' @export
@@ -1542,10 +1592,10 @@ loadMummer <- function(file.coords, algo="nucmer", asGRanges=TRUE,
 ##' @examples
 ##' \dontrun{coords <- data.frame(start=c(2, 21, 29, 50),
 ##'                      end=c(10, 25, 45, 53),
-##'                      names=c("qry1", "qry2", "qry2", "qry3"),
+##'                      names=c("seq1", "seq2", "seq2", "seq3"),
 ##'                      stringsAsFactors=FALSE)
 ##' par(mar=c(4, 7, 3, 1))
-##' plotAligns(coords, col=c(1, 1, 2, 1))
+##' plotAligns(coords, xlab="chr1", col=c(1, 1, 2, 1))
 ##' }
 ##' @export
 plotAligns <- function(coords, main="Alignments", xlab="reference", xlim=NULL,
