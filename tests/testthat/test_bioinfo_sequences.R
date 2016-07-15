@@ -1,6 +1,36 @@
 library(rutilstimflutre)
 context("Bioinfo")
 
+test_that("extractFasta", {
+  if(all(requireNamespace("Biostrings"),
+         requireNamespace("GenomicRanges"),
+         requireNamespace("S4Vectors"),
+         requireNamespace("IRanges"),
+         requireNamespace("GenomeInfoDb"),
+         requireNamespace("BSgenome"))){
+
+    tmpd <- tempdir()
+
+    records <- Biostrings::DNAStringSet(x=c("chr1 1872"="AAATTA",
+                                            "chr2 5339"="CCCGGC"))
+    in.fa <- paste0(tmpd, "/chromosomes.fa.gz")
+    Biostrings::writeXStringSet(x=records, filepath=in.fa, compress=TRUE)
+
+    sub.info <- data.frame(seq="chr2", start=4, end=5, name="loc")
+
+    out.fa <- paste0(tmpd, "/subsequences.fa")
+
+    expected <- Biostrings::DNAStringSet(x=c("loc"="GG"))
+
+    extractFasta(in.fa=in.fa, sub.info=sub.info, out.fa=out.fa,
+                 split.names=" ", verbose=0)
+
+    observed <- Biostrings::readDNAStringSet(filepath=out.fa,
+                                             format="fasta")
+    expect_equal(observed, expected)
+  }
+})
+
 .expect_equal_VCFfile <- function(observed, expected){
   ## see https://support.bioconductor.org/p/74013/
   expect_equal(VariantAnnotation::info(observed),

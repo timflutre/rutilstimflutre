@@ -5,7 +5,7 @@
 \title{BLAST}
 \usage{
 loadBlast(file.coords, reformat.strand = TRUE, apply.sort = TRUE,
-  verbose = 1)
+  asGRanges = TRUE, verbose = 1)
 }
 \arguments{
 \item{file.coords}{path to the file with alignment coordinates obtained with \code{-outfmt "6 std qlen sstrand"}}
@@ -14,10 +14,12 @@ loadBlast(file.coords, reformat.strand = TRUE, apply.sort = TRUE,
 
 \item{apply.sort}{if TRUE, return the alignments sorted in increasing order for qseqid, then increasing for evalue, then decreasing for bitscore, then decreasing for length, then decreasing for pident, then increasing for sseqid}
 
+\item{asGRanges}{if TRUE, returns a \code{\link[GenomicRanges]{GRanges}} object}
+
 \item{verbose}{verbosity level (0/1)}
 }
 \value{
-data.frame with 14 columns
+GRanges or data.frame with 14 columns
 }
 \description{
 Load alignment coordinates from the \href{http://blast.ncbi.nlm.nih.gov/Blast.cgi}{NCBI BLAST}.
@@ -31,5 +33,8 @@ coords <- loadBlast("megablast_chroms_seqs.txt.gz")
 }
 \author{
 Timothee Flutre
+}
+\seealso{
+\code{\link{blast2granges}}
 }
 

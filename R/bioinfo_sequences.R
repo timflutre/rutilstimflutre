@@ -34,6 +34,130 @@ summaryFasta <- function(fa.file, letters=c("A","T","G","C","N"), algo=NULL){
   return(out)
 }
 
+##' Fasta file
+##'
+##' Extract a subset of (possibly several) sequences present in fasta file.
+##' @param in.fa path to the input fasta file (can be gzipped)
+##' @param sub.info information on the subset to extract, as a data.frame with 3 columns, "seq", "start", "end" (a 4th column, "name", can specify the name of the resulting subsequence; by default, it is \code{seq:start-end})
+##' @param out.fa path to the output fasta file (can be gzipped)
+##' @param split.names if not NULL, specify the character at which the sequence names in \code{in.fa} will be split to only keep the first element
+##' @param verbose verbosity level (0/1)
+##' @return invisible subset of sequence(s)
+##' @author Timothee Flutre
+##' @export
+extractFasta <- function(in.fa, sub.info, out.fa, split.names=" ", verbose=1){
+  requireNamespaces(c("Biostrings", "GenomicRanges", "S4Vectors", "IRanges",
+                      "GenomeInfoDb", "BSgenome"))
+  stopifnot(file.exists(in.fa),
+            is.data.frame(sub.info),
+            ncol(sub.info) >= 3,
+            all(c("seq", "start", "end") %in% colnames(sub.info)),
+            ! file.exists(out.fa))
+  if(is.factor(sub.info$seq))
+    sub.info$seq <- as.character(sub.info$seq)
+  if(! is.numeric(sub.info$start))
+    sub.info$start <- as.numeric(sub.info$start)
+  if(! is.numeric(sub.info$end))
+    sub.info$end <- as.numeric(sub.info$end)
+
+  ## read the input fasta file
+  if(verbose > 0){
+    msg <- paste0("read '", in.fa, "' ...")
+    write(msg, stdout())
+  }
+  records <- Biostrings::readDNAStringSet(filepath=in.fa, format="fasta")
+  if(verbose > 0){
+    msg <- paste0("nb of records: ", length(records))
+    write(msg, stdout())
+  }
+  if(! is.null(split.names))
+    names(records) <- sapply(strsplit(names(records), split.names),
+                             function(x){x[1]})
+
+  ## if(verbose > 0){
+  ##   msg <- "convert subsequence coordinates into a GRanges ..."
+  ##   write(msg, stdout())
+  ## }
+  ## idx <- which(sub.info$seq %in% names(records))
+  ## if(length(idx) > 0){
+  ##   sub.info.gr <- GenomicRanges::GRanges(
+  ##       seqnames=S4Vectors::Rle(sub.info$seq[idx]),
+  ##       ranges=IRanges::IRanges(
+  ##           start=sub.info$start[idx],
+  ##           end=sub.info$end[idx]))
+  ##   if("name" %in% colnames(sub.info)){
+  ##     names(sub.info.gr) <- sub.info$name[idx]
+  ##   } else
+  ##     names(sub.info.gr) <- paste0(sub.info$seq[idx], ":", sub.info$start[idx],
+  ##                                  "-", sub.info$end[idx])
+  ## }
+  if(verbose > 0){
+    msg <- "convert subsequence coordinates into a RangesList ..."
+    write(msg, stdout())
+  }
+  sub.info.rl <- IRanges::RangesList()
+  if(any(sub.info$seq %in% names(records))){
+    seq.names <- unique(sub.info$seq)
+    for(i in 1:length(seq.names)){
+      seq.name <- seq.names[i]
+      idx <- which(sub.info$seq == seq.name)
+      r <- IRanges::IRanges(start=sub.info$start[idx],
+                            end=sub.info$end[idx])
+      if("name" %in% colnames(sub.info)){
+        names(r) <- sub.info$name[idx]
+      } else
+        names(r) <- paste0(sub.info$seq[idx], ":", sub.info$start[idx],
+                           "-", sub.info$end[idx])
+      sub.info.rl[[seq.name]] <- r
+    }
+  }
+
+  ## if(length(sub.info.gr) > 0){
+  ##   if(verbose > 0){
+  ##     msg <- paste0("nb of sequences to extract from: ",
+  ##                   nlevels(GenomeInfoDb::seqnames(sub.info.gr)),
+  ##                   "\nnb of subsequences to extract: ", length(sub.info.gr))
+  ##     write(msg, stdout())
+  ##   }
+  if(length(sub.info.rl) > 0){
+    if(verbose > 0){
+      msg <- paste0("nb of sequences to extract from: ", length(sub.info.rl),
+                    "\nnb of subsequences to extract: ",
+                    sum(sapply(sub.info.rl, length)))
+      write(msg, stdout())
+    }
+
+    ## perform the subsequence extractions
+    ## ## sub.records <- Biostrings::getSeq(x=records, sub.info.gr)
+    ## sub.records <- Biostrings::DNAStringSet()
+    ## seq.names <- unique(as.character(GenomeInfoDb::seqnames(sub.info.gr)))
+    ## for(i in 1:length(seq.names)){
+    ##   seq.name <- seq.names[i]
+    ##   sub.rec <- Biostrings::getSeq(x=records[seq.name],
+    ##                                 sub.info.gr[seqnames(sub.info.gr) == seq.name])
+    ##   sub.records[[seq.name]] <- sub.rec
+    ## }
+    sub.records <- Biostrings::DNAStringSet()
+    seq.names <- names(sub.info.rl)
+    for(i in 1:length(seq.names)){
+      seq.name <- seq.names[i]
+      sub.rec <- Biostrings::extractAt(x=records[seq.name],
+                                       at=sub.info.rl[[seq.name]])[[1]]
+      sub.records <- c(sub.records, sub.rec)
+    }
+
+    if(verbose > 0){
+      msg <- paste0("write '", out.fa, "' ...")
+      write(msg, stdout())
+    }
+    comp <- ifelse(tail(strsplit(out.fa, "\\.")[[1]], 1) == "gz", TRUE, FALSE)
+    Biostrings::writeXStringSet(x=sub.records, filepath=out.fa,
+                                compress=comp)
+
+    invisible(sub.records)
+  }
+}
+
 ##' Calculate the GC content of a set of sequences
 ##'
 ##' Requires the Biostrings package.
@@ -1399,13 +1523,61 @@ vcf2dosage <- function(vcf.file, genome, gdose.file, amap.file,
 
 ##' BLAST
 ##'
+##' Convert a data.frame containing alignments coordinates from BLAST into a GRanges object.
+##' @param coords data.frame with 14 columns (see \code{\link{loadBlast}})
+##' @return GRanges
+##' @author Timothee Flutre
+##' @seealso \code{\link{loadBlast}}
+##' @examples
+##' \dontrun{## BLAST should be run beforehand, see the example of `loadBlast`:
+##' coords <- loadBlast("megablast_chroms_seqs.txt.gz", asGRanges=FALSE)
+##' coords.gr <- blast2granges(coords)
+##' }
+##' @export
+blast2granges <- function(coords){
+  requireNamespaces(c("GenomicRanges", "S4Vectors", "IRanges"))
+  stopifnot(is.data.frame(coords),
+            ncol(coords) == 14,
+            all(colnames(coords) == c("qseqid", "sseqid", "pident",
+                                      "length", "mismatch", "gapopen",
+                                      "qstart", "qend", "sstart", "send",
+                                      "evalue", "bitscore", "qlen",
+                                      "sstrand")))
+
+  if(any(c("plus" %in% coords$sstrand, "minus" %in% coords$sstrand))){
+    coords$sstrand <- gsub("plus", "+", coords$sstrand)
+    coords$sstrand <- gsub("minus", "-", coords$sstrand)
+  }
+
+  gr <-
+    GenomicRanges::GRanges(
+        seqnames=S4Vectors::Rle(coords$sseqid),
+        ranges=IRanges::IRanges(start=ifelse(coords$sstart <= coords$send,
+                                             coords$sstart,
+                                             coords$send),
+                                end=ifelse(coords$sstart <= coords$send,
+                                           coords$send,
+                                           coords$sstart)),
+        strand=ifelse(coords$sstart <= coords$send, "+", "-"))
+  names(gr) <- coords$qseqid
+  S4Vectors::mcols(gr) <- coords[, c("pident", "length", "mismatch", "gapopen",
+                                     "qstart", "qend", "evalue", "bitscore",
+                                     "qlen")]
+
+  return(gr)
+}
+
+##' BLAST
+##'
 ##' Load alignment coordinates from the \href{http://blast.ncbi.nlm.nih.gov/Blast.cgi}{NCBI BLAST}.
 ##' @param file.coords path to the file with alignment coordinates obtained with \code{-outfmt "6 std qlen sstrand"}
 ##' @param reformat.strand if TRUE, "plus" is replaced by "+", and "minus" by "-"
 ##' @param apply.sort if TRUE, return the alignments sorted in increasing order for qseqid, then increasing for evalue, then decreasing for bitscore, then decreasing for length, then decreasing for pident, then increasing for sseqid
+##' @param asGRanges if TRUE, returns a \code{\link[GenomicRanges]{GRanges}} object
 ##' @param verbose verbosity level (0/1)
-##' @return data.frame with 14 columns
+##' @return GRanges or data.frame with 14 columns
 ##' @author Timothee Flutre
+##' @seealso \code{\link{blast2granges}}
 ##' @examples
 ##' \dontrun{## BLAST should be run beforehand, for instance:
 ##' ## zcat chroms.fa.gz | makeblastdb -dbtype nucl -in - -title chroms -out chroms -logfile makeblastdb_chroms.log
@@ -1413,7 +1585,8 @@ vcf2dosage <- function(vcf.file, genome, gdose.file, amap.file,
 ##' coords <- loadBlast("megablast_chroms_seqs.txt.gz")
 ##' }
 ##' @export
-loadBlast <- function(file.coords, reformat.strand=TRUE, apply.sort=TRUE, verbose=1){
+loadBlast <- function(file.coords, reformat.strand=TRUE, apply.sort=TRUE,
+                      asGRanges=TRUE, verbose=1){
   stopifnot(file.exists(file.coords),
             is.logical(reformat.strand),
             is.logical(apply.sort))
@@ -1423,6 +1596,12 @@ loadBlast <- function(file.coords, reformat.strand=TRUE, apply.sort=TRUE, verbos
                                           "length", "mismatch", "gapopen",
                                           "qstart", "qend", "sstart", "send",
                                           "evalue", "bitscore", "qlen", "sstrand"))
+  if(verbose > 0){
+    msg <- paste0("nb of alignments: ", nrow(coords),
+                  "\nnb of queries: ", length(unique(coords[,"qseqid"])),
+                  "\nnb of subjects: ", length(unique(coords[,"sseqid"])))
+    write(msg, stdout())
+  }
 
   if(reformat.strand){
     coords$sstrand <- gsub("plus", "+", coords$sstrand)
@@ -1437,12 +1616,8 @@ loadBlast <- function(file.coords, reformat.strand=TRUE, apply.sort=TRUE, verbos
                            -coords$pident,
                            coords$sseqid), ]
 
-  if(verbose > 0){
-    msg <- paste0("nb of alignments: ", nrow(coords),
-                  "\nnb of queries: ", length(unique(coords[,"qseqid"])),
-                  "\nnb of subjects: ", length(unique(coords[,"sseqid"])))
-    write(msg, stdout())
-  }
+  if(asGRanges)
+    coords <- blast2granges(coords)
 
   return(coords)
 }
