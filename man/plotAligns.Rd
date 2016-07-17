@@ -36,4 +36,7 @@ plotAligns(coords, xlab="chr1", col=c(1, 1, 2, 1))
 \author{
 Timothee Flutre
 }
+\seealso{
+\code{\link{plotGRanges}}
+}
 

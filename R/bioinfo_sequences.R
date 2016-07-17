@@ -1764,6 +1764,7 @@ loadMummer <- function(file.coords, algo="nucmer", asGRanges=TRUE,
 ##' @param col segment color(s)
 ##' @return nothing
 ##' @author Timothee Flutre
+##' @seealso \code{\link{plotGRanges}}
 ##' @examples
 ##' \dontrun{coords <- data.frame(start=c(2, 21, 29, 50),
 ##'                      end=c(10, 25, 45, 53),
@@ -1801,4 +1802,64 @@ plotAligns <- function(coords, main="Alignments", xlab="reference", xlim=NULL,
   graphics::segments(x0=coords[,"start"], y0=y,
                      x1=coords[,"end"], y1=y,
                      col=col)
+}
+
+##' Plot GRanges
+##'
+##' Plot GRanges of several queries on the same reference.
+##' @param gr GRanges
+##' @param main main title
+##' @param xlab label of the x-axis
+##' @param xlim x-axis limits
+##' @param col segment color(s)
+##' @param shape shape used to represent the alignments (segments/arrows)
+##' @return nothing
+##' @author Timothee Flutre
+##' @seealso \code{\link{plotAligns}}
+##' @export
+plotGRanges <- function(gr, main="Alignments", xlab="reference", xlim=NULL,
+                        col="black", shape="segments"){
+  requireNamespaces(c("BiocGenerics"))
+  stopifnot(shape %in% c("segments", "arrows"))
+
+  ## determine axes limits
+  if(is.null(xlim))
+    xlim <- range(BiocGenerics::start(gr), BiocGenerics::end(gr))
+  ylim <- c(1, length(unique(names(gr))))
+
+  ## plot empty box
+  graphics::plot(x=0, y=0, type="n", xlim=xlim, ylim=ylim, yaxt="n",
+                 main=main, xlab=xlab, ylab="")
+  graphics::axis(side=2, at=seq(ylim[1], ylim[2], 1),
+                 labels=unique(names(gr)), las=1)
+
+  ## add alignments
+  if(shape == "segments"){
+    y <- match(names(gr), unique(names(gr)))
+    graphics::segments(x0=BiocGenerics::start(gr), y0=y,
+                       x1=BiocGenerics::end(gr), y1=y,
+                       col=col)
+  } else if(shape == "arrows"){
+    is.s <- BiocGenerics::strand(gr) == "+"
+    if(any(is.s)){
+      y <- match(names(gr[is.s]), unique(names(gr)))
+      graphics::arrows(x0=BiocGenerics::start(gr[is.s]), y0=y,
+                       x1=BiocGenerics::end(gr[is.s]), y1=y,
+                       col=col)
+    }
+    is.s <- BiocGenerics::strand(gr) == "-"
+    if(any(is.s)){
+      y <- match(names(gr[is.s]), unique(names(gr)))
+      graphics::arrows(x0=BiocGenerics::end(gr[is.s]), y0=y,
+                       x1=BiocGenerics::start(gr[is.s]), y1=y,
+                       col=col)
+    }
+    is.s <- BiocGenerics::strand(gr) == "*"
+    if(any(is.s)){
+      y <- match(names(gr[is.s]), unique(names(gr)))
+      graphics::segments(x0=BiocGenerics::start(gr[is.s]), y0=y,
+                         x1=BiocGenerics::end(gr[is.s]), y1=y,
+                         col=col)
+    }
+  }
 }
