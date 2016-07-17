@@ -19,6 +19,8 @@ test_that("extractFasta", {
     sub.info <- data.frame(seq="chr2", start=4, end=5, name="loc")
 
     out.fa <- paste0(tmpd, "/subsequences.fa")
+    if(file.exists(out.fa))
+      file.remove(out.fa)
 
     expected <- Biostrings::DNAStringSet(x=c("loc"="GG"))
 
@@ -28,6 +30,11 @@ test_that("extractFasta", {
     observed <- Biostrings::readDNAStringSet(filepath=out.fa,
                                              format="fasta")
     expect_equal(observed, expected)
+
+    if(file.exists(in.fa))
+      file.remove(in.fa)
+    if(file.exists(out.fa))
+      file.remove(out.fa)
   }
 })
 
@@ -46,9 +53,11 @@ test_that("extractFasta", {
 }
 
 test_that("coverageBams", {
-  if(all(file.exists(Sys.which("bwa")), file.exists(Sys.which("samtools")))){
+  if(all(file.exists(Sys.which("bwa")),
+         file.exists(Sys.which("samtools")))){
     tmpd <- tempdir()
     set.seed(1)
+    all.files <- c()
 
     ## reference genome: 2 100-bp long, identical chromosomes
     faFile <- paste0(tmpd, "/refgenome.fa")
@@ -59,6 +68,7 @@ test_that("coverageBams", {
                                                          100, replace=TRUE),
                                                   collapse="")))
     Biostrings::writeXStringSet(x=chrs, filepath=faFile, format="fasta")
+    all.files <- append(all.files, faFile)
 
     ## reads: 1 perfectly matching, 1 matching with internal indel
     fqFile <- paste0(tmpd, "/reads.fq")
@@ -67,6 +77,7 @@ test_that("coverageBams", {
     r3 <- chrs[[2]][11:80]
     reads <- Biostrings::DNAStringSet(c(read1=r1, read2=r2, read3=r3))
     Biostrings::writeXStringSet(x=reads, filepath=fqFile, format="fastq")
+    all.files <- append(all.files, fqFile)
 
     ## alignment
     bamFile <- paste0(tmpd, "/align.bam")
@@ -74,18 +85,24 @@ test_that("coverageBams", {
                                                     "\\.")[[1]][1],
                    " ", faFile)
     system2("bwa", args, stdout=NULL, stderr=NULL)
+    all.files <- append(all.files, paste0(tmpd, "/refgenome.",
+                                          c("amb", "ann", "bwt",
+                                            "pac", "sa")))
     cmd <- paste0("bwa mem -R \'@RG\tID:ind1' -M ", tmpd, "/",
                   strsplit(basename(faFile), "\\.")[[1]][1],
                   " ", fqFile,
                   " | samtools fixmate -O bam - - ",
                   " | samtools sort -o ", bamFile, " -O bam -")
-    system(cmd, ignore.stdout=TRUE, ignore.stderr=TRUE)
+    system(cmd, ignore.stdout=TRUE, ignore.stderr=TRUE,
+           show.output.on.console=FALSE)
+    all.files <- append(all.files, bamFile)
     args <- paste0("index ", bamFile, " ", bamFile, ".bai")
     system2("samtools", args)
+    all.files <- append(all.files, paste0(bamFile, ".bai"))
 
     ## view alignments
     args <- paste0("view ", bamFile)
-    system2("samtools", args)
+    ## system2("samtools", args)
 
     ## coverage via samtools
     cmd <- paste0("samtools depth -Q 5 ", bamFile)
@@ -112,6 +129,10 @@ test_that("coverageBams", {
     observed <- coverageBams(bamFiles=bamFile)
 
     expect_equal(observed, expected)
+
+    for(f in all.files)
+      if(file.exists(f))
+        file.remove(f)
   }
 })
 
@@ -121,13 +142,16 @@ test_that("setGt2Na", {
          requireNamespace("IRanges"))){
     genome <- "fakeGenomeV0"
     yieldSize <- 100
+    all.files <- c()
 
     vcf.init.file <- system.file("extdata", "example.vcf",
                                  package="rutilstimflutre")
     vcf.init.file.bgz <- Rsamtools::bgzip(file=vcf.init.file,
                                           overwrite=TRUE)
+    all.files <- c(all.files, vcf.init.file.bgz)
     vcf.init.file.bgz.idx <- Rsamtools::indexTabix(file=vcf.init.file.bgz,
                                                    format="vcf")
+    all.files <- c(all.files, vcf.init.file.bgz.idx)
     vcf.init <- VariantAnnotation::readVcf(file=vcf.init.file.bgz,
                                            genome=genome)
     expected <- vcf.init
@@ -140,10 +164,16 @@ test_that("setGt2Na", {
                                  yieldSize=yieldSize,
                                  min.gq=90,
                                  verbose=0)
+    all.files <- c(all.files, vcf.obs.file.bgz,
+                   paste0(vcf.obs.file.bgz, ".tbi"))
     observed <- VariantAnnotation::readVcf(file=vcf.obs.file.bgz,
                                            genome=genome)
 
     .expect_equal_VCFfile(observed, expected)
+
+    for(f in all.files)
+      if(file.exists(f))
+        file.remove(f)
   }
 })
 
@@ -153,6 +183,7 @@ test_that("filterVariantCalls", {
          requireNamespace("IRanges"))){
     genome <- "fakeGenomeV0"
     yieldSize <- 100
+    all.files <- c()
 
     vcf.init.file <- system.file("extdata", "example.vcf",
                                  package="rutilstimflutre")
@@ -172,10 +203,16 @@ test_that("filterVariantCalls", {
                                            is.snv=TRUE,
                                            max.var.prop.gt.na=0.5,
                                            verbose=0)
+    all.files <- c(all.files, vcf.obs.file.bgz,
+                   paste0(vcf.obs.file.bgz, ".tbi"))
     observed <- VariantAnnotation::readVcf(file=vcf.obs.file.bgz,
                                            genome=genome)
 
     .expect_equal_VCFfile(observed, expected)
+
+    for(f in all.files)
+      if(file.exists(f))
+        file.remove(f)
   }
 })
 
@@ -228,6 +265,7 @@ test_that("vcf2dosage", {
          requireNamespace("S4Vectors"))){
     genome <- "fakeGenomeV0"
     yieldSize <- 100
+    all.files <- c()
 
     vcf.init.file <- system.file("extdata", "example.vcf",
                                  package="rutilstimflutre")
@@ -244,6 +282,7 @@ test_that("vcf2dosage", {
     pre.obs.files <- tempfile()
     gdose.file <- paste0(pre.obs.files, "_genos-dose.txt.gz")
     amap.file <- paste0(pre.obs.files, "_alleles-map.txt.gz")
+    all.files <- c(all.files, c(gdose.file, amap.file))
     obs.files <- vcf2dosage(vcf.file=vcf.init.file.bgz,
                             genome=genome,
                             yieldSize=yieldSize,
@@ -254,6 +293,44 @@ test_that("vcf2dosage", {
     atmp <- read.table(file=amap.file, header=TRUE, stringsAsFactors=FALSE)
     observed <- list(genotypes=as.matrix(gtmp),
                      map=atmp)
+
+    expect_equal(observed, expected)
+
+    for(f in all.files)
+      if(file.exists(f))
+        file.remove(f)
+  }
+})
+
+test_that("invertGRanges", {
+  if(all(requireNamespace("S4Vectors"),
+         requireNamespace("BiocGenerics"),
+         requireNamespace("IRanges"),
+         requireNamespace("GenomicRanges"),
+         requireNamespace("GenomeInfoDb"))){
+
+    ## 3 alignments, with a mix of +/- strands on both references and queries
+    in.gr <- GenomicRanges::GRanges(
+        seqnames=S4Vectors::Rle(c("chr1_v1", "chr2_v1", "chr2_v1")),
+        ranges=IRanges::IRanges(start=c(1, 11, 31),
+                                end=c(10, 20, 40)),
+        strand=c("+", "+", "-"))
+    names(in.gr) <- c("chr1_v2", "chr2_v2", "chr2_v2")
+    S4Vectors::mcols(in.gr) <- data.frame(
+        qry.start=c(101, 120, 131),
+        qry.end=c(110, 111, 140))
+
+    expected <- GenomicRanges::GRanges(
+        seqnames=S4Vectors::Rle(c("chr1_v2", "chr2_v2", "chr2_v2")),
+        ranges=IRanges::IRanges(start=c(101, 111, 131),
+                                end=c(110, 120, 140)),
+        strand=c("+", "-", "+"))
+    names(expected) <- c("chr1_v1", "chr2_v1", "chr2_v1")
+    S4Vectors::mcols(expected) <- data.frame(
+        qry.start=c(1, 11, 40),
+        qry.end=c(10, 20, 31))
+
+    observed <- invertGRanges(in.gr)
 
     expect_equal(observed, expected)
   }

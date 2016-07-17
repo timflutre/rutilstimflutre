@@ -4,7 +4,7 @@
 \alias{plotGRanges}
 \title{Plot GRanges}
 \usage{
-plotGRanges(gr, main = "Alignments", xlab = "reference", xlim = NULL,
+plotGRanges(gr, main = "Alignments", xlab = NULL, xlim = NULL,
   col = "black", shape = "segments")
 }
 \arguments{
@@ -12,7 +12,7 @@ plotGRanges(gr, main = "Alignments", xlab = "reference", xlim = NULL,
 
 \item{main}{main title}
 
-\item{xlab}{label of the x-axis}
+\item{xlab}{label of the x-axis (by default, will be the first level of \code{seqnames(gr)})}
 
 \item{xlim}{x-axis limits}
 

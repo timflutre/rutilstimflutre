@@ -1804,12 +1804,64 @@ plotAligns <- function(coords, main="Alignments", xlab="reference", xlim=NULL,
                      col=col)
 }
 
+##' Invert GRanges
+##'
+##' Transform a GRanges by inverting references and queries.
+##' @param in.gr GRanges
+##' @return GRanges which references are gr.in's queries, and queries are gr.in's references.
+##' @author Timothee Flutre
+##' @export
+invertGRanges <- function(in.gr){
+  requireNamespaces(c("S4Vectors", "BiocGenerics", "IRanges", "GenomicRanges",
+                      "GenomeInfoDb"))
+  stopifnot(all(c("qry.start", "qry.end") %in%
+                colnames(S4Vectors::mcols(in.gr))))
+
+  ## get input query starts, ends and strands
+  in.qry.start <- S4Vectors::mcols(in.gr)[, "qry.start"]
+  in.qry.end <- S4Vectors::mcols(in.gr)[, "qry.end"]
+  in.qry.strand <- rep("*", length(in.qry.start))
+  in.qry.strand[in.qry.start < in.qry.end] <- "+"
+  in.qry.strand[in.qry.start > in.qry.end] <- "-"
+
+  ## make output reference starts, ends and strands
+  out.ref.start <- in.qry.start
+  out.ref.start[in.qry.strand == "-"] <- in.qry.end[in.qry.strand == "-"]
+  out.ref.end <- in.qry.end
+  out.ref.end[in.qry.strand == "-"] <- in.qry.start[in.qry.strand == "-"]
+
+  ## make output GRanges
+  out.gr <- GenomicRanges::GRanges(
+      seqnames=S4Vectors::Rle(names(in.gr)),
+      ranges=IRanges::IRanges(start=out.ref.start,
+                              end=out.ref.end),
+      strand=in.qry.strand)
+  names(out.gr) <- as.character(GenomeInfoDb::seqnames(in.gr))
+
+  ## get input reference starts, ends and strands
+  in.ref.start <- BiocGenerics::start(in.gr)
+  in.ref.end <- BiocGenerics::end(in.gr)
+  in.ref.strand <- as.character(BiocGenerics::strand(in.gr))
+
+  ## make output query starts and ends
+  out.qry.start <- in.ref.start
+  out.qry.start[in.ref.strand == "-"] <- in.ref.end[in.ref.strand == "-"]
+  out.qry.end <- in.ref.end
+  out.qry.end[in.ref.strand == "-"] <- in.ref.start[in.ref.strand == "-"]
+
+  ## make mcols of output GRanges
+  S4Vectors::mcols(out.gr) <- data.frame("qry.start"=out.qry.start,
+                                         "qry.end"=out.qry.end)
+
+  return(out.gr)
+}
+
 ##' Plot GRanges
 ##'
 ##' Plot GRanges of several queries on the same reference.
 ##' @param gr GRanges
 ##' @param main main title
-##' @param xlab label of the x-axis
+##' @param xlab label of the x-axis (by default, will be the first level of \code{seqnames(gr)})
 ##' @param xlim x-axis limits
 ##' @param col segment color(s)
 ##' @param shape shape used to represent the alignments (segments/arrows)
@@ -1817,12 +1869,15 @@ plotAligns <- function(coords, main="Alignments", xlab="reference", xlim=NULL,
 ##' @author Timothee Flutre
 ##' @seealso \code{\link{plotAligns}}
 ##' @export
-plotGRanges <- function(gr, main="Alignments", xlab="reference", xlim=NULL,
+plotGRanges <- function(gr, main="Alignments", xlab=NULL, xlim=NULL,
                         col="black", shape="segments"){
-  requireNamespaces(c("BiocGenerics"))
-  stopifnot(shape %in% c("segments", "arrows"))
+  requireNamespaces(c("BiocGenerics", "GenomeInfoDb"))
+  stopifnot(nlevels(GenomeInfoDb::seqnames(gr)) == 1,
+            shape %in% c("segments", "arrows"))
 
-  ## determine axes limits
+  ## determine axes
+  if(is.null(xlab))
+    xlab <- levels(GenomeInfoDb::seqnames(gr))
   if(is.null(xlim))
     xlim <- range(BiocGenerics::start(gr), BiocGenerics::end(gr))
   ylim <- c(1, length(unique(names(gr))))
