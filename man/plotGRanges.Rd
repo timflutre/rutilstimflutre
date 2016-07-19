@@ -5,7 +5,7 @@
 \title{Plot GRanges}
 \usage{
 plotGRanges(gr, main = "Alignments", xlab = NULL, xlim = NULL,
-  col = "black", shape = "segments")
+  col.qry.lab = "black", shape = "segments")
 }
 \arguments{
 \item{gr}{GRanges}
@@ -16,7 +16,7 @@ plotGRanges(gr, main = "Alignments", xlab = NULL, xlim = NULL,
 
 \item{xlim}{x-axis limits}
 
-\item{col}{segment color(s); if shape is arrows, use mcols(gr)[,"col"]}
+\item{col.qry.lab}{color for the query labels used along the y-axis}
 
 \item{shape}{shape used to represent the alignments (segments/arrows)}
 }
@@ -24,7 +24,7 @@ plotGRanges(gr, main = "Alignments", xlab = NULL, xlim = NULL,
 nothing
 }
 \description{
-Plot GRanges of several queries on the same reference, with one y-axis line per query.
+Plot GRanges of several queries on the same reference, with one y-axis line per query. Each alignment can have a different color, specified via the "col" column of \code{mcols(gr)}. If this column doesn't exist, it will be black by default.
 }
 \examples{
 \dontrun{## make fake coordinates to be plotted with a single color

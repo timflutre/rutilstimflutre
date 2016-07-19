@@ -1858,12 +1858,12 @@ invertGRanges <- function(in.gr){
 
 ##' Plot GRanges
 ##'
-##' Plot GRanges of several queries on the same reference, with one y-axis line per query.
+##' Plot GRanges of several queries on the same reference, with one y-axis line per query. Each alignment can have a different color, specified via the "col" column of \code{mcols(gr)}. If this column doesn't exist, it will be black by default.
 ##' @param gr GRanges
 ##' @param main main title
 ##' @param xlab label of the x-axis (by default, will be the first level of \code{seqnames(gr)})
 ##' @param xlim x-axis limits
-##' @param col segment color(s); if shape is arrows, use mcols(gr)[,"col"]
+##' @param col.qry.lab color for the query labels used along the y-axis
 ##' @param shape shape used to represent the alignments (segments/arrows)
 ##' @return nothing
 ##' @author Timothee Flutre
@@ -1887,7 +1887,7 @@ invertGRanges <- function(in.gr){
 ##' }
 ##' @export
 plotGRanges <- function(gr, main="Alignments", xlab=NULL, xlim=NULL,
-                        col="black", shape="segments"){
+                        col.qry.lab="black", shape="segments"){
   requireNamespaces(c("BiocGenerics", "GenomeInfoDb", "S4Vectors"))
   stopifnot(nlevels(GenomeInfoDb::seqnames(gr)) == 1,
             shape %in% c("segments", "arrows"))
@@ -1902,12 +1902,23 @@ plotGRanges <- function(gr, main="Alignments", xlab=NULL, xlim=NULL,
   ## plot empty box
   graphics::plot(x=0, y=0, type="n", xlim=xlim, ylim=ylim, yaxt="n",
                  main=main, xlab=xlab, ylab="")
-  graphics::axis(side=2, at=seq(ylim[1], ylim[2], 1),
-                 labels=unique(names(gr)), las=1)
+  if(length(col.qry.lab) == 1){
+    graphics::axis(side=2, at=seq(ylim[1], ylim[2], 1),
+                   labels=unique(names(gr)), las=1)
+  } else{
+    for(i in seq_along(unique(names(gr)))){
+      graphics::axis(side=2, at=i, labels=unique(names(gr))[i], las=1,
+                     col=col.qry.lab[i], col.axis=col.qry.lab[i])
+    }
+  }
 
   ## add alignments
   if(shape == "segments"){
     y <- match(names(gr), unique(names(gr)))
+    if("col" %in% colnames(S4Vectors::mcols(gr))){
+      col <- S4Vectors::mcols(gr)$col
+    } else
+      col <- "black"
     graphics::segments(x0=BiocGenerics::start(gr), y0=y,
                        x1=BiocGenerics::end(gr), y1=y,
                        col=col)
