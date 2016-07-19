@@ -1858,20 +1858,37 @@ invertGRanges <- function(in.gr){
 
 ##' Plot GRanges
 ##'
-##' Plot GRanges of several queries on the same reference.
+##' Plot GRanges of several queries on the same reference, with one y-axis line per query.
 ##' @param gr GRanges
 ##' @param main main title
 ##' @param xlab label of the x-axis (by default, will be the first level of \code{seqnames(gr)})
 ##' @param xlim x-axis limits
-##' @param col segment color(s)
+##' @param col segment color(s); if shape is arrows, use mcols(gr)[,"col"]
 ##' @param shape shape used to represent the alignments (segments/arrows)
 ##' @return nothing
 ##' @author Timothee Flutre
 ##' @seealso \code{\link{plotAligns}}
+##' @examples
+##' \dontrun{## make fake coordinates to be plotted with a single color
+##' library(GenomicRanges)
+##' gr <- GRanges(seqnames=c("chr1"),
+##'               ranges=IRanges(start=c(1, 15, 6), end=c(10, 20, 12)),
+##'               strand=c("+", "-", "+"))
+##' names(gr) <- c("qry1", "qry1", "qry2")
+##' plotGRanges(gr)
+##' plotGRanges(gr, shape="arrows")
+##'
+##' ## use color to distinguish different alignments of the same query
+##' mcols(gr)["col"] <- c("black", "red", "black")
+##' plotGRanges(gr, shape="arrows")
+##'
+##' ## outside of this function, one can always add other things to the plot
+##' legend("right", legend=c("a", "b"), col=c("black", "red"), lwd=2, bty="n")
+##' }
 ##' @export
 plotGRanges <- function(gr, main="Alignments", xlab=NULL, xlim=NULL,
                         col="black", shape="segments"){
-  requireNamespaces(c("BiocGenerics", "GenomeInfoDb"))
+  requireNamespaces(c("BiocGenerics", "GenomeInfoDb", "S4Vectors"))
   stopifnot(nlevels(GenomeInfoDb::seqnames(gr)) == 1,
             shape %in% c("segments", "arrows"))
 
@@ -1898,6 +1915,10 @@ plotGRanges <- function(gr, main="Alignments", xlab=NULL, xlim=NULL,
     is.s <- BiocGenerics::strand(gr) == "+"
     if(any(is.s)){
       y <- match(names(gr[is.s]), unique(names(gr)))
+      if("col" %in% colnames(S4Vectors::mcols(gr))){
+        col <- S4Vectors::mcols(gr[is.s])$col
+      } else
+        col <- "black"
       graphics::arrows(x0=BiocGenerics::start(gr[is.s]), y0=y,
                        x1=BiocGenerics::end(gr[is.s]), y1=y,
                        col=col)
@@ -1905,6 +1926,10 @@ plotGRanges <- function(gr, main="Alignments", xlab=NULL, xlim=NULL,
     is.s <- BiocGenerics::strand(gr) == "-"
     if(any(is.s)){
       y <- match(names(gr[is.s]), unique(names(gr)))
+      if("col" %in% colnames(S4Vectors::mcols(gr))){
+        col <- S4Vectors::mcols(gr[is.s])$col
+      } else
+        col <- "black"
       graphics::arrows(x0=BiocGenerics::end(gr[is.s]), y0=y,
                        x1=BiocGenerics::start(gr[is.s]), y1=y,
                        col=col)
@@ -1912,6 +1937,10 @@ plotGRanges <- function(gr, main="Alignments", xlab=NULL, xlim=NULL,
     is.s <- BiocGenerics::strand(gr) == "*"
     if(any(is.s)){
       y <- match(names(gr[is.s]), unique(names(gr)))
+      if("col" %in% colnames(S4Vectors::mcols(gr))){
+        col <- S4Vectors::mcols(gr[is.s])$col
+      } else
+        col <- "black"
       graphics::segments(x0=BiocGenerics::start(gr[is.s]), y0=y,
                          x1=BiocGenerics::end(gr[is.s]), y1=y,
                          col=col)

@@ -16,7 +16,7 @@ plotGRanges(gr, main = "Alignments", xlab = NULL, xlim = NULL,
 
 \item{xlim}{x-axis limits}
 
-\item{col}{segment color(s)}
+\item{col}{segment color(s); if shape is arrows, use mcols(gr)[,"col"]}
 
 \item{shape}{shape used to represent the alignments (segments/arrows)}
 }
@@ -24,7 +24,25 @@ plotGRanges(gr, main = "Alignments", xlab = NULL, xlim = NULL,
 nothing
 }
 \description{
-Plot GRanges of several queries on the same reference.
+Plot GRanges of several queries on the same reference, with one y-axis line per query.
+}
+\examples{
+\dontrun{## make fake coordinates to be plotted with a single color
+library(GenomicRanges)
+gr <- GRanges(seqnames=c("chr1"),
+              ranges=IRanges(start=c(1, 15, 6), end=c(10, 20, 12)),
+              strand=c("+", "-", "+"))
+names(gr) <- c("qry1", "qry1", "qry2")
+plotGRanges(gr)
+plotGRanges(gr, shape="arrows")
+
+## use color to distinguish different alignments of the same query
+mcols(gr)["col"] <- c("black", "red", "black")
+plotGRanges(gr, shape="arrows")
+
+## outside of this function, one can always add other things to the plot
+legend("right", legend=c("a", "b"), col=c("black", "red"), lwd=2, bty="n")
+}
 }
 \author{
 Timothee Flutre
