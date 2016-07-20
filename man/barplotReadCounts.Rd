@@ -6,10 +6,12 @@
 \usage{
 barplotReadCounts(counts, xlab = paste0("Individuals (", ncol(counts), ")"),
   ylab = "Number of read pairs", main = "Read pairs per individual",
-  lines.h = c(10^5, 10^6, 5 * 10^6), mar = c(4, 4, 4, 1), xlab.line = 3)
+  legend.text = rownames(counts), col = 1:nrow(counts), lines.h = c(10^5,
+  10^6, 5 * 10^6), mar = c(5, 4.5, 4, 0), xlab.line = 3, font.lab = 2,
+  cex.xtxt = 0.7)
 }
 \arguments{
-\item{counts}{matrix; if colnames is not NULL, they will be used as labels of the x-axis}
+\item{counts}{matrix, with categories (e.g. lanes) in rows and individuals in columns; if colnames is not NULL, they will be used as labels of the x-axis}
 
 \item{xlab}{a title for the x axis}
 
@@ -17,17 +19,35 @@ barplotReadCounts(counts, xlab = paste0("Individuals (", ncol(counts), ")"),
 
 \item{main}{an overall title for the plot}
 
+\item{legend.text}{see \code{\link[graphics]{barplot}}}
+
+\item{col}{see \code{\link[graphics]{barplot}}}
+
 \item{lines.h}{the y-value(s) for horizontal line(s)}
 
 \item{mar}{see \code{\link[graphics]{par}}}
 
 \item{xlab.line}{see \code{line} from \code{\link[graphics]{mtext}}}
+
+\item{font.lab}{see \code{\link[graphics]{par}}}
+
+\item{cex.xtxt}{see \code{cex} from \code{\link[graphics]{text}}}
 }
 \value{
-nothing
+invisible output of \code{\link[graphics]{barplot}}
 }
 \description{
-Make a stacked barplot from the output of \code{\link{formatReadCountsPerLane}}.
+Make a stacked barplot, for instance from the output of \code{\link{formatReadCountsPerLane}}. Default graphical parameters are optimized for few categories (e.g. lanes) but many individuals.
+}
+\examples{
+\dontrun{## make fake data
+(x <- matrix(data=c(10,3, 20,0, 21,17, 35,19), nrow=2, ncol=4,
+             dimnames=list(c("var1", "var2"),
+             c("ind1", "ind2", "ind3", "ind4"))))
+
+## plot them
+barplotReadCounts(counts=x)
+}
 }
 \author{
 Timothee Flutre

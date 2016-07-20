@@ -7,7 +7,7 @@
 barplotInsertSizes(file, main = NULL, add.text = FALSE)
 }
 \arguments{
-\item{file}{path to the output file from Picard CollectInsertSizeMetrics}
+\item{file}{path to the output file from \code{java -jar picard.jar CollectInsertSizeMetrics}}
 
 \item{main}{overall title for the plot}
 
@@ -17,7 +17,7 @@ barplotInsertSizes(file, main = NULL, add.text = FALSE)
 invisible data frame of the content of the file
 }
 \description{
-Creates a bar plot with vertical bars of insert sizes from histogram data as calculated by Picard CollectInsertSizeMetrics.
+Creates a bar plot with vertical bars of insert sizes from histogram data as calculated by the CollectInsertSizeMetrics program from the \href{https://broadinstitute.github.io/picard/}{Picard} software.
 }
 \author{
 Timothee Flutre

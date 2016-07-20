@@ -311,24 +311,41 @@ formatReadCountsPerLane <- function(x){
 
 ##' Stacked barplot of read counts
 ##'
-##' Make a stacked barplot from the output of \code{\link{formatReadCountsPerLane}}.
-##' @param counts matrix; if colnames is not NULL, they will be used as labels of the x-axis
+##' Make a stacked barplot, for instance from the output of \code{\link{formatReadCountsPerLane}}. Default graphical parameters are optimized for few categories (e.g. lanes) but many individuals.
+##' @param counts matrix, with categories (e.g. lanes) in rows and individuals in columns; if colnames is not NULL, they will be used as labels of the x-axis
 ##' @param xlab a title for the x axis
 ##' @param ylab a title for the y axis
 ##' @param main an overall title for the plot
+##' @param legend.text see \code{\link[graphics]{barplot}}
+##' @param col see \code{\link[graphics]{barplot}}
 ##' @param lines.h the y-value(s) for horizontal line(s)
 ##' @param mar see \code{\link[graphics]{par}}
 ##' @param xlab.line see \code{line} from \code{\link[graphics]{mtext}}
-##' @return nothing
+##' @param font.lab see \code{\link[graphics]{par}}
+##' @param cex.xtxt see \code{cex} from \code{\link[graphics]{text}}
+##' @return invisible output of \code{\link[graphics]{barplot}}
 ##' @author Timothee Flutre
+##' @examples
+##' \dontrun{## make fake data
+##' (x <- matrix(data=c(10,3, 20,0, 21,17, 35,19), nrow=2, ncol=4,
+##'              dimnames=list(c("var1", "var2"),
+##'              c("ind1", "ind2", "ind3", "ind4"))))
+##'
+##' ## plot them
+##' barplotReadCounts(counts=x)
+##' }
 ##' @export
 barplotReadCounts <- function(counts,
                               xlab=paste0("Individuals (", ncol(counts), ")"),
                               ylab="Number of read pairs",
                               main="Read pairs per individual",
+                              legend.text=rownames(counts),
+                              col=1:nrow(counts),
                               lines.h=c(10^5, 10^6, 5*10^6),
-                              mar=c(4, 4, 4, 1),
-                              xlab.line=3){
+                              mar=c(5, 4.5, 4, 0),
+                              xlab.line=3,
+                              font.lab=2,
+                              cex.xtxt=0.7){
   stopifnot(is.matrix(counts))
 
   if(! is.null(mar)){
@@ -336,25 +353,32 @@ barplotReadCounts <- function(counts,
     graphics::par(mar=mar)
   }
 
-  bp <- graphics::barplot(height=counts, width=1,
-                col=1:nrow(counts),
-                border=NA,
-                xaxt="n",
-                xlab="",
-                ylab=ylab,
-                main=main,
-                legend.text=TRUE,
-                args.legend=list(x="left", bty="n", border=nrow(counts):1))
+  bp <- graphics::barplot(height=counts,
+                          width=1,
+                          col=col,
+                          border=NA,
+                          xaxt="n",
+                          xlab="",
+                          ylab=ylab,
+                          main=main,
+                          font.lab=font.lab,
+                          legend.text=legend.text,
+                          args.legend=list(x="topleft", bty="n",
+                                           fill=rev(col),
+                                           border=rev(col)))
+
   graphics::axis(1, at=bp, labels=FALSE)
   if(! is.null(colnames(counts)))
     graphics::text(x=bp, y=graphics::par("usr")[3], srt=45, adj=c(1.2,2),
-         labels=colnames(counts), xpd=TRUE)
-  graphics::mtext(text=xlab, side=1, line=xlab.line)
+         labels=colnames(counts), xpd=TRUE, cex=cex.xtxt)
+  graphics::mtext(text=xlab, side=1, line=xlab.line, font=font.lab)
 
   if(! is.null(lines.h)){
     for(h in lines.h)
       graphics::abline(h=h, lty=2)
   }
+
+  invisible(bp)
 }
 
 ##' Coverage
@@ -479,8 +503,8 @@ coverageBams <- function(bamFiles, yieldSize=10^4, seq.ids=NULL,
 
 ##' Bar plot of insert sizes
 ##'
-##' Creates a bar plot with vertical bars of insert sizes from histogram data as calculated by Picard CollectInsertSizeMetrics.
-##' @param file path to the output file from Picard CollectInsertSizeMetrics
+##' Creates a bar plot with vertical bars of insert sizes from histogram data as calculated by the CollectInsertSizeMetrics program from the \href{https://broadinstitute.github.io/picard/}{Picard} software.
+##' @param file path to the output file from \code{java -jar picard.jar CollectInsertSizeMetrics}
 ##' @param main overall title for the plot
 ##' @param add.text add total count, as well as Q25, median and Q75 for insert sizes, to the topright of the plot
 ##' @return invisible data frame of the content of the file
@@ -497,18 +521,18 @@ barplotInsertSizes <- function(file, main=NULL, add.text=FALSE){
 
   tot.count <- sum(dat$count)
   q25.insert.size <- rev(dat$insert.size[cumsum(dat$count) <=
-                                           0.25 * tot.count])[1]
+                                         0.25 * tot.count])[1]
   med.insert.size <- rev(dat$insert.size[cumsum(dat$count) <=
-                                           0.5 * tot.count])[1]
+                                         0.5 * tot.count])[1]
   q75.insert.size <- rev(dat$insert.size[cumsum(dat$count) <=
-                                           0.75 * tot.count])[1]
+                                         0.75 * tot.count])[1]
 
   bp <- graphics::barplot(height=dat$count, width=1,
-                xlab="Insert size (in bp)",
-                ylab="Counts",
-                main=main)
+                          xlab="Insert size (in bp)",
+                          ylab="Counts",
+                          main=main)
   graphics::axis(side=1, at=c(0, bp[seq(100, max(dat$insert.size), 100)]),
-       labels=c(0, seq(100, max(dat$insert.size), 100)))
+                 labels=c(0, seq(100, max(dat$insert.size), 100)))
 
   graphics::abline(v=bp[q25.insert.size], lty=2)
   graphics::abline(v=bp[med.insert.size], lty=2)
@@ -516,17 +540,20 @@ barplotInsertSizes <- function(file, main=NULL, add.text=FALSE){
 
   if(add.text){
     graphics::text(x=bp[floor(0.6*max(dat$insert.size))],
-         y=0.6*max(dat$count), adj=0,
-         labels=paste0("Q25 = ", format(q25.insert.size, digits=2), " bp"))
+                   y=0.6*max(dat$count), adj=0,
+                   labels=paste0("Q25 = ", format(q25.insert.size, digits=2),
+                                 " bp"))
     graphics::text(x=bp[floor(0.6*max(dat$insert.size))],
-         y=0.7*max(dat$count), adj=0,
-         labels=paste0("median = ", format(med.insert.size, digits=2), " bp"))
+                   y=0.7*max(dat$count), adj=0,
+                   labels=paste0("median = ", format(med.insert.size, digits=2),
+                                 " bp"))
     graphics::text(x=bp[floor(0.6*max(dat$insert.size))],
-         y=0.8*max(dat$count), adj=0,
-         labels=paste0("Q75 = ", format(q75.insert.size, digits=2), " bp"))
+                   y=0.8*max(dat$count), adj=0,
+                   labels=paste0("Q75 = ", format(q75.insert.size, digits=2),
+                                 " bp"))
     graphics::text(x=bp[floor(0.6*max(dat$insert.size))],
-         y=0.9*max(dat$count), adj=0,
-         labels=paste0("total count = ", format(tot.count, digits=2)))
+                   y=0.9*max(dat$count), adj=0,
+                   labels=paste0("total count = ", format(tot.count, digits=2)))
   }
 
   invisible(dat)
