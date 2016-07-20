@@ -1641,6 +1641,77 @@ thinSnps <- function(method, threshold, snp.coords, only.chr=NULL){
   return(out.snp.ids)
 }
 
+##' Genotype imputation
+##'
+##' Impute SNP genotypes with the \code{A.mat} function from the \code{rrBLUP} package.
+##' @param X NxP matrix of SNP genotypes encoded in number of copies of the 2nd allele, i.e. as allele doses in {0,1,2}, with individuals in rows and SNPs in columns
+##' @param pops data.frame with 2 columns, "ind" and "pop"
+##' @param min.maf.pop see parameter \code{min.MAF} for \code{A.mat} from \code{rrBLUP}
+##' @param max.miss.pop see parameter \code{max.missing} for \code{A.mat} from \code{rrBLUP}
+##' @param rm.still.miss if TRUE, remove SNP(s) still with missing genotype(s) in at least one population (depending on \code{min.maf.pop} and \code{max.miss.pop})
+##' @param verbose verbosity level (0/1)
+##' @return NxP matrix with imputed genotypes
+##' @author Timothee Flutre
+##' @export
+imputeGenosWithMeanPerPop <- function(X, pops, min.maf.pop=0.1,
+                                      max.miss.pop=0.3, rm.still.miss=TRUE,
+                                      verbose=1){
+  requireNamespace("rrBLUP")
+  stopifnot(is.matrix(X),
+            is.data.frame(pops),
+            "ind" %in% colnames(pops),
+            "pop" %in% colnames(pops))
+
+  X.out <- X
+
+  pops$ind <- as.character(pops$ind)
+  pops$pop <- as.character(pops$pop)
+
+  if(verbose > 0){
+    msg <- paste0("nb of individuals: ", nrow(X),
+                  "\nnb of SNPs: ", ncol(X),
+                  "\nnb of genotypes: ", nrow(X) * ncol(X),
+                  "\nnb of missing genotypes: ", sum(is.na(X)),
+                  " (", format(100 * sum(is.na(X)) / (nrow(X) * ncol(X)),
+                               digits=2), "%)",
+                  "\nnb of populations: ", length(unique(pops$pop)))
+    write(msg, stdout())
+  }
+
+  for(pop in unique(pops$pop)){
+    ## identify subset of individuals
+    idxI <- which(rownames(X) %in% pops$ind[pops$pop == pop])
+    if(verbose > 0){
+      msg <- paste0("impute missing genotypes in ", length(idxI),
+                    " individuals from ", pop, " ...")
+      write(msg, stdout())
+    }
+    ## perform imputation
+    tmp <- rrBLUP::A.mat(X=X[idxI,] - 1, min.MAF=min.maf.pop,
+                         max.missing=max.miss.pop, impute.method="mean",
+                         return.imputed=TRUE)
+    X.out[rownames(tmp$imputed), colnames(tmp$imputed)] <- tmp$imputed + 1
+  }
+  X.out[X.out < 0 & abs(X.out) < 10^(-6)] <- 0
+
+  if(verbose > 0){
+    msg <- paste0("nb of missing genotypes: ", sum(is.na(X.out)),
+                  " (", format(100 * sum(is.na(X.out)) / (nrow(X) * ncol(X)),
+                               digits=2), "%)")
+    write(msg, stdout())
+  }
+
+  ## remove SNPs with remaining missing genotypes
+  if(rm.still.miss & sum(is.na(X.out)) > 0){
+    tokeep <- apply(X.out, 2, function(x){
+      sum(is.na(x)) == 0
+    })
+    X.out <- X.out[, tokeep]
+  }
+
+  return(X.out)
+}
+
 ##' Convert genotypes
 ##'
 ##'
@@ -1700,7 +1771,7 @@ writeInputsForFastPhase <- function(X, snp.coords, alleles, file){
                        paste0(tmp.out.prefix, "_snpinfo.txt")))
 }
 
-##' Imputation
+##' Genotype imputation
 ##'
 ##' Extract the haplotypes from the output file of fastPHASE.
 ##' @param file character
@@ -1730,7 +1801,7 @@ readGenosFastPhase <- function(file, snp.ids){
   return(genos)
 }
 
-##' Imputation
+##' Genotype imputation
 ##'
 ##' Extract the haplotypes from the output file of fastPHASE.
 ##' @param file character
@@ -1761,7 +1832,7 @@ readHaplosFastPhase <- function(file, snp.ids){
   return(haplos)
 }
 
-##' Imputation
+##' Genotype imputation
 ##'
 ##' Impute SNP genotypes via fastPHASE (Scheet and Stephens, 2006).
 ##' @param X NxP matrix of SNP genotypes encoded in number of copies of the 2nd allele, i.e. as allele doses in {0,1,2}, with individuals in rows and SNPs in columns

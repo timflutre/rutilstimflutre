@@ -2,7 +2,7 @@
 % Please edit documentation in R/quantgen.R
 \name{readGenosFastPhase}
 \alias{readGenosFastPhase}
-\title{Imputation}
+\title{Genotype imputation}
 \usage{
 readGenosFastPhase(file, snp.ids)
 }

@@ -2,7 +2,7 @@
 % Please edit documentation in R/quantgen.R
 \name{fastphase}
 \alias{fastphase}
-\title{Imputation}
+\title{Genotype imputation}
 \usage{
 fastphase(X, snp.coords, alleles, out.dir = getwd(), task.id = "fastphase",
   nb.starts = 20, nb.iters = 25, nb.samp.haplos = 50,
