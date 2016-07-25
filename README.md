@@ -52,5 +52,5 @@ It may be necessary to `export _R_CHECK_FORCE_SUGGESTS_=0` before `R CMD check`.
 When developping, here are a few useful tips:
 ```
 R> detach("package:rutilstimflutre", unload=TRUE)
-R> testthat::test_file("tests/testthat/test_quantgen.R")
+R> devtools::test(filter="quantgen")
 ```

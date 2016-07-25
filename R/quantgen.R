@@ -138,8 +138,7 @@ calcFreqMissGenos <- function(X){
 
 ##' Missing genotypes
 ##'
-##' Plot missing SNP genotypes as a grid.
-##' Data will be represented in black if missing, white otherwise.
+##' Plot missing SNP genotypes as a grid. Data will be represented in black if missing, white otherwise.
 ##' @param X matrix of SNP genotypes encoded in number of copies of the 2nd allele, i.e. as allele doses in {0,1,2}, with individuals in rows and SNPs in columns; NA if missing
 ##' @param main an overall title for the plot
 ##' @param xlab a title for the x axis
@@ -154,6 +153,33 @@ plotGridMissGenos <- function(X, main="Missing genotypes", xlab="Individuals",
 
   graphics::image(1:nrow(X), 1:ncol(X), is.na(X), col=c("white","black"),
         main=main, xlab=xlab, ylab=ylab)
+}
+
+##' Missing genotypes
+##'
+##' Discard the SNPs with any missing genotype.
+##' @param X matrix of SNP genotypes encoded in number of copies of the 2nd allele, i.e. as allele doses in {0,1,2}, with individuals in rows and SNPs in columns; NA if missing
+##' @param verbose verbosity level (0/1)
+##' @return matrix similar to X but possibly with less columns
+##' @author Timothee Flutre
+##' @seealso \code{\link{imputeGenosWithMean}}
+##' @export
+discardSnpsMissGenos <- function(X, verbose=1){
+  stopifnot(.isValidGenosDose(X, check.coln=FALSE, check.rown=FALSE,
+                              check.na=FALSE))
+
+  ## for each SNP, test if it has any missing genotype
+  tokeep <- apply(X, 2, function(x){
+    sum(is.na(x)) == 0
+  })
+  if(verbose > 0){
+    msg <- paste0("nb of SNPs to keep: ", sum(tokeep))
+    write(msg, stdout())
+  }
+
+  X.out <- X[, tokeep]
+
+  return(X.out)
 }
 
 ##' Allele frequencies
@@ -1643,20 +1669,58 @@ thinSnps <- function(method, threshold, snp.coords, only.chr=NULL){
 
 ##' Genotype imputation
 ##'
-##' Impute SNP genotypes with the \code{A.mat} function from the \code{rrBLUP} package.
-##' @param X NxP matrix of SNP genotypes encoded in number of copies of the 2nd allele, i.e. as allele doses in {0,1,2}, with individuals in rows and SNPs in columns
+##' Impute missing SNP genotypes with the mean of the non-missing. The code was inspired from the \code{A.mat} function from the \href{https://cran.r-project.org/web/packages/rrBLUP/}{rrBLUP} package.
+##' @param X NxP matrix of SNP genotypes encoded in number of copies of the 2nd allele, i.e. as allele doses in {0,1,2}, with individuals in rows and SNPs in columns; NA if missing
+##' @param min.maf minimum minor allele frequency (before imputation) below which SNPs are discarded
+##' @param max.miss maximum amount of missing genotypes (before imputation) above which SNPs are discarded
+##' @param rm.still.miss if TRUE, remove SNP(s) still with missing genotype(s) after imputation (depending on \code{min.maf} and \code{max.miss})
+##' @return NxP matrix with imputed genotypes
+##' @author Timothee Flutre
+##' @seealso \code{\link{imputeGenosWithMeanPerPop}}
+##' @export
+imputeGenosWithMean <- function(X, min.maf=0.1, max.miss=0.3, rm.still.miss=TRUE){
+  ## requireNamespace("rrBLUP")
+  stopifnot(.isValidGenosDose(X, check.na=FALSE))
+
+  X.out <- X
+
+  ## perform imputation
+  ## tmp <- rrBLUP::A.mat(X=X - 1, min.MAF=min.maf, max.missing=max.miss,
+  ##                      impute.method="mean", return.imputed=TRUE)
+  ## X.out <- tmp$imputed + 1
+  freq.miss <- calcFreqMissGenos(X)
+  afs <- estimAf(X=X)
+  mafs <- estimMaf(afs=afs)
+  tokeep <- which((mafs >= min.maf) & (freq.miss <= max.miss))
+  ones <- matrix(data=1, nrow=nrow(X), ncol=1)
+  afs.mat <- tcrossprod(ones, matrix(afs[tokeep]))
+  idx.na <- which(is.na(X.out[,tokeep]))
+  X.out[,tokeep][idx.na] <- 0
+  X.out[,tokeep][idx.na] <- (X.out[,tokeep] + 2 * afs.mat)[idx.na]
+
+  ## remove SNPs with remaining missing genotypes
+  if(all(rm.still.miss, sum(is.na(X.out)) > 0))
+    X.out <- discardSnpsMissGenos(X=X.out, verbose=0)
+
+  return(X.out)
+}
+
+##' Genotype imputation
+##'
+##' Impute missing SNP genotypes with the mean of the non-missing, population by population.
+##' @param X NxP matrix of SNP genotypes encoded in number of copies of the 2nd allele, i.e. as allele doses in {0,1,2}, with individuals in rows and SNPs in columns; NA if missing
 ##' @param pops data.frame with 2 columns, "ind" and "pop"
-##' @param min.maf.pop see parameter \code{min.MAF} for \code{A.mat} from \code{rrBLUP}
-##' @param max.miss.pop see parameter \code{max.missing} for \code{A.mat} from \code{rrBLUP}
+##' @param min.maf.pop minimum minor allele frequency per population (before imputation) below which SNPs are discarded
+##' @param max.miss.pop maximum amount of missing genotypes per population (before imputation) above which SNPs are discarded
 ##' @param rm.still.miss if TRUE, remove SNP(s) still with missing genotype(s) in at least one population (depending on \code{min.maf.pop} and \code{max.miss.pop})
 ##' @param verbose verbosity level (0/1)
 ##' @return NxP matrix with imputed genotypes
 ##' @author Timothee Flutre
+##' @seealso \code{\link{imputeGenosWithMean}}
 ##' @export
 imputeGenosWithMeanPerPop <- function(X, pops, min.maf.pop=0.1,
                                       max.miss.pop=0.3, rm.still.miss=TRUE,
                                       verbose=1){
-  requireNamespace("rrBLUP")
   stopifnot(is.matrix(X),
             is.data.frame(pops),
             "ind" %in% colnames(pops),
@@ -1687,10 +1751,9 @@ imputeGenosWithMeanPerPop <- function(X, pops, min.maf.pop=0.1,
       write(msg, stdout())
     }
     ## perform imputation
-    tmp <- rrBLUP::A.mat(X=X[idxI,] - 1, min.MAF=min.maf.pop,
-                         max.missing=max.miss.pop, impute.method="mean",
-                         return.imputed=TRUE)
-    X.out[rownames(tmp$imputed), colnames(tmp$imputed)] <- tmp$imputed + 1
+    X.out[idxI,] <- imputeGenosWithMean(X=X[idxI,], min.maf=min.maf.pop,
+                                        max.miss=max.miss.pop,
+                                        rm.still.miss=FALSE)
   }
   X.out[X.out < 0 & abs(X.out) < 10^(-6)] <- 0
 
@@ -1702,12 +1765,8 @@ imputeGenosWithMeanPerPop <- function(X, pops, min.maf.pop=0.1,
   }
 
   ## remove SNPs with remaining missing genotypes
-  if(rm.still.miss & sum(is.na(X.out)) > 0){
-    tokeep <- apply(X.out, 2, function(x){
-      sum(is.na(x)) == 0
-    })
-    X.out <- X.out[, tokeep]
-  }
+  if(all(rm.still.miss, sum(is.na(X.out)) > 0))
+    X.out <- discardSnpsMissGenos(X=X.out, verbose=verbose - 1)
 
   return(X.out)
 }

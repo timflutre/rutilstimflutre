@@ -33,6 +33,19 @@ test_that("calcFreqMissGenos", {
   expect_equal(observed, expected)
 })
 
+test_that("discardSnpsMissGenos", {
+  N <- 2 # individuals
+  P <- 4 # SNPs
+  X <- matrix(c(1,1, NA,NA, 2,1, 1,NA), nrow=N, ncol=P,
+              dimnames=list(paste0("ind", 1:N), paste0("snp", 1:P)))
+
+  expected <- X[, -c(2,4)]
+
+  observed <- discardSnpsMissGenos(X=X, verbose=0)
+
+  expect_equal(observed, expected)
+})
+
 test_that("estimAf", {
   N <- 2 # individuals
   P <- 4 # SNPs
@@ -81,6 +94,32 @@ test_that("discardSnpsLowMaf", {
   mafs <- estimMaf(X)
   observed <- discardSnpsLowMaf(X=X, mafs=mafs, thresh=0.2, verbose=0)
   expected <- X[, c("snp1", "snp2")]
+  expect_equal(observed, expected)
+})
+
+test_that("imputeGenosWithMean", {
+  N <- 4 # individuals
+  P <- 4 # SNPs
+  X <- matrix(c(0,1,2,NA,
+                1,1,0,NA,
+                0,0,0,NA,
+                0,NA,NA,NA),
+              nrow=N, ncol=P,
+              dimnames=list(paste0("ind", 1:N), paste0("snp", 1:P)))
+
+  expected <- matrix(c(0,1,2,mean(c(0,1,2)),
+                       1,1,0,mean(c(1,1,0)),
+                       0,0,0,NA,
+                       0,NA,NA,NA),
+                     nrow=N, ncol=P,
+                     dimnames=list(paste0("ind", 1:N), paste0("snp", 1:P)))
+  observed <- imputeGenosWithMean(X=X, min.maf=0.1, max.miss=0.3,
+                                  rm.still.miss=FALSE)
+  expect_equal(observed, expected)
+
+  expected <- expected[, -c(3,4)]
+  observed <- imputeGenosWithMean(X=X, min.maf=0.1, max.miss=0.3,
+                                  rm.still.miss=TRUE)
   expect_equal(observed, expected)
 })
 

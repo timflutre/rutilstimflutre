@@ -8,13 +8,13 @@ imputeGenosWithMeanPerPop(X, pops, min.maf.pop = 0.1, max.miss.pop = 0.3,
   rm.still.miss = TRUE, verbose = 1)
 }
 \arguments{
-\item{X}{NxP matrix of SNP genotypes encoded in number of copies of the 2nd allele, i.e. as allele doses in {0,1,2}, with individuals in rows and SNPs in columns}
+\item{X}{NxP matrix of SNP genotypes encoded in number of copies of the 2nd allele, i.e. as allele doses in {0,1,2}, with individuals in rows and SNPs in columns; NA if missing}
 
 \item{pops}{data.frame with 2 columns, "ind" and "pop"}
 
-\item{min.maf.pop}{see parameter \code{min.MAF} for \code{A.mat} from \code{rrBLUP}}
+\item{min.maf.pop}{minimum minor allele frequency per population (before imputation) below which SNPs are discarded}
 
-\item{max.miss.pop}{see parameter \code{max.missing} for \code{A.mat} from \code{rrBLUP}}
+\item{max.miss.pop}{maximum amount of missing genotypes per population (before imputation) above which SNPs are discarded}
 
 \item{rm.still.miss}{if TRUE, remove SNP(s) still with missing genotype(s) in at least one population (depending on \code{min.maf.pop} and \code{max.miss.pop})}
 
@@ -24,9 +24,12 @@ imputeGenosWithMeanPerPop(X, pops, min.maf.pop = 0.1, max.miss.pop = 0.3,
 NxP matrix with imputed genotypes
 }
 \description{
-Impute SNP genotypes with the \code{A.mat} function from the \code{rrBLUP} package.
+Impute missing SNP genotypes with the mean of the non-missing, population by population.
 }
 \author{
 Timothee Flutre
+}
+\seealso{
+\code{\link{imputeGenosWithMean}}
 }
 
