@@ -153,19 +153,20 @@ mpInv <- function(mat){
 ##' @param X data matrix with N rows and P columns
 ##' @param ct use TRUE to center the columns of X (recommended), FALSE otherwise
 ##' @param sc use TRUE to scale the columns of X (if different units), FALSE otherwise
-##' @param plot use TRUE to show a plot of PC1 versus PC2
+##' @param plot if not NULL, use "points" to show a plot with \code{\link[graphics]{points}} of PC1 versus PC2, and "text" to use \code{\link[graphics]{text}} with row names of X as labels
 ##' @param main main title of the plot
 ##' @param cols N-vector of colors
 ##' @return list with the rotated matrix (= X V) which columns corresponds to "principal components", and with the proportion of variance explained per PC
 ##' @author Timothee Flutre
 ##' @export
-pca <- function(X, ct=TRUE, sc=FALSE, plot=FALSE, main="PCA", cols=NULL){
+pca <- function(X, ct=TRUE, sc=FALSE, plot=NULL, main="PCA",
+                cols=rep("black", nrow(X))){
   stopifnot(is.matrix(X),
             is.logical(ct),
-            is.logical(sc),
-            is.logical(plot))
-  if(plot & ! is.null(cols))
-    stopifnot(is.vector(cols),
+            is.logical(sc))
+  if(! is.null(plot))
+    stopifnot(plot %in% c("points", "text"),
+              is.vector(cols),
               length(cols) == nrow(X))
 
   X <- scale(x=X, center=ct, scale=sc)
@@ -179,15 +180,18 @@ pca <- function(X, ct=TRUE, sc=FALSE, plot=FALSE, main="PCA", cols=NULL){
   prop.vars <- prop.vars / sum(prop.vars)
   names(prop.vars) <- colnames(rotation)
 
-  if(plot){
+  if(! is.null(plot)){
     graphics::plot(x=rotation[,1], y=rotation[,2], las=1,
-         xlab=paste0("PC1 (", format(100 * prop.vars[1], digits=3), "%)"),
-         ylab=paste0("PC2 (", format(100 * prop.vars[2], digits=3), "%)"),
-         main=main, type=ifelse(is.null(cols), "p", "n"))
-    graphics::abline(h=0, lty=2);
+                   xlab=paste0("PC1 (", format(100 * prop.vars[1], digits=3), "%)"),
+                   ylab=paste0("PC2 (", format(100 * prop.vars[2], digits=3), "%)"),
+                   main=main, type="n")
+    graphics::abline(h=0, lty=2)
     graphics::abline(v=0, lty=2)
-    if(! is.null(cols))
+    if(plot == "points"){
       graphics::points(x=rotation[,1], y=rotation[,2], col=cols, pch=20)
+    } else if(plot == "text")
+      graphics::text(x=rotation[,1], y=rotation[,2], labels=rownames(X),
+                     col=cols, pch=20)
   }
 
   return(list(rotation=rotation,

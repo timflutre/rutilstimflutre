@@ -4,7 +4,8 @@
 \alias{pca}
 \title{Principal component analysis}
 \usage{
-pca(X, ct = TRUE, sc = FALSE, plot = FALSE, main = "PCA", cols = NULL)
+pca(X, ct = TRUE, sc = FALSE, plot = NULL, main = "PCA",
+  cols = rep("black", nrow(X)))
 }
 \arguments{
 \item{X}{data matrix with N rows and P columns}
@@ -13,7 +14,7 @@ pca(X, ct = TRUE, sc = FALSE, plot = FALSE, main = "PCA", cols = NULL)
 
 \item{sc}{use TRUE to scale the columns of X (if different units), FALSE otherwise}
 
-\item{plot}{use TRUE to show a plot of PC1 versus PC2}
+\item{plot}{if not NULL, use "points" to show a plot with \code{\link[graphics]{points}} of PC1 versus PC2, and "text" to use \code{\link[graphics]{text}} with row names of X as labels}
 
 \item{main}{main title of the plot}
 
