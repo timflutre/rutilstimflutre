@@ -63,19 +63,23 @@ alleles2dose <- function(x, na.string="--", verbose=1){
               alleles=alleles))
 }
 
-.isValidGenosDose <- function(X, check.coln=TRUE, check.rown=TRUE,
-                              check.na=TRUE){
-  all(! is.null(X),
-      is.matrix(X),
-      sum(X < 0, na.rm=TRUE) == 0,
-      sum(X > 2, na.rm=TRUE) == 0,
-      ifelse(check.coln,
-             ! is.null(colnames(X)) & ! anyDuplicated(colnames(X)),
-             TRUE),
-      ifelse(check.rown,
-             ! is.null(rownames(X)),
-             TRUE),
-      ifelse(check.na, sum(is.na(X)) == 0, TRUE))
+stopIfNotValidGenosDose <- function(X, check.coln=TRUE, check.rown=TRUE,
+                                    check.na=TRUE, check.snp=TRUE){
+  stopifnot(! is.null(X),
+            is.matrix(X),
+            ifelse(check.snp,
+                   sum(X < 0, na.rm=TRUE) == 0,
+                   TRUE),
+            ifelse(check.snp,
+                   sum(X > 2, na.rm=TRUE) == 0,
+                   TRUE),
+            ifelse(check.coln,
+                   ! is.null(colnames(X)) & ! anyDuplicated(colnames(X)),
+                   TRUE),
+            ifelse(check.rown,
+                   ! is.null(rownames(X)),
+                   TRUE),
+            ifelse(check.na, sum(is.na(X)) == 0, TRUE))
 }
 
 ##' Convert genotypes
@@ -95,7 +99,7 @@ dose2alleles <- function(X=NULL, tX=NULL, alleles, na.string){
             colnames(alleles) == c("minor", "major"),
             ! is.null(row.names(alleles)))
   if(! is.null(X)){
-    stopifnot(.isValidGenosDose(X, check.na=FALSE))
+    stopIfNotValidGenosDose(X, check.na=FALSE)
     tX <- t(X)
   }
 
@@ -128,9 +132,9 @@ dose2alleles <- function(X=NULL, tX=NULL, alleles, na.string){
 ##' @return vector
 ##' @author Timothee Flutre
 ##' @export
-calcFreqMissGenos <- function(X){
-  stopifnot(.isValidGenosDose(X, check.coln=FALSE, check.rown=FALSE,
-                              check.na=FALSE))
+calcFreqMissSnpGenos <- function(X){
+  stopIfNotValidGenosDose(X, check.coln=FALSE, check.rown=FALSE,
+                          check.na=FALSE)
   N <- nrow(X)
   out <- apply(X, 2, function(x){sum(is.na(x)) / N})
   return(out)
@@ -148,8 +152,8 @@ calcFreqMissGenos <- function(X){
 ##' @export
 plotGridMissGenos <- function(X, main="Missing genotypes", xlab="Individuals",
                               ylab="SNPs"){
-  stopifnot(.isValidGenosDose(X, check.coln=FALSE, check.rown=FALSE,
-                              check.na=FALSE))
+  stopIfNotValidGenosDose(X, check.coln=FALSE, check.rown=FALSE,
+                          check.na=FALSE)
 
   graphics::image(1:nrow(X), 1:ncol(X), is.na(X), col=c("white","black"),
         main=main, xlab=xlab, ylab=ylab)
@@ -157,23 +161,23 @@ plotGridMissGenos <- function(X, main="Missing genotypes", xlab="Individuals",
 
 ##' Missing genotypes
 ##'
-##' Discard the SNPs with any missing genotype.
-##' @param X matrix of SNP genotypes encoded in number of copies of the 2nd allele, i.e. as allele doses in {0,1,2}, with individuals in rows and SNPs in columns; NA if missing
+##' Discard all markers with at least one missing genotype.
+##' @param X matrix of markers' genotypes numerically encoded (if SNPs, in number of copies of the 2nd allele, i.e. as allele doses in {0,1,2}), with individuals in rows and markers in columns; NA if missing
 ##' @param verbose verbosity level (0/1)
 ##' @return matrix similar to X but possibly with less columns
 ##' @author Timothee Flutre
 ##' @seealso \code{\link{imputeGenosWithMean}}
 ##' @export
-discardSnpsMissGenos <- function(X, verbose=1){
-  stopifnot(.isValidGenosDose(X, check.coln=FALSE, check.rown=FALSE,
-                              check.na=FALSE))
+discardMarkersMissGenos <- function(X, verbose=1){
+  stopIfNotValidGenosDose(X, check.coln=FALSE, check.rown=FALSE,
+                          check.na=FALSE, check.snp=FALSE)
 
-  ## for each SNP, test if it has any missing genotype
+  ## for each marker, test if it has any missing genotype
   tokeep <- apply(X, 2, function(x){
     sum(is.na(x)) == 0
   })
   if(verbose > 0){
-    msg <- paste0("nb of SNPs to keep: ", sum(tokeep))
+    msg <- paste0("nb of markers to keep: ", sum(tokeep))
     write(msg, stdout())
   }
 
@@ -188,12 +192,12 @@ discardSnpsMissGenos <- function(X, verbose=1){
 ##' Note that the "second" allele may not be the "minor" allele (the least frequent).
 ##' @param X matrix of SNP genotypes encoded in number of copies of the 2nd allele, i.e. as allele doses in {0,1,2}, with individuals in rows and SNPs in columns; missing values should be encoded as NA in order to be ignored
 ##' @return vector
-##' @seealso \code{\link{estimMaf}}
+##' @seealso \code{\link{estimSnpMaf}}
 ##' @author Timothee Flutre
 ##' @export
-estimAf <- function(X){
-  stopifnot(.isValidGenosDose(X, check.coln=FALSE, check.rown=FALSE,
-                              check.na=FALSE))
+estimSnpAf <- function(X){
+  stopIfNotValidGenosDose(X, check.coln=FALSE, check.rown=FALSE,
+                          check.na=FALSE)
 
   N <- nrow(X)
   P <- ncol(X)
@@ -207,16 +211,16 @@ estimAf <- function(X){
 ##'
 ##' Estimate the frequency of the minor allele for each SNP.
 ##' @param X matrix of SNP genotypes encoded in number of copies of the 2nd allele, i.e. as allele doses in {0,1,2}, with individuals in rows and SNPs in columns; missing values should be encoded as NA in order to be ignored; if X is NULL, afs should be specified
-##' @param afs vector with 2nd allele frequencies; if NULL, X should be specified, and the frequencies will be estimated with \code{\link{estimAf}}
+##' @param afs vector with 2nd allele frequencies; if NULL, X should be specified, and the frequencies will be estimated with \code{\link{estimSnpAf}}
 ##' @return vector
-##' @seealso \code{\link{estimAf}}
+##' @seealso \code{\link{estimSnpAf}}
 ##' @author Timothee Flutre
 ##' @export
-estimMaf <- function(X=NULL, afs=NULL){
+estimSnpMaf <- function(X=NULL, afs=NULL){
   stopifnot(xor(is.null(X), is.null(afs)))
 
   if(is.null(afs))
-    afs <- estimAf(X)
+    afs <- estimSnpAf(X)
 
   mafs <- apply(rbind(afs, 1 - afs), 2, min)
 
@@ -226,7 +230,7 @@ estimMaf <- function(X=NULL, afs=NULL){
 ##' Minor allele frequencies
 ##'
 ##' Plot the histogram of the minor allele frequency per SNP.
-##' @param X matrix of SNP genotypes encoded in number of copies of the 2nd allele, i.e. as allele doses in {0,1,2}, with individuals in rows and SNPs in columns (optional if maf is not null); if X is not NULL, minor allele frequencies will be estimated via \code{\link{estimMaf}}
+##' @param X matrix of SNP genotypes encoded in number of copies of the 2nd allele, i.e. as allele doses in {0,1,2}, with individuals in rows and SNPs in columns (optional if maf is not null); if X is not NULL, minor allele frequencies will be estimated via \code{\link{estimSnpMaf}}
 ##' @param maf vector of minor allele frequencies (optional if X is not null)
 ##' @param main string for the main title
 ##' @param xlim limits of the x-axis
@@ -248,15 +252,15 @@ plotHistMinAllelFreq <- function(X=NULL, maf=NULL, main=NULL, xlim=c(0,0.5),
             is.logical(add.ml.beta))
 
   if(! is.null(X) & is.null(maf)){
-    stopifnot(.isValidGenosDose(X, check.coln=FALSE, check.rown=FALSE,
-                                check.na=FALSE))
+    stopIfNotValidGenosDose(X, check.coln=FALSE, check.rown=FALSE,
+                            check.na=FALSE)
     N <- nrow(X)
     P <- ncol(X)
     if(verbose > 0){
       txt <- paste0(P, " SNPs and ", N, " individuals")
       write(txt, stdout())
     }
-    maf <- estimMaf(X)
+    maf <- estimSnpMaf(X)
   }
 
   if(is.null(main))
@@ -288,18 +292,18 @@ plotHistMinAllelFreq <- function(X=NULL, maf=NULL, main=NULL, xlim=c(0,0.5),
 ##'
 ##' Discard the SNPs with a minor allele frequency below the given threshold.
 ##' @param X matrix of SNP genotypes encoded in number of copies of the 2nd allele, i.e. as allele doses in {0,1,2}, with individuals in rows and SNPs in columns
-##' @param mafs vector of minor allele frequencies; if NULL, will be estimated with \code{\link{estimMaf}}
+##' @param mafs vector of minor allele frequencies; if NULL, will be estimated with \code{\link{estimSnpMaf}}
 ##' @param thresh threshold on minor allele frequencies below which SNPs are ignored
 ##' @param verbose verbosity level (0/1)
 ##' @return matrix similar to X but possibly with less columns
 ##' @author Timothee Flutre
 ##' @export
 discardSnpsLowMaf <- function(X, mafs=NULL, thresh=0.01, verbose=1){
-  stopifnot(.isValidGenosDose(X, check.coln=FALSE, check.rown=FALSE,
-                              check.na=FALSE))
+  stopIfNotValidGenosDose(X, check.coln=FALSE, check.rown=FALSE,
+                          check.na=FALSE)
 
   if(is.null(mafs))
-    mafs <- estimMaf(X=X)
+    mafs <- estimSnpMaf(X=X)
 
   snps.low <- mafs < thresh
   if(any(snps.low)){
@@ -333,7 +337,7 @@ dose2bimbam <- function(X=NULL, tX=NULL, alleles, file=NULL, format="mean"){
             ! is.null(row.names(alleles)),
             format %in% c("mean", "basic"))
   if(! is.null(X)){
-    stopifnot(.isValidGenosDose(X, check.coln=FALSE, check.rown=FALSE))
+    stopIfNotValidGenosDose(X, check.coln=FALSE, check.rown=FALSE)
     tX <- t(X)
   }
 
@@ -1220,7 +1224,7 @@ distSnpPairs <- function(snp.pairs, snp.coords, nb.cores=1, verbose=1){
 ##' Estimate genetic relationships between individuals from their SNP genotypes.
 ##' Note that "relationships" are estimated, and not "coancestries" which are equal to 2 times "relationhips".
 ##' @param X matrix of SNP genotypes encoded in number of copies of the 2nd allele, i.e. as allele doses in {0,1,2}, with individuals in rows and SNPs in columns; missing values should be encoded as NA in order to be ignored
-##' @param afs vector with 2nd allele frequencies (calculated with \code{\link{estimAf}} if NULL)
+##' @param afs vector with 2nd allele frequencies (calculated with \code{\link{estimSnpAf}} if NULL)
 ##' @param thresh threshold on minor allele frequencies below which SNPs are ignored (e.g. 0.01; NULL to skip this step)
 ##' @param relationships relationship to estimate (additive/dominant/gaussian) where "gaussian" corresponds to the Gaussian kernel from Endelman (2011)
 ##' @param method if additive relationships, can be "vanraden1" (first method in VanRaden, 2008), "habier" (similar to 'vanraden1' without giving more importance to rare alleles; from Habier et al, 2007), "astle-balding" (two times equation 2.2 in Astle & Balding, 2009), "yang" (similar to 'astle-balding' but without ignoring sampling error per SNP; from Yang et al, 2010), "zhou" (centering the genotypes and not assuming that rare variants have larger effects; from Zhou et al, 2013) or "center-std"; if dominant relationships, can be "vitezica" (classical/statistical parametrization from Vitezica et al, 2013) or "su" (from Su et al, PLoS One, 2012)
@@ -1231,8 +1235,8 @@ distSnpPairs <- function(snp.pairs, snp.coords, nb.cores=1, verbose=1){
 ##' @export
 estimGenRel <- function(X, afs=NULL, thresh=NULL, relationships="additive",
                         method="vanraden1", theta=0.5, verbose=1){
-  stopifnot(.isValidGenosDose(X),
-            relationships %in% c("additive", "dominant", "gaussian"))
+  stopIfNotValidGenosDose(X)
+  stopifnot(relationships %in% c("additive", "dominant", "gaussian"))
   if(relationships == "additive")
     stopifnot(method %in% c("vanraden1", "habier", "astle-balding", "yang",
                             "zhou", "center-std"))
@@ -1279,11 +1283,11 @@ estimGenRel <- function(X, afs=NULL, thresh=NULL, relationships="additive",
 
   ## estimate AFs
   if(is.null(afs))
-    afs <- estimAf(X=X)
+    afs <- estimSnpAf(X=X)
 
   ## discard SNPs with low MAFs
   if(! is.null(thresh)){
-    mafs <- estimMaf(afs=afs)
+    mafs <- estimSnpMaf(afs=afs)
     X <- discardSnpsLowMaf(X=X, mafs=mafs, thresh=thresh, verbose=verbose)
     P <- ncol(X)
     afs <- afs[colnames(X)]
@@ -1379,8 +1383,8 @@ estimLd <- function(X, K=NULL, pops=NULL, snp.coords,
   if(use.ldcorsv & ! requireNamespace("LDcorSV", quietly=TRUE))
     stop("Pkg 'LDcorSV' needed for this function to work.",
          call.=FALSE)
-  stopifnot(.isValidGenosDose(X),
-            .isValidSnpCoords(snp.coords))
+  stopIfNotValidGenosDose(X)
+  stopifnot(.isValidSnpCoords(snp.coords))
   if(! is.null(K))
     stopifnot(use.ldcorsv,
               is.matrix(K),
@@ -1669,18 +1673,18 @@ thinSnps <- function(method, threshold, snp.coords, only.chr=NULL){
 
 ##' Genotype imputation
 ##'
-##' Impute missing SNP genotypes with the mean of the non-missing. The code was inspired from the \code{A.mat} function from the \href{https://cran.r-project.org/web/packages/rrBLUP/}{rrBLUP} package.
-##' @param X NxP matrix of SNP genotypes encoded in number of copies of the 2nd allele, i.e. as allele doses in {0,1,2}, with individuals in rows and SNPs in columns; NA if missing
+##' Impute missing marker genotypes with the mean of the non-missing. The code was inspired from the \code{A.mat} function from the \href{https://cran.r-project.org/web/packages/rrBLUP/}{rrBLUP} package.
+##' @param X NxP matrix of marker genotypes numerically encoded (if SNPs, in number of copies of the 2nd allele, i.e. as allele doses in {0,1,2}), with individuals in rows and markers in columns; NA if missing
 ##' @param min.maf minimum minor allele frequency (before imputation) below which SNPs are discarded
 ##' @param max.miss maximum amount of missing genotypes (before imputation) above which SNPs are discarded
-##' @param rm.still.miss if TRUE, remove SNP(s) still with missing genotype(s) after imputation (depending on \code{min.maf} and \code{max.miss})
+##' @param rm.still.miss if TRUE, remove marker(s) still with missing genotype(s) after imputation (depending on \code{min.maf} and \code{max.miss})
 ##' @return NxP matrix with imputed genotypes
 ##' @author Timothee Flutre
 ##' @seealso \code{\link{imputeGenosWithMeanPerPop}}
 ##' @export
 imputeGenosWithMean <- function(X, min.maf=0.1, max.miss=0.3, rm.still.miss=TRUE){
   ## requireNamespace("rrBLUP")
-  stopifnot(.isValidGenosDose(X, check.na=FALSE))
+  stopIfNotValidGenosDose(X, check.na=FALSE, check.snp=FALSE)
 
   X.out <- X
 
@@ -1688,9 +1692,9 @@ imputeGenosWithMean <- function(X, min.maf=0.1, max.miss=0.3, rm.still.miss=TRUE
   ## tmp <- rrBLUP::A.mat(X=X - 1, min.MAF=min.maf, max.missing=max.miss,
   ##                      impute.method="mean", return.imputed=TRUE)
   ## X.out <- tmp$imputed + 1
-  freq.miss <- calcFreqMissGenos(X)
-  afs <- estimAf(X=X)
-  mafs <- estimMaf(afs=afs)
+  freq.miss <- calcFreqMissSnpGenos(X)
+  afs <- estimSnpAf(X=X)
+  mafs <- estimSnpMaf(afs=afs)
   tokeep <- which((mafs >= min.maf) & (freq.miss <= max.miss))
   ones <- matrix(data=1, nrow=nrow(X), ncol=1)
   afs.mat <- tcrossprod(ones, matrix(afs[tokeep]))
@@ -1698,21 +1702,21 @@ imputeGenosWithMean <- function(X, min.maf=0.1, max.miss=0.3, rm.still.miss=TRUE
   X.out[,tokeep][idx.na] <- 0
   X.out[,tokeep][idx.na] <- (X.out[,tokeep] + 2 * afs.mat)[idx.na]
 
-  ## remove SNPs with remaining missing genotypes
+  ## remove markers with remaining missing genotypes
   if(all(rm.still.miss, sum(is.na(X.out)) > 0))
-    X.out <- discardSnpsMissGenos(X=X.out, verbose=0)
+    X.out <- discardMarkersMissGenos(X=X.out, verbose=0)
 
   return(X.out)
 }
 
 ##' Genotype imputation
 ##'
-##' Impute missing SNP genotypes with the mean of the non-missing, population by population.
-##' @param X NxP matrix of SNP genotypes encoded in number of copies of the 2nd allele, i.e. as allele doses in {0,1,2}, with individuals in rows and SNPs in columns; NA if missing
+##' Impute missing marker genotypes with the mean of the non-missing, population by population.
+##' @param X NxP matrix of marker genotypes numerically encoded (if SNPs, in number of copies of the 2nd allele, i.e. as allele doses in {0,1,2}), with individuals in rows and markers in columns; NA if missing
 ##' @param pops data.frame with 2 columns, "ind" and "pop"
 ##' @param min.maf.pop minimum minor allele frequency per population (before imputation) below which SNPs are discarded
 ##' @param max.miss.pop maximum amount of missing genotypes per population (before imputation) above which SNPs are discarded
-##' @param rm.still.miss if TRUE, remove SNP(s) still with missing genotype(s) in at least one population (depending on \code{min.maf.pop} and \code{max.miss.pop})
+##' @param rm.still.miss if TRUE, remove marker(s) still with missing genotype(s) in at least one population (depending on \code{min.maf.pop} and \code{max.miss.pop})
 ##' @param verbose verbosity level (0/1)
 ##' @return NxP matrix with imputed genotypes
 ##' @author Timothee Flutre
@@ -1721,8 +1725,8 @@ imputeGenosWithMean <- function(X, min.maf=0.1, max.miss=0.3, rm.still.miss=TRUE
 imputeGenosWithMeanPerPop <- function(X, pops, min.maf.pop=0.1,
                                       max.miss.pop=0.3, rm.still.miss=TRUE,
                                       verbose=1){
-  stopifnot(is.matrix(X),
-            is.data.frame(pops),
+  stopIfNotValidGenosDose(X, check.na=FALSE, check.snp=FALSE)
+  stopifnot(is.data.frame(pops),
             "ind" %in% colnames(pops),
             "pop" %in% colnames(pops))
 
@@ -1733,7 +1737,7 @@ imputeGenosWithMeanPerPop <- function(X, pops, min.maf.pop=0.1,
 
   if(verbose > 0){
     msg <- paste0("nb of individuals: ", nrow(X),
-                  "\nnb of SNPs: ", ncol(X),
+                  "\nnb of markers: ", ncol(X),
                   "\nnb of genotypes: ", nrow(X) * ncol(X),
                   "\nnb of missing genotypes: ", sum(is.na(X)),
                   " (", format(100 * sum(is.na(X)) / (nrow(X) * ncol(X)),
@@ -1764,9 +1768,9 @@ imputeGenosWithMeanPerPop <- function(X, pops, min.maf.pop=0.1,
     write(msg, stdout())
   }
 
-  ## remove SNPs with remaining missing genotypes
+  ## remove markers with remaining missing genotypes
   if(all(rm.still.miss, sum(is.na(X.out)) > 0))
-    X.out <- discardSnpsMissGenos(X=X.out, verbose=verbose - 1)
+    X.out <- discardMarkersMissGenos(X=X.out, verbose=verbose - 1)
 
   return(X.out)
 }
@@ -1783,8 +1787,8 @@ imputeGenosWithMeanPerPop <- function(X, pops, min.maf.pop=0.1,
 ##' @export
 writeInputsForFastPhase <- function(X, snp.coords, alleles, file){
   stopifnot(file.exists(Sys.which("fcgene")),
-            .isValidGenosDose(X, check.na=FALSE),
             .isValidSnpCoords(snp.coords))
+  stopIfNotValidGenosDose(X, check.na=FALSE)
 
   ## save SNP genotypes as "r-formatted" file for fcGENE
   tmp.geno.file <- tempfile(pattern="genotypes_", fileext=".txt")
@@ -1915,8 +1919,8 @@ fastphase <- function(X, snp.coords, alleles, out.dir=getwd(),
                       nb.samp.haplos=50, estim.haplos=FALSE,
                       nb.clusters=10, seed=1859, clean=FALSE,
                       verbose=1){
-  stopifnot(file.exists(Sys.which("fastPHASE")),
-            .isValidGenosDose(X, check.na=FALSE))
+  stopifnot(file.exists(Sys.which("fastPHASE")))
+  stopIfNotValidGenosDose(X, check.na=FALSE)
 
   if(verbose > 0){
     txt <- "prepare input files..."
@@ -3000,8 +3004,8 @@ stanAM <- function(dat, relmat, errors.Student=FALSE,
 simulBvsr <- function(Q=3, mu=50, mean.c=5, sd.c=2,
                       X, pi=1, pve.A=0.7, sigma.a2=1,
                       perc.NA=0, err.df=Inf, seed=NULL){
-  stopifnot(.isValidGenosDose(X),
-            sd.c >= 0,
+  stopIfNotValidGenosDose(X)
+  stopifnot(sd.c >= 0,
             pi >= 0,
             pi <= 1,
             pve.A >= 0,
@@ -3104,7 +3108,7 @@ simulBvsr <- function(Q=3, mu=50, mean.c=5, sd.c=2,
 ##' @examples
 ##' set.seed(1859)
 ##' X <- simulGenosDose(nb.genos=200, nb.snps=2000)
-##' afs <- estimAf(X)
+##' afs <- estimSnpAf(X)
 ##'
 ##' ## particular case: LMM (only u contributes)
 ##' mod.lmm <- simulBslmm(X=X, pi=0, h=0.7, seed=3591)
@@ -3135,7 +3139,7 @@ simulBslmm <- function(Q=3, mu=50, mean.a=5, sd.a=2,
                        enforce.zhou=TRUE, perc.NA=0, err.df=Inf,
                        seed=NULL){
   requireNamespaces("MASS")
-  stopifnot(.isValidGenosDose(X))
+  stopIfNotValidGenosDose(X)
   if(! is.null(seed))
     set.seed(seed)
 
@@ -3303,8 +3307,8 @@ gemma <- function(model="ulmm", y, X, snp.coords, alleles, maf=0.01, K.c=NULL,
     stopifnot(ncol(y) == 1)
     y <- as.vector(y)
   }
+  stopIfNotValidGenosDose(X, check.rown=FALSE)
   stopifnot(is.vector(y),
-            .isValidGenosDose(X, check.rown=FALSE),
             is.data.frame(snp.coords),
             ncol(snp.coords) == 3,
             ! is.null(row.names(alleles)),
@@ -3445,8 +3449,8 @@ gemma <- function(model="ulmm", y, X, snp.coords, alleles, maf=0.01, K.c=NULL,
 ##' @export
 gemmaUlmmPerChr <- function(y, X, snp.coords, alleles=NULL, chr.ids=NULL, W,
                             out.dir, task.id="", clean="none", verbose=1){
+  stopIfNotValidGenosDose(X, check.rown=FALSE)
   stopifnot(is.vector(y),
-            .isValidGenosDose(X, check.rown=FALSE),
             .isValidSnpCoords(snp.coords),
             all(rownames(snp.coords) %in% colnames(X)),
             all(colnames(X) %in% rownames(snp.coords)),
@@ -3550,8 +3554,8 @@ qtlrelPerChr <- function(y, X, snp.coords, thresh=0.01, chr.ids=NULL, W=NULL, Z=
   if(is.matrix(y))
     stopifnot(ncol(y) == 1)
   y <- as.vector(y)
-  stopifnot(.isValidGenosDose(X, check.rown=FALSE),
-            .isValidSnpCoords(snp.coords),
+  stopIfNotValidGenosDose(X, check.rown=FALSE)
+  stopifnot(.isValidSnpCoords(snp.coords),
             all(rownames(snp.coords) %in% colnames(X)),
             all(colnames(X) %in% rownames(snp.coords)))
   if(! is.null(W)){

@@ -20,7 +20,7 @@ test_that("dose2alleles", {
   expect_equal(observed, expected)
 })
 
-test_that("calcFreqMissGenos", {
+test_that("calcFreqMissSnpGenos", {
   N <- 2 # individuals
   P <- 4 # SNPs
   X <- matrix(c(1,1, NA,NA, 2,1, 1,NA), nrow=N, ncol=P,
@@ -28,12 +28,12 @@ test_that("calcFreqMissGenos", {
 
   expected <- setNames(c(0/2, 2/2, 0/2, 1/2), colnames(X))
 
-  observed <- calcFreqMissGenos(X)
+  observed <- calcFreqMissSnpGenos(X)
 
   expect_equal(observed, expected)
 })
 
-test_that("discardSnpsMissGenos", {
+test_that("discardMarkersMissGenos", {
   N <- 2 # individuals
   P <- 4 # SNPs
   X <- matrix(c(1,1, NA,NA, 2,1, 1,NA), nrow=N, ncol=P,
@@ -41,12 +41,12 @@ test_that("discardSnpsMissGenos", {
 
   expected <- X[, -c(2,4)]
 
-  observed <- discardSnpsMissGenos(X=X, verbose=0)
+  observed <- discardMarkersMissGenos(X=X, verbose=0)
 
   expect_equal(observed, expected)
 })
 
-test_that("estimAf", {
+test_that("estimSnpAf", {
   N <- 2 # individuals
   P <- 4 # SNPs
   X <- matrix(c(1,1, 1,0, 2,1, 1,NA), nrow=N, ncol=P,
@@ -54,12 +54,12 @@ test_that("estimAf", {
 
   expected <- setNames(c(2/4, 1/4, 3/4, 1/2), colnames(X))
 
-  observed <- estimAf(X=X)
+  observed <- estimSnpAf(X=X)
 
   expect_equal(observed, expected)
 })
 
-test_that("estimMaf", {
+test_that("estimSnpMaf", {
   N <- 2 # individuals
   P <- 4 # SNPs
   X <- matrix(c(1,1, 1,0, 2,1, 1,NA), nrow=N, ncol=P,
@@ -67,12 +67,12 @@ test_that("estimMaf", {
 
   expected <- setNames(c(2/4, 1/4, 1/4, 1/2), colnames(X))
 
-  observed <- estimMaf(X=X)
+  observed <- estimSnpMaf(X=X)
 
   expect_equal(observed, expected)
 
   afs <- setNames(c(2/4, 1/4, 3/4, 1/2), colnames(X))
-  observed <- estimMaf(afs=afs)
+  observed <- estimSnpMaf(afs=afs)
 
   expect_equal(observed, expected)
 })
@@ -91,7 +91,7 @@ test_that("discardSnpsLowMaf", {
   expected <- X[, c("snp1", "snp2")]
   expect_equal(observed, expected)
 
-  mafs <- estimMaf(X)
+  mafs <- estimSnpMaf(X)
   observed <- discardSnpsLowMaf(X=X, mafs=mafs, thresh=0.2, verbose=0)
   expected <- X[, c("snp1", "snp2")]
   expect_equal(observed, expected)
@@ -154,7 +154,7 @@ test_that("estimGenRel_vanraden1_wMAF", {
   afs <- setNames(c(0.383, 0.244, 0.167, 0.067), colnames(X))
 
   thresh <- 0.1
-  mafs <- estimMaf(afs=afs)
+  mafs <- estimSnpMaf(afs=afs)
   afs2 <- afs[afs >= thresh]
   X2 <- X[, names(afs2)]
   P <- ncol(X2)
@@ -178,7 +178,7 @@ test_that("estimGenRel_astle-balding", {
   X <- matrix(c(1,1, 1,0, 2,1, 1,0), nrow=N, ncol=P,
               dimnames=list(paste0("ind", 1:N), paste0("snp", 1:P)))
 
-  afs <- estimAf(X=X)
+  afs <- estimSnpAf(X=X)
 
   expected <- matrix(data=0, nrow=N, ncol=N,
                      dimnames=list(rownames(X), rownames(X)))
@@ -200,7 +200,7 @@ test_that("estimGenRel_yang", {
   X <- matrix(c(1,1, 1,0, 2,1, 1,1), nrow=N, ncol=P,
               dimnames=list(paste0("ind", 1:N), paste0("snp", 1:P)))
 
-  afs <- estimAf(X=X)
+  afs <- estimSnpAf(X=X)
 
   expected <- matrix(data=0, nrow=N, ncol=N,
                      dimnames=list(rownames(X), rownames(X)))

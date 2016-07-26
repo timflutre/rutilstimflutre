@@ -14,7 +14,7 @@ pca(X, ct = TRUE, sc = FALSE, plot = NULL, main = "PCA",
 
 \item{sc}{use TRUE to scale the columns of X (if different units), FALSE otherwise}
 
-\item{plot}{if not NULL, use "points" to show a plot with \code{\link[graphics]{points}} of PC1 versus PC2, and "text" to use \code{\link[graphics]{text}} with row names of X as labels}
+\item{plot}{if not NULL, use "points" to show a plot with \code{\link[graphics]{points}} of PC1 versus PC2, and "text" to use \code{\link[graphics]{text}} with row names of \code{X} as labels}
 
 \item{main}{main title of the plot}
 
@@ -24,8 +24,7 @@ pca(X, ct = TRUE, sc = FALSE, plot = NULL, main = "PCA",
 list with the rotated matrix (= X V) which columns corresponds to "principal components", and with the proportion of variance explained per PC
 }
 \description{
-Via the singular value decomposition (SVD): X = U D V^T.
-This is mostly for teaching purposes, see \code{\link[stats]{prcomp}} otherwise.
+Via the singular value decomposition (SVD): X = U D V^T. This is mostly for teaching purposes, see \code{\link[stats]{prcomp}} otherwise.
 }
 \author{
 Timothee Flutre

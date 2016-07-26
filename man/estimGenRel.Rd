@@ -10,7 +10,7 @@ estimGenRel(X, afs = NULL, thresh = NULL, relationships = "additive",
 \arguments{
 \item{X}{matrix of SNP genotypes encoded in number of copies of the 2nd allele, i.e. as allele doses in {0,1,2}, with individuals in rows and SNPs in columns; missing values should be encoded as NA in order to be ignored}
 
-\item{afs}{vector with 2nd allele frequencies (calculated with \code{\link{estimAf}} if NULL)}
+\item{afs}{vector with 2nd allele frequencies (calculated with \code{\link{estimSnpAf}} if NULL)}
 
 \item{thresh}{threshold on minor allele frequencies below which SNPs are ignored (e.g. 0.01; NULL to skip this step)}
 

@@ -148,12 +148,11 @@ mpInv <- function(mat){
 
 ##' Principal component analysis
 ##'
-##' Via the singular value decomposition (SVD): X = U D V^T.
-##' This is mostly for teaching purposes, see \code{\link[stats]{prcomp}} otherwise.
+##' Via the singular value decomposition (SVD): X = U D V^T. This is mostly for teaching purposes, see \code{\link[stats]{prcomp}} otherwise.
 ##' @param X data matrix with N rows and P columns
 ##' @param ct use TRUE to center the columns of X (recommended), FALSE otherwise
 ##' @param sc use TRUE to scale the columns of X (if different units), FALSE otherwise
-##' @param plot if not NULL, use "points" to show a plot with \code{\link[graphics]{points}} of PC1 versus PC2, and "text" to use \code{\link[graphics]{text}} with row names of X as labels
+##' @param plot if not NULL, use "points" to show a plot with \code{\link[graphics]{points}} of PC1 versus PC2, and "text" to use \code{\link[graphics]{text}} with row names of \code{X} as labels
 ##' @param main main title of the plot
 ##' @param cols N-vector of colors
 ##' @return list with the rotated matrix (= X V) which columns corresponds to "principal components", and with the proportion of variance explained per PC
@@ -180,19 +179,9 @@ pca <- function(X, ct=TRUE, sc=FALSE, plot=NULL, main="PCA",
   prop.vars <- prop.vars / sum(prop.vars)
   names(prop.vars) <- colnames(rotation)
 
-  if(! is.null(plot)){
-    graphics::plot(x=rotation[,1], y=rotation[,2], las=1,
-                   xlab=paste0("PC1 (", format(100 * prop.vars[1], digits=3), "%)"),
-                   ylab=paste0("PC2 (", format(100 * prop.vars[2], digits=3), "%)"),
-                   main=main, type="n")
-    graphics::abline(h=0, lty=2)
-    graphics::abline(v=0, lty=2)
-    if(plot == "points"){
-      graphics::points(x=rotation[,1], y=rotation[,2], col=cols, pch=20)
-    } else if(plot == "text")
-      graphics::text(x=rotation[,1], y=rotation[,2], labels=rownames(X),
-                     col=cols, pch=20)
-  }
+  if(! is.null(plot))
+    plotPca(rotation=rotation, prop.vars=prop.vars, plot=plot, main=main,
+            cols=cols)
 
   return(list(rotation=rotation,
               prop.vars=prop.vars))

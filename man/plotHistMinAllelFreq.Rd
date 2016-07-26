@@ -9,7 +9,7 @@ plotHistMinAllelFreq(X = NULL, maf = NULL, main = NULL, xlim = c(0,
   add.ml.beta = FALSE, verbose = 1, ...)
 }
 \arguments{
-\item{X}{matrix of SNP genotypes encoded in number of copies of the 2nd allele, i.e. as allele doses in {0,1,2}, with individuals in rows and SNPs in columns (optional if maf is not null); if X is not NULL, minor allele frequencies will be estimated via \code{\link{estimMaf}}}
+\item{X}{matrix of SNP genotypes encoded in number of copies of the 2nd allele, i.e. as allele doses in {0,1,2}, with individuals in rows and SNPs in columns (optional if maf is not null); if X is not NULL, minor allele frequencies will be estimated via \code{\link{estimSnpMaf}}}
 
 \item{maf}{vector of minor allele frequencies (optional if X is not null)}
 
