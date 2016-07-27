@@ -148,15 +148,33 @@ mpInv <- function(mat){
 
 ##' Principal component analysis
 ##'
-##' Via the singular value decomposition (SVD): X = U D V^T. This is mostly for teaching purposes, see \code{\link[stats]{prcomp}} otherwise.
+##' It is performed via the singular value decomposition (SVD) of the usually-centered data matrix, Xc = U D V^T. This is mostly for teaching purposes, see \code{\link[stats]{prcomp}} otherwise. A good reason to center the data matrix for PCA is given in \href{http://link.springer.com/10.1007/s11063-007-9069-2}{Miranda et al (2008)}.
 ##' @param X data matrix with N rows and P columns
 ##' @param ct use TRUE to center the columns of X (recommended), FALSE otherwise
 ##' @param sc use TRUE to scale the columns of X (if different units), FALSE otherwise
 ##' @param plot if not NULL, use "points" to show a plot with \code{\link[graphics]{points}} of PC1 versus PC2, and "text" to use \code{\link[graphics]{text}} with row names of \code{X} as labels
 ##' @param main main title of the plot
 ##' @param cols N-vector of colors
-##' @return list with the rotated matrix (= X V) which columns corresponds to "principal components", and with the proportion of variance explained per PC
+##' @return list with the rotated matrix (= X V) which rows correspond to the original rows after translation towards the sample mean (if center=TRUE) and rotation onto the "principal components" (eigenvectors of the sample covariance matrix), and with the proportion of variance explained per PC
 ##' @author Timothee Flutre
+##' @seealso \code{\link{plotPca}}
+##' @examples
+##' \dontrun{set.seed(1859)
+##' genomes <- simulCoalescent(nb.inds=200, nb.pops=3, mig.rate=3)
+##' X <- genomes$genos
+##' A <- estimGenRel(X)
+##' imageWithScale(A, main="Additive genetic relationships") # we clearly see 3 clusters
+##' out.prcomp <- prcomp(x=X, retx=TRUE, center=TRUE, scale.=FALSE) # uses SVD
+##' summary(out.prcomp)$importance[,1:4]
+##' out.prcomp$sdev[1:4]
+##' (out.prcomp$sdev^2 / sum(out.prcomp$sdev^2))[1:4]
+##' head(out.prcomp$rotation[, 1:4]) # first four PCs
+##' head(out.prcomp$x[, 1:4]) # rotated data
+##' out.princomp <- princomp(x=X) # uses EVD, and requires more units than variables
+##' out.pca <- pca(X=X, ct=TRUE, sc=FALSE)
+##' out.pca$prop.vars[1:4]
+##' head(out.pca$rotation[, 1:4]) # rotated data
+##' }
 ##' @export
 pca <- function(X, ct=TRUE, sc=FALSE, plot=NULL, main="PCA",
                 cols=rep("black", nrow(X))){
@@ -176,7 +194,7 @@ pca <- function(X, ct=TRUE, sc=FALSE, plot=NULL, main="PCA",
   colnames(rotation) <- paste0("PC", 1:ncol(rotation))
 
   prop.vars <- res.svd$d / sqrt(max(1, nrow(X) - 1))
-  prop.vars <- prop.vars / sum(prop.vars)
+  prop.vars <- prop.vars^2 / sum(prop.vars^2)
   names(prop.vars) <- colnames(rotation)
 
   if(! is.null(plot))

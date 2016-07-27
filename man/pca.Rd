@@ -21,12 +21,33 @@ pca(X, ct = TRUE, sc = FALSE, plot = NULL, main = "PCA",
 \item{cols}{N-vector of colors}
 }
 \value{
-list with the rotated matrix (= X V) which columns corresponds to "principal components", and with the proportion of variance explained per PC
+list with the rotated matrix (= X V) which rows correspond to the original rows after translation towards the sample mean (if center=TRUE) and rotation onto the "principal components" (eigenvectors of the sample covariance matrix), and with the proportion of variance explained per PC
 }
 \description{
-Via the singular value decomposition (SVD): X = U D V^T. This is mostly for teaching purposes, see \code{\link[stats]{prcomp}} otherwise.
+It is performed via the singular value decomposition (SVD) of the usually-centered data matrix, Xc = U D V^T. This is mostly for teaching purposes, see \code{\link[stats]{prcomp}} otherwise. A good reason to center the data matrix for PCA is given in \href{http://link.springer.com/10.1007/s11063-007-9069-2}{Miranda et al (2008)}.
+}
+\examples{
+\dontrun{set.seed(1859)
+genomes <- simulCoalescent(nb.inds=200, nb.pops=3, mig.rate=3)
+X <- genomes$genos
+A <- estimGenRel(X)
+imageWithScale(A, main="Additive genetic relationships") # we clearly see 3 clusters
+out.prcomp <- prcomp(x=X, retx=TRUE, center=TRUE, scale.=FALSE) # uses SVD
+summary(out.prcomp)$importance[,1:4]
+out.prcomp$sdev[1:4]
+(out.prcomp$sdev^2 / sum(out.prcomp$sdev^2))[1:4]
+head(out.prcomp$rotation[, 1:4]) # first four PCs
+head(out.prcomp$x[, 1:4]) # rotated data
+out.princomp <- princomp(x=X) # uses EVD, and requires more units than variables
+out.pca <- pca(X=X, ct=TRUE, sc=FALSE)
+out.pca$prop.vars[1:4]
+head(out.pca$rotation[, 1:4]) # rotated data
+}
 }
 \author{
 Timothee Flutre
+}
+\seealso{
+\code{\link{plotPca}}
 }
 
