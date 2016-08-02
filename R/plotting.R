@@ -173,10 +173,22 @@ plotWithScale <- function(z, zlim, col = grDevices::heat.colors(12),
 ##' @param idx.rownames vector giving the indices of the row names of z to be added on the left side of the plot
 ##' @param idx.colnames vector giving the indices of the column names of z to be added on top of the plot
 ##' @param breaks vector (default=seq(min(z), max(z), length.out=100))
+##' @param left.text.at vector which names and values will be used to label the left side of the plot; if not NULL, takes precedence over idx.rownames
 ##' @author Timothee Flutre
+##' @examples
+##' \dontrun{set.seed(1859)
+##' genomes <- simulCoalescent(nb.inds=200, nb.pops=3, mig.rate=3)
+##' X <- genomes$genos
+##' A <- estimGenRel(X=X, relationships="additive", method="vanraden1")
+##' imageWithScale(z=A, main="Additive genetic relationships", breaks=seq(0,1,length.out=20),
+##'                left.text.at=setNames(c(0.83, 0.5, 0.17), c("pop1", "pop2", "pop3")))
+##' }
 ##' @export
 imageWithScale <- function(z, main=NULL, idx.rownames=NULL, idx.colnames=NULL,
-                           breaks=NULL){
+                           breaks=NULL, left.text.at=NULL){
+  stopifnot(is.matrix(z))
+  if(! is.null(left.text.at))
+    stopifnot(is.null(idx.rownames))
   if(! is.null(idx.rownames) & is.null(rownames(z)))
     stop("non-null idx.rownames requires z to have row names")
   if(! is.null(idx.colnames) & is.null(colnames(z)))
@@ -191,7 +203,7 @@ imageWithScale <- function(z, main=NULL, idx.rownames=NULL, idx.colnames=NULL,
 
   ## plot the heatmap
   custom.mar <- c(1, 5, 6, 1)
-  if(is.null(idx.rownames))
+  if(is.null(idx.rownames) & is.null(left.text.at))
       custom.mar[2] <- 1
   if(is.null(idx.colnames))
       custom.mar[3] <- 3
@@ -207,13 +219,17 @@ imageWithScale <- function(z, main=NULL, idx.rownames=NULL, idx.colnames=NULL,
     graphics::mtext(text=rev(rownames(z)[idx.rownames]), side=2, line=1,
                     at=seq(0,1,length.out=length(idx.rownames)),
                     las=2)
+  if(! is.null(left.text.at))
+    graphics::mtext(text=names(left.text.at), side=2, line=1,
+                    at=left.text.at, las=2)
   on.exit(graphics::par(opar))
 
   ## plot the scale
   opar <- graphics::par(mar=c(1,0,6,3))
   plotWithScale(z, col=col.pal(length(breaks)-1), breaks=breaks, horiz=FALSE,
                 yaxt="n")
-  graphics::axis(4, at=format(breaks[seq.int(from=1,to=100,length.out=5)], digits=2),
+  graphics::axis(4, at=format(breaks[seq.int(1, length(breaks), length.out=5)],
+                              digits=2),
        las=2, lwd=0, lwd.ticks=1)
   on.exit(graphics::par(opar))
 }

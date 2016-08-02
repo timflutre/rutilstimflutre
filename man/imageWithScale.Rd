@@ -7,7 +7,7 @@ scale on the right side, and optionally using its dimension names for
 rows and columns}
 \usage{
 imageWithScale(z, main = NULL, idx.rownames = NULL, idx.colnames = NULL,
-  breaks = NULL)
+  breaks = NULL, left.text.at = NULL)
 }
 \arguments{
 \item{z}{matrix to be plotted}
@@ -19,11 +19,22 @@ imageWithScale(z, main = NULL, idx.rownames = NULL, idx.colnames = NULL,
 \item{idx.colnames}{vector giving the indices of the column names of z to be added on top of the plot}
 
 \item{breaks}{vector (default=seq(min(z), max(z), length.out=100))}
+
+\item{left.text.at}{vector which names and values will be used to label the left side of the plot; if not NULL, takes precedence over idx.rownames}
 }
 \description{
 To print all row names, choose idx.rownames=1:nrow(z). To print a subset
 of 10 row names, choose idx.rownames=floor(seq(1, nrow(z), length.out=10)).
 Similarly for column names.
+}
+\examples{
+\dontrun{set.seed(1859)
+genomes <- simulCoalescent(nb.inds=200, nb.pops=3, mig.rate=3)
+X <- genomes$genos
+A <- estimGenRel(X=X, relationships="additive", method="vanraden1")
+imageWithScale(z=A, main="Additive genetic relationships", breaks=seq(0,1,length.out=20),
+               left.text.at=setNames(c(0.83, 0.5, 0.17), c("pop1", "pop2", "pop3")))
+}
 }
 \author{
 Timothee Flutre
