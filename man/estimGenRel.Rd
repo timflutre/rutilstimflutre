@@ -26,8 +26,30 @@ estimGenRel(X, afs = NULL, thresh = NULL, relationships = "additive",
 matrix
 }
 \description{
-Estimate genetic relationships between individuals from their SNP genotypes.
-Note that "relationships" are estimated, and not "coancestries" which are equal to 2 times "relationhips".
+Estimate genetic relationships between individuals from their SNP genotypes. Note that "relationships" are estimated, and not "coancestries" which are equal to 2 times "relationhips".
+}
+\examples{
+\dontrun{## simulate haplotypes and genotypes in a single population
+set.seed(1859)
+nb.genos <- 200
+Ne <- 10^4
+chrom.len <- 10^5
+mu <- 10^(-8)
+c <- 10^(-8)
+genomes <- simulCoalescent(nb.inds=nb.genos,
+                           pop.mut.rate=4 * Ne * mu * chrom.len,
+                           pop.recomb.rate=4 * Ne * c * chrom.len,
+                           chrom.len=chrom.len)
+X <- genomes$genos
+
+A.vr <- estimGenRel(X=X, relationships="additive", method="vanraden1")
+mean(diag(A.vr)) # should be 1 in a base population at HWE
+mean(A.vr[upper.tri(A.vr)]) # should be 0 in a base population at HWE
+
+D.v <- estimGenRel(X=X, relationships="dominant", method="vitezica")
+mean(diag(D.v)) # should be 1 in a base population at HWE
+mean(D.v[upper.tri(D.v)]) # should be 0 in a base population at HWE
+}
 }
 \author{
 Timothee Flutre

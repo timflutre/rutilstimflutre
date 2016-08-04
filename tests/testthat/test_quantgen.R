@@ -145,6 +145,31 @@ test_that("estimGenRel_vanraden1", {
   expect_equal(observed, expected)
 })
 
+test_that("estimGenRel_vanraden1_wNA", {
+  N <- 3 # individuals
+  P <- 5 # SNPs
+  X <- matrix(c(0,0,2, 1,1,0, 0,1,0, 1,0,0, 1,NA,0), nrow=N, ncol=P,
+              dimnames=list(paste0("ind", 1:N), paste0("snp", 1:P)))
+
+  afs <- setNames(c(0.383, 0.244, 0.567, 0.067, 0.17), colnames(X))
+
+  X2 <- discardMarkersMissGenos(X=X, verbose=0)
+  P2 <- ncol(X2)
+  afs2 <- afs[colnames(X2)]
+  tmp <- matrix(rep(2*(afs2 - 0.5), N), nrow=N, ncol=P2, byrow=TRUE)
+  Z <- X2 - 1 - tmp
+  denom <- 0
+  for(p in 1:P2)
+    denom <- denom + afs2[p] * (1 - afs2[p])
+  denom <- 2 * denom
+  expected <- (Z %*% t(Z)) / denom
+
+  observed <- estimGenRel(X=X, afs=afs, thresh=0, relationships="additive",
+                          method="vanraden1", verbose=0)
+
+  expect_equal(observed, expected)
+})
+
 test_that("estimGenRel_vanraden1_wMAF", {
   N <- 3 # individuals
   P <- 4 # SNPs

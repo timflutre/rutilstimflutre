@@ -1221,8 +1221,7 @@ distSnpPairs <- function(snp.pairs, snp.coords, nb.cores=1, verbose=1){
 
 ##' Genomic relatedness
 ##'
-##' Estimate genetic relationships between individuals from their SNP genotypes.
-##' Note that "relationships" are estimated, and not "coancestries" which are equal to 2 times "relationhips".
+##' Estimate genetic relationships between individuals from their SNP genotypes. Note that "relationships" are estimated, and not "coancestries" which are equal to 2 times "relationhips".
 ##' @param X matrix of SNP genotypes encoded in number of copies of the 2nd allele, i.e. as allele doses in {0,1,2}, with individuals in rows and SNPs in columns; missing values should be encoded as NA in order to be ignored
 ##' @param afs vector with 2nd allele frequencies (calculated with \code{\link{estimSnpAf}} if NULL)
 ##' @param thresh threshold on minor allele frequencies below which SNPs are ignored (e.g. 0.01; NULL to skip this step)
@@ -1232,10 +1231,32 @@ distSnpPairs <- function(snp.pairs, snp.coords, nb.cores=1, verbose=1){
 ##' @param verbose verbosity level (0/1)
 ##' @return matrix
 ##' @author Timothee Flutre
+##' @examples
+##' \dontrun{## simulate haplotypes and genotypes in a single population
+##' set.seed(1859)
+##' nb.genos <- 200
+##' Ne <- 10^4
+##' chrom.len <- 10^5
+##' mu <- 10^(-8)
+##' c <- 10^(-8)
+##' genomes <- simulCoalescent(nb.inds=nb.genos,
+##'                            pop.mut.rate=4 * Ne * mu * chrom.len,
+##'                            pop.recomb.rate=4 * Ne * c * chrom.len,
+##'                            chrom.len=chrom.len)
+##' X <- genomes$genos
+##'
+##' A.vr <- estimGenRel(X=X, relationships="additive", method="vanraden1")
+##' mean(diag(A.vr)) # should be 1 in a base population at HWE
+##' mean(A.vr[upper.tri(A.vr)]) # should be 0 in a base population at HWE
+##'
+##' D.v <- estimGenRel(X=X, relationships="dominant", method="vitezica")
+##' mean(diag(D.v)) # should be 1 in a base population at HWE
+##' mean(D.v[upper.tri(D.v)]) # should be 0 in a base population at HWE
+##' }
 ##' @export
 estimGenRel <- function(X, afs=NULL, thresh=NULL, relationships="additive",
                         method="vanraden1", theta=0.5, verbose=1){
-  stopIfNotValidGenosDose(X)
+  stopIfNotValidGenosDose(X, check.na=FALSE)
   stopifnot(relationships %in% c("additive", "dominant", "gaussian"))
   if(relationships == "additive")
     stopifnot(method %in% c("vanraden1", "habier", "astle-balding", "yang",
@@ -1263,22 +1284,12 @@ estimGenRel <- function(X, afs=NULL, thresh=NULL, relationships="additive",
   N <- nrow(X) # nb of individuals
   P <- ncol(X) # nb of SNPs
 
-  idx.rm <- c()
-
   ## discard SNPs with missing data
-  snps.na <- apply(X, 2, function(x){
-    any(is.na(x))
-  })
-  if(any(snps.na)){
-    if(verbose > 0){
-      txt <- paste0("skip ", sum(snps.na), " SNPs with missing data")
-      write(txt, stdout())
-    }
-    idx.rm <- which(snps.na)
-    X <- X[, -idx.rm, drop=FALSE]
+  if(any(is.na(X))){
+    X <- discardMarkersMissGenos(X=X, verbose=verbose)
     P <- ncol(X)
     if(! is.null(afs))
-      afs <- afs[-idx.rm]
+      afs <- afs[colnames(X)]
   }
 
   ## estimate AFs
@@ -1335,10 +1346,11 @@ estimGenRel <- function(X, afs=NULL, thresh=NULL, relationships="additive",
     if(method == "vitezica"){
       ## caution, compared to Vitezica et al (2013), the X matrix encodes
       ## genotypes in terms of nb of copies of the A2 allele, not A1
-      is.0 <- (X == 0) # homozygotes for the first allele
-      is.1 <- (X == 1) # heterozygotes
-      is.2 <- (X == 2) # homozygotes for the second allele
-      W <- matrix(NA, nrow=nrow(X), ncol=ncol(X), dimnames=dimnames(X))
+      boundaries <- seq(from=0, to=2, length.out=4)
+      is.0 <- (X <= boundaries[2]) # homozygotes for the first allele
+      is.1 <- (X > boundaries[2] & X <= boundaries[3]) # heterozygotes
+      is.2 <- (X > boundaries[3]) # homozygotes for the second allele
+      W <- matrix(NA, nrow=N, ncol=P, dimnames=dimnames(X))
       for(i in 1:N){
         W[i, is.0[i,]] <- - 2 * afs[is.0[i,]]^2
         W[i, is.1[i,]] <- 2 * afs[is.1[i,]] * (1 - afs[is.1[i,]])
