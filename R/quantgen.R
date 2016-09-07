@@ -1985,15 +1985,15 @@ fastphase <- function(X, snp.coords, alleles, out.dir=getwd(),
 ##' @param mu T-vector of overall means (one per trait), i.e. C[1,1:T]
 ##' @param mean.C mean of the univariate Normal prior on C[2:Q,1:T] (ignored if Q=1)
 ##' @param sd.C std dev of the univariate Normal prior on C[2:Q,1:T] (ignored if Q=1)
-##' @param A IxI matrix of additive genetic relationships between genotypes (see \code{\link{estimGenRel}} with VanRaden's estimator)
-##' @param V.G.A TxT matrix of additive genetic variance-covariance between traits (e.g. 15 when T=1)
+##' @param A IxI matrix of additive genetic relationships between genotypes (see \code{\link{estimGenRel}} with VanRaden's estimator); if A has a large condition number (> 10^10), the Choleski decomposition will be performed with pivoting
+##' @param V.G.A scalar (if T=1) or TxT matrix of additive genetic variance-covariance between traits (e.g. 15 when T=1)
 ##' @param scale.hC.G.A scale of the half-Cauchy prior for sqrt{V_{G_A}} (e.g. 5; used if V.G.A=NULL and T=1)
 ##' @param nu.G.A degrees of freedom of the Wishart prior for V_{G_A} (used if V.G.A=NULL and T>1)
-##' @param D IxI matrix of dominant genetic relationships between genotypes (see \code{\link{estimGenRel}} with Vitezica's estimator)
-##' @param V.G.D TxT matrix of dominant genetic variance-covariance between traits (e.g. 3 when T=1; used if D!=NULL)
+##' @param D IxI matrix of dominant genetic relationships between genotypes (see \code{\link{estimGenRel}} with Vitezica's estimator); if D has a large condition number (> 10^10), the Choleski decomposition will be performed with pivoting
+##' @param V.G.D scalar (if T=1) or TxT matrix of dominant genetic variance-covariance between traits (e.g. 3 when T=1; used if D!=NULL)
 ##' @param scale.hC.G.D scale of the half-Cauchy prior for sqrt{V_{G_D}} (e.g. 5; used if D!=NULL, V.G.D=NULL and T=1)
 ##' @param nu.G.D degrees of freedom of the Wishart prior for V_{G_D} (used if D!=NULL, V.G.D=NULL and T>1)
-##' @param V.E TxT matrix of error variance-covariance between traits (used if T=1 and err.df=Inf)
+##' @param V.E scalar (if T=1) or TxT matrix of error variance-covariance between traits (used if T=1 and err.df=Inf)
 ##' @param scale.hC.E scale of the half-Cauchy prior for sqrt{V_E} (e.g. 5; used if V.E=NULL and T=1 and err.df=Inf)
 ##' @param nu.E degrees of freedom of the Wishart prior for V_E (used if V.E=NULL and T>1)
 ##' @param err.df degrees of freedom of the Student's t-distribution of the errors (e.g. 3; Inf means Normal distribution; will be Inf if T>1)
@@ -2031,7 +2031,7 @@ simulAnimalModel <- function(T=1,
                              D=NULL, V.G.D=NULL, scale.hC.G.D=NULL, nu.G.D=T,
                              V.E=NULL, scale.hC.E=NULL, nu.E=T,
                              err.df=Inf, perc.NA=0, seed=NULL){
-  requireNamespaces("MASS")
+  requireNamespace("MASS")
   stopifnot(length(mu) == T,
             is.matrix(A),
             nrow(A) == ncol(A),
@@ -2039,8 +2039,11 @@ simulAnimalModel <- function(T=1,
             ! is.null(colnames(A)),
             rownames(A) == colnames(A))
   if(! is.null(V.G.A)){
-    stopifnot(! is.matrix(V.G.A),
-              nrow(V.G.A) == ncol(V.G.A))
+    if(T == 1){
+      stopifnot(! is.matrix(V.G.A))
+    } else
+      stopifnot(is.matrix(V.G.A),
+                nrow(V.G.A) == ncol(V.G.A))
   } else{
     if(T == 1){
       stopifnot(! is.null(scale.hC.G.A))
@@ -2056,8 +2059,11 @@ simulAnimalModel <- function(T=1,
               rownames(D) == colnames(D),
               rownames(D) == rownames(A))
     if(! is.null(V.G.D)){
-      stopifnot(! is.matrix(V.G.D),
-                nrow(V.G.D) == ncol(V.G.D))
+      if(T == 1){
+        stopifnot(! is.matrix(V.G.D))
+      } else
+        stopifnot(is.matrix(V.G.D),
+                  nrow(V.G.D) == ncol(V.G.D))
     } else{
       if(T == 1){
         stopifnot(! is.null(scale.hC.G.D))
@@ -2066,10 +2072,18 @@ simulAnimalModel <- function(T=1,
       }
     }
   }
-  if(T == 1 & is.infinite(err.df) & is.null(V.E))
-    stopifnot(! is.null(scale.hC.E))
-  if(T > 1 & is.null(V.E))
-    stopifnot(! is.null(nu.E))
+  if(T == 1 & is.infinite(err.df)){
+    if(is.null(V.E)){
+      stopifnot(! is.null(scale.hC.E))
+    } else
+      stopifnot(! is.matrix(V.E))
+  }
+  if(T > 1){
+    if(is.null(V.E)){
+      stopifnot(! is.null(nu.E))
+    } else
+      stopifnot(is.matrix(V.E))
+  }
   stopifnot(perc.NA >= 0, perc.NA <= 100)
   if(! is.null(seed))
     set.seed(seed)
@@ -2118,7 +2132,9 @@ simulAnimalModel <- function(T=1,
     if(is.null(V.G.A))
       V.G.A <- stats::rWishart(n=1, df=nu.G.A, Sigma=diag(T))[,,1]
     G.A <- rmatnorm(n=1, M=matrix(data=0, nrow=I, ncol=T),
-                    U=A, V=V.G.A)[,,1]
+                    U=A, V=V.G.A,
+                    pivot=c(U=ifelse(kappa(A) <= 10^10, FALSE, TRUE),
+                            V=FALSE))[,,1]
   }
   rownames(G.A) <- rownames(A)
 
@@ -2135,7 +2151,9 @@ simulAnimalModel <- function(T=1,
       if(is.null(V.G.D))
         V.G.D <- stats::rWishart(n=1, df=nu.G.D, Sigma=diag(T))[,,1]
       G.D <- rmatnorm(n=1, M=matrix(data=0, nrow=I, ncol=T),
-                      U=D, V=V.G.D)[,,1]
+                      U=D, V=V.G.D,
+                      pivot=c(U=ifelse(kappa(D) <= 10^10, FALSE, TRUE),
+                              V=FALSE))[,,1]
     }
     rownames(G.D) <- rownames(D)
   }

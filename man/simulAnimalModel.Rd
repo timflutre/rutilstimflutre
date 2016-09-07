@@ -20,23 +20,23 @@ simulAnimalModel(T = 1, Q = 3, mu = rep(50, T), mean.C = 5, sd.C = 2,
 
 \item{sd.C}{std dev of the univariate Normal prior on C[2:Q,1:T] (ignored if Q=1)}
 
-\item{A}{IxI matrix of additive genetic relationships between genotypes (see \code{\link{estimGenRel}} with VanRaden's estimator)}
+\item{A}{IxI matrix of additive genetic relationships between genotypes (see \code{\link{estimGenRel}} with VanRaden's estimator); if A has a large condition number (> 10^10), the Choleski decomposition will be performed with pivoting}
 
-\item{V.G.A}{TxT matrix of additive genetic variance-covariance between traits (e.g. 15 when T=1)}
+\item{V.G.A}{scalar (if T=1) or TxT matrix of additive genetic variance-covariance between traits (e.g. 15 when T=1)}
 
 \item{scale.hC.G.A}{scale of the half-Cauchy prior for sqrt{V_{G_A}} (e.g. 5; used if V.G.A=NULL and T=1)}
 
 \item{nu.G.A}{degrees of freedom of the Wishart prior for V_{G_A} (used if V.G.A=NULL and T>1)}
 
-\item{D}{IxI matrix of dominant genetic relationships between genotypes (see \code{\link{estimGenRel}} with Vitezica's estimator)}
+\item{D}{IxI matrix of dominant genetic relationships between genotypes (see \code{\link{estimGenRel}} with Vitezica's estimator); if D has a large condition number (> 10^10), the Choleski decomposition will be performed with pivoting}
 
-\item{V.G.D}{TxT matrix of dominant genetic variance-covariance between traits (e.g. 3 when T=1; used if D!=NULL)}
+\item{V.G.D}{scalar (if T=1) or TxT matrix of dominant genetic variance-covariance between traits (e.g. 3 when T=1; used if D!=NULL)}
 
 \item{scale.hC.G.D}{scale of the half-Cauchy prior for sqrt{V_{G_D}} (e.g. 5; used if D!=NULL, V.G.D=NULL and T=1)}
 
 \item{nu.G.D}{degrees of freedom of the Wishart prior for V_{G_D} (used if D!=NULL, V.G.D=NULL and T>1)}
 
-\item{V.E}{TxT matrix of error variance-covariance between traits (used if T=1 and err.df=Inf)}
+\item{V.E}{scalar (if T=1) or TxT matrix of error variance-covariance between traits (used if T=1 and err.df=Inf)}
 
 \item{scale.hC.E}{scale of the half-Cauchy prior for sqrt{V_E} (e.g. 5; used if V.E=NULL and T=1 and err.df=Inf)}
 

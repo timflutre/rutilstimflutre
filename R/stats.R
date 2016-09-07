@@ -283,7 +283,7 @@ cor2cov <- function(x, sd){
   return(sweep(sweep(x, 1, sd, "*"), 2, sd, "*"))
 }
 
-##' The matrix-variate Normal distribution
+##' Matrix-variate Normal distribution
 ##'
 ##' Random generation for the matrix-variate Normal distribution.
 ##' See \url{https://en.wikipedia.org/wiki/Matrix_normal_distribution}.
@@ -291,18 +291,25 @@ cor2cov <- function(x, sd){
 ##' @param M mean matrix
 ##' @param U between-row covariance matrix
 ##' @param V between-column covariance matrix
+##' @param pivot use pivoting for Choleski decomposition of U and V (see \code{\link[base]{chol}}); useful when U and/or V are singular
 ##' @return array
 ##' @author Timothee Flutre
 ##' @export
-rmatnorm <- function(n=1, M, U, V){
-  stopifnot(nrow(M) == nrow(U),
+rmatnorm <- function(n=1, M, U, V,
+                     pivot=c(U=FALSE, V=FALSE)){
+  stopifnot(is.matrix(M),
+            is.matrix(U),
+            is.matrix(V),
+            nrow(M) == nrow(U),
             ncol(M) == nrow(V),
             nrow(U) == ncol(U),
-            nrow(V) == ncol(V))
+            nrow(V) == ncol(V),
+            is.vector(pivot),
+            all(c("U","V") %in% names(pivot)))
 
   ## chol returns upper triangular factor of Cholesky decomp
-  chol.tU <- chol(t(U)) # A
-  chol.V <- chol(V) # B
+  chol.tU <- chol(t(U), pivot=pivot["U"]) # A
+  chol.V <- chol(V, pivot=pivot["V"]) # B
 
   ## for X ~ MN(M, AA', B'B): draw Z ~ MN(0, I, I), then X = M + A Z B
   tmp <- lapply(1:n, function(i){

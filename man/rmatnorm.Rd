@@ -2,9 +2,9 @@
 % Please edit documentation in R/stats.R
 \name{rmatnorm}
 \alias{rmatnorm}
-\title{The matrix-variate Normal distribution}
+\title{Matrix-variate Normal distribution}
 \usage{
-rmatnorm(n = 1, M, U, V)
+rmatnorm(n = 1, M, U, V, pivot = c(U = FALSE, V = FALSE))
 }
 \arguments{
 \item{n}{number of observations}
@@ -14,6 +14,8 @@ rmatnorm(n = 1, M, U, V)
 \item{U}{between-row covariance matrix}
 
 \item{V}{between-column covariance matrix}
+
+\item{pivot}{use pivoting for Choleski decomposition of U and V (see \code{\link[base]{chol}}); useful when U and/or V are singular}
 }
 \value{
 array
