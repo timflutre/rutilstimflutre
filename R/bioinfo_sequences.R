@@ -408,7 +408,7 @@ barplotReadCounts <- function(counts,
       graphics::abline(h=h, lty=2)
   }
 
-  par(oldpar)
+  graphics::par(oldpar)
 
   invisible(bp)
 }
