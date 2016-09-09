@@ -323,16 +323,20 @@ formatReadCountsPerLane <- function(x){
 ##' @param xlab.line see \code{line} from \code{\link[graphics]{mtext}}
 ##' @param font.lab see \code{\link[graphics]{par}}
 ##' @param cex.xtxt see \code{cex} from \code{\link[graphics]{text}}
+##' @param perc if TRUE, plot data from "counts" as percentages (using \code{\link[base]{prop.table}}), with legend on the topright outside the x-axis range, and columns (of "counts") sorted in the increasing order corresponding of the first row
+##' @param inset.x inset distance along the x axis from the margins as a fraction of the plot region
 ##' @return invisible output of \code{\link[graphics]{barplot}}
 ##' @author Timothee Flutre
 ##' @examples
 ##' \dontrun{## make fake data
 ##' (x <- matrix(data=c(10,3, 20,0, 21,17, 35,19), nrow=2, ncol=4,
-##'              dimnames=list(c("var1", "var2"),
+##'              dimnames=list(c("lane1", "lane2"),
 ##'              c("ind1", "ind2", "ind3", "ind4"))))
 ##'
 ##' ## plot them
 ##' barplotReadCounts(counts=x)
+##' barplotReadCounts(counts=x, perc=TRUE, ylab="Percentage of read pairs",
+##'                   mar=c(5, 4.5, 4, 6))
 ##' }
 ##' @export
 barplotReadCounts <- function(counts,
@@ -345,38 +349,65 @@ barplotReadCounts <- function(counts,
                               mar=c(5, 4.5, 4, 0),
                               xlab.line=3,
                               font.lab=2,
-                              cex.xtxt=0.7){
-  stopifnot(is.matrix(counts))
+                              cex.xtxt=0.7,
+                              perc=FALSE,
+                              inset.x=-0.2){
+  stopifnot(is.matrix(counts),
+            is.logical(perc))
 
   if(! is.null(mar)){
-    stopifnot(length(mar) == 4)
-    graphics::par(mar=mar)
+    stopifnot(is.numeric(mar),
+              length(mar) == 4)
+    oldpar <- graphics::par(mar=mar)
   }
 
-  bp <- graphics::barplot(height=counts,
-                          width=1,
-                          col=col,
-                          border=NA,
-                          xaxt="n",
-                          xlab="",
-                          ylab=ylab,
-                          main=main,
-                          font.lab=font.lab,
-                          legend.text=legend.text,
-                          args.legend=list(x="topleft", bty="n",
-                                           fill=rev(col),
-                                           border=rev(col)))
+  if(! perc){
+    height <- counts
+    bp <- graphics::barplot(height=height,
+                            width=1,
+                            col=col,
+                            border=NA,
+                            xaxt="n",
+                            xlab="",
+                            ylab=ylab,
+                            main=main,
+                            font.lab=font.lab,
+                            legend.text=legend.text,
+                            args.legend=list(x="topleft", bty="n",
+                                             fill=rev(col),
+                                             border=rev(col)))
+  } else{
+    height <- 100 * prop.table(counts, 2)
+    idx <- order(height[1,])
+    bp <- graphics::barplot(height=height[, idx],
+                            width=1,
+                            col=col,
+                            border=NA,
+                            las=1,
+                            xaxt="n",
+                            xlab="",
+                            ylab=ylab,
+                            main=main,
+                            font.lab=font.lab,
+                            legend.text=legend.text,
+                            args.legend=list(x="topright", bty="n",
+                                             xpd=TRUE, inset=c(inset.x, 0),
+                                             fill=rev(col),
+                                             border=rev(col)))
+  }
 
   graphics::axis(1, at=bp, labels=FALSE)
   if(! is.null(colnames(counts)))
     graphics::text(x=bp, y=graphics::par("usr")[3], srt=45, adj=c(1.2,2),
-         labels=colnames(counts), xpd=TRUE, cex=cex.xtxt)
+                   labels=colnames(counts)[idx], xpd=TRUE, cex=cex.xtxt)
   graphics::mtext(text=xlab, side=1, line=xlab.line, font=font.lab)
 
   if(! is.null(lines.h)){
     for(h in lines.h)
       graphics::abline(h=h, lty=2)
   }
+
+  par(oldpar)
 
   invisible(bp)
 }

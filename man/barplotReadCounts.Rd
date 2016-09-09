@@ -8,7 +8,7 @@ barplotReadCounts(counts, xlab = paste0("Individuals (", ncol(counts), ")"),
   ylab = "Number of read pairs", main = "Read pairs per individual",
   legend.text = rownames(counts), col = 1:nrow(counts), lines.h = c(10^5,
   10^6, 5 * 10^6), mar = c(5, 4.5, 4, 0), xlab.line = 3, font.lab = 2,
-  cex.xtxt = 0.7)
+  cex.xtxt = 0.7, perc = FALSE, inset.x = -0.2)
 }
 \arguments{
 \item{counts}{matrix, with categories (e.g. lanes) in rows and individuals in columns; if colnames is not NULL, they will be used as labels of the x-axis}
@@ -32,6 +32,10 @@ barplotReadCounts(counts, xlab = paste0("Individuals (", ncol(counts), ")"),
 \item{font.lab}{see \code{\link[graphics]{par}}}
 
 \item{cex.xtxt}{see \code{cex} from \code{\link[graphics]{text}}}
+
+\item{perc}{if TRUE, plot data from "counts" as percentages (using \code{\link[base]{prop.table}}), with legend on the topright outside the x-axis range, and columns (of "counts") sorted in the increasing order corresponding of the first row}
+
+\item{inset.x}{inset distance along the x axis from the margins as a fraction of the plot region}
 }
 \value{
 invisible output of \code{\link[graphics]{barplot}}
@@ -42,11 +46,13 @@ Make a stacked barplot, for instance from the output of \code{\link{formatReadCo
 \examples{
 \dontrun{## make fake data
 (x <- matrix(data=c(10,3, 20,0, 21,17, 35,19), nrow=2, ncol=4,
-             dimnames=list(c("var1", "var2"),
+             dimnames=list(c("lane1", "lane2"),
              c("ind1", "ind2", "ind3", "ind4"))))
 
 ## plot them
 barplotReadCounts(counts=x)
+barplotReadCounts(counts=x, perc=TRUE, ylab="Percentage of read pairs",
+                  mar=c(5, 4.5, 4, 6))
 }
 }
 \author{
