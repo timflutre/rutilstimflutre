@@ -363,6 +363,7 @@ barplotReadCounts <- function(counts,
 
   if(! perc){
     height <- counts
+    idx <- 1:ncol(height)
     bp <- graphics::barplot(height=height,
                             width=1,
                             col=col,
