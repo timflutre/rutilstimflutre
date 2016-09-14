@@ -2211,8 +2211,12 @@ simulAnimalModel <- function(T=1,
 ##' model <- simulAnimalModel(T=1, Q=3, A=A, V.G.A=15, V.E=5, seed=1859)
 ##'
 ##' ## calculate BLUEs and BLUPs
+##' if(isSingular(A)){
+##'    Ainv <- mpInv(A)
+##' } else
+##'    Ainv <- solve(A)
 ##' fit <- mme(y=model$Y[,1,drop=FALSE], W=model$W, Z=model$Z,
-##'            sigma.A2=model$V.G.A, Ainv=solve(A), V.E=model$V.E)
+##'            sigma.A2=model$V.G.A, Ainv=Ainv, V.E=model$V.E)
 ##' cbind(model$C, fit[1:3])
 ##' cor(model$G.A, fit[4:length(fit)])
 ##' @export
