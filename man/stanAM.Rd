@@ -50,8 +50,7 @@ X <- simulGenosDose(nb.genos=200, nb.snps=2000)
 
 ## simulate phenotypes with only additive part of genotypic values
 A <- estimGenRel(X, relationships="additive", method="vanraden1", verbose=0)
-A <- as.matrix(Matrix::nearPD(A)$mat) # not always necessary
-modelA <- simulAnimalModel(T=1, Q=3, A=A, V.G.A=15, V.E=5)
+modelA <- simulAnimalModel(T=1, Q=3, A=A, V.G.A=15, V.E=5, seed=1859)
 
 ## infer with rstan
 modelA$dat$geno.add <- modelA$dat$geno; modelA$dat$geno <- NULL
@@ -63,9 +62,8 @@ cbind(truth=c(c(modelA$C), sqrt(modelA$V.G.A), sqrt(modelA$V.E)),
 
 ## simulate phenotypes with additive and dominant parts of genotypic values
 D <- estimGenRel(X, relationships="dominant", method="vitezica", verbose=0)
-D <- as.matrix(Matrix::nearPD(D)$mat) # not always necessary
 modelAD <- simulAnimalModel(T=1, Q=3, A=A, V.G.A=15, V.E=5,
-                            D=D, V.G.D=3)
+                            D=D, V.G.D=3, seed=1859)
 
 ## infer with rstan
 modelAD$dat$geno.add <- modelAD$dat$geno; modelAD$dat$geno <- NULL

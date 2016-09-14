@@ -16,7 +16,7 @@ inlaAM(dat, relmat, family = "gaussian", nb.threads = 1, verbose = 0,
 
 \item{nb.threads}{maximum number of threads the inla-program will use (see \code{\link[INLA]{inla}})}
 
-\item{verbose}{verbosity level (0/1)}
+\item{verbose}{verbosity level (0/1/2)}
 
 \item{silent}{if equal to TRUE, then the inla-program would be silent (see \code{\link[INLA]{inla}})}
 }
@@ -34,28 +34,29 @@ if(require(INLA)){
 
   ## simulate phenotypes with only additive part of genotypic values
   A <- estimGenRel(X, relationships="additive", method="vanraden1", verbose=0)
-  A <- as.matrix(Matrix::nearPD(A)$mat) # not always necessary
-  modelA <- simulAnimalModel(T=1, Q=3, A=A, V.G.A=15, V.E=5)
+  modelA <- simulAnimalModel(T=1, Q=3, A=A, V.G.A=15, V.E=5, seed=1859)
 
   ## infer with INLA
   library(INLA)
-  modelA$dat$geno.add <- modelA$dat$geno; modelA$dat$geno <- NULL
-  fitA <- inlaAM(dat=modelA$dat, relmat=list(geno.add=A))
+  modelA$dat$geno.add <- modelA$dat$geno
+  modelA$dat$geno <- NULL
+  fitA <- inlaAM(dat=modelA$dat, relmat=list(geno.add=A), verbose=1)
   summary(fitA)
-  c(modelA$C); 1/modelA$V.G.A; 1/modelA$V.E
+  c(modelA$C); 1/modelA$V.E; 1/modelA$V.G.A
 
   ## simulate phenotypes with additive and dominant parts of genotypic values
   D <- estimGenRel(X, relationships="dominant", method="vitezica", verbose=0)
-  D <- as.matrix(Matrix::nearPD(D)$mat) # not always necessary
   modelAD <- simulAnimalModel(T=1, Q=3, A=A, V.G.A=15, V.E=5,
-                              D=D, V.G.D=3)
+                              D=D, V.G.D=3, seed=1859)
 
   ## infer with INLA
   modelAD$dat$geno.add <- modelAD$dat$geno
-  modelAD$dat$geno.dom <- modelAD$dat$geno; modelAD$dat$geno <- NULL
-  fitAD <- inlaAM(dat=modelAD$dat, relmat=list(geno.add=A, geno.dom=D))
+  modelAD$dat$geno.dom <- modelAD$dat$geno
+  modelAD$dat$geno <- NULL
+  fitAD <- inlaAM(dat=modelAD$dat, relmat=list(geno.add=A, geno.dom=D),
+                  verbose=1)
   summary(fitAD)
-  c(modelAD$C); 1/modelAD$V.G.A; 1/modelAD$V.E; 1/modelAD$V.G.D
+  c(modelAD$C); 1/modelAD$V.E; 1/modelAD$V.G.A; 1/modelAD$V.G.D
 }
 }
 \author{

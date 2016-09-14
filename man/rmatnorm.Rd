@@ -15,7 +15,7 @@ rmatnorm(n = 1, M, U, V, pivot = c(U = FALSE, V = FALSE))
 
 \item{V}{between-column covariance matrix}
 
-\item{pivot}{use pivoting for Choleski decomposition of U and V (see \code{\link[base]{chol}}); useful when U and/or V are singular}
+\item{pivot}{2-element vector with values TRUE/FALSE/"auto", where TRUE (FALSE) means using pivoting (or not) for Choleski decomposition of U and/or V (see \code{\link[base]{chol}}); useful when U and/or V are singular; with "auto", this will be automatically determined}
 }
 \value{
 array
@@ -23,6 +23,16 @@ array
 \description{
 Random generation for the matrix-variate Normal distribution.
 See \url{https://en.wikipedia.org/wiki/Matrix_normal_distribution}.
+}
+\examples{
+Sigma <- matrix(c(3,2,2,4), nrow=2, ncol=2)
+rho <- Sigma[2,1] / prod(sqrt(diag(Sigma)))
+samples <- rmatnorm(n=100, M=matrix(0, nrow=10^3, ncol=2),
+                    U=diag(10^3), V=Sigma)
+tmp <- t(apply(samples, 3, function(mat){
+  c(var(mat[,1]), var(mat[,2]), cor(mat[,1], mat[,2]))
+}))
+summary(tmp) # corresponds well to Sigma
 }
 \author{
 Timothee Flutre

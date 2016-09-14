@@ -20,7 +20,7 @@ simulAnimalModel(T = 1, Q = 3, mu = rep(50, T), mean.C = 5, sd.C = 2,
 
 \item{sd.C}{std dev of the univariate Normal prior on C[2:Q,1:T] (ignored if Q=1)}
 
-\item{A}{IxI matrix of additive genetic relationships between genotypes (see \code{\link{estimGenRel}} with VanRaden's estimator); if A has a large condition number (> 10^10), the Choleski decomposition will be performed with pivoting}
+\item{A}{IxI matrix of additive genetic relationships between genotypes (see \code{\link{estimGenRel}} with VanRaden's estimator); if A is singular (i.e. has a large condition number), the Choleski decomposition will be performed with pivoting}
 
 \item{V.G.A}{scalar (if T=1) or TxT matrix of additive genetic variance-covariance between traits (e.g. 15 when T=1)}
 
@@ -28,7 +28,7 @@ simulAnimalModel(T = 1, Q = 3, mu = rep(50, T), mean.C = 5, sd.C = 2,
 
 \item{nu.G.A}{degrees of freedom of the Wishart prior for V_{G_A} (used if V.G.A=NULL and T>1)}
 
-\item{D}{IxI matrix of dominant genetic relationships between genotypes (see \code{\link{estimGenRel}} with Vitezica's estimator); if D has a large condition number (> 10^10), the Choleski decomposition will be performed with pivoting}
+\item{D}{IxI matrix of dominant genetic relationships between genotypes (see \code{\link{estimGenRel}} with Vitezica's estimator); if D is singular (i.e. has a large condition number), the Choleski decomposition will be performed with pivoting}
 
 \item{V.G.D}{scalar (if T=1) or TxT matrix of dominant genetic variance-covariance between traits (e.g. 3 when T=1; used if D!=NULL)}
 
@@ -61,22 +61,21 @@ X <- simulGenosDose(nb.genos=200, nb.snps=2000)
 
 ## estimate the additive genetic relationships
 A <- estimGenRel(X, relationships="additive", method="vanraden1", verbose=0)
-A <- as.matrix(Matrix::nearPD(A)$mat) # not always necessary
 
 # one trait with heritability h2=0.75, no covariate, Normal errors, no NA
-model <- simulAnimalModel(T=1, Q=1, A=A, V.G.A=15, V.E=5)
+model <- simulAnimalModel(T=1, Q=1, A=A, V.G.A=15, V.E=5, seed=1859)
 
 # one trait with heritability h2=0.75, three covariates, Normal errors, no NA
-model <- simulAnimalModel(T=1, Q=3, A=A, V.G.A=15, V.E=5)
+model <- simulAnimalModel(T=1, Q=3, A=A, V.G.A=15, V.E=5, seed=1859)
 
 # one trait with heritability h2=0.75, no covariate, Student errors, no NA
-model <- simulAnimalModel(T=1, Q=1, A=A, V.G.A=15, err.df=3)
+model <- simulAnimalModel(T=1, Q=1, A=A, V.G.A=15, err.df=3, seed=1859)
 
 # one trait with heritability drawn at random, no covariate, Normal errors, no NA
-model <- simulAnimalModel(T=1, Q=1, A=A, scale.hC.G.A=10, V.E=5)
+model <- simulAnimalModel(T=1, Q=1, A=A, scale.hC.G.A=10, V.E=5, seed=1859)
 
 # two traits with heritabilities drawn at random, no covariate, Normal errors, no NA
-model <- simulAnimalModel(T=2, Q=1, A=A, nu.G.A=5, nu.E=3)
+model <- simulAnimalModel(T=2, Q=1, A=A, nu.G.A=5, nu.E=3, seed=1859)
 }
 \author{
 Timothee Flutre

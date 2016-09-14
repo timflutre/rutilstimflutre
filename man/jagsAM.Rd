@@ -47,8 +47,7 @@ X <- simulGenosDose(nb.genos=200, nb.snps=2000)
 
 ## simulate phenotypes with only additive part of genotypic values
 A <- estimGenRel(X, relationships="additive", method="vanraden1", verbose=0)
-A <- as.matrix(Matrix::nearPD(A)$mat) # not always necessary
-modelA <- simulAnimalModel(T=1, Q=3, A=A, V.G.A=15, V.E=5)
+modelA <- simulAnimalModel(T=1, Q=3, A=A, V.G.A=15, V.E=5, seed=1859)
 
 ## infer with rjags
 modelA$dat$geno.add <- modelA$dat$geno; modelA$dat$geno <- NULL

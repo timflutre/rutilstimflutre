@@ -32,10 +32,9 @@ X <- simulGenosDose(nb.genos=200, nb.snps=2000)
 
 ## estimate the additive genetic relationships
 A <- estimGenRel(X, relationships="additive", method="vanraden1", verbose=0)
-A <- as.matrix(Matrix::nearPD(A)$mat) # not always necessary
 
 ## simulate phenotypes
-model <- simulAnimalModel(T=1, Q=3, A=A, V.G.A=15, V.E=5)
+model <- simulAnimalModel(T=1, Q=3, A=A, V.G.A=15, V.E=5, seed=1859)
 
 ## calculate BLUEs and BLUPs
 fit <- mme(y=model$Y[,1,drop=FALSE], W=model$W, Z=model$Z,

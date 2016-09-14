@@ -1985,11 +1985,11 @@ fastphase <- function(X, snp.coords, alleles, out.dir=getwd(),
 ##' @param mu T-vector of overall means (one per trait), i.e. C[1,1:T]
 ##' @param mean.C mean of the univariate Normal prior on C[2:Q,1:T] (ignored if Q=1)
 ##' @param sd.C std dev of the univariate Normal prior on C[2:Q,1:T] (ignored if Q=1)
-##' @param A IxI matrix of additive genetic relationships between genotypes (see \code{\link{estimGenRel}} with VanRaden's estimator); if A has a large condition number (> 10^10), the Choleski decomposition will be performed with pivoting
+##' @param A IxI matrix of additive genetic relationships between genotypes (see \code{\link{estimGenRel}} with VanRaden's estimator); if A is singular (i.e. has a large condition number), the Choleski decomposition will be performed with pivoting
 ##' @param V.G.A scalar (if T=1) or TxT matrix of additive genetic variance-covariance between traits (e.g. 15 when T=1)
 ##' @param scale.hC.G.A scale of the half-Cauchy prior for sqrt{V_{G_A}} (e.g. 5; used if V.G.A=NULL and T=1)
 ##' @param nu.G.A degrees of freedom of the Wishart prior for V_{G_A} (used if V.G.A=NULL and T>1)
-##' @param D IxI matrix of dominant genetic relationships between genotypes (see \code{\link{estimGenRel}} with Vitezica's estimator); if D has a large condition number (> 10^10), the Choleski decomposition will be performed with pivoting
+##' @param D IxI matrix of dominant genetic relationships between genotypes (see \code{\link{estimGenRel}} with Vitezica's estimator); if D is singular (i.e. has a large condition number), the Choleski decomposition will be performed with pivoting
 ##' @param V.G.D scalar (if T=1) or TxT matrix of dominant genetic variance-covariance between traits (e.g. 3 when T=1; used if D!=NULL)
 ##' @param scale.hC.G.D scale of the half-Cauchy prior for sqrt{V_{G_D}} (e.g. 5; used if D!=NULL, V.G.D=NULL and T=1)
 ##' @param nu.G.D degrees of freedom of the Wishart prior for V_{G_D} (used if D!=NULL, V.G.D=NULL and T>1)
@@ -2008,22 +2008,21 @@ fastphase <- function(X, snp.coords, alleles, out.dir=getwd(),
 ##'
 ##' ## estimate the additive genetic relationships
 ##' A <- estimGenRel(X, relationships="additive", method="vanraden1", verbose=0)
-##' A <- as.matrix(Matrix::nearPD(A)$mat) # not always necessary
 ##'
 ##' # one trait with heritability h2=0.75, no covariate, Normal errors, no NA
-##' model <- simulAnimalModel(T=1, Q=1, A=A, V.G.A=15, V.E=5)
+##' model <- simulAnimalModel(T=1, Q=1, A=A, V.G.A=15, V.E=5, seed=1859)
 ##'
 ##' # one trait with heritability h2=0.75, three covariates, Normal errors, no NA
-##' model <- simulAnimalModel(T=1, Q=3, A=A, V.G.A=15, V.E=5)
+##' model <- simulAnimalModel(T=1, Q=3, A=A, V.G.A=15, V.E=5, seed=1859)
 ##'
 ##' # one trait with heritability h2=0.75, no covariate, Student errors, no NA
-##' model <- simulAnimalModel(T=1, Q=1, A=A, V.G.A=15, err.df=3)
+##' model <- simulAnimalModel(T=1, Q=1, A=A, V.G.A=15, err.df=3, seed=1859)
 ##'
 ##' # one trait with heritability drawn at random, no covariate, Normal errors, no NA
-##' model <- simulAnimalModel(T=1, Q=1, A=A, scale.hC.G.A=10, V.E=5)
+##' model <- simulAnimalModel(T=1, Q=1, A=A, scale.hC.G.A=10, V.E=5, seed=1859)
 ##'
 ##' # two traits with heritabilities drawn at random, no covariate, Normal errors, no NA
-##' model <- simulAnimalModel(T=2, Q=1, A=A, nu.G.A=5, nu.E=3)
+##' model <- simulAnimalModel(T=2, Q=1, A=A, nu.G.A=5, nu.E=3, seed=1859)
 ##' @export
 simulAnimalModel <- function(T=1,
                              Q=3, mu=rep(50,T), mean.C=5, sd.C=2,
@@ -2132,9 +2131,7 @@ simulAnimalModel <- function(T=1,
     if(is.null(V.G.A))
       V.G.A <- stats::rWishart(n=1, df=nu.G.A, Sigma=diag(T))[,,1]
     G.A <- rmatnorm(n=1, M=matrix(data=0, nrow=I, ncol=T),
-                    U=A, V=V.G.A,
-                    pivot=c(U=ifelse(kappa(A) <= 10^10, FALSE, TRUE),
-                            V=FALSE))[,,1]
+                    U=A, V=V.G.A)[,,1]
   }
   rownames(G.A) <- rownames(A)
 
@@ -2151,9 +2148,7 @@ simulAnimalModel <- function(T=1,
       if(is.null(V.G.D))
         V.G.D <- stats::rWishart(n=1, df=nu.G.D, Sigma=diag(T))[,,1]
       G.D <- rmatnorm(n=1, M=matrix(data=0, nrow=I, ncol=T),
-                      U=D, V=V.G.D,
-                      pivot=c(U=ifelse(kappa(D) <= 10^10, FALSE, TRUE),
-                              V=FALSE))[,,1]
+                      U=D, V=V.G.D)[,,1]
     }
     rownames(G.D) <- rownames(D)
   }
@@ -2211,10 +2206,9 @@ simulAnimalModel <- function(T=1,
 ##'
 ##' ## estimate the additive genetic relationships
 ##' A <- estimGenRel(X, relationships="additive", method="vanraden1", verbose=0)
-##' A <- as.matrix(Matrix::nearPD(A)$mat) # not always necessary
 ##'
 ##' ## simulate phenotypes
-##' model <- simulAnimalModel(T=1, Q=3, A=A, V.G.A=15, V.E=5)
+##' model <- simulAnimalModel(T=1, Q=3, A=A, V.G.A=15, V.E=5, seed=1859)
 ##'
 ##' ## calculate BLUEs and BLUPs
 ##' fit <- mme(y=model$Y[,1,drop=FALSE], W=model$W, Z=model$Z,
@@ -2270,8 +2264,7 @@ mme <- function(y, W, Z, sigma.A2, Ainv, V.E){
 ##'
 ##' ## simulate phenotypes with only additive part of genotypic values
 ##' A <- estimGenRel(X, relationships="additive", method="vanraden1", verbose=0)
-##' A <- as.matrix(Matrix::nearPD(A)$mat) # not always necessary
-##' modelA <- simulAnimalModel(T=1, Q=3, A=A, V.G.A=15, V.E=5)
+##' modelA <- simulAnimalModel(T=1, Q=3, A=A, V.G.A=15, V.E=5, seed=1859)
 ##'
 ##' ## infer with lme4
 ##' fitA <- lmerAM(formula=response1 ~ year + (1|geno), dat=modelA$dat,
@@ -2291,9 +2284,8 @@ mme <- function(y, W, Z, sigma.A2, Ainv, V.E){
 ##'
 ##' ## simulate phenotypes with additive and dominant parts of genotypic values
 ##' D <- estimGenRel(X, relationships="dominant", method="vitezica", verbose=0)
-##' D <- as.matrix(Matrix::nearPD(D)$mat) # not always necessary
 ##' modelAD <- simulAnimalModel(T=1, Q=3, A=A, V.G.A=15, V.E=5,
-##'                             D=D, V.G.D=3)
+##'                             D=D, V.G.D=3, seed=1859)
 ##'
 ##' ## infer with lme4
 ##' modelAD$dat$geno.add <- modelAD$dat$geno
@@ -2342,7 +2334,7 @@ lmerAM <- function(formula, dat, relmat, REML=TRUE, ci.meth=NULL, verbose=1){
     tn <- which(match(names(relmat)[i], names(flist)) == asgn)
     zn <- rownames(Ztlist[[i]])
     relmat[[i]] <- Matrix::Matrix(relmat[[i]][zn,zn], sparse=TRUE)
-    relfac[[i]] <- chol(relmat[[i]])
+    relfac[[i]] <- chol(relmat[[i]], pivot=isSingular(relmat[[i]]))
     Ztlist[[i]] <- relfac[[i]] %*% Ztlist[[i]]
   }
   parsedFormula$reTrms[["Ztlist"]] <- Ztlist
@@ -2380,7 +2372,7 @@ lmerAM <- function(formula, dat, relmat, REML=TRUE, ci.meth=NULL, verbose=1){
 ##' @param relmat list containing the matrices of genetic relationships (see \code{\link{estimGenRel}}); additive relationships (matrix A) are compulsory, with name "geno.add"; dominant relationships (matrix D) are optional, with name "geno.dom"; can be in the "matrix" class (base) or the "dsCMatrix" class (Matrix package)
 ##' @param family a string indicating the likelihood family (see \code{\link[INLA]{inla}})
 ##' @param nb.threads maximum number of threads the inla-program will use (see \code{\link[INLA]{inla}})
-##' @param verbose verbosity level (0/1)
+##' @param verbose verbosity level (0/1/2)
 ##' @param silent if equal to TRUE, then the inla-program would be silent (see \code{\link[INLA]{inla}})
 ##' @return \code{\link[INLA]{inla}} object
 ##' @author Timothee Flutre
@@ -2393,33 +2385,34 @@ lmerAM <- function(formula, dat, relmat, REML=TRUE, ci.meth=NULL, verbose=1){
 ##'
 ##'   ## simulate phenotypes with only additive part of genotypic values
 ##'   A <- estimGenRel(X, relationships="additive", method="vanraden1", verbose=0)
-##'   A <- as.matrix(Matrix::nearPD(A)$mat) # not always necessary
-##'   modelA <- simulAnimalModel(T=1, Q=3, A=A, V.G.A=15, V.E=5)
+##'   modelA <- simulAnimalModel(T=1, Q=3, A=A, V.G.A=15, V.E=5, seed=1859)
 ##'
 ##'   ## infer with INLA
 ##'   library(INLA)
-##'   modelA$dat$geno.add <- modelA$dat$geno; modelA$dat$geno <- NULL
-##'   fitA <- inlaAM(dat=modelA$dat, relmat=list(geno.add=A))
+##'   modelA$dat$geno.add <- modelA$dat$geno
+##'   modelA$dat$geno <- NULL
+##'   fitA <- inlaAM(dat=modelA$dat, relmat=list(geno.add=A), verbose=1)
 ##'   summary(fitA)
-##'   c(modelA$C); 1/modelA$V.G.A; 1/modelA$V.E
+##'   c(modelA$C); 1/modelA$V.E; 1/modelA$V.G.A
 ##'
 ##'   ## simulate phenotypes with additive and dominant parts of genotypic values
 ##'   D <- estimGenRel(X, relationships="dominant", method="vitezica", verbose=0)
-##'   D <- as.matrix(Matrix::nearPD(D)$mat) # not always necessary
 ##'   modelAD <- simulAnimalModel(T=1, Q=3, A=A, V.G.A=15, V.E=5,
-##'                               D=D, V.G.D=3)
+##'                               D=D, V.G.D=3, seed=1859)
 ##'
 ##'   ## infer with INLA
 ##'   modelAD$dat$geno.add <- modelAD$dat$geno
-##'   modelAD$dat$geno.dom <- modelAD$dat$geno; modelAD$dat$geno <- NULL
-##'   fitAD <- inlaAM(dat=modelAD$dat, relmat=list(geno.add=A, geno.dom=D))
+##'   modelAD$dat$geno.dom <- modelAD$dat$geno
+##'   modelAD$dat$geno <- NULL
+##'   fitAD <- inlaAM(dat=modelAD$dat, relmat=list(geno.add=A, geno.dom=D),
+##'                   verbose=1)
 ##'   summary(fitAD)
-##'   c(modelAD$C); 1/modelAD$V.G.A; 1/modelAD$V.E; 1/modelAD$V.G.D
+##'   c(modelAD$C); 1/modelAD$V.E; 1/modelAD$V.G.A; 1/modelAD$V.G.D
 ##' }
 ##' @export
 inlaAM <- function(dat, relmat, family="gaussian",
                    nb.threads=1, verbose=0, silent=TRUE){
-  requireNamespaces("INLA")
+  requireNamespace("INLA")
   stopifnot(is.data.frame(dat),
             sum(grepl("response", colnames(dat))) == 1,
             "geno.add" %in% colnames(dat),
@@ -2431,17 +2424,30 @@ inlaAM <- function(dat, relmat, family="gaussian",
   formula <- paste0(colnames(dat)[grepl("response", colnames(dat))],
                     " ~ 1",
                     " + f(geno.add, model=\"generic0\", constr=TRUE",
-                    ", hyper=list(theta=list(param=c(0.5, 0.5), fixed=FALSE))",
-                    ", Cmatrix=solve(relmat[[\"geno.add\"]])",
+                    ", hyper=list(theta=list(param=c(0.5, 0.5), fixed=FALSE))")
+  if(! isSingular(relmat[["geno.add"]])){
+    formula <- paste0(formula,
+                      ", Cmatrix=solve(relmat[[\"geno.add\"]])")
+  } else
+    formula <- paste0(formula,
+                      ", Cmatrix=mpInv(relmat[[\"geno.add\"]])")
+  formula <- paste0(formula,
                     ", values=levels(dat$geno.add))")
 
   ## add dominant genotypic value, if present
-  if("geno.dom" %in% names(relmat))
+  if("geno.dom" %in% names(relmat)){
     formula <- paste0(formula,
                       " + f(geno.dom, model=\"generic0\", constr=TRUE",
-                      ", hyper=list(theta=list(param=c(0.5, 0.5), fixed=FALSE))",
-                      ", Cmatrix=solve(relmat[[\"geno.dom\"]])",
+                      ", hyper=list(theta=list(param=c(0.5, 0.5), fixed=FALSE))")
+    if(! isSingular(relmat[["geno.dom"]])){
+      formula <- paste0(formula,
+                        ", Cmatrix=solve(relmat[[\"geno.dom\"]])")
+    } else
+      formula <- paste0(formula,
+                        ", Cmatrix=mpInv(relmat[[\"geno.dom\"]])")
+    formula <- paste0(formula,
                       ", values=levels(dat$geno.dom))")
+  }
 
   ## add "fixed effects", if any
   for(cn in colnames(dat))
@@ -2450,6 +2456,8 @@ inlaAM <- function(dat, relmat, family="gaussian",
 
   ## finalize formula
   formula <- stats::as.formula(formula)
+  if(verbose > 0)
+    print(formula)
 
   ## fit the model with INLA
   fit <- INLA::inla(formula=formula,
@@ -2457,7 +2465,7 @@ inlaAM <- function(dat, relmat, family="gaussian",
                     data=dat,
                     control.compute=list(dic=TRUE),
                     num.threads=nb.threads,
-                    verbose=verbose,
+                    verbose=ifelse(verbose <= 1, FALSE, TRUE),
                     silent=silent)
 
   return(fit)
@@ -2488,8 +2496,7 @@ inlaAM <- function(dat, relmat, family="gaussian",
 ##'
 ##' ## simulate phenotypes with only additive part of genotypic values
 ##' A <- estimGenRel(X, relationships="additive", method="vanraden1", verbose=0)
-##' A <- as.matrix(Matrix::nearPD(A)$mat) # not always necessary
-##' modelA <- simulAnimalModel(T=1, Q=3, A=A, V.G.A=15, V.E=5)
+##' modelA <- simulAnimalModel(T=1, Q=3, A=A, V.G.A=15, V.E=5, seed=1859)
 ##'
 ##' ## infer with rjags
 ##' modelA$dat$geno.add <- modelA$dat$geno; modelA$dat$geno <- NULL
@@ -2844,8 +2851,7 @@ generated quantities {
 ##'
 ##' ## simulate phenotypes with only additive part of genotypic values
 ##' A <- estimGenRel(X, relationships="additive", method="vanraden1", verbose=0)
-##' A <- as.matrix(Matrix::nearPD(A)$mat) # not always necessary
-##' modelA <- simulAnimalModel(T=1, Q=3, A=A, V.G.A=15, V.E=5)
+##' modelA <- simulAnimalModel(T=1, Q=3, A=A, V.G.A=15, V.E=5, seed=1859)
 ##'
 ##' ## infer with rstan
 ##' modelA$dat$geno.add <- modelA$dat$geno; modelA$dat$geno <- NULL
@@ -2857,9 +2863,8 @@ generated quantities {
 ##'
 ##' ## simulate phenotypes with additive and dominant parts of genotypic values
 ##' D <- estimGenRel(X, relationships="dominant", method="vitezica", verbose=0)
-##' D <- as.matrix(Matrix::nearPD(D)$mat) # not always necessary
 ##' modelAD <- simulAnimalModel(T=1, Q=3, A=A, V.G.A=15, V.E=5,
-##'                             D=D, V.G.D=3)
+##'                             D=D, V.G.D=3, seed=1859)
 ##'
 ##' ## infer with rstan
 ##' modelAD$dat$geno.add <- modelAD$dat$geno; modelAD$dat$geno <- NULL

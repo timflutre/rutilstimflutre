@@ -133,17 +133,22 @@ log10WeightedSum <- function(x, weights=NULL){
   m + log10(sum(weights * 10^(x - m)))
 }
 
-##' Return the Moore-Penrose pseudo-inverse of a matrix
+##' Moore-Penrose pseudo-inverse
 ##'
-##' Golub & Van Loan, Matrix Computations, 3rd edition, ch5, p257
+##' Return the Moore-Penrose pseudo-inverse of a matrix (Golub & Van Loan, Matrix Computations, 3rd edition, ch5, p257).
 ##' @title Pseudo-inverse
-##' @param mat matrix
+##' @param x matrix
 ##' @return matrix
 ##' @author Timothee Flutre
 ##' @export
-mpInv <- function(mat){
-  mat.svd <- svd(mat)
-  mat.svd$v %*% diag(1/mat.svd$d) %*% t(mat.svd$u)
+mpInv <- function(x){
+  stopifnot(is.matrix(x))
+
+  mat.svd <- svd(x)
+  out <- mat.svd$v %*% diag(1/mat.svd$d) %*% t(mat.svd$u)
+  dimnames(out) <- dimnames(x)
+
+  return(out)
 }
 
 ##' Principal component analysis
@@ -283,6 +288,18 @@ cor2cov <- function(x, sd){
   return(sweep(sweep(x, 1, sd, "*"), 2, sd, "*"))
 }
 
+##' Singular matrix
+##'
+##' Assess if a matrix is singular, i.e. not full rank, by comparing its condition number with the relative machine precision.
+##' As \href{http://www.stat.wisc.edu/~st849-1/Rnotes/ModelMatrices.html#sec-2_2}{explained by Douglas Bates}, "a matrix is regarded as being numerically singular when its reciprocal condition number is less than the relative machine precision".
+##' @param x matrix
+##' @return logical
+##' @author Timothee Flutre
+##' @export
+isSingular <- function(x){
+  return(1 / kappa(x) <= 100 * .Machine$double.eps)
+}
+
 ##' Matrix-variate Normal distribution
 ##'
 ##' Random generation for the matrix-variate Normal distribution.
@@ -291,9 +308,18 @@ cor2cov <- function(x, sd){
 ##' @param M mean matrix
 ##' @param U between-row covariance matrix
 ##' @param V between-column covariance matrix
-##' @param pivot use pivoting for Choleski decomposition of U and V (see \code{\link[base]{chol}}); useful when U and/or V are singular
+##' @param pivot 2-element vector with values TRUE/FALSE/"auto", where TRUE (FALSE) means using pivoting (or not) for Choleski decomposition of U and/or V (see \code{\link[base]{chol}}); useful when U and/or V are singular; with "auto", this will be automatically determined
 ##' @return array
 ##' @author Timothee Flutre
+##' @examples
+##' Sigma <- matrix(c(3,2,2,4), nrow=2, ncol=2)
+##' rho <- Sigma[2,1] / prod(sqrt(diag(Sigma)))
+##' samples <- rmatnorm(n=100, M=matrix(0, nrow=10^3, ncol=2),
+##'                     U=diag(10^3), V=Sigma)
+##' tmp <- t(apply(samples, 3, function(mat){
+##'   c(var(mat[,1]), var(mat[,2]), cor(mat[,1], mat[,2]))
+##' }))
+##' summary(tmp) # corresponds well to Sigma
 ##' @export
 rmatnorm <- function(n=1, M, U, V,
                      pivot=c(U=FALSE, V=FALSE)){
@@ -305,10 +331,15 @@ rmatnorm <- function(n=1, M, U, V,
             nrow(U) == ncol(U),
             nrow(V) == ncol(V),
             is.vector(pivot),
-            all(c("U","V") %in% names(pivot)))
+            all(c("U","V") %in% names(pivot)),
+            all(pivot %in% c(TRUE, FALSE, "auto")))
 
-  ## chol returns upper triangular factor of Cholesky decomp
+  ## chol() returns upper triangular factor of Cholesky decomp
+  if(pivot["U"] == "auto")
+    pivot["U"] <- isSingular(U)
   chol.tU <- chol(t(U), pivot=pivot["U"]) # A
+  if(pivot["V"] == "auto")
+    pivot["V"] <- isSingular(V)
   chol.V <- chol(V, pivot=pivot["V"]) # B
 
   ## for X ~ MN(M, AA', B'B): draw Z ~ MN(0, I, I), then X = M + A Z B
@@ -322,16 +353,6 @@ rmatnorm <- function(n=1, M, U, V,
   return(array(data=do.call(c, tmp),
                dim=c(nrow(M), ncol(M), n)))
 }
-
-## to check rmatnorm above:
-## Sigma <- matrix(c(3,2,2,4), nrow=2, ncol=2)
-## rho <- Sigma[2,1] / prod(sqrt(diag(Sigma)))
-## samples <- rmatnorm(n=100, M=matrix(0, nrow=10^3, ncol=2),
-##                     U=diag(10^3), V=Sigma)
-## tmp <- t(apply(samples, 3, function(mat){
-##   c(var(mat[,1]), var(mat[,2]), cor(mat[,1], mat[,2]))
-## }))
-## summary(tmp) # corresponds well to Sigma
 
 ##' P values
 ##'

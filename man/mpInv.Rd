@@ -4,19 +4,19 @@
 \alias{mpInv}
 \title{Pseudo-inverse}
 \usage{
-mpInv(mat)
+mpInv(x)
 }
 \arguments{
-\item{mat}{matrix}
+\item{x}{matrix}
 }
 \value{
 matrix
 }
 \description{
-Return the Moore-Penrose pseudo-inverse of a matrix
+Moore-Penrose pseudo-inverse
 }
 \details{
-Golub & Van Loan, Matrix Computations, 3rd edition, ch5, p257
+Return the Moore-Penrose pseudo-inverse of a matrix (Golub & Van Loan, Matrix Computations, 3rd edition, ch5, p257).
 }
 \author{
 Timothee Flutre
