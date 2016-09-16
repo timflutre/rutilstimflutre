@@ -4,7 +4,7 @@
 \alias{writeInputsForFastPhase}
 \title{Convert genotypes}
 \usage{
-writeInputsForFastPhase(X, snp.coords, alleles, file)
+writeInputsForFastPhase(X, snp.coords, alleles, file, verbose = 0)
 }
 \arguments{
 \item{X}{matrix of SNP genotypes encoded in number of copies of the 2nd allele, i.e. as allele doses in {0,1,2}, with individuals in rows and SNPs in columns}
@@ -14,12 +14,14 @@ writeInputsForFastPhase(X, snp.coords, alleles, file)
 \item{alleles}{data.frame with SNPs in rows (names as row names) and alleles in columns (first is "minor", second is "major")}
 
 \item{file}{write the genotype data to this file (for instance 'genotypes_fastphase.txt' or 'genotypes_fastphase.txt.gz', but don't use \code{\link[base]{gzfile}})}
+
+\item{verbose}{verbosity level (0/1/2)}
 }
 \value{
 nothing
 }
 \description{
-Convert genotypes
+Use the external software fcGENE from \href{dx.plos.org/10.1371/journal.pone.0097589}{Roshyara and Scholz (2014)}.
 }
 \author{
 Timothee Flutre

@@ -15,7 +15,7 @@ readGenosFastPhase(file, snp.ids)
 matrix with genotypes in rows (2 per individual) and SNPs in columns
 }
 \description{
-Extract the haplotypes from the output file of fastPHASE.
+Extract the genotypes from the output file of fastPHASE.
 }
 \author{
 Timothee Flutre

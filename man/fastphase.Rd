@@ -42,6 +42,47 @@ list with matrix of genotypes before imputation, and matrix of haplotypes (2 per
 \description{
 Impute SNP genotypes via fastPHASE (Scheet and Stephens, 2006).
 }
+\examples{
+\dontrun{## simulate haplotypes and genotypes in a single population
+set.seed(1859)
+nb.inds <- 100
+Ne <- 10^4
+chrom.len <- 10^5
+mu <- 10^(-8)
+c <- 10^(-7)
+genomes <- simulCoalescent(nb.inds=nb.inds,
+                           pop.mut.rate=4 * Ne * mu * chrom.len,
+                           pop.recomb.rate=4 * Ne * c * chrom.len,
+                           chrom.len=chrom.len)
+nb.snps <- nrow(genomes$snp.coords)
+plotHaplosMatrix(genomes$haplos[[1]]) # quick view of the amount of LD
+
+## discard some genotypes according to a "microarray" design:
+## some inds with high density of genotyped SNPs, and the others with
+## low density of SNPs, these being on both microarrays
+ind.names <- rownames(genomes$genos)
+inds.high <- sample(x=ind.names, size=floor(0.5 * nb.inds))
+inds.low <- setdiff(ind.names, inds.high)
+snp.names <- colnames(genomes$genos)
+snps.high.only <- sample(x=snp.names, size=0.5 * nb.snps)
+X.na <- genomes$genos
+X.na[inds.low, snps.high.only] <- NA
+plotGridMissGenos(X=X.na)
+
+## perform imputation
+alleles <- as.data.frame(matrix(cbind(rep("A", nb.snps), rep("T", nb.snps)),
+                                ncol=2, dimnames=list(snp.names,
+                                                      c("minor", "major"))))
+out.imp <- fastphase(X=X.na, snp.coords=genomes$snp.coords,
+                     alleles=alleles, nb.starts=3, clean=TRUE)
+X.imp <- segSites2allDoses(seg.sites=list(haplosAlleles2num(haplos=out.imp$haplos,
+                                                            alleles=alleles)),
+                           ind.ids=rownames(genomes$genos))
+
+## assess imputation accuracy
+sum(X.imp != genomes$genos)
+}
+}
 \author{
 Timothee Flutre
 }

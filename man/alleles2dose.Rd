@@ -7,7 +7,7 @@
 alleles2dose(x, na.string = "--", verbose = 1)
 }
 \arguments{
-\item{x}{data.frame with SNPs in rows and individuals in columns, the SNP identifiers being in the first column}
+\item{x}{matrix or data.frame with SNPs in rows and individuals in columns, the SNP identifiers being in the first column}
 
 \item{na.string}{a character to be interpreted as NA values}
 

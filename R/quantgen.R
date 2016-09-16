@@ -3,14 +3,14 @@
 ##' Convert genotypes
 ##'
 ##' Convert SNP genotype data from alleles (say, "AA" and "AT") to minor allele doses (here, 0 and 1 if "T" is the minor allele). Not particularly efficient, but at least it exists.
-##' @param x data.frame with SNPs in rows and individuals in columns, the SNP identifiers being in the first column
+##' @param x matrix or data.frame with SNPs in rows and individuals in columns, the SNP identifiers being in the first column
 ##' @param na.string a character to be interpreted as NA values
 ##' @param verbose verbosity level (0/1)
 ##' @return list of a matrix (allele doses, SNPs in columns and individuals in rows) and a vector (minor alleles)
 ##' @author Timothee Flutre
 ##' @export
 alleles2dose <- function(x, na.string="--", verbose=1){
-  stopifnot(is.data.frame(x),
+  stopifnot(is.matrix(x) || is.data.frame(x),
             ! is.null(colnames(x)))
 
   snp.names <- x[,1]
@@ -1789,20 +1789,25 @@ imputeGenosWithMeanPerPop <- function(X, pops, min.maf.pop=0.1,
 
 ##' Convert genotypes
 ##'
-##'
+##' Use the external software fcGENE from \href{dx.plos.org/10.1371/journal.pone.0097589}{Roshyara and Scholz (2014)}.
 ##' @param X matrix of SNP genotypes encoded in number of copies of the 2nd allele, i.e. as allele doses in {0,1,2}, with individuals in rows and SNPs in columns
 ##' @param snp.coords data.frame with SNP identifiers as row names, and two columns, "chr" and "coord" or "pos"
 ##' @param alleles data.frame with SNPs in rows (names as row names) and alleles in columns (first is "minor", second is "major")
 ##' @param file write the genotype data to this file (for instance 'genotypes_fastphase.txt' or 'genotypes_fastphase.txt.gz', but don't use \code{\link[base]{gzfile}})
+##' @param verbose verbosity level (0/1/2)
 ##' @return nothing
 ##' @author Timothee Flutre
 ##' @export
-writeInputsForFastPhase <- function(X, snp.coords, alleles, file){
+writeInputsForFastPhase <- function(X, snp.coords, alleles, file, verbose=0){
   stopifnot(file.exists(Sys.which("fcgene")),
-            .isValidSnpCoords(snp.coords))
+            .isValidSnpCoords(snp.coords),
+            is.data.frame(alleles),
+            "minor" %in% colnames(alleles),
+            "major" %in% colnames(alleles))
   stopIfNotValidGenosDose(X, check.na=FALSE)
 
-  ## save SNP genotypes as "r-formatted" file for fcGENE
+  if(verbose > 0)
+    write("save SNP genotypes as 'r-formatted' file for fcGENE...", stdout())
   tmp.geno.file <- tempfile(pattern="genotypes_", fileext=".txt")
   sep <- "\t"
   txt <- paste0("SAMPLE_ID", sep, paste0(colnames(X), collapse=sep), "\n")
@@ -1812,7 +1817,8 @@ writeInputsForFastPhase <- function(X, snp.coords, alleles, file){
   }))
   cat(tmp, file=tmp.geno.file, sep="", append=TRUE)
 
-  ## save "snpinfo"
+  if(verbose > 0)
+    write("save 'snpinfo'...", stdout())
   tmp.snpinfo.file <- tempfile(pattern="snpinfo_", fileext=".txt")
   snp.info <- data.frame(snpid=rownames(snp.coords),
                          rsid=rownames(snp.coords),
@@ -1823,24 +1829,37 @@ writeInputsForFastPhase <- function(X, snp.coords, alleles, file){
   utils::write.table(x=snp.info, file=tmp.snpinfo.file, quote=FALSE, sep="\t",
                      row.names=FALSE)
 
-  ## convert with fcGENE
+  if(verbose > 0)
+    write("convert with fcGENE...", stdout())
   tmp.out.prefix <- tempfile(pattern="output")
   args <- paste0("--rgeno ", tmp.geno.file,
                  " --snpinfo ", tmp.snpinfo.file,
                  " --oformat fastphase",
                  " --out ", tmp.out.prefix)
   retVal <- system2(command="fcgene", args=args, stdout=TRUE, stderr=TRUE)
+  if(! is.null(attributes(retVal)) && attr(retVal, "status") != 0){
+    print(retVal)
+    stop()
+  }
+  if(verbose > 1)
+    print(retVal)
 
-  ## rename (and compress if necessary)
+  if(verbose > 0)
+    write("rename (and compress if necessary)...", stdout())
   use.gzip <- grepl(".gz", file)
   if(use.gzip)
     file <- removeFileExtension(file, "gz")
-  file.rename(from=paste0(tmp.out.prefix, ".inp"), to=file)
-  if(use.gzip)
+  file.copy(from=paste0(tmp.out.prefix, ".inp"), to=file)
+  if(use.gzip){
+    if(file.exists(paste0(file, ".gz")))
+      file.remove(paste0(file, ".gz"))
     system2(command="gzip", args=file)
+  }
 
-  ## clean
+  if(verbose > 0)
+    write("clean...", stdout())
   tmp <- file.remove(c(tmp.geno.file, tmp.snpinfo.file,
+                       paste0(tmp.out.prefix, ".inp"),
                        paste0(tmp.out.prefix, "_fcgene.log"),
                        paste0(tmp.out.prefix, "_pedinfo.txt"),
                        paste0(tmp.out.prefix, "_snpinfo.txt")))
@@ -1848,7 +1867,7 @@ writeInputsForFastPhase <- function(X, snp.coords, alleles, file){
 
 ##' Genotype imputation
 ##'
-##' Extract the haplotypes from the output file of fastPHASE.
+##' Extract the genotypes from the output file of fastPHASE.
 ##' @param file character
 ##' @param snp.ids vector of SNP identifiers
 ##' @return matrix with genotypes in rows (2 per individual) and SNPs in columns
@@ -1907,6 +1926,40 @@ readHaplosFastPhase <- function(file, snp.ids){
   return(haplos)
 }
 
+##' Haplotypes
+##'
+##' Reformat haplotypes from alleles as string into numeric.
+##' @param haplos matrix with haplotypes in rows (2 consecutive per individual) and SNPs in columns
+##' @param alleles data.frame with SNPs in rows (names as row names) and alleles in columns (first is "minor", second is "major")
+##' @param nb.cores the number of cores to use, i.e. at most how many child processes will be run simultaneously (not on Windows)
+##' @return matrix with 0 for major alleles and 1 for minor alleles
+##' @author Timothee Flutre
+##' @export
+haplosAlleles2num <- function(haplos, alleles, nb.cores=1){
+  stopifnot(is.matrix(haplos),
+            ! is.null(colnames(haplos)),
+            is.data.frame(alleles),
+            ! is.null(rownames(alleles)),
+            all(colnames(haplos) %in% rownames(alleles)))
+
+  out <- matrix(data=NA, nrow=nrow(haplos), ncol=ncol(haplos),
+                dimnames=dimnames(haplos))
+
+  alleles <- alleles[colnames(haplos),] # put SNPs in same order
+
+  nb.snps <- ncol(haplos)
+  tmp <- parallel::mclapply(1:nb.snps, function(j){
+    idx <- which(haplos[,j] == alleles[j, "major"])
+    if(length(idx) > 0)
+      out[idx, j] <<- 0
+    idx <- which(haplos[,j] == alleles[j, "minor"])
+    if(length(idx) > 0)
+      out[idx, j] <<- 1
+  }, mc.cores=nb.cores)
+
+  return(out)
+}
+
 ##' Genotype imputation
 ##'
 ##' Impute SNP genotypes via fastPHASE (Scheet and Stephens, 2006).
@@ -1925,6 +1978,46 @@ readHaplosFastPhase <- function(file, snp.ids){
 ##' @param verbose verbosity level (0/1)
 ##' @return list with matrix of genotypes before imputation, and matrix of haplotypes (2 per individual, in rows) after imputation
 ##' @author Timothee Flutre
+##' @examples
+##' \dontrun{## simulate haplotypes and genotypes in a single population
+##' set.seed(1859)
+##' nb.inds <- 100
+##' Ne <- 10^4
+##' chrom.len <- 10^5
+##' mu <- 10^(-8)
+##' c <- 10^(-7)
+##' genomes <- simulCoalescent(nb.inds=nb.inds,
+##'                            pop.mut.rate=4 * Ne * mu * chrom.len,
+##'                            pop.recomb.rate=4 * Ne * c * chrom.len,
+##'                            chrom.len=chrom.len)
+##' nb.snps <- nrow(genomes$snp.coords)
+##' plotHaplosMatrix(genomes$haplos[[1]]) # quick view of the amount of LD
+##'
+##' ## discard some genotypes according to a "microarray" design:
+##' ## some inds with high density of genotyped SNPs, and the others with
+##' ## low density of SNPs, these being on both microarrays
+##' ind.names <- rownames(genomes$genos)
+##' inds.high <- sample(x=ind.names, size=floor(0.5 * nb.inds))
+##' inds.low <- setdiff(ind.names, inds.high)
+##' snp.names <- colnames(genomes$genos)
+##' snps.high.only <- sample(x=snp.names, size=0.5 * nb.snps)
+##' X.na <- genomes$genos
+##' X.na[inds.low, snps.high.only] <- NA
+##' plotGridMissGenos(X=X.na)
+##'
+##' ## perform imputation
+##' alleles <- as.data.frame(matrix(cbind(rep("A", nb.snps), rep("T", nb.snps)),
+##'                                 ncol=2, dimnames=list(snp.names,
+##'                                                       c("minor", "major"))))
+##' out.imp <- fastphase(X=X.na, snp.coords=genomes$snp.coords,
+##'                      alleles=alleles, nb.starts=3, clean=TRUE)
+##' X.imp <- segSites2allDoses(seg.sites=list(haplosAlleles2num(haplos=out.imp$haplos,
+##'                                                             alleles=alleles)),
+##'                            ind.ids=rownames(genomes$genos))
+##'
+##' ## assess imputation accuracy
+##' sum(X.imp != genomes$genos)
+##' }
 ##' @export
 fastphase <- function(X, snp.coords, alleles, out.dir=getwd(),
                       task.id="fastphase", nb.starts=20, nb.iters=25,
@@ -1965,6 +2058,8 @@ fastphase <- function(X, snp.coords, alleles, out.dir=getwd(),
     write(txt, stdout())
   }
   tmp.files["haplos"] <- paste0(out.dir, "/", task.id, "_hapguess_switch.out")
+  tmp.files["finallik"] <- "fastphase_finallikelihoods"
+  tmp.files["origchars"] <- "fastphase_origchars"
   out <- list(genos=readGenosFastPhase(tmp.files["genos"],
                                        rownames(snp.coords)),
               haplos=readHaplosFastPhase(tmp.files["haplos"],

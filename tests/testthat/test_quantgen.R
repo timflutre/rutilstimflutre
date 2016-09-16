@@ -20,6 +20,27 @@ test_that("dose2alleles", {
   expect_equal(observed, expected)
 })
 
+test_that("haplosAlleles2num", {
+  nb.inds <- 2
+  nb.snps <- 3
+  haplos <- matrix(data=c("T","T","T","T", "T","A","T","A", "A","T","A","A"),
+                   nrow=2*nb.inds, ncol=nb.snps,
+                   dimnames=list(c("ind1_h1","ind1_h2","ind2_h1","ind2_h2"),
+                                 paste0("snp", 1:nb.snps)))
+  alleles <- as.data.frame(matrix(data=c(rep("A", nb.snps), rep("T", nb.snps)),
+                                  nrow=nb.snps, ncol=2,
+                                  dimnames=list(paste0("snp", 1:nb.snps),
+                                                c("minor", "major"))))
+
+  expected <- matrix(data=c(0,0,0,0, 0,1,0,1, 1,0,1,1),
+                     nrow=2*nb.inds, ncol=nb.snps,
+                     dimnames=dimnames(haplos))
+
+  observed <- haplosAlleles2num(haplos=haplos, alleles=alleles)
+
+  expect_equal(observed, expected)
+})
+
 test_that("calcFreqMissSnpGenos", {
   N <- 2 # individuals
   P <- 4 # SNPs
