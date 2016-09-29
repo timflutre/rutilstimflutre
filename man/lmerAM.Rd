@@ -4,7 +4,8 @@
 \alias{lmerAM}
 \title{Animal model}
 \usage{
-lmerAM(formula, dat, relmat, REML = TRUE, ci.meth = NULL, verbose = 1)
+lmerAM(formula, dat, relmat, REML = TRUE, ci.meth = NULL, ci.lev = 0.95,
+  verbose = 1)
 }
 \arguments{
 \item{formula}{formula (see \code{\link[lme4]{lmer}})}
@@ -17,10 +18,12 @@ lmerAM(formula, dat, relmat, REML = TRUE, ci.meth = NULL, verbose = 1)
 
 \item{ci.meth}{method to compute confidence intervals (profile/boot); if not NULL, use \code{\link[lme4]{confint.merMod}}}
 
+\item{ci.lev}{level to compute confidence intervals}
+
 \item{verbose}{verbosity level (0/1)}
 }
 \value{
-list which first component is a \code{\link[lme4]{merMod}} object and second component a data.frame with confidence intervals (if ci.meth is not NULL)
+list with a \code{\link[lme4]{merMod}} object, a \code{thpr} object (if ci.meth="profile"), and a data.frame with confidence intervals (if ci.meth is not NULL)
 }
 \description{
 Given I genotypes, Q covariates and N=I*Q phenotypes for the trait, fit an "animal model" with the lme4 package via the following likelihood: y = W c + Z g_A + Z g_D + epsilon, where y is Nx1; W is NxQ; Z is NxI; g_A ~ Normal_I(0, sigma_A^2 A) with A the known matrix of additive genetic relationships; g_D ~ Normal_I(0, sigma_D^2 D) with D the known matrix of dominant genetic relationships; epsilon ~ Normal_N(0, sigma^2 Id_N); Cov(g_A,g_D)=0; Cov(g_A,e)=0; Cov(g_D,e)=0.

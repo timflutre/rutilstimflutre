@@ -59,7 +59,7 @@ test_that("coverageBams", {
     set.seed(1)
     all.files <- c()
 
-    ## reference genome: 2 100-bp long, identical chromosomes
+    ## reference genome: 2 100-bp chromosomes
     faFile <- paste0(tmpd, "/refgenome.fa")
     chrs <- Biostrings::DNAStringSet(c(chr1=paste(sample(c("A","T","G","C"),
                                                          100, replace=TRUE),
@@ -72,9 +72,9 @@ test_that("coverageBams", {
 
     ## reads: 1 perfectly matching, 1 matching with internal indel
     fqFile <- paste0(tmpd, "/reads.fq")
-    r1 <- chrs[[1]][11:80]
-    r2 <- c(r1[1:30], r1[38:length(r1)])
-    r3 <- chrs[[2]][11:80]
+    r1 <- chrs[[1]][11:80] # 70-bp read on chr1
+    r2 <- c(r1[1:30], r1[38:length(r1)]) # same as read 1 with 7-bp indel
+    r3 <- chrs[[2]][11:80] # 70-bp read on chr2
     reads <- Biostrings::DNAStringSet(c(read1=r1, read2=r2, read3=r3))
     Biostrings::writeXStringSet(x=reads, filepath=fqFile, format="fastq")
     all.files <- append(all.files, fqFile)
@@ -109,21 +109,28 @@ test_that("coverageBams", {
     ## cmd <- paste0("samtools depth -Q 5 -r chr1:1-1000000 ", bamFile)
     cvg <- data.table::fread(input=cmd,
                              col.names=c("chr", "pos", "count"))
-    nrow(cvg)
-    sum(cvg$count)
+    nrow(cvg) # 140
+    sum(cvg$count) # 203
 
     ## expected
     expected <- list()
     expected[[basename(bamFile)]] <-
-      matrix(c(Biostrings::width(chrs), c(70, 70), c(133, 70)),
-             nrow=length(chrs), ncol=3,
+      matrix(c(Biostrings::width(chrs),
+               c(sum(cvg[,chr=="chr1"]),
+                 sum(cvg[,chr=="chr2"])),
+               c(sum(cvg$count[cvg[,chr=="chr1"]]),
+                 sum(cvg$count[cvg[,chr=="chr2"]]))),
+             nrow=length(chrs),
+             ncol=3,
              dimnames=list(names(chrs),
                            c("nb.bases", "mapped.bases", "count.sum")))
     expected[[1]] <- cbind(expected[[1]],
                            breadth=expected[[1]][,"mapped.bases"] /
                              expected[[1]][,"nb.bases"],
                            depth=expected[[1]][,"count.sum"] /
-                             expected[[1]][,"nb.bases"])
+                             expected[[1]][,"nb.bases"],
+                           depth.map=expected[[1]][,"count.sum"] /
+                             expected[[1]][,"mapped.bases"])
 
     ## observed
     observed <- coverageBams(bamFiles=bamFile)

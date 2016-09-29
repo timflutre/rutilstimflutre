@@ -4,15 +4,16 @@
 \alias{coverageBams}
 \title{Coverage}
 \usage{
-coverageBams(bamFiles, yieldSize = 10^4, seq.ids = NULL, max.depth = 10^4,
-  min.base.quality = 1, min.mapq = 5, min.nucleotide.depth = 1,
-  distinguish.strands = FALSE, distinguish.nucleotides = FALSE,
-  ignore.query.Ns = FALSE, include.deletions = FALSE,
-  include.insertions = FALSE, is.paired = NA, is.proper.pair = NA,
-  is.unmapped.query = FALSE, has.unmapped.mate = NA, is.minus.strand = NA,
-  is.mate.minus.strand = NA, is.first.mate.read = NA,
-  is.second.mate.read = NA, is.secondary.align = FALSE,
-  is.not.passing.qc = FALSE, is.dupl = FALSE, verbose = 1, nb.cores = 1)
+coverageBams(bamFiles, yieldSize = 10^4, seq.ids = NULL, out.file = NULL,
+  max.depth = 10^4, min.base.quality = 1, min.mapq = 5,
+  min.nucleotide.depth = 1, distinguish.strands = FALSE,
+  distinguish.nucleotides = FALSE, ignore.query.Ns = FALSE,
+  include.deletions = FALSE, include.insertions = FALSE, is.paired = NA,
+  is.proper.pair = NA, is.unmapped.query = FALSE, has.unmapped.mate = NA,
+  is.minus.strand = NA, is.mate.minus.strand = NA,
+  is.first.mate.read = NA, is.second.mate.read = NA,
+  is.secondary.align = FALSE, is.not.passing.qc = FALSE, is.dupl = FALSE,
+  verbose = 1, nb.cores = 1)
 }
 \arguments{
 \item{bamFiles}{vector of paths to BAM file(s), each of them having an index file with the same name but finishing by ".bai"; if there are several BAM files, all of them should contain reads aligned on the same set of sequences (i.e. the same reference genome)}
@@ -20,6 +21,8 @@ coverageBams(bamFiles, yieldSize = 10^4, seq.ids = NULL, max.depth = 10^4,
 \item{yieldSize}{number of records to yield each time the file is read from (see \code{\link[Rsamtools]{BamFile}})}
 
 \item{seq.ids}{sequence identifier(s) to focus on, e.g. "chr2" or c("chr2","chr5"); if NULL, all of them}
+
+\item{out.file}{if not NULL, the output will be transformed into a data.frame and written into the given file}
 
 \item{max.depth}{see \code{\link[Rsamtools]{PileupParam}}}
 
@@ -66,10 +69,10 @@ coverageBams(bamFiles, yieldSize = 10^4, seq.ids = NULL, max.depth = 10^4,
 \item{nb.cores}{the number of cores to use to parallelize over bamFiles, i.e. at most how many child processes will be run simultaneously (not on Windows)}
 }
 \value{
-list with one component per BAM file, each being a matrix with columns "nb.bases", "mapped.bases", "count.sum", "breadth", "depth"
+list with one component per BAM file, each being a matrix with columns "nb.bases", "mapped.bases", "count.sum", "breadth", "depth" and "depth.map" (corresponding to the depth at positions with at least one mapped read)
 }
 \description{
-Calculate the depth (average number of times each position in the genome has been sequenced) and breadth (fraction of the genome that is covered by reads) of coverage from a set of BAM file(s) (see \href{http://dx.doi.org/10.1093/bib/bbu029}{Molnar & Ilie (2015)}). Results are identical to those from \code{samtools depth}.
+Calculate the breadth (fraction of the genome that is covered by reads) and depth (average number of times each position in the genome has been sequenced) of coverage from a set of BAM file(s) (see \href{http://dx.doi.org/10.1093/bib/bbu029}{Molnar & Ilie (2015)}). Results are identical to those from \code{samtools depth}.
 }
 \author{
 Timothee Flutre (with the help of Martin Morgan)

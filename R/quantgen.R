@@ -2351,8 +2351,9 @@ mme <- function(y, W, Z, sigma.A2, Ainv, V.E){
 ##' @param relmat list containing the matrices of genetic relationships (A is compulsory but D is optional); should use the same names as the colnames in data; can be in the "matrix" class (base) or the "dsCMatrix" class (Matrix package); see \code{\link{estimGenRel}}
 ##' @param REML default is TRUE (use FALSE to compare models with different fixed effects)
 ##' @param ci.meth method to compute confidence intervals (profile/boot); if not NULL, use \code{\link[lme4]{confint.merMod}}
+##' @param ci.lev level to compute confidence intervals
 ##' @param verbose verbosity level (0/1)
-##' @return list which first component is a \code{\link[lme4]{merMod}} object and second component a data.frame with confidence intervals (if ci.meth is not NULL)
+##' @return list with a \code{\link[lme4]{merMod}} object, a \code{thpr} object (if ci.meth="profile"), and a data.frame with confidence intervals (if ci.meth is not NULL)
 ##' @author Timothee Flutre (inspired by Ben Bolker at http://stackoverflow.com/q/19327088/597069)
 ##' @note If A is not positive definite, an error will be raised (via \code{\link[base]{chol}}); in such cases, using the nearPD function from the Matrix package can be useful.
 ##' @seealso \code{\link{inlaAM}}, \code{\link{jagsAM}}, \code{\link{stanAM}}
@@ -2399,7 +2400,8 @@ mme <- function(y, W, Z, sigma.A2, Ainv, V.E){
 ##' c(vc[vc$grp == "geno.add", "vcov"], vc[vc$grp == "Residual", "vcov"],
 ##'   vc[vc$grp == "geno.dom", "vcov"])
 ##' @export
-lmerAM <- function(formula, dat, relmat, REML=TRUE, ci.meth=NULL, verbose=1){
+lmerAM <- function(formula, dat, relmat, REML=TRUE, ci.meth=NULL, ci.lev=0.95,
+                   verbose=1){
   requireNamespaces(c("lme4", "Matrix"))
   stopifnot(is.data.frame(dat),
             all(! duplicated(colnames(dat))),
@@ -2440,7 +2442,7 @@ lmerAM <- function(formula, dat, relmat, REML=TRUE, ci.meth=NULL, verbose=1){
   parsedFormula$reTrms[["Zt"]] <- do.call(Matrix::rBind, Ztlist)
 
   if(verbose > 0)
-    write("make the deviance function ..", stdout())
+    write("make the deviance function ...", stdout())
   devianceFunction <- do.call(lme4::mkLmerDevfun, parsedFormula)
 
   if(verbose > 0)
@@ -2454,14 +2456,21 @@ lmerAM <- function(formula, dat, relmat, REML=TRUE, ci.meth=NULL, verbose=1){
                         reTrms=parsedFormula$reTrms,
                         fr=parsedFormula$fr)
 
+  prof <- NULL
   ci <- NULL
   if(! is.null(ci.meth)){
     if(verbose > 0)
       write("compute confidence intervals ...", stdout())
-    suppressMessages(ci <- lme4::confint.merMod(fit, method=ci.meth, oldNames=FALSE))
+    if(ci.meth == "profile"){
+      prof <- stats::profile(fit)
+      ci <- confint(prof, level=ci.lev)
+    } else
+      suppressMessages(ci <- lme4::confint.merMod(fit, level=ci.lev,
+                                                  method=ci.meth,
+                                                  oldNames=FALSE))
   }
 
-  return(list(merMod=fit, ci=ci))
+  return(list(merMod=fit, prof=prof, ci=ci))
 }
 
 ##' Animal model

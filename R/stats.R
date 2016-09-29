@@ -2,19 +2,37 @@
 
 ##' Summary
 ##'
-##' Print the output of \code{\link{summary}} in a single line.
+##' Print the output of \code{\link{summary}} in a single line, as well as the total number of observations and the number of missing data.
 ##' @param x vector of numbers
 ##' @param spec specifier, see \code{\link{sprintf}}
-##' @return nothing
+##' @return invisible summary
 ##' @author Timothee Flutre
 ##' @export
 prettyPrintSummary <- function(x, spec="%.2f"){
-  stopifnot(is.vector(x))
-  tmp <- summary(x)
-  fmt <- paste0("min=", spec, " q1=", spec, " med=", spec, " mean=", spec,
-                " q3=", spec, " max=", spec)
-  txt <- sprintf(fmt, tmp[1], tmp[2], tmp[3], tmp[4], tmp[5], tmp[6])
+  stopifnot(is.vector(x),
+            is.numeric(x))
+
+  out <- setNames(rep(NA, 8),
+                  c("n", "na", "min", "q1", "med", "mean", "q3", "max"))
+
+  out["n"] <- length(x)
+  isNa <- is.na(x)
+  if(any(isNa))
+    x <- x[! isNa]
+  out["na"] <- sum(isNa)
+  out["min"] <- min(x)
+  out["q1"] <- quantile(x, 0.25)
+  out["med"] <- median(x)
+  out["mean"] <- mean(x)
+  out["q3"] <- quantile(x, 0.75)
+  out["max"] <- max(x)
+
+  fmt <- paste(paste0(names(out), "=", spec), collapse=" ")
+  txt <- sprintf(fmt=fmt, out["n"], out["na"], out["min"], out["q1"], out["med"],
+                 out["mean"], out["q3"], out["max"])
   print(txt)
+
+  invisible(out)
 }
 
 ##' Return the Root Mean Squared Error

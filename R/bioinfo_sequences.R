@@ -415,10 +415,11 @@ barplotReadCounts <- function(counts,
 
 ##' Coverage
 ##'
-##' Calculate the depth (average number of times each position in the genome has been sequenced) and breadth (fraction of the genome that is covered by reads) of coverage from a set of BAM file(s) (see \href{http://dx.doi.org/10.1093/bib/bbu029}{Molnar & Ilie (2015)}). Results are identical to those from \code{samtools depth}.
+##' Calculate the breadth (fraction of the genome that is covered by reads) and depth (average number of times each position in the genome has been sequenced) of coverage from a set of BAM file(s) (see \href{http://dx.doi.org/10.1093/bib/bbu029}{Molnar & Ilie (2015)}). Results are identical to those from \code{samtools depth}.
 ##' @param bamFiles vector of paths to BAM file(s), each of them having an index file with the same name but finishing by ".bai"; if there are several BAM files, all of them should contain reads aligned on the same set of sequences (i.e. the same reference genome)
 ##' @param yieldSize number of records to yield each time the file is read from (see \code{\link[Rsamtools]{BamFile}})
 ##' @param seq.ids sequence identifier(s) to focus on, e.g. "chr2" or c("chr2","chr5"); if NULL, all of them
+##' @param out.file if not NULL, the output will be transformed into a data.frame and written into the given file
 ##' @param max.depth see \code{\link[Rsamtools]{PileupParam}}
 ##' @param min.base.quality see \code{\link[Rsamtools]{PileupParam}}
 ##' @param min.mapq see \code{\link[Rsamtools]{PileupParam}}
@@ -441,11 +442,11 @@ barplotReadCounts <- function(counts,
 ##' @param is.dupl see \code{\link[Rsamtools]{scanBamFlag}}
 ##' @param verbose verbosity level (0/1/2)
 ##' @param nb.cores the number of cores to use to parallelize over bamFiles, i.e. at most how many child processes will be run simultaneously (not on Windows)
-##' @return list with one component per BAM file, each being a matrix with columns "nb.bases", "mapped.bases", "count.sum", "breadth", "depth"
+##' @return list with one component per BAM file, each being a matrix with columns "nb.bases", "mapped.bases", "count.sum", "breadth", "depth" and "depth.map" (corresponding to the depth at positions with at least one mapped read)
 ##' @seealso \code{\link{freadBedtoolsCoverageHist}}
 ##' @author Timothee Flutre (with the help of Martin Morgan)
 ##' @export
-coverageBams <- function(bamFiles, yieldSize=10^4, seq.ids=NULL,
+coverageBams <- function(bamFiles, yieldSize=10^4, seq.ids=NULL, out.file=NULL,
                          max.depth=10^4, min.base.quality=1,
                          min.mapq=5, min.nucleotide.depth=1,
                          distinguish.strands=FALSE,
@@ -458,9 +459,11 @@ coverageBams <- function(bamFiles, yieldSize=10^4, seq.ids=NULL,
                          is.secondary.align=FALSE, is.not.passing.qc=FALSE,
                          is.dupl=FALSE,
                          verbose=1, nb.cores=1){
-  requireNamespaces(c("parallel", "Rsamtools", "IRanges"))
+  requireNamespaces(c("parallel", "IRanges", "Rsamtools"))
   stopifnot(is.character(bamFiles),
             all(sapply(bamFiles, file.exists)))
+  if(! is.null(out.file))
+    stopifnot(! file.exists(out.file))
 
   if(verbose > 0)
     write("extract sequence lengths ...", stdout()); flush(stdout())
@@ -486,8 +489,10 @@ coverageBams <- function(bamFiles, yieldSize=10^4, seq.ids=NULL,
     rl[[seq.id]] <- IRanges::IRanges(start=1, end=seq.lengths[seq.id],
                                      names=seq.id)
 
-  if(verbose > 0)
-    write("compute coverage ...", stdout()); flush(stdout())
+  if(verbose > 0){
+    msg <- paste0("compute coverage from ", length(bamFiles), " BAM files ...")
+    write(msg, stdout()); flush(stdout())
+  }
   fl <- Rsamtools::scanBamFlag(isPaired=is.paired,
                                isProperPair=is.proper.pair,
                                isUnmappedQuery=is.unmapped.query,
@@ -526,9 +531,20 @@ coverageBams <- function(bamFiles, yieldSize=10^4, seq.ids=NULL,
                  count.sum=tapply(p$count, p$seqnames, sum))
     cbind(tmp,
           breadth=tmp[,"mapped.bases"] / tmp[,"nb.bases"],
-          depth=tmp[,"count.sum"] / tmp[,"nb.bases"])
+          depth=tmp[,"count.sum"] / tmp[,"nb.bases"],
+          depth.map=tmp[,"count.sum"] / tmp[,"mapped.bases"])
   }, mc.cores=nb.cores, mc.silent=ifelse(nb.cores == 1, FALSE, TRUE))
   names(out) <- basename(bamFiles)
+
+  if(! is.null(out.file)){
+    if(verbose > 0)
+      write("write results into file ...", stdout())
+    tmp <- do.call(rbind, lapply(names(out), function(bam.file){
+      cbind(bam.file, seq=rownames(out[[bam.file]]), out[[bam.file]])
+    }))
+    write.table(x=tmp, file=gzfile(out.file), quote=FALSE, sep="\t",
+                row.names=FALSE, col.names=TRUE)
+  }
 
   return(out)
 }

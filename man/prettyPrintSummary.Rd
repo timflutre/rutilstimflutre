@@ -12,10 +12,10 @@ prettyPrintSummary(x, spec = "\%.2f")
 \item{spec}{specifier, see \code{\link{sprintf}}}
 }
 \value{
-nothing
+invisible summary
 }
 \description{
-Print the output of \code{\link{summary}} in a single line.
+Print the output of \code{\link{summary}} in a single line, as well as the total number of observations and the number of missing data.
 }
 \author{
 Timothee Flutre
