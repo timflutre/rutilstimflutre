@@ -560,8 +560,8 @@ coverageBams <- function(bamFiles, yieldSize=10^4, seq.ids=NULL, out.file=NULL,
     tmp <- do.call(rbind, lapply(names(out), function(bam.file){
       cbind(bam.file, seq=rownames(out[[bam.file]]), out[[bam.file]])
     }))
-    write.table(x=tmp, file=gzfile(out.file), quote=FALSE, sep="\t",
-                row.names=FALSE, col.names=TRUE)
+    utils::write.table(x=tmp, file=gzfile(out.file), quote=FALSE, sep="\t",
+                       row.names=FALSE, col.names=TRUE)
   }
 
   return(out)

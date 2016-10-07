@@ -12,8 +12,8 @@ prettyPrintSummary <- function(x, spec="%.2f"){
   stopifnot(is.vector(x),
             is.numeric(x))
 
-  out <- setNames(rep(NA, 8),
-                  c("n", "na", "min", "q1", "med", "mean", "q3", "max"))
+  out <- stats::setNames(rep(NA, 8),
+                         c("n", "na", "min", "q1", "med", "mean", "q3", "max"))
 
   out["n"] <- length(x)
   isNa <- is.na(x)
@@ -21,10 +21,10 @@ prettyPrintSummary <- function(x, spec="%.2f"){
     x <- x[! isNa]
   out["na"] <- sum(isNa)
   out["min"] <- min(x)
-  out["q1"] <- quantile(x, 0.25)
-  out["med"] <- median(x)
+  out["q1"] <- stats::quantile(x, 0.25)
+  out["med"] <- stats::median(x)
   out["mean"] <- mean(x)
-  out["q3"] <- quantile(x, 0.75)
+  out["q3"] <- stats::quantile(x, 0.75)
   out["max"] <- max(x)
 
   fmt <- paste(paste0(names(out), "=", spec), collapse=" ")
