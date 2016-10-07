@@ -4,32 +4,50 @@
 ##'
 ##' Return key aspects of a fasta file as summary (number of records, length of each record, letter frequency of each record, ...).
 ##' @param fa.file path to the fasta file (can be gzip-compressed)
-##' @param letters vector of characters to get their frequency
+##' @param letters vector of characters to get their frequency, or NULL to skip
 ##' @param algo name of the algorithm used to apply a cryptographical hash function on the sequence of each record (md5/sha1/NULL)
+##' @param verbose verbosity level (0/1)
 ##' @return list
 ##' @author Timothee Flutre
 ##' @export
-summaryFasta <- function(fa.file, letters=c("A","T","G","C","N"), algo=NULL){
+summaryFasta <- function(fa.file, letters=c("A","T","G","C","N"), algo=NULL,
+                         verbose=0){
   requireNamespaces(c("Biostrings", "BiocGenerics"))
   stopifnot(file.exists(fa.file))
   if(! is.null(algo)){
-    requireNamespaces("digest")
+    requireNamespace("digest")
     stopifnot(algo %in% c("md5", "sha1"))
   }
 
   out <- list()
 
+  if(verbose > 0)
+    write(paste0("load ", fa.file, " ..."), stdout()); flush(stdout())
   records <- Biostrings::readDNAStringSet(filepath=fa.file, format="fasta")
   out$nb.records <- length(records)
   out$rec.lengths <- stats::setNames(BiocGenerics::width(records),
-                              names(records))
+                                     names(records))
+  if(verbose > 0){
+    write(paste0("nb of records: ", length(records)), stdout())
+    flush(stdout())
+  }
 
-  lf <- Biostrings::letterFrequency(x=records, letters=letters)
-  rownames(lf) <- names(records)
-  out$letter.freqs <- lf
+  out$letter.freqs <- NULL
+  if(! is.null(letters)){
+    if(verbose > 0)
+      write("calculate letter frequencies ...", stdout()); flush(stdout())
+    lf <- Biostrings::letterFrequency(x=records, letters=letters)
+    rownames(lf) <- names(records)
+    out$letter.freqs <- lf
+  }
 
-  if(! is.null(algo))
+  if(! is.null(algo)){
+    if(verbose > 0){
+      write(paste0("apply ", algo, " per record ..."), stdout())
+      flush(stdout())
+    }
     out[[algo]] <- sapply(records, digest::digest, algo=algo)
+  }
 
   return(out)
 }

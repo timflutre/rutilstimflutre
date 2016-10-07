@@ -4,14 +4,17 @@
 \alias{summaryFasta}
 \title{Fasta file}
 \usage{
-summaryFasta(fa.file, letters = c("A", "T", "G", "C", "N"), algo = NULL)
+summaryFasta(fa.file, letters = c("A", "T", "G", "C", "N"), algo = NULL,
+  verbose = 0)
 }
 \arguments{
 \item{fa.file}{path to the fasta file (can be gzip-compressed)}
 
-\item{letters}{vector of characters to get their frequency}
+\item{letters}{vector of characters to get their frequency, or NULL to skip}
 
 \item{algo}{name of the algorithm used to apply a cryptographical hash function on the sequence of each record (md5/sha1/NULL)}
+
+\item{verbose}{verbosity level (0/1)}
 }
 \value{
 list
