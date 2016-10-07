@@ -18,3 +18,36 @@ test_that("isSingular", {
   observed <- isSingular(X2)
   expect_equal(observed, expected)
 })
+
+test_that("corrMatAR1", {
+  rho <- 0.7
+
+  n <- 0
+  expected <- matrix(data=0, nrow=n, ncol=n)
+  observed <- corrMatAR1(n, rho)
+  expect_equal(observed, expected)
+
+  n <- 1
+  expected <- matrix(data=1, nrow=n, ncol=n)
+  observed <- corrMatAR1(n, rho)
+  expect_equal(observed, expected)
+
+  n <- 2
+  expected <- matrix(data=c(1, rho, rho, 1), nrow=n, ncol=n)
+  observed <- corrMatAR1(n, rho)
+  expect_equal(observed, expected)
+
+  n <- 3
+  expected <- matrix(data=c(1,rho,rho^2, rho,1,rho, rho^2,rho,1),
+                     nrow=n, ncol=n)
+  observed <- corrMatAR1(n, rho)
+  expect_equal(observed, expected)
+
+  n <- 4
+  expected <- matrix(data=c(1,rho,rho^2,rho^3,
+                            rho,1,rho,rho^2,
+                            rho^2,rho,1,rho,
+                            rho^3,rho^2,rho,1), nrow=n, ncol=n)
+  observed <- corrMatAR1(n, rho)
+  expect_equal(observed, expected)
+})
