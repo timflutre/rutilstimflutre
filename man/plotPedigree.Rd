@@ -5,7 +5,7 @@
 \title{Plot pedigree}
 \usage{
 plotPedigree(inds, mothers, fathers, generations, sexes = NULL,
-  edge.col.mother = "black", edge.col.father = "darkgrey",
+  plot.it = TRUE, edge.col.mother = "black", edge.col.father = "darkgrey",
   vertex.label.color = "darkblue", vertex.color = "white",
   vertex.size = 20, vertex.shape = "none",
   vertex.label.family = "Helvetica", mult.edge.curve = 0.25,
@@ -21,6 +21,8 @@ plotPedigree(inds, mothers, fathers, generations, sexes = NULL,
 \item{generations}{should start at 0}
 
 \item{sexes}{"F" for female (circle), "M" for male (square) and "H" for hermaphrodite (triangle); can also be NA (no shape)}
+
+\item{plot.it}{if TRUE, the pedigree will be plotted}
 
 \item{edge.col.mother}{see ?igraph.plotting}
 
@@ -45,7 +47,7 @@ plotPedigree(inds, mothers, fathers, generations, sexes = NULL,
 \item{...}{other plotting options; see ?plot.igraph and ?igraph.plotting}
 }
 \value{
-invisible pedigree as an "igraph" object
+invisible list with objects required to plot the pedigree
 }
 \description{
 Plot a pedigree using the "igraph" package.

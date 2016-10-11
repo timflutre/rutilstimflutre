@@ -4063,6 +4063,7 @@ readBiomercator <- function(file){
 ##' @param fathers identifiers of their father; can be NA
 ##' @param generations should start at 0
 ##' @param sexes "F" for female (circle), "M" for male (square) and "H" for hermaphrodite (triangle); can also be NA (no shape)
+##' @param plot.it if TRUE, the pedigree will be plotted
 ##' @param edge.col.mother see ?igraph.plotting
 ##' @param edge.col.father see ?igraph.plotting
 ##' @param vertex.label.color see ?igraph.plotting
@@ -4074,16 +4075,18 @@ readBiomercator <- function(file){
 ##' @param edge.arrow.width see ?igraph.plotting
 ##' @param edge.arrow.size see ?igraph.plotting
 ##' @param ... other plotting options; see ?plot.igraph and ?igraph.plotting
-##' @return invisible pedigree as an "igraph" object
+##' @return invisible list with objects required to plot the pedigree
 ##' @author Timothee Flutre
 ##' @export
 plotPedigree <- function(inds, mothers, fathers, generations, sexes=NULL,
+                         plot.it=TRUE,
                          edge.col.mother="black", edge.col.father="darkgrey",
                          vertex.label.color="darkblue", vertex.color="white",
                          vertex.size=20, vertex.shape="none",
                          vertex.label.family="Helvetica", mult.edge.curve=0.25,
                          edge.arrow.width=0.75, edge.arrow.size=0.75,
                          ...){
+  requireNamespace("igraph")
   stopifnot(is.vector(inds),
             is.vector(mothers),
             is.vector(fathers),
@@ -4182,18 +4185,19 @@ plotPedigree <- function(inds, mothers, fathers, generations, sexes=NULL,
   ## set plot coordinates for vertices
   coords <- matrix(data=NA, nrow=length(inds), ncol=2,
                    dimnames=list(inds, c("x", "y")))
-  coords[,2] <- max(generations) - generations
-  ## coords[,1] <- order(generations, partial=order(inds, decreasing=TRUE)) -
+  coords[, "y"] <- max(generations) - generations
+  ## coords[, "x"] <- order(generations, partial=order(inds, decreasing=TRUE)) -
   ##   cumsum(c(0, table(generations)))[generations + 1]
-  coords[,1] <- order(generations) -
+  coords[, "x"] <- order(generations) -
     cumsum(c(0, table(generations)))[generations + 1]
-  coords[nrow(coords):1,1] <- unlist(tapply(coords[,1], coords[,2], function(x){
-    if(length(x) == 1){
-      x <- 0
-    } else
-      x <- rev(scale(x))
-    return(x)
-  }))
+  coords[nrow(coords):1, "x"] <-
+    unlist(tapply(coords[, "x"], coords[,"y"], function(x){
+      if(length(x) == 1){
+        x <- 0
+      } else
+        x <- rev(scale(x))
+      return(x)
+    }))
 
   ## set edge color depending on parental sex
   nb.rel.mother <- sum(! is.na(mothers))
@@ -4211,13 +4215,15 @@ plotPedigree <- function(inds, mothers, fathers, generations, sexes=NULL,
   }
 
   ## plot, finally
-  igraph::plot.igraph(x=ped.graph,
-                      layout=coords,
-                      edge.color=edge.cols,
-                      edge.curved=edge.curvatures,
-                      edge.arrow.width=edge.arrow.width,
-                      edge.arrow.size=edge.arrow.size,
-                      ...)
+  if(plot.it)
+    igraph::plot.igraph(x=ped.graph,
+                        layout=coords,
+                        edge.color=edge.cols,
+                        edge.curved=edge.curvatures,
+                        edge.arrow.width=edge.arrow.width,
+                        edge.arrow.size=edge.arrow.size,
+                        ...)
 
-  invisible(ped.graph)
+  invisible(list(graph=ped.graph, layout=coords, edge.color=edge.cols,
+                 edge.curved=edge.curvatures))
 }
