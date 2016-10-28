@@ -1982,6 +1982,7 @@ invertGRanges <- function(in.gr){
 plotGRanges <- function(gr, main="Alignments", xlab=NULL, xlim=NULL,
                         col.qry.lab="black", shape="segments"){
   requireNamespaces(c("BiocGenerics", "GenomeInfoDb", "S4Vectors"))
+  GenomeInfoDb::seqlevels(gr) <- GenomeInfoDb::seqlevelsInUse(gr)
   stopifnot(nlevels(GenomeInfoDb::seqnames(gr)) == 1,
             shape %in% c("segments", "arrows"))
 

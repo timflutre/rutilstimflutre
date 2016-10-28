@@ -48,6 +48,7 @@ $ R CMD build rutilstimflutre
 $ R CMD check rutilstimflutre_<version>.tar.gz
 ```
 It may be necessary to `export _R_CHECK_FORCE_SUGGESTS_=0` before `R CMD check`.
+It is also possible to skip the vignettes with `--no-build-vignettes` and `--no-vignettes`.
 
 When developping, here are a few useful tips:
 ```
