@@ -1,6 +1,6 @@
 Package: rutilstimflutre
 Title: Timothee Flutre's personal R code
-Version: 0.81.2
+Version: 0.82.0
 Authors@R: c(
     person("Timothee", "Flutre", email="timothee.flutre@supagro.inra.fr", role=c("aut", "ctb", "cre")),
     person("Carbonetto", "Peter", role="aut", comment="function from varbvs example"),
@@ -36,6 +36,7 @@ Suggests:
     knitr,
     LDcorSV,
     MASS,
+    nlme,
     QTLRel,
     rjags,
     rgs3,
@@ -45,6 +46,7 @@ Suggests:
     rstan,
     S4Vectors,
     scrm,
+    sparseMVN,
     stats,
     SummarizedExperiment,
     testthat,

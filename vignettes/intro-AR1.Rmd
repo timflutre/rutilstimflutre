@@ -1,0 +1,522 @@
+---
+title: "Introduction to the AR(1) process"
+author: "Timothée Flutre (INRA)"
+date: "`r format(Sys.time(), '%d/%m/%Y %H:%M:%S')`"
+output:
+  rmarkdown::html_vignette:
+    toc: true
+  html_document:
+    toc: true
+    toc_float: true
+    number_sections: TRUE
+  pdf_document:
+    toc: true
+    toc_depth: 3
+    number_sections: TRUE
+vignette: >
+  %\VignetteIndexEntry{Intro AR1}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+<!--
+setwd("~/src/rutilstimflutre/vignettes/")
+
+library(devtools)
+build_vignettes()
+
+library(rmarkdown)
+render("intro-AR1.Rmd", "html_document")
+-->
+
+
+# Preamble
+
+License: [CC BY-SA 4.0](http://creativecommons.org/licenses/by-sa/4.0/)
+
+References:
+
+* [Box, Jenkins & Reinsel (2008)](http://eu.wiley.com/WileyCDA/WileyTitle/productCd-0470272848.html): "Time Series Analysis: Forecasting and Control" (4th edition)
+
+* [Rue & Held (2005)](https://www.crcpress.com/p/book/9781584884323): "Gaussian Markov Random Fields: Theory and Applications", chapter 1
+
+* [Congdon (2010)](https://www.crcpress.com/p/book/9781584887201): "Applied Bayesian Hierarchical Methods", section 4.2.2 Low order autoregressive models
+
+* [Martin (1996)](http://linkinghub.elsevier.com/retrieve/pii/0378375895000666): "Some results on unilateral ARMA lattice processes"
+
+* [Cullis & Gleeson (1991)](http://dx.doi.org/10.2307/2532398): "Spatial analysis of field experiments: an extension to two dimensions"
+
+* [Scaccia & Martin (2002)](http://link.springer.com/chapter/10.1007/978-3-642-57489-4_90): "Testing for simplification in spatial models"
+
+External packages:
+
+```{r load_pkg}
+options(digits=5)
+library(rutilstimflutre)
+## library(MASS)
+library(Matrix)
+library(sparseMVN)
+library(nlme)
+library(INLA)
+library(sp)
+```
+
+
+# 1D (time)
+
+## Model
+
+Let us consider a sample of $T$ observations taken sequentially in time, at equal intervals (lag).
+By modelling it mathematically, we assume that this time series is a realization from a stochastic process.
+In particular, we will assume this process to be stationary, i.e. constant mean and variance, and that a given observation only depends on the previous one, to which is added some _white noise_.
+This model is called the first-order autoregressive process, AR(1).
+
+* data: $\mathcal{D} = \{ x_1, \ldots, x_T \}$
+
+* parameters: $\Theta = \{ \delta, \phi_1, \sigma^2 \}$
+
+* likelihood: $p(\mathcal{D} | \Theta)$
+
+It is often written as:
+
+$\forall t \in \{2,\ldots,T\}, \; x_t = \delta + \phi_1 x_{t-1} + \epsilon_t$ where $\epsilon_t \sim \mathcal{N}(0, \sigma^2)$
+
+To highlight the conditional independence, it can also be written as:
+
+$\forall t \in \{2,\ldots,T\}, \; x_t | \delta, \phi_1, x_{t-1}, \ldots, x_1, \sigma^2 \; \sim \; \mathcal{N}(\phi_1 x_{t-1}, \sigma^2)$
+
+We can also write it in a reduced form using the operators conventionally used in the field of time series analysis, notably, the backward shift operator, $B x_t = x_{t-1}$, and the autoregressive operator of order 1, $\phi(B) = 1 - \phi_1 B$.
+As a result:
+
+$\phi(B) x_t = \delta + \epsilon_t$
+
+Let us now derive the theoretical mean, $\mu$, of the process:
+
+$\; E(x_t) = \delta + \phi_1 E(x_{t-1}) \Rightarrow \mu = \frac{\delta}{1 - \phi_1}$
+
+as well as its theoretical variance, $v$:
+
+$V(x_t) = \delta + \phi_1^2 V(x_{t-1}) + \sigma^2 \Rightarrow v = \frac{\sigma^2}{1 - \phi_1^2}$
+
+From now on, let us assume $\delta = 0$, thus $\mu = 0$, with no loss of generality.
+
+To interpret $\phi_1$, it also helps to write down the covariance, $\gamma_1$, and correlation, $\rho_1$, between two consecutive observations:
+
+$\gamma_1 = Cov(x_{t-1}, x_t) = E(x_{t-1} x_t) = \phi_1 V(x_t) \Rightarrow \rho_1 = \phi_1 = \rho$
+
+This can be generalized for two observations $s$ time intervals apart:
+
+$\gamma_s = \phi_1 \gamma_{s-1} \Rightarrow \rho_s = \phi_1^s = \rho^s$
+
+From all this, we can also write down the likelihood of all the data via the joint density of $\boldsymbol{x}$:
+
+$p(\boldsymbol{x}) = p(x_1) p(x_2|x_1) \ldots p(x_T|x_{T-1})$ where $x_1 \sim \mathcal{N}(0, \frac{\sigma^2}{1 - \rho^2})$
+
+This decomposition via the conditional independence of univariate Normals means that the joint density is a multivariate Normal:
+
+$\boldsymbol{x} \sim \mathcal{N}_T(\boldsymbol{0}, \Sigma)$
+
+where the covariance matrix can be written as a scaled correlation matrix:
+
+\begin{equation}
+\Sigma = \frac{\sigma^2}{1 - \rho^2}
+\begin{pmatrix}
+1 & \rho & \rho^2 & \cdots \\
+\rho & 1 & \rho & \cdots \\
+\rho^2 & \rho & 1 & \cdots \\
+\vdots & \vdots & \vdots & \ddots \\
+\end{pmatrix}
+\end{equation}
+
+However, by looking at this covariance matrix, the conditional independence relationships aren't obvious.
+For this, it is much more straightforward to look at the precision matrix, $Q = \Sigma^{-1}$.
+
+Using the formula to invert a $2 \times 2$ matrix, we have:
+
+\begin{equation}
+\Sigma = \frac{\sigma^2}{1 - \rho^2}
+\begin{pmatrix}
+1 & \rho \\
+\rho & 1 \\
+\end{pmatrix}
+
+\Leftrightarrow Q = \frac{1}{\sigma^2}
+\begin{pmatrix}
+1 & -\rho \\
+-\rho & 1 \\
+\end{pmatrix}
+\end{equation}
+
+Using the formula to invert a $3 \times 3$ matrix, we have:
+
+\begin{equation}
+\Sigma = \frac{\sigma^2}{1 - \rho^2}
+\begin{pmatrix}
+1 & \rho & \rho^2 \\
+\rho & 1 & \rho \\
+\rho^2 & \rho & 1 \\
+\end{pmatrix}
+
+\Leftrightarrow Q = \frac{1}{\sigma^2}
+\begin{pmatrix}
+1 & -\rho & 0 \\
+-\rho & 1 + \rho^2 & -\rho \\
+0 & -\rho & 1 \\
+\end{pmatrix}
+\end{equation}
+
+In the general $T \times T$ case:
+
+\begin{equation}
+Q = \frac{1}{\sigma^2}
+\begin{pmatrix}
+1 & -\rho & 0 & & & & \\
+-\rho & 1 + \rho^2 & -\rho & & & & \\
+0 & -\rho & 1 + \rho^2 & \cdots & & & \\
+& & \cdots & \cdots & & & \\
+& & & & -\rho & 1 + \rho^2 & -\rho \\
+& & & & 0 & -\rho & 1 \\
+\end{pmatrix}
+\end{equation}
+
+Whereas the covariance matrix only reflects the marginal dependence structure, the precision matrix is tridiagonal, hence reflecting the fact that any given observation is conditionally dependent only on the previous and next observations.
+Such a sparse structure of the precision matrix allows using dedicated algorithms to perform fast and reliable inferences with a low-memory footprint.
+
+
+## Simulations
+
+Set the inputs:
+
+```{r set_inputs_1D}
+N <- 1*10^2 # number of independent time series
+T <- 5*10^2 # length of each time series
+rho <- 0.7  # correlation between two successive observations
+sigma2 <- 5 # variance of the errors
+1 / sigma2  # precision of the errors
+```
+
+### Via `arima.sim`
+
+```{r sim_base}
+set.seed(1859)
+x1 <- do.call(rbind, lapply(1:N, function(i){
+  arima.sim(model=list(ar=rho), n=T, sd=sqrt(sigma2))
+}))
+rowMeans(apply(x1, 1, summary))
+summary(apply(x1, 1, function(xi){
+  acf(xi, lag.max=1, type="correlation", plot=FALSE)$acf[2]
+}))
+```
+
+### Via conditional univariate Normals
+
+```{r ar1.sim.cond}
+set.seed(1859)
+ar1.sim.cond <- function(N, T, rho, sigma2){
+  x1s <- rnorm(n=N, mean=0, sd=sqrt(sigma2 / (1 - rho^2)))
+  epsilons <- matrix(data=rnorm(n=N*(T-1), mean=0, sd=sqrt(sigma2)),
+                     nrow=N, ncol=T-1)
+  x <- do.call(rbind, lapply(1:N, function(i){
+    xi <- rep(NA, T)
+    xi[1] <- x1s[i]
+    for(t in 2:T)
+      xi[t] <- rho * xi[t-1] + epsilons[i,t-1]
+    return(xi)
+  }))
+  return(x)
+}
+x2 <- ar1.sim.cond(N, T, rho, sigma2)
+rowMeans(apply(x2, 1, summary))
+summary(apply(x2, 1, function(xi){
+  acf(xi, lag.max=1, type="correlation", plot=FALSE)$acf[2]
+}))
+```
+
+### Via multivariate Normal with covariance
+
+```{r ar1.sim.joint.cov}
+set.seed(1859)
+ar1.sim.joint.cov <- function(N, T, rho, sigma2){
+  mu <- rep(0, T)
+  Sigma <- rutilstimflutre::covMatAR1(T, rho, sigma2)
+  print(object.size(Sigma))
+  ## x <- MASS::mvrnorm(n=N, mu=mu, Sigma=Sigma)
+  A <- chol(Sigma)
+  z <- matrix(data=rnorm(n=N*T, mean=0, sd=1), nrow=N, ncol=T)
+  x <- do.call(rbind, lapply(1:N, function(i){
+    xi <- mu + t(z[i,]) %*% A
+    return(xi)
+  }))
+  return(x)
+}
+x3 <- ar1.sim.joint.cov(N, T, rho, sigma2)
+rowMeans(apply(x3, 1, summary))
+summary(apply(x3, 1, function(xi){
+  acf(xi, lag.max=1, type="correlation", plot=FALSE)$acf[2]
+}))
+```
+
+### Via multivariate Normal with precision
+
+```{r ar1.sim.joint.prec, eval=TRUE}
+set.seed(1859)
+ar1.sim.joint.prec <- function(N, T, rho, sigma2){
+  mu <- rep(0, T)
+  Q <- rutilstimflutre::precMatAR1(T, rho, sigma2)
+  print(object.size(Q))
+  x <- sparseMVN::rmvn.sparse(n=N, mu=mu, CH=Matrix::Cholesky(Q))
+  ## https://stat.ethz.ch/pipermail/r-sig-mixed-models/2012q4/019612.html
+  ## x <- do.call(rbind, lapply(1:N, function(i){
+  ##   L <- Diagonal(T) - bandSparse(T, T, -1, list(rep(rho, T-1)))
+  ##   L[1,1] <- sqrt(1 - rho^2)
+  ##   xi <- solve(L, epsilons[i,])@x * sqrt(sigma2)
+  ##   return(xi)
+  ## }))
+  return(x)
+}
+x4 <- ar1.sim.joint.prec(N, T, rho, sigma2)
+rowMeans(apply(x4, 1, summary))
+summary(apply(x4, 1, function(xi){
+  acf(xi, lag.max=1, type="correlation", plot=FALSE)$acf[2]
+}))
+```
+
+Note how much less memory is required for the sparse precision matrix compare to the non-sparse covariance matrix.
+
+
+## Inference
+
+Let us take one particular sample, and perform inference:
+
+```{r choose_sample_1d}
+x <- x1[1,]
+summary(x)
+var(x)
+1 / var(x)
+plot.ts(x, las=1,
+        main=paste0("AR(1) simulated with rho=", rho, " and sigma2=", sigma2))
+abline(h=0, lty=2)
+acf(x, main=paste0("AR(1) simulated with rho=", rho, " and sigma2=", sigma2))
+```
+
+### Via `arima` and `ar`
+
+```{r fit_base}
+(fit1a <- arima(x=x, order=c(1,0,0)))
+(fit1b <- ar(x=x, order.max=3))
+```
+
+### Via `gls` from `nlme`
+
+```{r fit_nlme}
+fit2a <- nlme::gls(x ~ 1, data=data.frame(x=x),
+                   correlation=nlme::corAR1(fixed=FALSE),
+                   method="REML")
+summary(fit2a)
+fit2b <- nlme::gls(x ~ 1, data=data.frame(x=x),
+                   correlation=nlme::corAR1(fixed=FALSE),
+                   method="ML")
+summary(fit2b)
+```
+
+### Via `inla`
+
+The R INLA package (Integrated nested Laplace approximation) allows to fit hierarchical Gaussian Markov random fields (GMRF) of a very generic form, $y_j | \eta_j, \boldsymbol{\theta}_1 \sim \pi$ (see the [Intro](https://www.math.ntnu.no/~hrue/r-inla.org/doc/Intro/Intro.pdf)).
+Most notably, the predictors, $\boldsymbol{\eta}$, can be modelled via numerous latent processes.
+
+However, in our case, the AR(1) isn't latent, that is, there is no additional noise beside the $\epsilon_t$'s from the AR(1) itself.
+Therefore, to fit our model with the `inla` function, we need to "rephrase" it as $y_t = x_t + w_t$ with $w_t \sim \mathcal{N}(0, \sigma_w^2)$ assuming that $\sigma_w^2$ is known (fixed) and small, i.e. the precision is large, e.g. 10 on a log scale.
+
+Moreover, `inla` parametrizes the AR(1) via the marginal precision, $(1 - \rho^2) / \sigma^2$ (see the [doc](http://www.math.ntnu.no/inla/r-inla.org/doc/latent/ar1.pdf)).
+We hence need some manipulations to retrieve the posterior mean of $\sigma^2$.
+
+```{r fit_inla}
+fit3 <- inla(formula=y ~ 1 + f(i, model="ar1"),
+             data=data.frame(y=x, i=1:length(x)),
+             family="gaussian",
+             control.family=list(hyper=list(theta=list(initial=10,
+                                                       fixed=TRUE))),
+             control.compute=list(mlik=TRUE, dic=TRUE, waic=TRUE))
+summary(fit3)
+(sigma2.post.mean <- (1 - fit3$summary.hyperpar["Rho for i", "mean"]^2) /
+   fit3$summary.hyperpar["Precision for i", "mean"])
+(1 - fit3$summary.hyperpar["Rho for i", "0.975quant"]^2) /
+  fit3$summary.hyperpar["Precision for i", "0.975quant"]
+(1 - fit3$summary.hyperpar["Rho for i", "0.025quant"]^2) /
+  fit3$summary.hyperpar["Precision for i", "0.025quant"]
+```
+
+We can also fit with `inla` a model assuming the latent variables are independent, and compare the fit with the one above:
+
+```{r fit_inla_iid}
+fit3iid <- inla(formula=y ~ 1 + f(i, model="iid"),
+                data=data.frame(y=x, i=1:length(x)),
+                family="gaussian",
+                control.family=list(hyper=list(theta=list(initial=10,
+                                                          fixed=TRUE))),
+                control.compute=list(mlik=TRUE, dic=TRUE, waic=TRUE))
+summary(fit3iid)
+1 / fit3iid$summary.hyperpar["Precision for i", "mean"]
+```
+
+
+# 2D (space)
+
+## Model
+
+Let us now consider a sample of $N$ observations, all taken at the same point in time, but at different locations in space.
+To each observation is associated a pair of geographical coordinates, $(r,c)$.
+Let us assume those to be points on a rectangular grid (lattice) of $R$ rows and $C$ columns, with $r$ (resp. $c$) indexing the rows (resp. columns).
+Assuming that two nearby locations are more likely to be similar than two distant ones, that rows are equally distant (lag $l_r$), and columns as well (lag $l_c$, possibly different than $l_r$), we can model our sample via a two-dimensional, second-order stationary process.
+A simple choice is the separable AR(1) $\times$ AR(1) process.
+It also happens to be reflection-symmetric.
+
+* data: $\mathcal{D} = \{ x_{1,1}, \ldots, x_{R,1}, \ldots, x_{r,c}, \ldots, x_{R,C} \}$ assuming they have been centered beforehand
+
+* parameters: $\Theta = \{ \rho_r, \rho_c, \sigma^2 \}$
+
+* likelihood: $p(\mathcal{D} | \Theta)$
+
+The whole data set is naturally visualized as an $R \times C$ matrix, $X$, and the likelihood of any element can be written as:
+
+$\forall r,c > 1, \; x_{r,c} = \rho_r x_{r-1,c} + \rho_c x_{r,c-1} - \rho_r \rho_c x_{r-1,c-1} + \epsilon_{r,c}$ with $\epsilon_{r,c} \sim \mathcal{N}(0, \sigma^2)$
+
+For a full specification, see Martin (1996) which sets $x_{1,1} = \sqrt{\sigma_X^2 / \sigma_\epsilon^2} \epsilon_{1,1}$, and uses:
+
+- $\forall c > 1, \; x_{1,c} = \rho_c x_{1,c-1} + \sqrt{(1 - \rho_c^2) \sigma_X^2 / \sigma_\epsilon^2} \epsilon_{1,c}$
+
+- $\forall r > 1, \; x_{r,1} = \rho_r x_{r-1,1} + \sqrt{(1 - \rho_r^2) \sigma_X^2 / \sigma_\epsilon^2} \epsilon_{r,1}$
+
+Applying the _vec_ operator ([stacking the columns](https://en.wikipedia.org/wiki/Vectorization_(mathematics))), we obtain the vector $\boldsymbol{x} = vec(X)$ of length $N$, indexed by $i$.
+Written in a reduced form, the model is:
+
+$\phi(B^R) \phi(B) x_i = \epsilon_i$
+
+Writing the likelihood using the multivariate Normal, taking account of the separability of the process:
+
+$\boldsymbol{x} \sim \mathcal{N}_N(0, \sigma^2 \times \Sigma(\rho_c) \otimes \Sigma(\rho_r))$
+
+
+## Simulations
+
+Set the inputs:
+
+```{r set_inputs_2D}
+N <- 1*10^2   # number of independent spatial series
+R <- 3*10^1   # number of rows of each time series
+C <- 7*10^1   # number of columns of each time series
+R * C         # total number of cells
+rho.r <- 0.7  # correlation between two successive rows
+rho.c <- 0.3  # correlation between two successive columns
+sigma2 <- 5   # variance of the errors
+1 / sigma2    # precision of the errors
+```
+
+### Via conditional univariate Normals
+
+```{r ar1xar1.sim.cond}
+set.seed(1859)
+ar1xar1.sim.cond <- function(N, R, C, rho.r, rho.c, sigma2){
+  stopifnot(R > 1, C > 1, abs(rho.r) <= 1, abs(rho.c) <= 1, sigma2 >= 0)
+  epsilons <- array(data=rnorm(n=R*C*N, mean=0, sd=sqrt(sigma2)),
+                    dim=c(R, C, N))
+  tmp <- lapply(1:N, function(i){
+    Xi <- matrix(data=NA, nrow=R, ncol=C)
+    Xi[1,1] <- sqrt(1/sigma2) * epsilons[1,1,i] # first cell
+    for(c in 2:C) # first row
+      Xi[1,c] <- rho.c * Xi[1,c-1] + sqrt((1 - rho.c^2) * 1 / sigma2) *
+        epsilons[1,c,i]
+    for(r in 2:R) # first column
+      Xi[r,1] <- rho.r * Xi[r-1,1] + sqrt((1 - rho.r^2) * 1 / sigma2) *
+        epsilons[r,1,i]
+    for(r in 2:R)
+      for(c in 2:C)
+        Xi[r,c] <- rho.r * Xi[r-1,c] + rho.c * Xi[r,c-1] -
+          rho.r * rho.c * Xi[r-1,c-1] + epsilons[r,c,i]
+    return(Xi)
+  })
+  x <- array(data=do.call(c, tmp),
+             dim=c(R, C, N))
+  return(x)
+}
+```
+
+Check the code by simulating with only column correlation:
+```{r ar1xar1.sim.cond.onlyC}
+X1 <- ar1xar1.sim.cond(N, R=2, C=500, rho.r=0, rho.c, sigma2)
+prettyPrintSummary(apply(X1, 3, function(Xi){
+  acf(Xi[1,], lag.max=1, type="correlation", plot=FALSE)$acf[2]
+}))
+```
+
+Idem, with only row correlation:
+```{r ar1xar1.sim.cond.onlyR}
+X1 <- ar1xar1.sim.cond(N, R=500, C=2, rho.r, rho.c=0.0, sigma2)
+summary(apply(X1, 3, function(Xi){
+  acf(Xi[,1], lag.max=1, type="correlation", plot=FALSE)$acf[2]
+}))
+```
+
+Now with both row and column correlations:
+```{r ar1xar1.sim.cond.bothRC}
+X1 <- ar1xar1.sim.cond(N, R, C, rho.r, rho.c, sigma2)
+summary(apply(X1, 3, function(Xi){
+  acf(Xi[1,], lag.max=1, type="correlation", plot=FALSE)$acf[2]
+}))
+summary(apply(X1, 3, function(Xi){
+  acf(Xi[,1], lag.max=1, type="correlation", plot=FALSE)$acf[2]
+}))
+```
+
+### Via multivariate Normals
+
+TODO
+
+
+## Inference
+
+Let us take one particular sample, and perform inference:
+
+```{r choose_sample_2d}
+X <- X1[,,1]
+```
+
+Make coordinates (note that columns are along the $x$-axis and rows along the $y$-axis):
+
+```{r set_coords}
+coords <- as.matrix(expand.grid(1:R, 1:C))
+colnames(coords) <- c("y", "x")
+coords <- coords[,c("x","y")]
+dim(coords)
+head(coords)
+all(max(coords[,"x"]) == C, max(coords[,"y"]) == R)
+```
+
+Reformat the data accordingly:
+
+```{r reformat_dat}
+dat <- data.frame(var1=c(X))
+```
+
+Make a spatial data structure, and plot it:
+
+```{r sp_plot}
+X.sp <- SpatialPointsDataFrame(coords=coords, data=dat)
+spplot(obj=X.sp, scales=list(draw=TRUE),
+       xlab="columns", ylab="rows",
+       main=paste0("AR(1)xAR(1) with rho.r=", rho.r, ", rho.c=", rho.c,
+                   " and sigma2=", sigma2),
+       key.space="right", aspect="fill")
+```
+
+### Via `inla`
+
+TODO
+
+
+
+# Appendix
+
+```{r info}
+print(sessionInfo(), locale=FALSE)
+```

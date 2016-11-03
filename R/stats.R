@@ -385,10 +385,64 @@ corrMatAR1 <- function(n, rho){
             n >= 0,
             is.numeric(rho),
             abs(rho) <= 1)
+
   M <- diag(n)
   M <- row(M) - col(M)
   M <- abs(M)
+
   return(rho^M)
+}
+
+##' AR(1)
+##'
+##' Return a first-order auto-regressive covariance matrix.
+##' @param n dimension of the matrix (number of rows and columns)
+##' @param rho correlation between successive variables
+##' @param sigma2 variance of the errors (also called "innovations" in the time-series literature)
+##' @return matrix
+##' @author Timothee Flutre
+##' @export
+covMatAR1 <- function(n, rho, sigma2){
+  stopifnot(is.numeric(n),
+            n >= 0,
+            is.numeric(rho),
+            abs(rho) <= 1,
+            is.numeric(sigma2),
+            sigma2 > 0)
+
+  corrMat <- corrMatAR1(n=n, rho=rho)
+
+  Sigma <- (sigma2 / (1 - rho^2)) * corrMat
+
+  return(Sigma)
+}
+
+##' AR(1)
+##'
+##' Return a first-order auto-regressive precision matrix, as in section 1.1.1 of Rue and Held (2005).
+##' @param n dimension of the matrix (number of rows and columns)
+##' @param rho correlation between successive variables
+##' @param sigma2 variance of the errors (also called "innovations" in the time-series literature)
+##' @return sparse matrix
+##' @author Timothee Flutre
+##' @export
+precMatAR1 <- function(n, rho, sigma2){
+  requireNamespace("Matrix")
+  stopifnot(is.numeric(n),
+            n >= 0,
+            is.numeric(rho),
+            abs(rho) <= 1,
+            is.numeric(sigma2),
+            sigma2 > 0)
+
+  tmp <- Matrix::bandSparse(n=n, m=n, k=c(1, -1),
+                            diagonals=list(rep(- rho, n - 1),
+                                           rep(- rho, n - 1)))
+
+  Q <- (1 / sigma2) * (Matrix::Diagonal(x=c(1, rep(1 + rho^2, n - 2), 1)) +
+                       tmp)
+
+  return(Q)
 }
 
 ##' P values
