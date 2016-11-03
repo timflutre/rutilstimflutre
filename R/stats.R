@@ -372,6 +372,25 @@ rmatnorm <- function(n=1, M, U, V,
                dim=c(nrow(M), ncol(M), n)))
 }
 
+##' AR(1)
+##'
+##' Return a first-order auto-regressive correlation matrix, as noted in equation 4 of \href{http://dx.doi.org/10.1139/x02-111}{Dutkowski et al (2002)}.
+##' @param n dimension of the matrix (number of rows and columns)
+##' @param rho correlation between successive variables
+##' @return matrix
+##' @author Timothee Flutre
+##' @export
+corrMatAR1 <- function(n, rho){
+  stopifnot(is.numeric(n),
+            n >= 0,
+            is.numeric(rho),
+            abs(rho) <= 1)
+  M <- diag(n)
+  M <- row(M) - col(M)
+  M <- abs(M)
+  return(rho^M)
+}
+
 ##' P values
 ##'
 ##' Plot the histogram of p values with freq=FALSE to imitate figure 1 of Storey & Tibshirani (2003).

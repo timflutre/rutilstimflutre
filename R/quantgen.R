@@ -2074,7 +2074,7 @@ fastphase <- function(X, snp.coords, alleles, out.dir=getwd(),
 
 ##' Animal model
 ##'
-##' Given T traits, I genotypes, Q covariates and N=I*Q phenotypes per trait, simulate phenotypes via the following "animal model": \eqn{Y = W C + Z G_A + Z G_D + E}, where Y is N x T; W is N x Q; Z is N x I; G_A ~ Normal_IxT(0, A, V_{G_A}) with A being IxI and V_{G_A} being TxT; G_D ~ Normal_IxT(0, D, V_{G_D}) with D being IxI and V_{G_D} being TxT; E ~ Normal_NxT(0, Id_N, V_E) with Id_N being NxN and V_E being TxT. Note that using the matrix Normal (MN) is equivalent to using the multivariate Normal (MVN) via the vec operator and Kronecker product: \eqn{Y ~ MN(M, U, V) <=> vec(Y) ~ MVN(vec(M), V \otimes U)}.
+##' Given T traits, I genotypes, Q covariates and N=I*Q phenotypes per trait, simulate phenotypes via the following "animal model": \eqn{Y = W C + Z G_A + Z G_D + E}, where Y is N x T; W is N x Q; Z is N x I; G_A ~ Normal_IxT(0, A, V_{G_A}) with A being IxI and V_{G_A} being TxT; G_D ~ Normal_IxT(0, D, V_{G_D}) with D being IxI and V_{G_D} being TxT; E ~ Normal_NxT(0, Id_N, V_E) with Id_N being NxN and V_E being TxT. Note that using the matrix Normal (MN) is equivalent to using the multivariate Normal (MVN) via the vec operator and Kronecker product: \eqn{Y ~ MN(M, U, V) <=> vec(Y) ~ MVN(vec(M), V \otimes U)}. Spatial heterogeneity can be add (see \href{http://dx.doi.org/10.1139/x02-111}{Dutkowski et al (2002)}).
 ##' @param T number of traits
 ##' @param Q number of covariates (as "fixed effects", e.g. replicates)
 ##' @param mu T-vector of overall means (one per trait), i.e. C[1,1:T]
@@ -2094,6 +2094,11 @@ fastphase <- function(X, snp.coords, alleles, out.dir=getwd(),
 ##' @param err.df degrees of freedom of the Student's t-distribution of the errors (e.g. 3; Inf means Normal distribution; will be Inf if T>1)
 ##' @param perc.NA percentage of missing phenotypes, at random
 ##' @param seed seed for the pseudo-random number generator
+##' @param nb.rows number of rows, when assuming data come from a plant species with a regular spatial conformation
+##' @param nb.cols number of columns (nb.rows x nb.columns should be equal to the number of rows of A)
+##' @param sigma2.ksi variance of the spatially-correlated errors (only if T=1)
+##' @param rho.rows correlation between neighbor plants on the same row (only if T=1)
+##' @param rho.cols correlation between neighbor plants on the same column (only if T=1)
 ##' @return list
 ##' @author Timothee Flutre
 ##' @examples
@@ -2104,27 +2109,35 @@ fastphase <- function(X, snp.coords, alleles, out.dir=getwd(),
 ##' ## estimate the additive genetic relationships
 ##' A <- estimGenRel(X, relationships="additive", method="vanraden1", verbose=0)
 ##'
-##' # one trait with heritability h2=0.75, no covariate, Normal errors, no NA
+##' # 1: one trait with heritability h2=0.75, no covariate, Normal errors, no NA
 ##' model <- simulAnimalModel(T=1, Q=1, A=A, V.G.A=15, V.E=5, seed=1859)
 ##'
-##' # one trait with heritability h2=0.75, three covariates, Normal errors, no NA
+##' # 2: one trait with heritability h2=0.75, three covariates, Normal errors, no NA
 ##' model <- simulAnimalModel(T=1, Q=3, A=A, V.G.A=15, V.E=5, seed=1859)
 ##'
-##' # one trait with heritability h2=0.75, no covariate, Student errors, no NA
+##' # 3: one trait with heritability h2=0.75, no covariate, Student errors, no NA
 ##' model <- simulAnimalModel(T=1, Q=1, A=A, V.G.A=15, err.df=3, seed=1859)
 ##'
-##' # one trait with heritability drawn at random, no covariate, Normal errors, no NA
+##' # 4: one trait with heritability drawn at random, no covariate, Normal errors, no NA
 ##' model <- simulAnimalModel(T=1, Q=1, A=A, scale.hC.G.A=10, V.E=5, seed=1859)
 ##'
-##' # two traits with heritabilities drawn at random, no covariate, Normal errors, no NA
+##' # 5: two traits with heritabilities drawn at random, no covariate, Normal errors, no NA
 ##' model <- simulAnimalModel(T=2, Q=1, A=A, nu.G.A=5, nu.E=3, seed=1859)
+##'
+##' # 6: same as scenario 1 but with spatial coordinates
+##' model <- simulAnimalModel(T=1, Q=1, A=A, V.G.A=15, V.E=5, seed=1859, nb.rows=20, nb.cols=10)
+##' ## if(require(sp))
+##' ##   plot(SpatialPoints(model$coords), axes=TRUE, las=1,
+##' ##        xlab="columns", ylab="rows", main="Map")
 ##' @export
 simulAnimalModel <- function(T=1,
                              Q=3, mu=rep(50,T), mean.C=5, sd.C=2,
                              A, V.G.A=NULL, scale.hC.G.A=NULL, nu.G.A=T,
                              D=NULL, V.G.D=NULL, scale.hC.G.D=NULL, nu.G.D=T,
                              V.E=NULL, scale.hC.E=NULL, nu.E=T,
-                             err.df=Inf, perc.NA=0, seed=NULL){
+                             err.df=Inf, perc.NA=0, seed=NULL,
+                             nb.rows=NULL, nb.cols=NULL,
+                             sigma2.ksi=NULL, rho.rows=NULL, rho.cols=NULL){
   requireNamespace("MASS")
   stopifnot(length(mu) == T,
             is.matrix(A),
@@ -2181,7 +2194,16 @@ simulAnimalModel <- function(T=1,
   stopifnot(perc.NA >= 0, perc.NA <= 100)
   if(! is.null(seed))
     set.seed(seed)
+  stopifnot(! xor(is.null(nb.rows), is.null(nb.cols)))
+  if(all(! is.null(nb.rows), ! is.null(nb.cols)))
+    stopifnot(nb.rows * nb.cols == nrow(A))
+  stopifnot(! xor(is.null(rho.rows), is.null(rho.cols)))
+  stopifnot(! xor(is.null(rho.rows), is.null(sigma2.ksi)))
+  if(all(! is.null(rho.rows), ! is.null(rho.cols), ! is.null(sigma2.ksi)))
+    stopifnot(T == 1,
+              all(! is.null(nb.rows), ! is.null(nb.cols)))
 
+  ## determine the number of genotypes and phenotypes
   I <- nrow(A)
   N <- Q * I
 
@@ -2248,7 +2270,25 @@ simulAnimalModel <- function(T=1,
     rownames(G.D) <- rownames(D)
   }
 
-  ## errors
+  ## spatial coordinates
+  coords <- NULL
+  if(all(! is.null(nb.rows), ! is.null(nb.cols)))
+    coords <- expand.grid(row=paste0("r", 1:nb.rows),
+                          col=paste0("c", 1:nb.cols))
+
+  ## spatially-dependent errors (not working yet)
+  add.spatial.errors <- FALSE
+  Z.s <- NULL
+  if(all(! is.null(rho.rows), ! is.null(rho.cols), ! is.null(sigma2.ksi))){
+    add.spatial.errors <- TRUE
+    Z.s <- stats::model.matrix(~ coords$row + coords$col - 1)
+    corr.mat.spatial <- corrMatAR1(nb.cols, rho.cols) %x% corrMatAR1(nb.rows,
+                                                                     rho.rows)
+    E.spatial <- matrix(MASS::mvrnorm(n=1, mu=rep(0, ncol(Z.s)),
+                                      Sigma=sigma2.ksi * corr.mat.spatial))
+  }
+
+  ## independent errors
   E <- matrix(0, N, T)
   if(T == 1){
     if(is.infinite(err.df)){
@@ -2268,6 +2308,8 @@ simulAnimalModel <- function(T=1,
 
   ## phenotypes
   Y <- W %*% C + Z %*% G.A + Z %*% G.D + E
+  if(add.spatial.errors)
+    Y <- Y + Z %*% E.spatial
   if(perc.NA > 0){
     idx <- sample.int(n=N*T, size=floor(perc.NA/100 * N*T))
     Y[idx] <- NA
@@ -2280,7 +2322,8 @@ simulAnimalModel <- function(T=1,
               Z=Z, V.G.A=V.G.A, G.A=G.A,
               V.G.D=V.G.D, G.D=G.D,
               V.E=V.E,
-              dat=dat))
+              dat=dat,
+              coords=coords))
 }
 
 ##' Animal model

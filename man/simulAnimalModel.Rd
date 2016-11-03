@@ -7,7 +7,9 @@
 simulAnimalModel(T = 1, Q = 3, mu = rep(50, T), mean.C = 5, sd.C = 2,
   A, V.G.A = NULL, scale.hC.G.A = NULL, nu.G.A = T, D = NULL,
   V.G.D = NULL, scale.hC.G.D = NULL, nu.G.D = T, V.E = NULL,
-  scale.hC.E = NULL, nu.E = T, err.df = Inf, perc.NA = 0, seed = NULL)
+  scale.hC.E = NULL, nu.E = T, err.df = Inf, perc.NA = 0, seed = NULL,
+  nb.rows = NULL, nb.cols = NULL, sigma2.ksi = NULL, rho.rows = NULL,
+  rho.cols = NULL)
 }
 \arguments{
 \item{T}{number of traits}
@@ -47,12 +49,22 @@ simulAnimalModel(T = 1, Q = 3, mu = rep(50, T), mean.C = 5, sd.C = 2,
 \item{perc.NA}{percentage of missing phenotypes, at random}
 
 \item{seed}{seed for the pseudo-random number generator}
+
+\item{nb.rows}{number of rows, when assuming data come from a plant species with a regular spatial conformation}
+
+\item{nb.cols}{number of columns (nb.rows x nb.columns should be equal to the number of rows of A)}
+
+\item{sigma2.ksi}{variance of the spatially-correlated errors (only if T=1)}
+
+\item{rho.rows}{correlation between neighbor plants on the same row (only if T=1)}
+
+\item{rho.cols}{correlation between neighbor plants on the same column (only if T=1)}
 }
 \value{
 list
 }
 \description{
-Given T traits, I genotypes, Q covariates and N=I*Q phenotypes per trait, simulate phenotypes via the following "animal model": \eqn{Y = W C + Z G_A + Z G_D + E}, where Y is N x T; W is N x Q; Z is N x I; G_A ~ Normal_IxT(0, A, V_{G_A}) with A being IxI and V_{G_A} being TxT; G_D ~ Normal_IxT(0, D, V_{G_D}) with D being IxI and V_{G_D} being TxT; E ~ Normal_NxT(0, Id_N, V_E) with Id_N being NxN and V_E being TxT. Note that using the matrix Normal (MN) is equivalent to using the multivariate Normal (MVN) via the vec operator and Kronecker product: \eqn{Y ~ MN(M, U, V) <=> vec(Y) ~ MVN(vec(M), V \otimes U)}.
+Given T traits, I genotypes, Q covariates and N=I*Q phenotypes per trait, simulate phenotypes via the following "animal model": \eqn{Y = W C + Z G_A + Z G_D + E}, where Y is N x T; W is N x Q; Z is N x I; G_A ~ Normal_IxT(0, A, V_{G_A}) with A being IxI and V_{G_A} being TxT; G_D ~ Normal_IxT(0, D, V_{G_D}) with D being IxI and V_{G_D} being TxT; E ~ Normal_NxT(0, Id_N, V_E) with Id_N being NxN and V_E being TxT. Note that using the matrix Normal (MN) is equivalent to using the multivariate Normal (MVN) via the vec operator and Kronecker product: \eqn{Y ~ MN(M, U, V) <=> vec(Y) ~ MVN(vec(M), V \otimes U)}. Spatial heterogeneity can be add (see \href{http://dx.doi.org/10.1139/x02-111}{Dutkowski et al (2002)}).
 }
 \examples{
 ## simulate genotypes
@@ -62,20 +74,26 @@ X <- simulGenosDose(nb.genos=200, nb.snps=2000)
 ## estimate the additive genetic relationships
 A <- estimGenRel(X, relationships="additive", method="vanraden1", verbose=0)
 
-# one trait with heritability h2=0.75, no covariate, Normal errors, no NA
+# 1: one trait with heritability h2=0.75, no covariate, Normal errors, no NA
 model <- simulAnimalModel(T=1, Q=1, A=A, V.G.A=15, V.E=5, seed=1859)
 
-# one trait with heritability h2=0.75, three covariates, Normal errors, no NA
+# 2: one trait with heritability h2=0.75, three covariates, Normal errors, no NA
 model <- simulAnimalModel(T=1, Q=3, A=A, V.G.A=15, V.E=5, seed=1859)
 
-# one trait with heritability h2=0.75, no covariate, Student errors, no NA
+# 3: one trait with heritability h2=0.75, no covariate, Student errors, no NA
 model <- simulAnimalModel(T=1, Q=1, A=A, V.G.A=15, err.df=3, seed=1859)
 
-# one trait with heritability drawn at random, no covariate, Normal errors, no NA
+# 4: one trait with heritability drawn at random, no covariate, Normal errors, no NA
 model <- simulAnimalModel(T=1, Q=1, A=A, scale.hC.G.A=10, V.E=5, seed=1859)
 
-# two traits with heritabilities drawn at random, no covariate, Normal errors, no NA
+# 5: two traits with heritabilities drawn at random, no covariate, Normal errors, no NA
 model <- simulAnimalModel(T=2, Q=1, A=A, nu.G.A=5, nu.E=3, seed=1859)
+
+# 6: same as scenario 1 but with spatial coordinates
+model <- simulAnimalModel(T=1, Q=1, A=A, V.G.A=15, V.E=5, seed=1859, nb.rows=20, nb.cols=10)
+## if(require(sp))
+##   plot(SpatialPoints(model$coords), axes=TRUE, las=1,
+##        xlab="columns", ylab="rows", main="Map")
 }
 \author{
 Timothee Flutre
