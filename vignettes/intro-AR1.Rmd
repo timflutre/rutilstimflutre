@@ -34,6 +34,8 @@ render("intro-AR1.Rmd", "html_document")
 
 License: [CC BY-SA 4.0](http://creativecommons.org/licenses/by-sa/4.0/)
 
+Acknowledgments: Marie Denis (CIRAD)
+
 References:
 
 * [Box, Jenkins & Reinsel (2008)](http://eu.wiley.com/WileyCDA/WileyTitle/productCd-0470272848.html): "Time Series Analysis: Forecasting and Control" (4th edition)
@@ -59,6 +61,11 @@ library(sparseMVN)
 library(nlme)
 library(INLA)
 library(sp)
+```
+
+This R chunk is used to assess how much time it takes to execute the R code in this document until the end:
+```{r time_0}
+t0 <- proc.time()
 ```
 
 
@@ -286,9 +293,11 @@ Note how much less memory is required for the sparse precision matrix compare to
 
 ## Inference
 
+### Fit a single time series
+
 Let us take one particular sample, and perform inference:
 
-```{r choose_sample_1d}
+```{r choose_sample_1d_single}
 x <- x1[1,]
 summary(x)
 var(x)
@@ -299,27 +308,27 @@ abline(h=0, lty=2)
 acf(x, main=paste0("AR(1) simulated with rho=", rho, " and sigma2=", sigma2))
 ```
 
-### Via `arima` and `ar`
+#### Via `arima` and `ar`
 
-```{r fit_base}
+```{r fit_1d_base_single}
 (fit1a <- arima(x=x, order=c(1,0,0)))
 (fit1b <- ar(x=x, order.max=3))
 ```
 
-### Via `gls` from `nlme`
+#### Via `gls` from `nlme`
 
-```{r fit_nlme}
-fit2a <- nlme::gls(x ~ 1, data=data.frame(x=x),
+```{r fit_1d_nlme_single}
+fit2 <- nlme::gls(x ~ 1, data=data.frame(x=x),
                    correlation=nlme::corAR1(fixed=FALSE),
                    method="REML")
-summary(fit2a)
-fit2b <- nlme::gls(x ~ 1, data=data.frame(x=x),
-                   correlation=nlme::corAR1(fixed=FALSE),
-                   method="ML")
-summary(fit2b)
+summary(fit2)
+(v.hat <- fit2$sigma)
+Sigma.hat <- corMatrix(fit2$modelStruct$corStruct)
+rho.hat <- Sigma.hat[1,2]
+(sigma2.hat <- v.hat^2 * (1 - rho.hat^2))
 ```
 
-### Via `inla`
+#### Via `inla`
 
 The R INLA package (Integrated nested Laplace approximation) allows to fit hierarchical Gaussian Markov random fields (GMRF) of a very generic form, $y_j | \eta_j, \boldsymbol{\theta}_1 \sim \pi$ (see the [Intro](https://www.math.ntnu.no/~hrue/r-inla.org/doc/Intro/Intro.pdf)).
 Most notably, the predictors, $\boldsymbol{\eta}$, can be modelled via numerous latent processes.
@@ -330,33 +339,86 @@ Therefore, to fit our model with the `inla` function, we need to "rephrase" it a
 Moreover, `inla` parametrizes the AR(1) via the marginal precision, $(1 - \rho^2) / \sigma^2$ (see the [doc](http://www.math.ntnu.no/inla/r-inla.org/doc/latent/ar1.pdf)).
 We hence need some manipulations to retrieve the posterior mean of $\sigma^2$.
 
-```{r fit_inla}
-fit3 <- inla(formula=y ~ 1 + f(i, model="ar1"),
-             data=data.frame(y=x, i=1:length(x)),
+```{r fit_1d_inla_single}
+fit3 <- inla(formula=y ~ 1 + f(t, model="ar1"),
+             data=data.frame(y=x, t=1:length(x)),
              family="gaussian",
              control.family=list(hyper=list(theta=list(initial=10,
                                                        fixed=TRUE))),
-             control.compute=list(mlik=TRUE, dic=TRUE, waic=TRUE))
+             control.compute=list(mlik=TRUE, dic=TRUE, waic=TRUE, cpo=TRUE))
 summary(fit3)
-(sigma2.post.mean <- (1 - fit3$summary.hyperpar["Rho for i", "mean"]^2) /
-   fit3$summary.hyperpar["Precision for i", "mean"])
-(1 - fit3$summary.hyperpar["Rho for i", "0.975quant"]^2) /
-  fit3$summary.hyperpar["Precision for i", "0.975quant"]
-(1 - fit3$summary.hyperpar["Rho for i", "0.025quant"]^2) /
-  fit3$summary.hyperpar["Precision for i", "0.025quant"]
+(sigma2.post.mean <- (1 - fit3$summary.hyperpar["Rho for t", "mean"]^2) /
+   fit3$summary.hyperpar["Precision for t", "mean"])
+(1 - fit3$summary.hyperpar["Rho for t", "0.975quant"]^2) /
+  fit3$summary.hyperpar["Precision for t", "0.975quant"]
+(1 - fit3$summary.hyperpar["Rho for t", "0.025quant"]^2) /
+  fit3$summary.hyperpar["Precision for t", "0.025quant"]
+fit3$dic$mean.deviance
 ```
 
 We can also fit with `inla` a model assuming the latent variables are independent, and compare the fit with the one above:
 
-```{r fit_inla_iid}
-fit3iid <- inla(formula=y ~ 1 + f(i, model="iid"),
-                data=data.frame(y=x, i=1:length(x)),
+```{r fit_1d_inla_single_iid}
+fit3iid <- inla(formula=y ~ 1 + f(t, model="iid"),
+                data=data.frame(y=x, t=1:length(x)),
                 family="gaussian",
                 control.family=list(hyper=list(theta=list(initial=10,
                                                           fixed=TRUE))),
-                control.compute=list(mlik=TRUE, dic=TRUE, waic=TRUE))
+                control.compute=list(mlik=TRUE, dic=TRUE, waic=TRUE, cpo=TRUE))
 summary(fit3iid)
-1 / fit3iid$summary.hyperpar["Precision for i", "mean"]
+1 / fit3iid$summary.hyperpar["Precision for t", "mean"]
+fit3iid$dic$mean.deviance
+```
+
+Surprisingly, the DIC and WAIC are the same for both models.
+
+
+### Fit multiple time series jointly
+
+We now take several simulated time series:
+
+```{r choose_sample_1d_all}
+x <- x1[1:10,] # only take 10 time series
+idx <- sample.int(n=nrow(x), size=5) # plot a subset of them
+plot.ts(t(x[idx,]), las=1, plot.type="single", col=1:nrow(x[idx,]),
+        main=paste0("AR(1) simulated with rho=", rho, " and sigma2=", sigma2))
+abline(h=0, lty=2)
+```
+
+The likelihood can be written as:
+
+\[
+\forall i \in \{1,\ldots,N\} \text{ and } t \in \{2,\ldots,T\}, \; x_{i,t} = \rho x_{i,t-1} + \epsilon_{i,t} \text{ where } \epsilon_{i,t} \sim \mathcal{N}(0, \sigma^2)
+\]
+
+with $\forall i, \; x_{i,1} \sim \mathcal{N}(0, \frac{\sigma^2}{1 - \rho^2})$
+
+#### Via `gls` from `nlme`
+
+
+```{r fit_1d_nlme_all}
+tmp <- data.frame(x=c(t(x)),
+                  i=factor(rep(1:nrow(x), each=ncol(x))))
+fit1 <- nlme::gls(x ~ 1, data=tmp,
+                  correlation=nlme::corAR1(form=~1|i, fixed=FALSE),
+                  method="REML")
+summary(fit1)
+```
+
+#### Via `inla`
+
+```{r fit_1d_inla_all}
+tmp <- data.frame(x=c(t(x)),
+                  i=rep(1:nrow(x), each=ncol(x)),
+                  t=rep(1:ncol(x), nrow(x)))
+fit2 <- inla(formula=x ~ 1 + f(t, model="ar1", replicate=i),
+             data=tmp,
+             family="gaussian",
+             control.family=list(initial=10, fixed=TRUE),
+             control.compute=list(mlik=TRUE, dic=TRUE, waic=TRUE, cpo=TRUE))
+summary(fit2)
+(sigma2.post.mean <- (1 - fit2$summary.hyperpar["Rho for t", "mean"]^2) /
+   fit2$summary.hyperpar["Precision for t", "mean"])
 ```
 
 
@@ -518,5 +580,7 @@ TODO
 # Appendix
 
 ```{r info}
+t1 <- proc.time()
+t1 - t0
 print(sessionInfo(), locale=FALSE)
 ```
