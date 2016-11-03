@@ -2462,8 +2462,8 @@ lmerAM <- function(formula, dat, relmat, REML=TRUE, ci.meth=NULL, ci.lev=0.95,
     if(verbose > 0)
       write("compute confidence intervals ...", stdout())
     if(ci.meth == "profile"){
-      prof <- stats::profile(fit)
-      ci <- stats::confint(prof, level=ci.lev)
+      prof <- stats::profile(fitted=fit, signames=FALSE)
+      ci <- stats::confint(object=prof, level=ci.lev)
     } else
       suppressMessages(ci <- lme4::confint.merMod(fit, level=ci.lev,
                                                   method=ci.meth,
