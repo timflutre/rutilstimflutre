@@ -7,7 +7,7 @@
 simulCoalescent(nb.inds = 100, ind.ids = NULL, nb.reps = 10,
   pop.mut.rate = 40, pop.recomb.rate = 40, chrom.len = 10^4,
   other = NULL, nb.pops = 1, mig.rate = 5, get.trees = FALSE,
-  get.tmrca = FALSE, verbose = 1)
+  get.tmrca = FALSE, get.alleles = FALSE, verbose = 1)
 }
 \arguments{
 \item{nb.inds}{diploids (thus nb of haplotypes is 2 * nb.inds)}
@@ -32,6 +32,8 @@ simulCoalescent(nb.inds = 100, ind.ids = NULL, nb.reps = 10,
 
 \item{get.tmrca}{get time to most recent common ancestor and local tree lengths}
 
+\item{get.alleles}{get fake alleles sampled in {A,T,G,C}}
+
 \item{verbose}{verbosity level (0/1/2)}
 }
 \value{
@@ -55,5 +57,8 @@ genomes <- simulCoalescent(nb.inds=nb.genos,
 }
 \author{
 Timothee Flutre
+}
+\seealso{
+\code{\link{makeCrosses}}
 }
 

@@ -89,10 +89,12 @@ stopIfNotValidGenosDose <- function(X, check.coln=TRUE, check.rown=TRUE,
 ##' @param tX matrix with SNPs in rows and individuals in columns
 ##' @param alleles data.frame with SNPs in rows (names as row names) and alleles in columns (first is "minor", second is "major")
 ##' @param na.string a character used to replace NA values (for instance "??")
+##' @param verbose verbosity level (0/1)
 ##' @return data.frame with SNPs in rows and individuals in columns
 ##' @author Timothee Flutre
+##' @seealso \code{link{alleles2dose}}
 ##' @export
-dose2alleles <- function(X=NULL, tX=NULL, alleles, na.string){
+dose2alleles <- function(X=NULL, tX=NULL, alleles, na.string, verbose=1){
   stopifnot(xor(is.null(X), is.null(tX)),
             is.data.frame(alleles),
             ncol(alleles) == 2,
@@ -104,6 +106,8 @@ dose2alleles <- function(X=NULL, tX=NULL, alleles, na.string){
   }
 
   out <- as.data.frame(tX, row.names=rownames(tX), col.names=colnames(tX))
+  if(verbose > 0)
+    pb <- utils::txtProgressBar(min=0, max=nrow(tX), style=3)
   for(i in 1:nrow(tX)){ # for each SNP
     idx <- which(tX[i,] == 0)
     if(length(idx) > 0)
@@ -120,7 +124,11 @@ dose2alleles <- function(X=NULL, tX=NULL, alleles, na.string){
     idx <- which(is.na(tX[i,]))
     if(length(idx) > 0)
       out[i, idx] <- na.string
+    if(verbose > 0)
+      utils::setTxtProgressBar(pb, i)
   }
+  if(verbose > 0)
+    close(pb)
 
   return(out)
 }
@@ -583,9 +591,11 @@ simulGenosDose <- function(nb.genos, nb.snps, geno.ids=NULL, snp.ids=NULL, mafs=
 ##' @param mig.rate migration rate = 4 N0 m (will be symmetric)
 ##' @param get.trees get gene genealogies in the Newick format
 ##' @param get.tmrca get time to most recent common ancestor and local tree lengths
+##' @param get.alleles get fake alleles sampled in {A,T,G,C}
 ##' @param verbose verbosity level (0/1/2)
 ##' @return list with haplotypes (list), genotypes as allele doses (matrix) and SNP coordinates (data.frame)
 ##' @author Timothee Flutre
+##' @seealso \code{\link{makeCrosses}}
 ##' @examples
 ##' \dontrun{## simulate haplotypes and genotypes in a single population
 ##' nb.genos <- 200
@@ -610,8 +620,9 @@ simulCoalescent <- function(nb.inds=100,
                             mig.rate=5,
                             get.trees=FALSE,
                             get.tmrca=FALSE,
+                            get.alleles=FALSE,
                             verbose=1){
-  requireNamespaces("scrm")
+  requireNamespace("scrm")
   stopifnot(nb.inds > nb.pops)
   if(! is.null(other))
     stopifnot(is.character(other),
@@ -699,6 +710,15 @@ simulCoalescent <- function(nb.inds=100,
     out[["trees"]] <- sum.stats$trees
   if(get.tmrca)
     out[["tmrca"]] <- sum.stats$tmrca
+
+  ## make a data.frame of alleles
+  if(get.alleles){
+    alleles <- data.frame(minor=sample(x=c("T","C"), size=nb.snps, replace=TRUE),
+                          stringsAsFactors=FALSE)
+    alleles$major <- gsub(pattern="T", replacement="A", x=alleles$minor)
+    alleles$major <- gsub(pattern="C", replacement="G", x=alleles$major)
+    out[["alleles"]] <- alleles
+  }
 
   return(out)
 }
@@ -1097,6 +1117,7 @@ drawLocCrossovers <- function(crosses, nb.snps, lambda=2){
 ##' @param verbose verbosity level (0/1)
 ##' @return list of matrices (one per chromosome) with child haplotypes in rows and SNPs in columns
 ##' @author Timothee Flutre
+##' @seealso \code{\link{makeCross}}, \code{\link{simulCoalescent}}, \code{\link{getHaplosInds}}, \code{\link{drawLocCrossovers}}
 ##' @export
 makeCrosses <- function(haplos, crosses, loc.crossovers=NULL,
                         nb.cores=1, verbose=1){
@@ -1111,6 +1132,8 @@ makeCrosses <- function(haplos, crosses, loc.crossovers=NULL,
             sum(is.na(crosses$child)) == 0,
             anyDuplicated(crosses$child) == 0)
   haplos.ind.names <- getIndNamesFromHaplos(haplos)
+  idx <- sapply(crosses, is.factor)
+  crosses[idx] <- lapply(crosses[idx], as.character)
   parent.names <- c(crosses$parent1, crosses$parent2)
   parent.names <- parent.names[! is.na(parent.names)]
   stopifnot(all(parent.names %in% haplos.ind.names))

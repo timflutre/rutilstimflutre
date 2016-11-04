@@ -4,7 +4,7 @@
 \alias{dose2alleles}
 \title{Convert genotypes}
 \usage{
-dose2alleles(X = NULL, tX = NULL, alleles, na.string)
+dose2alleles(X = NULL, tX = NULL, alleles, na.string, verbose = 1)
 }
 \arguments{
 \item{X}{matrix of SNP genotypes encoded in number of copies of the 2nd allele, i.e. as allele doses in {0,1,2}, with individuals in rows and SNPs in columns}
@@ -14,6 +14,8 @@ dose2alleles(X = NULL, tX = NULL, alleles, na.string)
 \item{alleles}{data.frame with SNPs in rows (names as row names) and alleles in columns (first is "minor", second is "major")}
 
 \item{na.string}{a character used to replace NA values (for instance "??")}
+
+\item{verbose}{verbosity level (0/1)}
 }
 \value{
 data.frame with SNPs in rows and individuals in columns
@@ -23,5 +25,8 @@ Convert SNP genotypes from minor allele doses (say, 0 and 1) into alleles (say, 
 }
 \author{
 Timothee Flutre
+}
+\seealso{
+\code{link{alleles2dose}}
 }
 

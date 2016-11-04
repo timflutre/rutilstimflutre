@@ -27,4 +27,7 @@ Make crosses (fecundation, autofecondation, haplodiploidization).
 \author{
 Timothee Flutre
 }
+\seealso{
+\code{\link{makeCross}}, \code{\link{simulCoalescent}}, \code{\link{getHaplosInds}}, \code{\link{drawLocCrossovers}}
+}
 
