@@ -1,29 +1,39 @@
 ## Contains functions useful for plotting.
 
-##' Make a scatter plot of y as a function of x, along with the regression
-##' line from lm() as well as both confidence and both prediction lines from
-##' predict().
+##' Scatter plot with linear regression
 ##'
-##'
+##' Make a scatter plot of y as a function of x, along with the regression line from lm() as well as both confidence and both prediction lines from predict().
 ##' @param x vector of points
 ##' @param y vector of points
 ##' @param ... arguments to be passed to plot()
-##' @return nothing
+##' @return output of \code{\link[stats]{lm}}
 ##' @author Timothee Flutre
+##' @examples
+##' set.seed(1859)
+##' n <- 100
+##' x <- rnorm(n=n, mean=37, sd=3)
+##' y <- 50 + 1.2 * x + rnorm(n=n, mean=0, sd=3)
+##' fit <- regplot(x=x, y=y, las=1, main="Linear regression")
+##' text(x=40, y=84, labels=paste0("R2 = ", format(summary(fit)$r.squared, digits=2)))
 ##' @export
 regplot <- function(x, y, ...){
   x <- as.numeric(x)
   y <- as.numeric(y)
+
   graphics::plot(x, y, ...)
+
   fit <- stats::lm(y ~ x)
   graphics::abline(fit, col="red")
-  newx <- seq(min(x), max(x), length.out=length(x))
+
+  newx <- seq(min(x, na.rm=TRUE), max(x, na.rm=TRUE), length.out=length(x))
   pred.ci <- stats::predict(fit, newdata=data.frame(x=newx), interval="confidence")
   graphics::lines(newx, pred.ci[,"lwr"], lty=2)
   graphics::lines(newx, pred.ci[,"upr"], lty=2)
   pred.pi <- stats::predict(fit, newdata=data.frame(x=newx), interval="prediction")
   graphics::lines(newx, pred.pi[,"lwr"], lty=3)
   graphics::lines(newx, pred.pi[,"upr"], lty=3)
+
+  invisible(fit)
 }
 
 ##' Plot a Hinton diagram

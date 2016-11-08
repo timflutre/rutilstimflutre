@@ -2,9 +2,7 @@
 % Please edit documentation in R/plotting.R
 \name{regplot}
 \alias{regplot}
-\title{Make a scatter plot of y as a function of x, along with the regression
-line from lm() as well as both confidence and both prediction lines from
-predict().}
+\title{Scatter plot with linear regression}
 \usage{
 regplot(x, y, ...)
 }
@@ -16,12 +14,18 @@ regplot(x, y, ...)
 \item{...}{arguments to be passed to plot()}
 }
 \value{
-nothing
+output of \code{\link[stats]{lm}}
 }
 \description{
-Make a scatter plot of y as a function of x, along with the regression
-line from lm() as well as both confidence and both prediction lines from
-predict().
+Make a scatter plot of y as a function of x, along with the regression line from lm() as well as both confidence and both prediction lines from predict().
+}
+\examples{
+set.seed(1859)
+n <- 100
+x <- rnorm(n=n, mean=37, sd=3)
+y <- 50 + 1.2 * x + rnorm(n=n, mean=0, sd=3)
+fit <- regplot(x=x, y=y, las=1, main="Linear regression")
+text(x=40, y=84, labels=paste0("R2 = ", format(summary(fit)$r.squared, digits=2)))
 }
 \author{
 Timothee Flutre
