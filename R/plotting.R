@@ -1,12 +1,13 @@
 ## Contains functions useful for plotting.
 
-##' Scatter plot with linear regression
+##' Scatter plot with regression lines
 ##'
-##' Make a scatter plot of y as a function of x, along with the regression line from lm() as well as both confidence and both prediction lines from predict().
-##' @param x vector of points
-##' @param y vector of points
-##' @param ... arguments to be passed to plot()
-##' @return output of \code{\link[stats]{lm}}
+##' Make a scatter plot of y as a function of x, along with regression line(s).
+##' @param x vector (missing data coded as NA will be automatically discarded)
+##' @param y vector (missing data coded as NA will be automatically discarded)
+##' @param reg specifies which model to use to add regression lines(s) (lm/loess/rlm)
+##' @param ... arguments to be passed to \code{\link[graphics]{plot}}
+##' @return object returned by the function specified via \code{reg}
 ##' @author Timothee Flutre
 ##' @examples
 ##' set.seed(1859)
@@ -16,22 +17,39 @@
 ##' fit <- regplot(x=x, y=y, las=1, main="Linear regression")
 ##' text(x=40, y=84, labels=paste0("R2 = ", format(summary(fit)$r.squared, digits=2)))
 ##' @export
-regplot <- function(x, y, ...){
+regplot <- function(x, y, reg="lm", ...){
+  stopifnot(is.vector(x),
+            is.vector(y),
+            length(x) == length(y),
+            reg %in% c("lm", "loess"))
+  if(reg == "rlm"){
+    stop("reg=rlm not (yet) available")
+    requireNamespace("MASS")
+  }
+
   x <- as.numeric(x)
   y <- as.numeric(y)
+  tmp <- data.frame(x=x, y=y)
+  tmp <- tmp[stats::complete.cases(tmp),]
 
-  graphics::plot(x, y, ...)
+  graphics::plot(formula=y ~ x, data=tmp, ...)
 
-  fit <- stats::lm(y ~ x)
-  graphics::abline(fit, col="red")
+  if(reg == "lm"){
+    fit <- stats::lm(formula=y ~ x, data=tmp)
+    graphics::abline(fit, col="red")
 
-  newx <- seq(min(x, na.rm=TRUE), max(x, na.rm=TRUE), length.out=length(x))
-  pred.ci <- stats::predict(fit, newdata=data.frame(x=newx), interval="confidence")
-  graphics::lines(newx, pred.ci[,"lwr"], lty=2)
-  graphics::lines(newx, pred.ci[,"upr"], lty=2)
-  pred.pi <- stats::predict(fit, newdata=data.frame(x=newx), interval="prediction")
-  graphics::lines(newx, pred.pi[,"lwr"], lty=3)
-  graphics::lines(newx, pred.pi[,"upr"], lty=3)
+    newx <- seq(min(tmp$x), max(tmp$x), length.out=length(tmp$x))
+    pred.ci <- stats::predict(fit, newdata=data.frame(x=newx), interval="confidence")
+    graphics::lines(newx, pred.ci[,"lwr"], lty=2)
+    graphics::lines(newx, pred.ci[,"upr"], lty=2)
+    pred.pi <- stats::predict(fit, newdata=data.frame(x=newx), interval="prediction")
+    graphics::lines(newx, pred.pi[,"lwr"], lty=3)
+    graphics::lines(newx, pred.pi[,"upr"], lty=3)
+  } else if(reg == "loess"){
+    fit <- stats::loess(formula=y ~ x, data=tmp)
+    tmp$fitted <- fit$fitted
+    graphics::lines(x=tmp$x[order(tmp$x)], y=tmp$fitted[order(tmp$x)], col="red")
+  }
 
   invisible(fit)
 }

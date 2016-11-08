@@ -2,22 +2,24 @@
 % Please edit documentation in R/plotting.R
 \name{regplot}
 \alias{regplot}
-\title{Scatter plot with linear regression}
+\title{Scatter plot with regression lines}
 \usage{
-regplot(x, y, ...)
+regplot(x, y, reg = "lm", ...)
 }
 \arguments{
-\item{x}{vector of points}
+\item{x}{vector (missing data coded as NA will be automatically discarded)}
 
-\item{y}{vector of points}
+\item{y}{vector (missing data coded as NA will be automatically discarded)}
 
-\item{...}{arguments to be passed to plot()}
+\item{reg}{specifies which model to use to add regression lines(s) (lm/loess/rlm)}
+
+\item{...}{arguments to be passed to \code{\link[graphics]{plot}}}
 }
 \value{
-output of \code{\link[stats]{lm}}
+object returned by the function specified via \code{reg}
 }
 \description{
-Make a scatter plot of y as a function of x, along with the regression line from lm() as well as both confidence and both prediction lines from predict().
+Make a scatter plot of y as a function of x, along with regression line(s).
 }
 \examples{
 set.seed(1859)
