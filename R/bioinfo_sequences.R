@@ -1217,11 +1217,11 @@ setGt2Na <- function(vcf.file, genome, out.file,
 ##' @param min.alt.af minimum variant-level AF below which variants are filtered out
 ##' @param max.alt.af maximum variant-level AF above which variants are filtered out
 ##' @param min.spl.dp minimum sample-level DP
-##' @param min.prop.spl.dp minimum proportion of samples with DP above threshold
+##' @param min.perc.spl.dp minimum percentage of samples with DP above threshold
 ##' @param min.spl.gq minimum sample-level GQ
-##' @param min.prop.spl.gq minimum proportion of samples with GQ above threshold
+##' @param min.perc.spl.gq minimum percentage of samples with GQ above threshold
 ##' @param max.var.nb.gt.na maximum number of samples with missing GT
-##' @param max.var.prop.gt.na maximum proportion of samples with missing GT
+##' @param max.var.perc.gt.na maximum percentage of samples with missing GT
 ##' @param verbose verbosity level (0/1)
 ##' @return the destination file path as a character(1)
 ##' @author Timothee Flutre
@@ -1232,9 +1232,9 @@ filterVariantCalls <- function(vcf.file, genome, out.file,
                                is.snv=NULL, is.biall=NULL,
                                min.var.dp=NULL, max.var.dp=NULL,
                                min.alt.af=NULL, max.alt.af=NULL,
-                               min.spl.dp=NULL, min.prop.spl.dp=NULL,
-                               min.spl.gq=NULL, min.prop.spl.gq=NULL,
-                               max.var.nb.gt.na=NULL, max.var.prop.gt.na=NULL,
+                               min.spl.dp=NULL, min.perc.spl.dp=NULL,
+                               min.spl.gq=NULL, min.perc.spl.gq=NULL,
+                               max.var.nb.gt.na=NULL, max.var.perc.gt.na=NULL,
                                verbose=1){
   requireNamespaces(c("IRanges", "GenomicRanges", "VariantAnnotation",
                       "Rsamtools", "S4Vectors"))
@@ -1242,14 +1242,18 @@ filterVariantCalls <- function(vcf.file, genome, out.file,
   if(! is.null(seq.id) & is.null(seq.start) & is.null(seq.end))
     stopifnot(! is.null(dict),
               file.exists(dict.file))
-  if(! is.null(min.prop.spl.dp))
-    stopifnot(min.prop.spl.dp >= 0, min.prop.spl.dp <= 1)
-  if(! is.null(min.prop.spl.gq))
-    stopifnot(min.prop.spl.gq >= 0, min.prop.spl.gq <= 1)
+  if(! is.null(is.snv))
+    stopifnot(is.logical(is.snv))
+  if(! is.null(is.biall))
+    stopifnot(is.logical(is.biall))
+  if(! is.null(min.perc.spl.dp))
+    stopifnot(min.perc.spl.dp >= 0, min.perc.spl.dp <= 100)
+  if(! is.null(min.perc.spl.gq))
+    stopifnot(min.perc.spl.gq >= 0, min.perc.spl.gq <= 100)
   if(! is.null(max.var.nb.gt.na))
     stopifnot(max.var.nb.gt.na >= 0)
-  if(! is.null(max.var.prop.gt.na))
-    stopifnot(max.var.prop.gt.na >= 0, max.var.prop.gt.na <= 1)
+  if(! is.null(max.var.perc.gt.na))
+    stopifnot(max.var.perc.gt.na >= 0, max.var.perc.gt.na <= 100)
 
   dest <- NULL
 
@@ -1286,25 +1290,25 @@ filterVariantCalls <- function(vcf.file, genome, out.file,
     }
   }
 
-  ##' @return TRUE if high-enough proportion of samples with DP above threshold
+  ##' @return TRUE if high-enough percentage of samples with DP above threshold
   filterSampleDp <- function(x, min.dp=min.spl.dp,
-                             min.prop.dp=min.prop.spl.dp){
+                             min.perc.dp=min.perc.spl.dp){
     if(nrow(x) == 0){
       logical(0)
     } else{
       dp <- VariantAnnotation::geno(x)$DP
-      (rowSums(dp >= min.dp) / ncol(dp) >= min.prop.dp)
+      (100 * rowSums(dp >= min.dp) / ncol(dp) >= min.perc.dp)
     }
   }
 
-  ##' @return TRUE if high-enough proportion of samples with GQ above threshold
+  ##' @return TRUE if high-enough percentage of samples with GQ above threshold
   filterSampleGq <- function(x, min.gq=min.spl.gq,
-                             min.prop.gq=min.prop.spl.gq){
+                             min.perc.gq=min.perc.spl.gq){
     if(nrow(x) == 0){
       logical(0)
     } else{
       gq <- VariantAnnotation::geno(x)$GQ
-      (rowSums(gq >= min.gq) / ncol(gq) >= min.prop.gq)
+      (100 * rowSums(gq >= min.gq) / ncol(gq) >= min.perc.gq)
     }
   }
 
@@ -1318,25 +1322,23 @@ filterVariantCalls <- function(vcf.file, genome, out.file,
     }
   }
 
-  ##' @return TRUE if high-enough proportion of samples without missing genotypes
-  filterGtProp <- function(x, max.prop.gt.na=max.var.prop.gt.na){
+  ##' @return TRUE if high-enough percentage of samples without missing genotypes
+  filterGtPerc <- function(x, max.perc.gt.na=max.var.perc.gt.na){
     if(nrow(x) == 0){
       logical(0)
     } else{
       gt <- VariantAnnotation::geno(x)$GT
-      (rowSums(gt == ".") / ncol(gt) <= max.prop.gt.na)
+      (100 * rowSums(gt == ".") / ncol(gt) <= max.perc.gt.na)
     }
   }
 
   ## set the filters
   tmp <- list()
   if(! is.null(is.snv)){
-    stopifnot(is.logical(is.snv))
     if(is.snv)
       tmp[["filterSnv"]] <- filterSnv
   }
   if(! is.null(is.biall)){
-    stopifnot(is.logical(is.biall))
     if(is.biall)
       tmp[["filterBiall"]] <- filterBiall
   }
@@ -1346,17 +1348,17 @@ filterVariantCalls <- function(vcf.file, genome, out.file,
   if(! is.null(min.alt.af) & ! is.null(max.alt.af)){
     tmp[["filterAf"]] <- filterAf
   }
-  if(! is.null(min.spl.dp) & ! is.null(min.prop.spl.dp)){
+  if(! is.null(min.spl.dp) & ! is.null(min.perc.spl.dp)){
     tmp[["filterSampleDp"]] <- filterSampleDp
   }
-  if(! is.null(min.spl.gq) & ! is.null(min.prop.spl.gq)){
+  if(! is.null(min.spl.gq) & ! is.null(min.perc.spl.gq)){
     tmp[["filterSampleGq"]] <- filterSampleGq
   }
   if(! is.null(max.var.nb.gt.na)){
     tmp[["filterGtNb"]] <- filterGtNb
   }
-  if(! is.null(max.var.prop.gt.na)){
-    tmp[["filterGtProp"]] <- filterGtProp
+  if(! is.null(max.var.perc.gt.na)){
+    tmp[["filterGtPerc"]] <- filterGtPerc
   }
 
   if(length(tmp) > 0){
@@ -1374,13 +1376,15 @@ filterVariantCalls <- function(vcf.file, genome, out.file,
           msg <- paste0("seq '", seq.id, "' not in '", dict.file, "'")
           stop(msg)
         }
-        rngs <- GenomicRanges::GRanges(seqnames=c(seq.id),
-                                       ranges=IRanges::IRanges(start=c(1),
-                                           end=c(dict$LN[rownames(dict) == seq.id])))
+        rngs <- GenomicRanges::GRanges(
+            seqnames=c(seq.id),
+            ranges=IRanges::IRanges(start=c(1),
+                                    end=c(dict$LN[rownames(dict) == seq.id])))
       } else
-        rngs <- GenomicRanges::GRanges(seqnames=c(seq.id),
-                                       ranges=IRanges::IRanges(start=c(seq.start),
-                                           end=c(seq.end)))
+        rngs <- GenomicRanges::GRanges(
+            seqnames=c(seq.id),
+            ranges=IRanges::IRanges(start=c(seq.start),
+                                    end=c(seq.end)))
       names(rngs) <- c(seq.id)
       vcf.params <- VariantAnnotation::ScanVcfParam(which=rngs)
       dest <- VariantAnnotation::filterVcf(file=tabix.file, genome=genome,

@@ -208,7 +208,7 @@ test_that("filterVariantCalls", {
                                            out.file=vcf.obs.file,
                                            yieldSize=yieldSize,
                                            is.snv=TRUE,
-                                           max.var.prop.gt.na=0.5,
+                                           max.var.perc.gt.na=50,
                                            verbose=0)
     all.files <- c(all.files, vcf.obs.file.bgz,
                    paste0(vcf.obs.file.bgz, ".tbi"))
