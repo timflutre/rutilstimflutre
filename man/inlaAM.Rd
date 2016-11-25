@@ -27,36 +27,35 @@ inlaAM(dat, relmat, family = "gaussian", nb.threads = 1, verbose = 0,
 Given I genotypes, Q covariates and N=I*Q phenotypes for the trait, fit an "animal model" with the INLA package via the following likelihood: y = W c + Z g_A + Z g_D + epsilon, where y is Nx1; W is NxQ; Z is NxI; g_A ~ Normal_I(0, sigma_A^2 A) with A the known matrix of additive genetic relationships; g_D ~ Normal_I(0, sigma_D^2 D) with D the known matrix of dominant genetic relationships; epsilon ~ Normal_N(0, sigma^2 Id_N); Cov(g_A,g_D)=0; Cov(g_A,e)=0; Cov(g_D,e)=0.
 }
 \examples{
-if(require(INLA)){
-  ## simulate genotypes
-  set.seed(1859)
-  X <- simulGenosDose(nb.genos=200, nb.snps=2000)
+\dontrun{## simulate genotypes
+set.seed(1859)
+X <- simulGenosDose(nb.genos=200, nb.snps=2000)
 
-  ## simulate phenotypes with only additive part of genotypic values
-  A <- estimGenRel(X, relationships="additive", method="vanraden1", verbose=0)
-  modelA <- simulAnimalModel(T=1, Q=3, A=A, V.G.A=15, V.E=5, seed=1859)
+## simulate phenotypes with only additive part of genotypic values
+A <- estimGenRel(X, relationships="additive", method="vanraden1", verbose=0)
+modelA <- simulAnimalModel(T=1, Q=3, A=A, V.G.A=15, V.E=5, seed=1859)
 
-  ## infer with INLA
-  library(INLA)
-  modelA$dat$geno.add <- modelA$dat$geno
-  modelA$dat$geno <- NULL
-  fitA <- inlaAM(dat=modelA$dat, relmat=list(geno.add=A), verbose=1)
-  summary(fitA)
-  c(modelA$C); 1/modelA$V.E; 1/modelA$V.G.A
+## infer with INLA
+library(INLA)
+modelA$dat$geno.add <- modelA$dat$geno
+modelA$dat$geno <- NULL
+fitA <- inlaAM(dat=modelA$dat, relmat=list(geno.add=A), verbose=1)
+summary(fitA)
+c(modelA$C); 1/modelA$V.E; 1/modelA$V.G.A
 
-  ## simulate phenotypes with additive and dominant parts of genotypic values
-  D <- estimGenRel(X, relationships="dominant", method="vitezica", verbose=0)
-  modelAD <- simulAnimalModel(T=1, Q=3, A=A, V.G.A=15, V.E=5,
-                              D=D, V.G.D=3, seed=1859)
+## simulate phenotypes with additive and dominant parts of genotypic values
+D <- estimGenRel(X, relationships="dominant", method="vitezica", verbose=0)
+modelAD <- simulAnimalModel(T=1, Q=3, A=A, V.G.A=15, V.E=5,
+                            D=D, V.G.D=3, seed=1859)
 
-  ## infer with INLA
-  modelAD$dat$geno.add <- modelAD$dat$geno
-  modelAD$dat$geno.dom <- modelAD$dat$geno
-  modelAD$dat$geno <- NULL
-  fitAD <- inlaAM(dat=modelAD$dat, relmat=list(geno.add=A, geno.dom=D),
-                  verbose=1)
-  summary(fitAD)
-  c(modelAD$C); 1/modelAD$V.E; 1/modelAD$V.G.A; 1/modelAD$V.G.D
+## infer with INLA
+modelAD$dat$geno.add <- modelAD$dat$geno
+modelAD$dat$geno.dom <- modelAD$dat$geno
+modelAD$dat$geno <- NULL
+fitAD <- inlaAM(dat=modelAD$dat, relmat=list(geno.add=A, geno.dom=D),
+                verbose=1)
+summary(fitAD)
+c(modelAD$C); 1/modelAD$V.E; 1/modelAD$V.G.A; 1/modelAD$V.G.D
 }
 }
 \author{

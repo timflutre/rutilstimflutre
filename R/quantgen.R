@@ -2198,7 +2198,7 @@ fastphase <- function(X, snp.coords, alleles, out.dir=getwd(),
 ##' @return list
 ##' @author Timothee Flutre
 ##' @examples
-##' ## simulate genotypes
+##' \dontrun{## simulate genotypes
 ##' set.seed(1859)
 ##' X <- simulGenosDose(nb.genos=200, nb.snps=2000)
 ##'
@@ -2225,6 +2225,7 @@ fastphase <- function(X, snp.coords, alleles, out.dir=getwd(),
 ##' ## if(require(sp))
 ##' ##   plot(SpatialPoints(model$coords), axes=TRUE, las=1,
 ##' ##        xlab="columns", ylab="rows", main="Map")
+##' }
 ##' @export
 simulAnimalModel <- function(T=1,
                              Q=3, mu=rep(50,T), mean.C=5, sd.C=2,
@@ -2434,7 +2435,7 @@ simulAnimalModel <- function(T=1,
 ##' @return vector of length QI containing the BLUEs of c and the BLUPs of g_A
 ##' @author Timothee Flutre
 ##' @examples
-##' ## simulate genotypes
+##' \dontrun{## simulate genotypes
 ##' set.seed(1859)
 ##' X <- simulGenosDose(nb.genos=200, nb.snps=2000)
 ##'
@@ -2453,6 +2454,7 @@ simulAnimalModel <- function(T=1,
 ##'            sigma.A2=model$V.G.A, Ainv=Ainv, V.E=model$V.E)
 ##' cbind(model$C, fit[1:3])
 ##' cor(model$G.A, fit[4:length(fit)])
+##' }
 ##' @export
 mme <- function(y, W, Z, sigma.A2, Ainv, V.E){
   stopifnot(is.matrix(y),
@@ -2497,7 +2499,7 @@ mme <- function(y, W, Z, sigma.A2, Ainv, V.E){
 ##' @note If A is not positive definite, an error will be raised (via \code{\link[base]{chol}}); in such cases, using the nearPD function from the Matrix package can be useful.
 ##' @seealso \code{\link{inlaAM}}, \code{\link{jagsAM}}, \code{\link{stanAM}}
 ##' @examples
-##' ## simulate genotypes
+##' \dontrun{## simulate genotypes
 ##' set.seed(1859)
 ##' X <- simulGenosDose(nb.genos=200, nb.snps=2000)
 ##'
@@ -2538,6 +2540,7 @@ mme <- function(y, W, Z, sigma.A2, Ainv, V.E){
 ##' vc <- as.data.frame(VarCorr(fitAD$merMod))
 ##' c(vc[vc$grp == "geno.add", "vcov"], vc[vc$grp == "Residual", "vcov"],
 ##'   vc[vc$grp == "geno.dom", "vcov"])
+##' }
 ##' @export
 lmerAM <- function(formula, dat, relmat, REML=TRUE, ci.meth=NULL, ci.lev=0.95,
                    verbose=1){
@@ -2625,36 +2628,35 @@ lmerAM <- function(formula, dat, relmat, REML=TRUE, ci.meth=NULL, ci.lev=0.95,
 ##' @author Timothee Flutre
 ##' @seealso \code{\link{lmerAM}}, \code{\link{jagsAM}}, \code{\link{stanAM}}
 ##' @examples
-##' if(require(INLA)){
-##'   ## simulate genotypes
-##'   set.seed(1859)
-##'   X <- simulGenosDose(nb.genos=200, nb.snps=2000)
+##' \dontrun{## simulate genotypes
+##' set.seed(1859)
+##' X <- simulGenosDose(nb.genos=200, nb.snps=2000)
 ##'
-##'   ## simulate phenotypes with only additive part of genotypic values
-##'   A <- estimGenRel(X, relationships="additive", method="vanraden1", verbose=0)
-##'   modelA <- simulAnimalModel(T=1, Q=3, A=A, V.G.A=15, V.E=5, seed=1859)
+##' ## simulate phenotypes with only additive part of genotypic values
+##' A <- estimGenRel(X, relationships="additive", method="vanraden1", verbose=0)
+##' modelA <- simulAnimalModel(T=1, Q=3, A=A, V.G.A=15, V.E=5, seed=1859)
 ##'
-##'   ## infer with INLA
-##'   library(INLA)
-##'   modelA$dat$geno.add <- modelA$dat$geno
-##'   modelA$dat$geno <- NULL
-##'   fitA <- inlaAM(dat=modelA$dat, relmat=list(geno.add=A), verbose=1)
-##'   summary(fitA)
-##'   c(modelA$C); 1/modelA$V.E; 1/modelA$V.G.A
+##' ## infer with INLA
+##' library(INLA)
+##' modelA$dat$geno.add <- modelA$dat$geno
+##' modelA$dat$geno <- NULL
+##' fitA <- inlaAM(dat=modelA$dat, relmat=list(geno.add=A), verbose=1)
+##' summary(fitA)
+##' c(modelA$C); 1/modelA$V.E; 1/modelA$V.G.A
 ##'
-##'   ## simulate phenotypes with additive and dominant parts of genotypic values
-##'   D <- estimGenRel(X, relationships="dominant", method="vitezica", verbose=0)
-##'   modelAD <- simulAnimalModel(T=1, Q=3, A=A, V.G.A=15, V.E=5,
-##'                               D=D, V.G.D=3, seed=1859)
+##' ## simulate phenotypes with additive and dominant parts of genotypic values
+##' D <- estimGenRel(X, relationships="dominant", method="vitezica", verbose=0)
+##' modelAD <- simulAnimalModel(T=1, Q=3, A=A, V.G.A=15, V.E=5,
+##'                             D=D, V.G.D=3, seed=1859)
 ##'
-##'   ## infer with INLA
-##'   modelAD$dat$geno.add <- modelAD$dat$geno
-##'   modelAD$dat$geno.dom <- modelAD$dat$geno
-##'   modelAD$dat$geno <- NULL
-##'   fitAD <- inlaAM(dat=modelAD$dat, relmat=list(geno.add=A, geno.dom=D),
-##'                   verbose=1)
-##'   summary(fitAD)
-##'   c(modelAD$C); 1/modelAD$V.E; 1/modelAD$V.G.A; 1/modelAD$V.G.D
+##' ## infer with INLA
+##' modelAD$dat$geno.add <- modelAD$dat$geno
+##' modelAD$dat$geno.dom <- modelAD$dat$geno
+##' modelAD$dat$geno <- NULL
+##' fitAD <- inlaAM(dat=modelAD$dat, relmat=list(geno.add=A, geno.dom=D),
+##'                 verbose=1)
+##' summary(fitAD)
+##' c(modelAD$C); 1/modelAD$V.E; 1/modelAD$V.G.A; 1/modelAD$V.G.D
 ##' }
 ##' @export
 inlaAM <- function(dat, relmat, family="gaussian",
@@ -3246,7 +3248,7 @@ stanAM <- function(dat, relmat, errors.Student=FALSE,
 ##' @return list
 ##' @author Timothee Flutre
 ##' @examples
-##' ## simulate genotypes
+##' \dontrun{## simulate genotypes
 ##' set.seed(1859)
 ##' I <- 200
 ##' P <- 2000
@@ -3257,7 +3259,7 @@ stanAM <- function(dat, relmat, errors.Student=FALSE,
 ##' Q <- 3
 ##' model <- simulBvsr(Q=Q, X=X, pi=0.01, pve.A=0.7, sigma.a2=1)
 ##'
-##' \dontrun{if(all(require(lme4), require(varbvs))){
+##' if(all(require(lme4), require(varbvs))){
 ##'   dat <- data.frame(response=model$Y[,1],
 ##'                     year=factor(rep(2010:(2010+Q-1), each=I)),
 ##'                     geno=factor(rep(rownames(X), Q)))
@@ -3388,6 +3390,7 @@ simulBvsr <- function(Q=3, mu=50, mean.c=5, sd.c=2,
 ##' @return list
 ##' @author Timothee Flutre
 ##' @examples
+##' \dontrun{## simulate genotypes
 ##' set.seed(1859)
 ##' X <- simulGenosDose(nb.genos=200, nb.snps=2000)
 ##' afs <- estimSnpAf(X)
@@ -3401,7 +3404,7 @@ simulBvsr <- function(Q=3, mu=50, mean.c=5, sd.c=2,
 ##' ## general case: BSLMM (both u and beta-tilde contribute)
 ##' mod.bslmm <- simulBslmm(X=X, pi=0.1, h=0.7, rho=0.7, seed=3591)
 ##'
-##' \dontrun{library(rrBLUP)
+##' library(rrBLUP)
 ##' mod.lmmC <- simulBslmm(X=X, pi=0, h=0.7, enforce.zhou=FALSE, seed=3591)
 ##' fit.lmmC1 <- mixed.solve(y=mod.lmmC$y, Z=mod.lmmC$Z,
 ##'                          K=mod.lmmC$X.c %*% t(mod.lmmC$X.c),
@@ -3523,6 +3526,56 @@ simulBslmm <- function(Q=3, mu=50, mean.a=5, sd.a=2,
               pi=pi, h=h, rho=rho,
               sigma.betat2=sigma.betat2, sigma.u2=sigma.u2, sigma2=1/tau,
               betat=betat, u=u))
+}
+
+##' Logistic growth
+##'
+##' Simulate phenotypes via the following model (\href{http://www.genetics.org/content/161/4/1751.abstract}{Ma et al (2002)}): y(t) = g(t) + epsilon(t) where g(t) = a / (1 + b exp(-r t))) and epsilon(t) ~ N(0, sigma^2).
+##' TODO: add QTL effect(s) + add AR(1) process on errors
+##' @param t vector of time points
+##' @param a asymptotic value of g when t tends to infinity
+##' @param g.t0 initial value of g at time t = 0
+##' @param r relative rate of growth
+##' @param sigma2 variance of the errors
+##' @return list
+##' @author Timothee Flutre
+##' @examples
+##' \dontrun{## without noise
+##' model <- simulLogistic(t=1:20, a=50, g.t0=1, r=0.6, sigma2=0)
+##' plot(x=model$t, y=model$g.t, type="b", las=1, xlab="time (t)", ylab="g(t)")
+##'
+##' ## with noise
+##' set.seed(1859)
+##' model <- simulLogistic(t=1:20, a=50, g.t0=1, r=0.6, sigma2=1)
+##' plot(x=model$t, y=model$g.t, type="b", las=1, xlab="time (t)", ylab="g(t)")
+##' }
+##' @export
+simulLogistic <- function(t=1:20, a=50, g.t0=1, r=0.6, sigma2=0){
+  stopifnot(is.numeric(t),
+            length(t) > 0,
+            is.numeric(a),
+            length(a) == 1,
+            is.numeric(g.t0),
+            length(g.t0) == 1,
+            is.numeric(r),
+            length(r) == 1,
+            is.numeric(sigma2),
+            length(sigma2) == 1,
+            sigma2 >= 0)
+
+  t <- t[! is.na(t)]
+
+  b <- (a - g.t0) / g.t0
+
+  g.t <- a / (1 + b * exp(- r * t))
+  if(sigma2 > 0)
+    g.t <- g.t + stats::rnorm(n=length(t), mean=0, sd=sqrt(sigma2))
+
+  tI <- log(b) / r
+  g.tI <- a / 2
+
+  return(list(t=t, a=a, g.t0=g.t0, r=r, b=b,
+              g.t=g.t, tI=tI, g.tI=g.tI))
 }
 
 ##' Launch GEMMA
@@ -3808,27 +3861,29 @@ gemmaUlmmPerChr <- function(y, X, snp.coords, alleles=NULL, chr.ids=NULL, W,
 ##' @return a list with three data.frames as components, variance.components, fixed.effects and scan
 ##' @author Timothee Flutre
 ##' @examples
-##' if(require(QTLRel)){
-##'   set.seed(1859)
-##'   I <- 200
-##'   P <- 2000
-##'   Q <- 3
-##'   N <- Q * I
-##'   dat <- data.frame(ind=as.factor(rep(paste0("ind", 1:I), times=Q)),
-##'                     year=as.factor(rep(paste0(2003:(2003+Q-1)), each=I)))
-##'   W <- stats::model.matrix(~ year, dat)
-##'   alpha <- rnorm(n=Q, mean=50, sd=30)
-##'   X <- simulGenosDose(nb.genos=I, nb.snps=P)
-##'   beta <- rnorm(n=P, mean=0, sd=2)
-##'   Z <- stats::model.matrix(~ ind - 1, dat)
-##'   dat$response <- as.vector(W %*% alpha + Z %*% X %*% beta + rnorm(N))
-##'   snp.coords <- data.frame(chr=sample(paste0("chr",1:10), P, TRUE),
-##'                            coord=sample.int(10^6, P))
-##'   rownames(snp.coords) <- colnames(X)
-##'   res <- qtlrelPerChr(dat$response, X, snp.coords, 0.01, "chr1", W=W[,-1], Z=Z)
-##'   if(interactive())
-##'      res <- qtlrelPerChr(dat$response, X, snp.coords, 0.01, NULL, W=W[,-1], Z=Z)
-##'  }
+##' \dontrun{## simulate data
+##' set.seed(1859)
+##' I <- 200
+##' P <- 2000
+##' Q <- 3
+##' N <- Q * I
+##' dat <- data.frame(ind=as.factor(rep(paste0("ind", 1:I), times=Q)),
+##'                   year=as.factor(rep(paste0(2003:(2003+Q-1)), each=I)))
+##' W <- stats::model.matrix(~ year, dat)
+##' alpha <- rnorm(n=Q, mean=50, sd=30)
+##' X <- simulGenosDose(nb.genos=I, nb.snps=P)
+##' beta <- rnorm(n=P, mean=0, sd=2)
+##' Z <- stats::model.matrix(~ ind - 1, dat)
+##' dat$response <- as.vector(W %*% alpha + Z %*% X %*% beta + rnorm(N))
+##' snp.coords <- data.frame(chr=sample(paste0("chr",1:10), P, TRUE),
+##'                          coord=sample.int(10^6, P))
+##' rownames(snp.coords) <- colnames(X)
+##'
+##' ## perform the inference
+##' library(QTLRel)
+##' res <- qtlrelPerChr(dat$response, X, snp.coords, 0.01, "chr1", W=W[,-1], Z=Z)
+##' ## res <- qtlrelPerChr(dat$response, X, snp.coords, 0.01, NULL, W=W[,-1], Z=Z)
+##' }
 ##' @export
 qtlrelPerChr <- function(y, X, snp.coords, thresh=0.01, chr.ids=NULL, W=NULL, Z=NULL,
                          method.A="vanraden1", verbose=1){

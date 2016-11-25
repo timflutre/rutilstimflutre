@@ -32,7 +32,7 @@ Given I genotypes, Q covariates and N=I*Q phenotypes for the trait, fit an "anim
 If A is not positive definite, an error will be raised (via \code{\link[base]{chol}}); in such cases, using the nearPD function from the Matrix package can be useful.
 }
 \examples{
-## simulate genotypes
+\dontrun{## simulate genotypes
 set.seed(1859)
 X <- simulGenosDose(nb.genos=200, nb.snps=2000)
 
@@ -73,6 +73,7 @@ fixef(fitAD$merMod)
 vc <- as.data.frame(VarCorr(fitAD$merMod))
 c(vc[vc$grp == "geno.add", "vcov"], vc[vc$grp == "Residual", "vcov"],
   vc[vc$grp == "geno.dom", "vcov"])
+}
 }
 \author{
 Timothee Flutre (inspired by Ben Bolker at http://stackoverflow.com/q/19327088/597069)

@@ -42,6 +42,7 @@ list
 Simulate phenotypes according to the Bayesian sparse linear mixed model (Zhou, Carbonetto & Stephens, 2013)): y = W alpha + Z X_c beta-tilde + Z u + epsilon where y is N x 1; W is N x Q; alpha is Q x 1; Z is N x I; X_c is I x P; u is I x 1 and epsilon is N x 1. For all p, beta-tilde_p ~ pi Norm_1(0, sigma_betat^2/sigma^2) + (1 - pi) delta_0; u ~ Norm_I(0, (sigma_u^2/sigma^2) K) and epsilon ~ Norm_N(0, sigma^2 I).
 }
 \examples{
+\dontrun{## simulate genotypes
 set.seed(1859)
 X <- simulGenosDose(nb.genos=200, nb.snps=2000)
 afs <- estimSnpAf(X)
@@ -55,7 +56,7 @@ mod.bvsr <- simulBslmm(X=X, pi=0.1, h=0.7, rho=1, seed=3591)
 ## general case: BSLMM (both u and beta-tilde contribute)
 mod.bslmm <- simulBslmm(X=X, pi=0.1, h=0.7, rho=0.7, seed=3591)
 
-\dontrun{library(rrBLUP)
+library(rrBLUP)
 mod.lmmC <- simulBslmm(X=X, pi=0, h=0.7, enforce.zhou=FALSE, seed=3591)
 fit.lmmC1 <- mixed.solve(y=mod.lmmC$y, Z=mod.lmmC$Z,
                          K=mod.lmmC$X.c \%*\% t(mod.lmmC$X.c),

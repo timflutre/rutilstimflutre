@@ -37,7 +37,7 @@ list
 Simulate phenotypes according to the following model: Y = W c + Z X_A a + epsilon where Y is N x 1; W is N x Q; c is Q x 1; Z is N x I; X_A is I x P and epsilon is N x 1 with epsilon ~ Normal_N(0, sigma^2 Id) and c ~ Normal(mean_a, sd_a) so that sd_a is large ("fixed effect"). For SNP p, a_p ~ Prob(gamma_p=1) Normal_1(0, sigma_a^2) + Prob(gamma_p=0) delta_0, where Prog(gamma_p=1) is named pi, and delta_0 is Dirac's delta function at 0. For the case where pi is small, see Guan & Stephens (2011), Carbonetto & Stephens (2012), Peltola et al (2012), Verzelen (2012).
 }
 \examples{
-## simulate genotypes
+\dontrun{## simulate genotypes
 set.seed(1859)
 I <- 200
 P <- 2000
@@ -48,7 +48,7 @@ X <- simulGenosDose(nb.genos=I, nb.snps=P)
 Q <- 3
 model <- simulBvsr(Q=Q, X=X, pi=0.01, pve.A=0.7, sigma.a2=1)
 
-\dontrun{if(all(require(lme4), require(varbvs))){
+if(all(require(lme4), require(varbvs))){
   dat <- data.frame(response=model$Y[,1],
                     year=factor(rep(2010:(2010+Q-1), each=I)),
                     geno=factor(rep(rownames(X), Q)))

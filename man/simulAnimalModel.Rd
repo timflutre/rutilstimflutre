@@ -67,7 +67,7 @@ list
 Given T traits, I genotypes, Q covariates and N=I*Q phenotypes per trait, simulate phenotypes via the following "animal model": \eqn{Y = W C + Z G_A + Z G_D + E}, where Y is N x T; W is N x Q; Z is N x I; G_A ~ Normal_IxT(0, A, V_{G_A}) with A being IxI and V_{G_A} being TxT; G_D ~ Normal_IxT(0, D, V_{G_D}) with D being IxI and V_{G_D} being TxT; E ~ Normal_NxT(0, Id_N, V_E) with Id_N being NxN and V_E being TxT. Note that using the matrix Normal (MN) is equivalent to using the multivariate Normal (MVN) via the vec operator and Kronecker product: \eqn{Y ~ MN(M, U, V) <=> vec(Y) ~ MVN(vec(M), V \otimes U)}. Spatial heterogeneity can be add (see \href{http://dx.doi.org/10.1139/x02-111}{Dutkowski et al (2002)}).
 }
 \examples{
-## simulate genotypes
+\dontrun{## simulate genotypes
 set.seed(1859)
 X <- simulGenosDose(nb.genos=200, nb.snps=2000)
 
@@ -94,6 +94,7 @@ model <- simulAnimalModel(T=1, Q=1, A=A, V.G.A=15, V.E=5, seed=1859, nb.rows=20,
 ## if(require(sp))
 ##   plot(SpatialPoints(model$coords), axes=TRUE, las=1,
 ##        xlab="columns", ylab="rows", main="Map")
+}
 }
 \author{
 Timothee Flutre

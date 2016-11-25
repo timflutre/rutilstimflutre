@@ -37,27 +37,29 @@ Second the allele effects are tested SNP per SNP: for all p in {1,..,P}, y = W a
 As the SNPs can be in linkage disequilibrium, it is advised (Yang et al, Nature Genetics, 2014) to perform the procedure chromosome per chromosome, which is the goal of this function; but I advise to also run it with chr.ids=NULL.
 }
 \examples{
-if(require(QTLRel)){
-  set.seed(1859)
-  I <- 200
-  P <- 2000
-  Q <- 3
-  N <- Q * I
-  dat <- data.frame(ind=as.factor(rep(paste0("ind", 1:I), times=Q)),
-                    year=as.factor(rep(paste0(2003:(2003+Q-1)), each=I)))
-  W <- stats::model.matrix(~ year, dat)
-  alpha <- rnorm(n=Q, mean=50, sd=30)
-  X <- simulGenosDose(nb.genos=I, nb.snps=P)
-  beta <- rnorm(n=P, mean=0, sd=2)
-  Z <- stats::model.matrix(~ ind - 1, dat)
-  dat$response <- as.vector(W \%*\% alpha + Z \%*\% X \%*\% beta + rnorm(N))
-  snp.coords <- data.frame(chr=sample(paste0("chr",1:10), P, TRUE),
-                           coord=sample.int(10^6, P))
-  rownames(snp.coords) <- colnames(X)
-  res <- qtlrelPerChr(dat$response, X, snp.coords, 0.01, "chr1", W=W[,-1], Z=Z)
-  if(interactive())
-     res <- qtlrelPerChr(dat$response, X, snp.coords, 0.01, NULL, W=W[,-1], Z=Z)
- }
+\dontrun{## simulate data
+set.seed(1859)
+I <- 200
+P <- 2000
+Q <- 3
+N <- Q * I
+dat <- data.frame(ind=as.factor(rep(paste0("ind", 1:I), times=Q)),
+                  year=as.factor(rep(paste0(2003:(2003+Q-1)), each=I)))
+W <- stats::model.matrix(~ year, dat)
+alpha <- rnorm(n=Q, mean=50, sd=30)
+X <- simulGenosDose(nb.genos=I, nb.snps=P)
+beta <- rnorm(n=P, mean=0, sd=2)
+Z <- stats::model.matrix(~ ind - 1, dat)
+dat$response <- as.vector(W \%*\% alpha + Z \%*\% X \%*\% beta + rnorm(N))
+snp.coords <- data.frame(chr=sample(paste0("chr",1:10), P, TRUE),
+                         coord=sample.int(10^6, P))
+rownames(snp.coords) <- colnames(X)
+
+## perform the inference
+library(QTLRel)
+res <- qtlrelPerChr(dat$response, X, snp.coords, 0.01, "chr1", W=W[,-1], Z=Z)
+## res <- qtlrelPerChr(dat$response, X, snp.coords, 0.01, NULL, W=W[,-1], Z=Z)
+}
 }
 \author{
 Timothee Flutre
