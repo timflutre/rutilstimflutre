@@ -63,6 +63,79 @@ alleles2dose <- function(x, na.string="--", verbose=1){
               alleles=alleles))
 }
 
+##' JoinMap/MapQTL to R/qtl
+##'
+##' Return the correspondence between the "segregation" format used by JoinMap and the one used by \href{https://cran.r-project.org/package=qtl}{qtl}.
+##' @return data.frame
+##' @author Timothee Flutre
+##' @export
+segregJoinMap2Qtl <- function(){
+  out <- data.frame(
+      segreg=c(rep("lmxll", 2),
+               rep("nnxnp", 2),
+               rep("abxcd", 4),
+               rep("efxeg", 4),
+               rep("hkxhk", 4)),
+      phase=c("0-", "1-",
+              "-0", "1",
+              "00", "01", "10", "11",
+              "00", "01", "10", "11",
+              "00", "01", "10", "11"),
+      mother.AB=c("lm", "ml",
+                  "nn", "nn",
+                  "ab", "ab", "ba", "ba",
+                  "ef", "ef", "fe", "fe",
+                  "hk", "hk", "kh", "kh"),
+      father.CD=c("ll", "ll",
+                  "np", "pn",
+                  "cd", "dc", "cd", "dc",
+                  "eg", "ge", "eg", "ge",
+                  "hk", "kh", "hk", "kh"),
+      F1.AC.joinmap=c("ll", "ml",
+                      "nn", "np",
+                      "ac", "ad", "bc", "bd",
+                      "ee", "eg", "fe", "fg",
+                      "hh", "hk", "kh", "kk"),
+      F1.AC.qtl=c(5, 5,
+                  7, 7,
+                  1, 1, 1, 1,
+                  1, 1, 1, 1,
+                  1, 9, 9, 1),
+      F1.AD.joinmap=c("ll", "ml",
+                      "np", "nn",
+                      "ad", "ac", "bd", "bc",
+                      "eg", "ee", "fg", "fe",
+                      "hk", "hh", "kk", "kh"),
+      F1.AD.qtl=c(5, 5,
+                  8, 8,
+                  3, 3, 3, 3,
+                  3, 3, 3, 3,
+                  10, 3, 3, 10),
+      F1.BC.joinmap=c("ml", "ll",
+                      "nn", "np",
+                      "bc", "bd", "ac", "ad",
+                      "fe", "fg", "ee", "eg",
+                      "kh", "kk", "hh", "hk"),
+      F1.BC.qtl=c(6, 6,
+                  7, 7,
+                  2, 2, 2, 2,
+                  2, 2, 2, 2,
+                  10, 2, 2, 10),
+      F1.BD.joinmap=c("ml", "ll",
+                      "np", "nn",
+                      "bd", "bc", "ad", "ac",
+                      "fg", "fe", "eg", "ee",
+                      "kk", "kh", "hk", "hh"),
+      F1.BD.qtl=c(6, 6,
+                  8, 8,
+                  4, 4, 4, 4,
+                  4, 4, 4, 4,
+                  4, 9, 9, 4),
+      stringsAsFactors=FALSE)
+
+  return(out)
+}
+
 stopIfNotValidGenosDose <- function(X, check.coln=TRUE, check.rown=TRUE,
                                     check.na=TRUE, check.snp=TRUE){
   stopifnot(! is.null(X),
