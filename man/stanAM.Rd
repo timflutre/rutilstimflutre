@@ -4,14 +4,14 @@
 \alias{stanAM}
 \title{Animal model}
 \usage{
-stanAM(dat, relmat, errors.Student = FALSE, nb.chains = 1,
+stanAM(data, relmat, errors.Student = FALSE, nb.chains = 1,
   nb.iters = 10^3, burnin = 10^2, thin = 10, out.dir = getwd(),
   task.id = format(Sys.time(), "\%Y-\%m-\%d-\%H-\%M-\%S"),
   compile.only = FALSE, rm.stan.file = FALSE, rm.sm.file = FALSE,
   verbose = 0)
 }
 \arguments{
-\item{dat}{data.frame containing the data corresponding to relmat; should have a column grep-able for "response" as well as a column "geno.add" used with matrix A; if a column "geno.dom" exists, it will be used with matrix D; any other column will be interpreted as corresponding to "fixed effects"}
+\item{data}{data.frame containing the data corresponding to relmat; should have a column grep-able for "response" as well as a column "geno.add" used with matrix A; if a column "geno.dom" exists, it will be used with matrix D; any other column will be interpreted as corresponding to "fixed effects"}
 
 \item{relmat}{list containing the matrices of genetic relationships (see \code{\link{estimGenRel}}); additive relationships (matrix A) are compulsory, with name "geno.add"; dominant relationships (matrix D) are optional, with name "geno.dom"; can be in the "matrix" class (base) or the "dsCMatrix" class (Matrix package)}
 
@@ -53,8 +53,8 @@ A <- estimGenRel(X, relationships="additive", method="vanraden1", verbose=0)
 modelA <- simulAnimalModel(T=1, Q=3, A=A, V.G.A=15, V.E=5, seed=1859)
 
 ## infer with rstan
-modelA$dat$geno.add <- modelA$dat$geno; modelA$dat$geno <- NULL
-fitA <- stanAM(dat=modelA$dat, relmat=list(geno.add=A))
+modelA$data$geno.add <- modelA$data$geno; modelA$data$geno <- NULL
+fitA <- stanAM(data=modelA$data, relmat=list(geno.add=A))
 fitA <- rstan::As.mcmc.list(fitA)
 plotMcmcChain(fitA[[1]], "sigma_g_A", 1:4, sqrt(modelA$V.G.A))
 cbind(truth=c(c(modelA$C), sqrt(modelA$V.G.A), sqrt(modelA$V.E)),
@@ -66,8 +66,8 @@ modelAD <- simulAnimalModel(T=1, Q=3, A=A, V.G.A=15, V.E=5,
                             D=D, V.G.D=3, seed=1859)
 
 ## infer with rstan
-modelAD$dat$geno.add <- modelAD$dat$geno; modelAD$dat$geno <- NULL
-fitAD <- stanAM(dat=modelAD$dat, relmat=list(geno.add=A, geno.dom=D))
+modelAD$data$geno.add <- modelAD$data$geno; modelAD$data$geno <- NULL
+fitAD <- stanAM(data=modelAD$data, relmat=list(geno.add=A, geno.dom=D))
 fitAD <- rstan::As.mcmc.list(fitAD)
 plotMcmcChain(fitAD[[1]], "sigma_g_A", 1:4, sqrt(modelAD$V.G.A))
 plotMcmcChain(fitAD[[1]], "sigma_g_D", 1:4, sqrt(modelAD$V.G.D))

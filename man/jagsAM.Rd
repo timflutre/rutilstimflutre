@@ -4,13 +4,13 @@
 \alias{jagsAM}
 \title{Animal model}
 \usage{
-jagsAM(dat, relmat, inits = NULL, priors = list(fix = list(dist = "c", par =
-  5), vc = list(dist = "hc", par = 5)), nb.chains = 1, nb.adapt = 10^3,
+jagsAM(data, relmat, inits = NULL, priors = list(fix = list(dist = "c", par
+  = 5), vc = list(dist = "hc", par = 5)), nb.chains = 1, nb.adapt = 10^3,
   burnin = 10^2, nb.iters = 10^3, thin = 10, progress.bar = NULL,
   rm.jags.file = TRUE, verbose = 0)
 }
 \arguments{
-\item{dat}{data.frame containing the data corresponding to relmat; should have a column grep-able for "response" as well as a column "geno.add" used with matrix A; if a column "geno.dom" exists, it will be used with matrix D; any other column will be interpreted as corresponding to "fixed effects"}
+\item{data}{data.frame containing the data corresponding to relmat; should have a column grep-able for "response" as well as a column "geno.add" used with matrix A; if a column "geno.dom" exists, it will be used with matrix D; any other column will be interpreted as corresponding to "fixed effects"}
 
 \item{relmat}{list containing the matrices of genetic relationships (see \code{\link{estimGenRel}}); additive relationships (matrix A) are compulsory, with name "geno.add"; dominant relationships (matrix D) are optional, with name "geno.dom"; can be in the "matrix" class (base) or the "dsCMatrix" class (Matrix package)}
 
@@ -50,8 +50,8 @@ A <- estimGenRel(X, relationships="additive", method="vanraden1", verbose=0)
 modelA <- simulAnimalModel(T=1, Q=3, A=A, V.G.A=15, V.E=5, seed=1859)
 
 ## infer with rjags
-modelA$dat$geno.add <- modelA$dat$geno; modelA$dat$geno <- NULL
-fitA <- jagsAM(dat=modelA$dat, relmat=list(geno.add=A))
+modelA$data$geno.add <- modelA$data$geno; modelA$data$geno <- NULL
+fitA <- jagsAM(data=modelA$data, relmat=list(geno.add=A))
 plotMcmcChain(fitA[[1]], "V.G.A", 1:4, modelA$V.G.A)
 cbind(truth=c(c(modelA$C), modelA$V.G.A, modelA$V.E),
       summaryMcmcChain(fitA[[1]], c("c[1]", "c[2]", "c[3]", "sigma.A2", "V.E")))

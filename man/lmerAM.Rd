@@ -4,17 +4,19 @@
 \alias{lmerAM}
 \title{Animal model}
 \usage{
-lmerAM(formula, dat, relmat, REML = TRUE, ci.meth = NULL, ci.lev = 0.95,
-  verbose = 1)
+lmerAM(formula, data, relmat, REML = TRUE, na.action = na.exclude,
+  ci.meth = NULL, ci.lev = 0.95, verbose = 1)
 }
 \arguments{
 \item{formula}{formula (see \code{\link[lme4]{lmer}})}
 
-\item{dat}{data.frame containing the data corresponding to formula and relmat (see \code{\link[lme4]{lmer}})}
+\item{data}{data.frame containing the data corresponding to formula and relmat (see \code{\link[lme4]{lmer}})}
 
 \item{relmat}{list containing the matrices of genetic relationships (A is compulsory but D is optional); should use the same names as the colnames in data; can be in the "matrix" class (base) or the "dsCMatrix" class (Matrix package); see \code{\link{estimGenRel}}}
 
 \item{REML}{default is TRUE (use FALSE to compare models with different fixed effects)}
+
+\item{na.action}{a function that indicates what should happen when the data contain \code{NA}s (see \code{\link[lme4]{lmer}})}
 
 \item{ci.meth}{method to compute confidence intervals (profile/boot); if not NULL, use \code{\link[lme4]{confint.merMod}}}
 
@@ -41,7 +43,7 @@ A <- estimGenRel(X, relationships="additive", method="vanraden1", verbose=0)
 modelA <- simulAnimalModel(T=1, Q=3, A=A, V.G.A=15, V.E=5, seed=1859)
 
 ## infer with lme4
-fitA <- lmerAM(formula=response1 ~ year + (1|geno), dat=modelA$dat,
+fitA <- lmerAM(formula=response1 ~ year + (1|geno), data=modelA$data,
                relmat=list(geno=A), verbose=0)
 summary(fitA$merMod)
 REMLcrit(fitA$merMod)
@@ -62,10 +64,10 @@ modelAD <- simulAnimalModel(T=1, Q=3, A=A, V.G.A=15, V.E=5,
                             D=D, V.G.D=3, seed=1859)
 
 ## infer with lme4
-modelAD$dat$geno.add <- modelAD$dat$geno
-modelAD$dat$geno.dom <- modelAD$dat$geno; modelAD$dat$geno <- NULL
+modelAD$data$geno.add <- modelAD$data$geno
+modelAD$data$geno.dom <- modelAD$data$geno; modelAD$data$geno <- NULL
 fitAD <- lmerAM(formula=response1 ~ year + (1|geno.add) + (1|geno.dom),
-                dat=modelAD$dat, relmat=list(geno.add=A, geno.dom=D),
+                data=modelAD$data, relmat=list(geno.add=A, geno.dom=D),
                 verbose=0)
 summary(fitAD$merMod)
 c(modelAD$C); modelAD$V.G.A; modelAD$V.E; modelAD$V.G.D

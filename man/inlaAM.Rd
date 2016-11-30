@@ -4,11 +4,11 @@
 \alias{inlaAM}
 \title{Animal model}
 \usage{
-inlaAM(dat, relmat, family = "gaussian", nb.threads = 1, verbose = 0,
+inlaAM(data, relmat, family = "gaussian", nb.threads = 1, verbose = 0,
   silent = TRUE)
 }
 \arguments{
-\item{dat}{data.frame containing the data corresponding to relmat; should have a column grep-able for "response" as well as a column "geno.add" used with matrix A; if a column "geno.dom" exists, it will be used with matrix D; any other column will be interpreted as corresponding to "fixed effects"}
+\item{data}{data.frame containing the data corresponding to relmat; should have a column grep-able for "response" as well as a column "geno.add" used with matrix A; if a column "geno.dom" exists, it will be used with matrix D; any other column will be interpreted as corresponding to "fixed effects"}
 
 \item{relmat}{list containing the matrices of genetic relationships (see \code{\link{estimGenRel}}); additive relationships (matrix A) are compulsory, with name "geno.add"; dominant relationships (matrix D) are optional, with name "geno.dom"; can be in the "matrix" class (base) or the "dsCMatrix" class (Matrix package)}
 
@@ -37,9 +37,9 @@ modelA <- simulAnimalModel(T=1, Q=3, A=A, V.G.A=15, V.E=5, seed=1859)
 
 ## infer with INLA
 library(INLA)
-modelA$dat$geno.add <- modelA$dat$geno
-modelA$dat$geno <- NULL
-fitA <- inlaAM(dat=modelA$dat, relmat=list(geno.add=A), verbose=1)
+modelA$data$geno.add <- modelA$data$geno
+modelA$data$geno <- NULL
+fitA <- inlaAM(data=modelA$data, relmat=list(geno.add=A), verbose=1)
 summary(fitA)
 c(modelA$C); 1/modelA$V.E; 1/modelA$V.G.A
 
@@ -49,10 +49,10 @@ modelAD <- simulAnimalModel(T=1, Q=3, A=A, V.G.A=15, V.E=5,
                             D=D, V.G.D=3, seed=1859)
 
 ## infer with INLA
-modelAD$dat$geno.add <- modelAD$dat$geno
-modelAD$dat$geno.dom <- modelAD$dat$geno
-modelAD$dat$geno <- NULL
-fitAD <- inlaAM(dat=modelAD$dat, relmat=list(geno.add=A, geno.dom=D),
+modelAD$data$geno.add <- modelAD$data$geno
+modelAD$data$geno.dom <- modelAD$data$geno
+modelAD$data$geno <- NULL
+fitAD <- inlaAM(data=modelAD$data, relmat=list(geno.add=A, geno.dom=D),
                 verbose=1)
 summary(fitAD)
 c(modelAD$C); 1/modelAD$V.E; 1/modelAD$V.G.A; 1/modelAD$V.G.D

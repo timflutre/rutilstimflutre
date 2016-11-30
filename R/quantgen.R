@@ -2419,7 +2419,7 @@ simulAnimalModel <- function(T=1,
               Z=Z, V.G.A=V.G.A, G.A=G.A,
               V.G.D=V.G.D, G.D=G.D,
               V.E=V.E,
-              dat=dat,
+              data=dat,
               coords=coords))
 }
 
@@ -2488,9 +2488,10 @@ mme <- function(y, W, Z, sigma.A2, Ainv, V.E){
 ##'
 ##' Given I genotypes, Q covariates and N=I*Q phenotypes for the trait, fit an "animal model" with the lme4 package via the following likelihood: y = W c + Z g_A + Z g_D + epsilon, where y is Nx1; W is NxQ; Z is NxI; g_A ~ Normal_I(0, sigma_A^2 A) with A the known matrix of additive genetic relationships; g_D ~ Normal_I(0, sigma_D^2 D) with D the known matrix of dominant genetic relationships; epsilon ~ Normal_N(0, sigma^2 Id_N); Cov(g_A,g_D)=0; Cov(g_A,e)=0; Cov(g_D,e)=0.
 ##' @param formula formula (see \code{\link[lme4]{lmer}})
-##' @param dat data.frame containing the data corresponding to formula and relmat (see \code{\link[lme4]{lmer}})
+##' @param data data.frame containing the data corresponding to formula and relmat (see \code{\link[lme4]{lmer}})
 ##' @param relmat list containing the matrices of genetic relationships (A is compulsory but D is optional); should use the same names as the colnames in data; can be in the "matrix" class (base) or the "dsCMatrix" class (Matrix package); see \code{\link{estimGenRel}}
 ##' @param REML default is TRUE (use FALSE to compare models with different fixed effects)
+##' @param na.action a function that indicates what should happen when the data contain \code{NA}s (see \code{\link[lme4]{lmer}})
 ##' @param ci.meth method to compute confidence intervals (profile/boot); if not NULL, use \code{\link[lme4]{confint.merMod}}
 ##' @param ci.lev level to compute confidence intervals
 ##' @param verbose verbosity level (0/1)
@@ -2508,7 +2509,7 @@ mme <- function(y, W, Z, sigma.A2, Ainv, V.E){
 ##' modelA <- simulAnimalModel(T=1, Q=3, A=A, V.G.A=15, V.E=5, seed=1859)
 ##'
 ##' ## infer with lme4
-##' fitA <- lmerAM(formula=response1 ~ year + (1|geno), dat=modelA$dat,
+##' fitA <- lmerAM(formula=response1 ~ year + (1|geno), data=modelA$data,
 ##'                relmat=list(geno=A), verbose=0)
 ##' summary(fitA$merMod)
 ##' REMLcrit(fitA$merMod)
@@ -2529,10 +2530,10 @@ mme <- function(y, W, Z, sigma.A2, Ainv, V.E){
 ##'                             D=D, V.G.D=3, seed=1859)
 ##'
 ##' ## infer with lme4
-##' modelAD$dat$geno.add <- modelAD$dat$geno
-##' modelAD$dat$geno.dom <- modelAD$dat$geno; modelAD$dat$geno <- NULL
+##' modelAD$data$geno.add <- modelAD$data$geno
+##' modelAD$data$geno.dom <- modelAD$data$geno; modelAD$data$geno <- NULL
 ##' fitAD <- lmerAM(formula=response1 ~ year + (1|geno.add) + (1|geno.dom),
-##'                 dat=modelAD$dat, relmat=list(geno.add=A, geno.dom=D),
+##'                 data=modelAD$data, relmat=list(geno.add=A, geno.dom=D),
 ##'                 verbose=0)
 ##' summary(fitAD$merMod)
 ##' c(modelAD$C); modelAD$V.G.A; modelAD$V.E; modelAD$V.G.D
@@ -2542,27 +2543,32 @@ mme <- function(y, W, Z, sigma.A2, Ainv, V.E){
 ##'   vc[vc$grp == "geno.dom", "vcov"])
 ##' }
 ##' @export
-lmerAM <- function(formula, dat, relmat, REML=TRUE, ci.meth=NULL, ci.lev=0.95,
+lmerAM <- function(formula, data, relmat, REML=TRUE, na.action=na.exclude,
+                   ci.meth=NULL, ci.lev=0.95,
                    verbose=1){
   requireNamespaces(c("lme4", "Matrix"))
-  stopifnot(is.data.frame(dat),
-            all(! duplicated(colnames(dat))),
+  stopifnot(is.data.frame(data),
+            all(! duplicated(colnames(data))),
             is.list(relmat),
             all(! duplicated(names(names(relmat)))),
-            all(names(relmat) %in% colnames(dat)),
+            all(names(relmat) %in% colnames(data)),
             is.logical(REML))
   for(i in seq_along(relmat))
-    stopifnot(is.matrix(relmat[[i]]) || class(relmat[[i]]) == "dsCMatrix")
+    stopifnot(is.matrix(relmat[[i]]) ||
+              Matrix::isSymmetric(relmat[[i]]), # if nearPD()
+              rownames(relmat[[i]]) == colnames(relmat[[i]]),
+              all(rownames(relmat[[i]]) %in% data[,names(relmat)[i]]))
   if(! is.null(ci.meth))
     stopifnot(ci.meth %in% c("profile", "boot"))
 
   if(verbose > 0)
     write("parse the formula ...", stdout())
   parsedFormula <- lme4::lFormula(formula=formula,
-                                  data=dat,
+                                  data=data,
                                   control=lme4::lmerControl(
                                       check.nobs.vs.nlev="ignore",
                                       check.nobs.vs.nRE="ignore"),
+                                  na.action=na.exclude,
                                   REML=REML)
 
   if(verbose > 0)
@@ -2618,7 +2624,7 @@ lmerAM <- function(formula, dat, relmat, REML=TRUE, ci.meth=NULL, ci.lev=0.95,
 ##' Animal model
 ##'
 ##' Given I genotypes, Q covariates and N=I*Q phenotypes for the trait, fit an "animal model" with the INLA package via the following likelihood: y = W c + Z g_A + Z g_D + epsilon, where y is Nx1; W is NxQ; Z is NxI; g_A ~ Normal_I(0, sigma_A^2 A) with A the known matrix of additive genetic relationships; g_D ~ Normal_I(0, sigma_D^2 D) with D the known matrix of dominant genetic relationships; epsilon ~ Normal_N(0, sigma^2 Id_N); Cov(g_A,g_D)=0; Cov(g_A,e)=0; Cov(g_D,e)=0.
-##' @param dat data.frame containing the data corresponding to relmat; should have a column grep-able for "response" as well as a column "geno.add" used with matrix A; if a column "geno.dom" exists, it will be used with matrix D; any other column will be interpreted as corresponding to "fixed effects"
+##' @param data data.frame containing the data corresponding to relmat; should have a column grep-able for "response" as well as a column "geno.add" used with matrix A; if a column "geno.dom" exists, it will be used with matrix D; any other column will be interpreted as corresponding to "fixed effects"
 ##' @param relmat list containing the matrices of genetic relationships (see \code{\link{estimGenRel}}); additive relationships (matrix A) are compulsory, with name "geno.add"; dominant relationships (matrix D) are optional, with name "geno.dom"; can be in the "matrix" class (base) or the "dsCMatrix" class (Matrix package)
 ##' @param family a string indicating the likelihood family (see \code{\link[INLA]{inla}})
 ##' @param nb.threads maximum number of threads the inla-program will use (see \code{\link[INLA]{inla}})
@@ -2638,9 +2644,9 @@ lmerAM <- function(formula, dat, relmat, REML=TRUE, ci.meth=NULL, ci.lev=0.95,
 ##'
 ##' ## infer with INLA
 ##' library(INLA)
-##' modelA$dat$geno.add <- modelA$dat$geno
-##' modelA$dat$geno <- NULL
-##' fitA <- inlaAM(dat=modelA$dat, relmat=list(geno.add=A), verbose=1)
+##' modelA$data$geno.add <- modelA$data$geno
+##' modelA$data$geno <- NULL
+##' fitA <- inlaAM(data=modelA$data, relmat=list(geno.add=A), verbose=1)
 ##' summary(fitA)
 ##' c(modelA$C); 1/modelA$V.E; 1/modelA$V.G.A
 ##'
@@ -2650,27 +2656,27 @@ lmerAM <- function(formula, dat, relmat, REML=TRUE, ci.meth=NULL, ci.lev=0.95,
 ##'                             D=D, V.G.D=3, seed=1859)
 ##'
 ##' ## infer with INLA
-##' modelAD$dat$geno.add <- modelAD$dat$geno
-##' modelAD$dat$geno.dom <- modelAD$dat$geno
-##' modelAD$dat$geno <- NULL
-##' fitAD <- inlaAM(dat=modelAD$dat, relmat=list(geno.add=A, geno.dom=D),
+##' modelAD$data$geno.add <- modelAD$data$geno
+##' modelAD$data$geno.dom <- modelAD$data$geno
+##' modelAD$data$geno <- NULL
+##' fitAD <- inlaAM(data=modelAD$data, relmat=list(geno.add=A, geno.dom=D),
 ##'                 verbose=1)
 ##' summary(fitAD)
 ##' c(modelAD$C); 1/modelAD$V.E; 1/modelAD$V.G.A; 1/modelAD$V.G.D
 ##' }
 ##' @export
-inlaAM <- function(dat, relmat, family="gaussian",
+inlaAM <- function(data, relmat, family="gaussian",
                    nb.threads=1, verbose=0, silent=TRUE){
   requireNamespace("INLA")
-  stopifnot(is.data.frame(dat),
-            sum(grepl("response", colnames(dat))) == 1,
-            "geno.add" %in% colnames(dat),
+  stopifnot(is.data.frame(data),
+            sum(grepl("response", colnames(data))) == 1,
+            "geno.add" %in% colnames(data),
             is.list(relmat),
             ! is.null(names(relmat)),
             "geno.add" %in% names(relmat))
 
   ## make formula with response, intercept and additive genotypic value
-  formula <- paste0(colnames(dat)[grepl("response", colnames(dat))],
+  formula <- paste0(colnames(data)[grepl("response", colnames(data))],
                     " ~ 1",
                     " + f(geno.add, model=\"generic0\", constr=TRUE",
                     ", hyper=list(theta=list(param=c(0.5, 0.5), fixed=FALSE))")
@@ -2681,7 +2687,7 @@ inlaAM <- function(dat, relmat, family="gaussian",
     formula <- paste0(formula,
                       ", Cmatrix=mpInv(relmat[[\"geno.add\"]])")
   formula <- paste0(formula,
-                    ", values=levels(dat$geno.add))")
+                    ", values=levels(data$geno.add))")
 
   ## add dominant genotypic value, if present
   if("geno.dom" %in% names(relmat)){
@@ -2695,11 +2701,11 @@ inlaAM <- function(dat, relmat, family="gaussian",
       formula <- paste0(formula,
                         ", Cmatrix=mpInv(relmat[[\"geno.dom\"]])")
     formula <- paste0(formula,
-                      ", values=levels(dat$geno.dom))")
+                      ", values=levels(data$geno.dom))")
   }
 
   ## add "fixed effects", if any
-  for(cn in colnames(dat))
+  for(cn in colnames(data))
     if(! grepl("response", cn) & cn != "geno.add" & cn != "geno.dom")
       formula <- paste0(formula, " + ", cn)
 
@@ -2711,7 +2717,7 @@ inlaAM <- function(dat, relmat, family="gaussian",
   ## fit the model with INLA
   fit <- INLA::inla(formula=formula,
                     family=family,
-                    data=dat,
+                    data=data,
                     control.compute=list(dic=TRUE),
                     num.threads=nb.threads,
                     verbose=ifelse(verbose <= 1, FALSE, TRUE),
@@ -2723,7 +2729,7 @@ inlaAM <- function(dat, relmat, family="gaussian",
 ##' Animal model
 ##'
 ##' Given I genotypes, Q covariates and N=I*Q phenotypes for the trait, fit an "animal model" with the rjags package via the following likelihood: y = W c + Z g_A + Z g_D + epsilon, where y is Nx1; W is NxQ; Z is NxI; g_A ~ Normal_I(0, sigma_A^2 A) with A the known matrix of additive genetic relationships; g_D ~ Normal_I(0, sigma_D^2 D) with D the known matrix of dominant genetic relationships; epsilon ~ Normal_N(0, sigma^2 Id_N); Cov(g_A,g_D)=0; Cov(g_A,e)=0; Cov(g_D,e)=0.
-##' @param dat data.frame containing the data corresponding to relmat; should have a column grep-able for "response" as well as a column "geno.add" used with matrix A; if a column "geno.dom" exists, it will be used with matrix D; any other column will be interpreted as corresponding to "fixed effects"
+##' @param data data.frame containing the data corresponding to relmat; should have a column grep-able for "response" as well as a column "geno.add" used with matrix A; if a column "geno.dom" exists, it will be used with matrix D; any other column will be interpreted as corresponding to "fixed effects"
 ##' @param relmat list containing the matrices of genetic relationships (see \code{\link{estimGenRel}}); additive relationships (matrix A) are compulsory, with name "geno.add"; dominant relationships (matrix D) are optional, with name "geno.dom"; can be in the "matrix" class (base) or the "dsCMatrix" class (Matrix package)
 ##' @param inits list of initial values (possible to use 1 sub-list per chain, see \code{\link[rjags]{jags.model}}); if NULL, JAGS will choose typical values (usually mean, median, or mode of the prior)
 ##' @param priors list of specifying priors; each component is itself a list for which "dist" specifies the distribution and "par" the parameter; a component named "fix" is used for fixed effects,  so that ("c",5) means c[q] ~ Cauchy(0,5) and ("n",10^6) means c[q] ~ Normal(0,10^6), but note that the global intercept always is Normal(mean(y),10^6); a component named "vc" is used for variance components, so that ("hc",5) means stdev ~ half-Cauchy(0,5) and ("ig",0.001) means var ~ InvGamma(shape=0.001,rate=0.001)
@@ -2748,23 +2754,23 @@ inlaAM <- function(dat, relmat, family="gaussian",
 ##' modelA <- simulAnimalModel(T=1, Q=3, A=A, V.G.A=15, V.E=5, seed=1859)
 ##'
 ##' ## infer with rjags
-##' modelA$dat$geno.add <- modelA$dat$geno; modelA$dat$geno <- NULL
-##' fitA <- jagsAM(dat=modelA$dat, relmat=list(geno.add=A))
+##' modelA$data$geno.add <- modelA$data$geno; modelA$data$geno <- NULL
+##' fitA <- jagsAM(data=modelA$data, relmat=list(geno.add=A))
 ##' plotMcmcChain(fitA[[1]], "V.G.A", 1:4, modelA$V.G.A)
 ##' cbind(truth=c(c(modelA$C), modelA$V.G.A, modelA$V.E),
 ##'       summaryMcmcChain(fitA[[1]], c("c[1]", "c[2]", "c[3]", "sigma.A2", "V.E")))
 ##' }
 ##' @export
-jagsAM <- function(dat, relmat, inits=NULL,
+jagsAM <- function(data, relmat, inits=NULL,
                    priors=list(fix=list(dist="c", par=5),
                                vc=list(dist="hc", par=5)),
                    nb.chains=1, nb.adapt=10^3, burnin=10^2,
                    nb.iters=10^3, thin=10,
                    progress.bar=NULL, rm.jags.file=TRUE, verbose=0){
   requireNamespaces("rjags")
-  stopifnot(is.data.frame(dat),
-            sum(grepl("response", colnames(dat))) == 1,
-            "geno.add" %in% colnames(dat),
+  stopifnot(is.data.frame(data),
+            sum(grepl("response", colnames(data))) == 1,
+            "geno.add" %in% colnames(data),
             is.list(relmat),
             ! is.null(names(relmat)),
             "geno.add" %in% names(relmat),
@@ -2844,23 +2850,23 @@ model {
   cat(model.txt, file=jags.file)
 
   ## read model file and create object
-  y <- dat[, grepl("response", colnames(dat))]
-  W <- matrix(1, nrow=nrow(dat), ncol=1)
+  y <- data[, grepl("response", colnames(data))]
+  W <- matrix(1, nrow=nrow(data), ncol=1)
   colnames(W) <- "mu"
-  for(j in 1:ncol(dat))
-    if(! grepl("response", colnames(dat)[j]) & colnames(dat)[j] != "geno.add" &
-       colnames(dat)[j] != "geno.dom"){
-      W <- cbind(W, stats::model.matrix(~ dat[,j])[,-1])
+  for(j in 1:ncol(data))
+    if(! grepl("response", colnames(data)[j]) & colnames(data)[j] != "geno.add" &
+       colnames(data)[j] != "geno.dom"){
+      W <- cbind(W, stats::model.matrix(~ data[,j])[,-1])
     }
-  colnames(W) <- gsub("dat\\[, j\\]", "", colnames(W))
-  data.list <- list(N=nrow(dat), Q=ncol(W),
-                    y=y, W=W, Z=stats::model.matrix(~ dat[,"geno.add"] - 1),
+  colnames(W) <- gsub("data\\[, j\\]", "", colnames(W))
+  data.list <- list(N=nrow(data), Q=ncol(W),
+                    y=y, W=W, Z=stats::model.matrix(~ data[,"geno.add"] - 1),
                     mean.mu=mean(y), par.c=priors$fix$par,
                     par.vc=priors$vc$par, A=relmat[["geno.add"]],
-                    mean.g.A=rep(0, nlevels(dat[,"geno.add"])))
+                    mean.g.A=rep(0, nlevels(data[,"geno.add"])))
   if("geno.dom" %in% names(relmat)){
     data.list$D <- relmat[["geno.dom"]]
-    data.list$mean.g.D <- rep(0, nlevels(dat[,"geno.add"]))
+    data.list$mean.g.D <- rep(0, nlevels(data[,"geno.add"]))
   }
   jags <- rjags::jags.model(file=jags.file, data=data.list, inits=inits,
                             n.chains=nb.chains,
@@ -3077,7 +3083,7 @@ generated quantities {
 ##' Animal model
 ##'
 ##' Given I genotypes, Q covariates and N=I*Q phenotypes for the trait, fit an "animal model" with the rstan package via the following likelihood: y = W c + Z g_A + Z g_D + epsilon, where y is Nx1; W is NxQ; Z is NxI; g_A ~ Normal_I(0, sigma_A^2 A) with A the known matrix of additive genetic relationships; g_D ~ Normal_I(0, sigma_D^2 D) with D the known matrix of dominant genetic relationships; epsilon ~ Normal_N(0, sigma^2 Id_N); Cov(g_A,g_D)=0; Cov(g_A,e)=0; Cov(g_D,e)=0. Missing phenotypes are jointly imputed with the other unknown variables, and the errors can follow a Student's t distribution to handle outliers.
-##' @param dat data.frame containing the data corresponding to relmat; should have a column grep-able for "response" as well as a column "geno.add" used with matrix A; if a column "geno.dom" exists, it will be used with matrix D; any other column will be interpreted as corresponding to "fixed effects"
+##' @param data data.frame containing the data corresponding to relmat; should have a column grep-able for "response" as well as a column "geno.add" used with matrix A; if a column "geno.dom" exists, it will be used with matrix D; any other column will be interpreted as corresponding to "fixed effects"
 ##' @param relmat list containing the matrices of genetic relationships (see \code{\link{estimGenRel}}); additive relationships (matrix A) are compulsory, with name "geno.add"; dominant relationships (matrix D) are optional, with name "geno.dom"; can be in the "matrix" class (base) or the "dsCMatrix" class (Matrix package)
 ##' @param errors.Student use a Student's t distribution for the errors (useful to handle outliers)
 ##' @param nb.chains number of independent chains to run
@@ -3103,8 +3109,8 @@ generated quantities {
 ##' modelA <- simulAnimalModel(T=1, Q=3, A=A, V.G.A=15, V.E=5, seed=1859)
 ##'
 ##' ## infer with rstan
-##' modelA$dat$geno.add <- modelA$dat$geno; modelA$dat$geno <- NULL
-##' fitA <- stanAM(dat=modelA$dat, relmat=list(geno.add=A))
+##' modelA$data$geno.add <- modelA$data$geno; modelA$data$geno <- NULL
+##' fitA <- stanAM(data=modelA$data, relmat=list(geno.add=A))
 ##' fitA <- rstan::As.mcmc.list(fitA)
 ##' plotMcmcChain(fitA[[1]], "sigma_g_A", 1:4, sqrt(modelA$V.G.A))
 ##' cbind(truth=c(c(modelA$C), sqrt(modelA$V.G.A), sqrt(modelA$V.E)),
@@ -3116,8 +3122,8 @@ generated quantities {
 ##'                             D=D, V.G.D=3, seed=1859)
 ##'
 ##' ## infer with rstan
-##' modelAD$dat$geno.add <- modelAD$dat$geno; modelAD$dat$geno <- NULL
-##' fitAD <- stanAM(dat=modelAD$dat, relmat=list(geno.add=A, geno.dom=D))
+##' modelAD$data$geno.add <- modelAD$data$geno; modelAD$data$geno <- NULL
+##' fitAD <- stanAM(data=modelAD$data, relmat=list(geno.add=A, geno.dom=D))
 ##' fitAD <- rstan::As.mcmc.list(fitAD)
 ##' plotMcmcChain(fitAD[[1]], "sigma_g_A", 1:4, sqrt(modelAD$V.G.A))
 ##' plotMcmcChain(fitAD[[1]], "sigma_g_D", 1:4, sqrt(modelAD$V.G.D))
@@ -3126,16 +3132,16 @@ generated quantities {
 ##' plot(as.vector(fitAD[[1]][,"sigma_g_A"]), as.vector(fitAD[[1]][,"sigma_g_D"]))
 ##' }
 ##' @export
-stanAM <- function(dat, relmat, errors.Student=FALSE,
+stanAM <- function(data, relmat, errors.Student=FALSE,
                    nb.chains=1, nb.iters=10^3, burnin=10^2, thin=10,
                    out.dir=getwd(),
                    task.id=format(Sys.time(), "%Y-%m-%d-%H-%M-%S"),
                    compile.only=FALSE, rm.stan.file=FALSE, rm.sm.file=FALSE,
                    verbose=0){
   requireNamespaces("rstan")
-  stopifnot(is.data.frame(dat),
-            sum(grepl("response", colnames(dat))) == 1,
-            "geno.add" %in% colnames(dat),
+  stopifnot(is.data.frame(data),
+            sum(grepl("response", colnames(data))) == 1,
+            "geno.add" %in% colnames(data),
             is.list(relmat),
             ! is.null(names(relmat)),
             "geno.add" %in% names(relmat),
@@ -3145,19 +3151,19 @@ stanAM <- function(dat, relmat, errors.Student=FALSE,
     stopifnot(nrow(relmat[["geno.add"]]) == nrow(relmat[["geno.dom"]]))
 
   ## make the input matrices from the input data.frame
-  y <- dat[, grepl("response", colnames(dat))]
+  y <- data[, grepl("response", colnames(data))]
   if(all(is.matrix(y), ncol(y) == 1))
     y <- y[,1]
   is_y_obs <- (! is.na(y))
-  W <- matrix(1, nrow=nrow(dat), ncol=1)
+  W <- matrix(1, nrow=nrow(data), ncol=1)
   colnames(W) <- "mu"
-  for(j in 1:ncol(dat))
-    if(! grepl("response", colnames(dat)[j]) & colnames(dat)[j] != "geno.add" &
-       colnames(dat)[j] != "geno.dom"){
-      W <- cbind(W, stats::model.matrix(~ dat[,j])[,-1])
+  for(j in 1:ncol(data))
+    if(! grepl("response", colnames(data)[j]) & colnames(data)[j] != "geno.add" &
+       colnames(data)[j] != "geno.dom"){
+      W <- cbind(W, stats::model.matrix(~ data[,j])[,-1])
     }
-  colnames(W) <- gsub("dat\\[, j\\]", "", colnames(W))
-  Z <- stats::model.matrix(~ dat[,"geno.add"] - 1)
+  colnames(W) <- gsub("data\\[, j\\]", "", colnames(W))
+  Z <- stats::model.matrix(~ data[,"geno.add"] - 1)
   stopifnot(ncol(Z) == nrow(relmat[["geno.add"]]))
   N <- nrow(W)
   Q <- ncol(W)
