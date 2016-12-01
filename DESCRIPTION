@@ -1,6 +1,6 @@
 Package: rutilstimflutre
 Title: Timothee Flutre's personal R code
-Version: 0.86.0
+Version: 0.86.1
 Authors@R: c(
     person("Timothee", "Flutre", email="timothee.flutre@supagro.inra.fr", role=c("aut", "ctb", "cre")),
     person("Carbonetto", "Peter", role="aut", comment="function from varbvs example"),
@@ -23,6 +23,7 @@ URL: https://github.com/timflutre/rutilstimflutre
 BugReports: https://github.com/timflutre/rutilstimflutre/issues
 Suggests:
     BiocGenerics,
+    BiocInstaller,
     Biostrings,
     coda,
     digest,

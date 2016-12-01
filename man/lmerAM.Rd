@@ -4,7 +4,7 @@
 \alias{lmerAM}
 \title{Animal model}
 \usage{
-lmerAM(formula, data, relmat, REML = TRUE, na.action = na.exclude,
+lmerAM(formula, data, relmat, REML = TRUE, na.action = stats::na.exclude,
   ci.meth = NULL, ci.lev = 0.95, verbose = 1)
 }
 \arguments{

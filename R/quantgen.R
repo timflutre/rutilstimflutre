@@ -2543,9 +2543,8 @@ mme <- function(y, W, Z, sigma.A2, Ainv, V.E){
 ##'   vc[vc$grp == "geno.dom", "vcov"])
 ##' }
 ##' @export
-lmerAM <- function(formula, data, relmat, REML=TRUE, na.action=na.exclude,
-                   ci.meth=NULL, ci.lev=0.95,
-                   verbose=1){
+lmerAM <- function(formula, data, relmat, REML=TRUE, na.action=stats::na.exclude,
+                   ci.meth=NULL, ci.lev=0.95, verbose=1){
   requireNamespaces(c("lme4", "Matrix"))
   stopifnot(is.data.frame(data),
             all(! duplicated(colnames(data))),
@@ -2568,7 +2567,7 @@ lmerAM <- function(formula, data, relmat, REML=TRUE, na.action=na.exclude,
                                   control=lme4::lmerControl(
                                       check.nobs.vs.nlev="ignore",
                                       check.nobs.vs.nRE="ignore"),
-                                  na.action=na.exclude,
+                                  na.action=na.action,
                                   REML=REML)
 
   if(verbose > 0)
@@ -2969,10 +2968,10 @@ transformed data {
     model.code <- paste0(model.code, "
   matrix[I,I] CD;")
   model.code <- paste0(model.code, "
-  CA <- cholesky_decompose(A);")
+  CA = cholesky_decompose(A);")
   if(include.dom)
     model.code <- paste0(model.code, "
-  CD <- cholesky_decompose(D);")
+  CD = cholesky_decompose(D);")
   model.code <- paste0(model.code, "
 }
 ")
@@ -3010,12 +3009,12 @@ model {
   sigma_E ~ cauchy(0, 5);  // implicit half-Cauchy
   sigma_g_A ~ cauchy(0, 5);
   g_A_z ~ normal(0, 1);
-  g_A <- sigma_g_A * (CA * g_A_z); // implies g_A ~ multi_normal(0, sigma_g_A^2 * A)")
+  g_A = sigma_g_A * (CA * g_A_z); // implies g_A ~ multi_normal(0, sigma_g_A^2 * A)")
   if(include.dom)
     model.code <- paste0(model.code, "
   sigma_g_D ~ cauchy(0, 5);
   g_D_z ~ normal(0, 1);
-  g_D <- sigma_g_D * (CD * g_D_z);")
+  g_D = sigma_g_D * (CD * g_D_z);")
   if(errors.Student){
     if(missing.phenos){
       model.code <- paste0(model.code, "
@@ -3067,13 +3066,16 @@ generated quantities {
     model.code <- paste0(model.code, "
   vector[I] g_D;")
   model.code <- paste0(model.code, "
-  g_A <- sigma_g_A * (CA * g_A_z);")
+  g_A = sigma_g_A * (CA * g_A_z);")
   if(include.dom)
     model.code <- paste0(model.code, "
-  g_D <- sigma_g_D * (CD * g_D_z);
+  g_D = sigma_g_D * (CD * g_D_z);
 ")
   model.code <- paste0(model.code, "
 }")
+
+  model.code <- paste0(model.code, "
+")
 
   cat(model.code, file=stan.file)
 

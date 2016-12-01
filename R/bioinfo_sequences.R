@@ -1237,7 +1237,7 @@ filterVariantCalls <- function(vcf.file, genome, out.file,
                                max.var.nb.gt.na=NULL, max.var.perc.gt.na=NULL,
                                verbose=1){
   requireNamespaces(c("IRanges", "GenomicRanges", "VariantAnnotation",
-                      "Rsamtools", "S4Vectors"))
+                      "Rsamtools", "S4Vectors", "BiocInstaller"))
   stopifnot(file.exists(vcf.file))
   if(! is.null(seq.id) & is.null(seq.start) & is.null(seq.end))
     stopifnot(! is.null(dict),
@@ -1267,7 +1267,11 @@ filterVariantCalls <- function(vcf.file, genome, out.file,
 
   ##' @return TRUE if at most one alternate allele
   filterBiall <- function(x){
-    (S4Vectors::elementLengths(VariantAnnotation::alt(x)) <= 1)
+    if(utils::compareVersion(as.character(BiocInstaller::biocVersion()),
+                             "3.4") < 0){
+      (S4Vectors::elementLengths(VariantAnnotation::alt(x)) <= 1)
+    } else
+      (S4Vectors::elementNROWS(VariantAnnotation::alt(x)) <= 1)
   }
 
   ##' @return TRUE if variant-level DP inside of given range
@@ -1472,8 +1476,12 @@ summaryVariant <- function(vcf.file, genome, yieldSize=10^4, field="GQ",
 ##' @author Timothee Flutre
 ##' @export
 gtVcf2dose <- function(vcf){
-  requireNamespaces(c("S4Vectors", "VariantAnnotation"))
-  idx <- S4Vectors::elementLengths(VariantAnnotation::alt(vcf)) == 1L
+  requireNamespaces(c("S4Vectors", "VariantAnnotation", "BiocInstaller"))
+  if(utils::compareVersion(as.character(BiocInstaller::biocVersion()),
+                           "3.4") < 0){
+    idx <- S4Vectors::elementLengths(VariantAnnotation::alt(vcf)) == 1L
+  } else
+    idx <- S4Vectors::elementNROWS(VariantAnnotation::alt(vcf)) == 1L
   if(!all(idx)) {
     warning("only coercing single-element 'alt' records")
   }
@@ -1496,8 +1504,12 @@ gtVcf2dose <- function(vcf){
 ##' @export
 rngVcf2df <- function(vcf){
   requireNamespaces(c("S4Vectors", "VariantAnnotation", "GenomeInfoDb",
-                      "BiocGenerics", "SummarizedExperiment"))
-  idx <- S4Vectors::elementLengths(VariantAnnotation::alt(vcf)) == 1L
+                      "BiocGenerics", "SummarizedExperiment", "BiocInstaller"))
+  if(utils::compareVersion(as.character(BiocInstaller::biocVersion()),
+                           "3.4") < 0){
+    idx <- S4Vectors::elementLengths(VariantAnnotation::alt(vcf)) == 1L
+  } else
+    idx <- S4Vectors::elementNROWS(VariantAnnotation::alt(vcf)) == 1L
   if(!all(idx)) {
     warning("only coercing single-element 'alt' records")
   }

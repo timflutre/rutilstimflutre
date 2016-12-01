@@ -93,8 +93,7 @@ test_that("coverageBams", {
                   " ", fqFile,
                   " | samtools fixmate -O bam - - ",
                   " | samtools sort -o ", bamFile, " -O bam -")
-    system(cmd, ignore.stdout=TRUE, ignore.stderr=TRUE,
-           show.output.on.console=FALSE)
+    system(cmd, ignore.stdout=TRUE, ignore.stderr=TRUE)
     all.files <- append(all.files, bamFile)
     args <- paste0("index ", bamFile, " ", bamFile, ".bai")
     system2("samtools", args)
@@ -105,9 +104,12 @@ test_that("coverageBams", {
     ## system2("samtools", args)
 
     ## coverage via samtools
-    cmd <- paste0("samtools depth -Q 5 ", bamFile)
-    ## cmd <- paste0("samtools depth -Q 5 -r chr1:1-1000000 ", bamFile)
-    cvg <- data.table::fread(input=cmd,
+    depthFile <- paste0(tmpd, "/depth.txt")
+    args <- paste0("depth -Q 5 ", bamFile, " > ", depthFile)
+    ## args <- paste0("depth -Q 5 -r chr1:1-1000000 ", bamFile, " > ", depthFile)
+    all.files <- append(all.files, depthFile)
+    system2("samtools", args)
+    cvg <- utils::read.table(file=depthFile, header=FALSE,
                              col.names=c("chr", "pos", "count"))
     nrow(cvg) # 140
     sum(cvg$count) # 203
@@ -116,10 +118,10 @@ test_that("coverageBams", {
     expected <- list()
     expected[[basename(bamFile)]] <-
       matrix(c(Biostrings::width(chrs),
-               c(sum(cvg[,chr=="chr1"]),
-                 sum(cvg[,chr=="chr2"])),
-               c(sum(cvg$count[cvg[,chr=="chr1"]]),
-                 sum(cvg$count[cvg[,chr=="chr2"]]))),
+               c(sum(cvg$chr == "chr1"),
+                 sum(cvg$chr == "chr2")),
+               c(sum(cvg$count[cvg$chr == "chr1"]),
+                 sum(cvg$count[cvg$chr == "chr2"]))),
              nrow=length(chrs),
              ncol=3,
              dimnames=list(names(chrs),
@@ -269,7 +271,8 @@ test_that("vcf2dosage", {
   if(all(requireNamespace("Rsamtools"),
          requireNamespace("VariantAnnotation"),
          requireNamespace("IRanges"),
-         requireNamespace("S4Vectors"))){
+         requireNamespace("S4Vectors"),
+         requireNamespace("BiocInstaller"))){
     genome <- "fakeGenomeV0"
     yieldSize <- 100
     all.files <- c()
@@ -282,7 +285,11 @@ test_that("vcf2dosage", {
                                                    format="vcf")
     vcf.init <- VariantAnnotation::readVcf(file=vcf.init.file.bgz,
                                            genome=genome)
-    vcf.init <- vcf.init[S4Vectors::elementLengths(VariantAnnotation::alt(vcf.init)) == 1L]
+    if(utils::compareVersion(as.character(BiocInstaller::biocVersion()),
+                             "3.4") < 0){
+      vcf.init <- vcf.init[S4Vectors::elementLengths(VariantAnnotation::alt(vcf.init)) == 1L]
+    } else
+      vcf.init <- vcf.init[S4Vectors::elementNROWS(VariantAnnotation::alt(vcf.init)) == 1L]
     expected <- list(genotypes=gtVcf2dose(vcf.init),
                      map=rngVcf2df(vcf.init))
 
