@@ -1,6 +1,6 @@
 Package: rutilstimflutre
 Title: Timothee Flutre's personal R code
-Version: 0.86.1
+Version: 0.87.0
 Authors@R: c(
     person("Timothee", "Flutre", email="timothee.flutre@supagro.inra.fr", role=c("aut", "ctb", "cre")),
     person("Carbonetto", "Peter", role="aut", comment="function from varbvs example"),
@@ -31,6 +31,7 @@ Suggests:
     GenomicRanges,
     graphics,
     grDevices,
+    gstat,
     igraph,
     INLA,
     IRanges,

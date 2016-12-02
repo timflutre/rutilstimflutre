@@ -50,6 +50,8 @@ References:
 
 * [Scaccia & Martin (2002)](http://link.springer.com/chapter/10.1007/978-3-642-57489-4_90): "Testing for simplification in spatial models"
 
+* [Stein (1999)](http://link.springer.com/10.1007/978-1-4612-1494-6): "Interpolation of spatial data"
+
 External packages:
 
 ```{r load_pkg}
@@ -61,6 +63,7 @@ library(sparseMVN)
 library(nlme)
 library(INLA)
 library(sp)
+library(gstat)
 ```
 
 This R chunk is used to assess how much time it takes to execute the R code in this document until the end:
@@ -514,7 +517,7 @@ prettyPrintSummary(apply(X1, 3, function(Xi){
 Idem, with only row correlation:
 ```{r ar1xar1.sim.cond.onlyR}
 X1 <- ar1xar1.sim.cond(N, R=500, C=2, rho.r, rho.c=0.0, sigma2)
-summary(apply(X1, 3, function(Xi){
+prettyPrintSummary(apply(X1, 3, function(Xi){
   acf(Xi[,1], lag.max=1, type="correlation", plot=FALSE)$acf[2]
 }))
 ```
@@ -522,10 +525,10 @@ summary(apply(X1, 3, function(Xi){
 Now with both row and column correlations:
 ```{r ar1xar1.sim.cond.bothRC}
 X1 <- ar1xar1.sim.cond(N, R, C, rho.r, rho.c, sigma2)
-summary(apply(X1, 3, function(Xi){
+prettyPrintSummary(apply(X1, 3, function(Xi){
   acf(Xi[1,], lag.max=1, type="correlation", plot=FALSE)$acf[2]
 }))
-summary(apply(X1, 3, function(Xi){
+prettyPrintSummary(apply(X1, 3, function(Xi){
   acf(Xi[,1], lag.max=1, type="correlation", plot=FALSE)$acf[2]
 }))
 ```
@@ -564,12 +567,37 @@ Make a spatial data structure, and plot it:
 
 ```{r sp_plot}
 X.sp <- SpatialPointsDataFrame(coords=coords, data=dat)
+summary(X.sp)
 spplot(obj=X.sp, scales=list(draw=TRUE),
        xlab="columns", ylab="rows",
        main=paste0("AR(1)xAR(1) with rho.r=", rho.r, ", rho.c=", rho.c,
                    " and sigma2=", sigma2),
        key.space="right", aspect="fill")
 ```
+
+Look at the variogram estimated from the data:
+
+```{r, fig.width=10}
+vg.1 <- gstat::variogram(object=var1 ~ 1, data=X.sp)
+plot(x=vg.1$dist, y=vg.1$gamma, main="Empirical variogram",
+     ylim=c(0, max(vg.1$gamma)))
+```
+
+
+### Via `gstat`
+
+Fit a Matérn model for the random field:
+
+```{r, fig.width=10}
+(vg.1.fit <- gstat::fit.variogram(object=vg.1,
+                                  model=vgm(model="Ste", nugget=NA),
+                                  fit.kappa=seq(0.3, 0.6, 0.05)))
+plot(vg.1, vg.1.fit, main="", col="blue",
+     key=list(space="top", lines=list(col="blue"),
+              text=list("fit of Matérn model")))
+```
+
+
 
 ### Via `inla`
 
