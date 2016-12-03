@@ -1,0 +1,259 @@
+---
+title: "Introduction to heteroscedasticity in regression"
+author: "Timothée Flutre (INRA)"
+date: "`r format(Sys.time(), '%d/%m/%Y %H:%M:%S')`"
+output:
+  rmarkdown::html_vignette:
+    toc: true
+  html_document:
+    toc: true
+    toc_float: true
+    number_sections: TRUE
+  pdf_document:
+    toc: true
+    toc_depth: 3
+    number_sections: TRUE
+vignette: >
+  %\VignetteIndexEntry{Intro heteroscedasticity}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+<!--
+setwd("~/src/rutilstimflutre/vignettes/")
+
+library(rmarkdown)
+render("intro-heteroscedasticity.Rmd", "html_document")
+
+tools::buildVignette("intro-heteroscedasticity.Rmd")
+
+library(devtools)
+build_vignettes()
+-->
+
+```{r, echo=FALSE}
+library(knitr)
+knitr::opts_chunk$set(fig.width=6, fig.height=5, fig.align="center",
+                      global.par=TRUE)
+par(mar=c(5, 4, 2, 0.5))
+```
+
+
+# Preamble
+
+License: [CC BY-SA 4.0](http://creativecommons.org/licenses/by-sa/4.0/)
+
+References:
+
+* [Pinheiro & Bates (2000)](http://dx.doi.org/10.1007/b98882): "Mixed-effects models in S and S-PLUS"
+
+* [Galecki and Burzykowski (2013)](dx.doi.org/10.1007/978-1-4614-3900-4): "Linear mixed-effects models using R: a step-by-step approach"
+
+External packages:
+
+```{r load_pkg}
+library(rutilstimflutre)
+library(nlme)
+library(lme4)
+library(lattice)
+```
+
+This R chunk is used to assess how much time it takes to execute the R code in this document until the end:
+```{r time_0}
+t0 <- proc.time()
+```
+
+
+# Generative model
+
+Goal: study the genotype-phenotype map
+
+Notations:
+
+* $g \in \{1,\ldots,G\}$: index of the genotype (assuming a plant species whose genotypes can be vegetatively multipled, hence cloned and planted in multiple blocks)
+
+* $b \in \{1,\ldots,B\}$: index of the block (field plots often are divided into multiple blocks to handle spatial heterogeneity)
+
+* $y_{gb}$: observed value (phenotype) of the $g$-th genotype in the $b$-th block
+
+* $\beta_b$: fixed effect of the $b$-th block
+
+* $\mu$: global intercept
+
+* $u_g$: random effect of the $g$-th genotype
+
+Likelihood:
+
+\[
+y_{gb} = \mu + \beta_b + u_g + \epsilon_{gb} \text{ where } \epsilon_{gb} \sim \mathcal{N}(0, \sigma_b^2) \text{ and } u_g \sim \mathcal{N}(0, \sigma_u^2)
+\]
+
+This model is heteroscedastic as the errors have different variances depending on the block, e.g. $\sigma_{b=1}$ may be different from $\sigma_{b=2}$.
+
+
+# Data simulation
+
+```{r}
+set.seed(1859)
+B <- 5
+G <- 10^3
+dat <- data.frame(block=rep(LETTERS[1:B], each=G),
+                  geno=rep(paste0("g", 1:G), B),
+                  y=NA)
+X <- model.matrix(~ 1 + block, data=dat)
+mu <- 50
+beta <- c(mu, rnorm(n=B-1, mean=0, sd=3))
+Z <- model.matrix(~ -1 + geno, data=dat)
+sigma.u <- 2
+u <- rnorm(n=G, mean=0, sd=sigma.u)
+(sigma.b <- setNames(sample(1:B), levels(dat$block)))
+epsilon <- do.call(c, lapply(sigma.b, function(sd.b){
+  rnorm(n=G, mean=0, sd=sd.b)
+}))
+dat$y <- X %*% beta + Z %*% u + epsilon
+```
+
+
+# Data exploration
+
+Descriptive stats:
+```{r}
+(tmp <- do.call(rbind, tapply(dat$y, dat$block, function(y.b){
+  c(mean=mean(y.b), sd=sd(y.b))
+})))
+```
+
+Visualization:
+```{r}
+boxplot(y ~ block, data=dat, las=1, varwidth=TRUE,
+        xlab="blocks", ylab="phenotypes", main="Simulated data")
+abline(h=mean(dat$y), lty=2)
+```
+
+
+# Model fit and diagnostics
+
+For some fitting functions, before using them, we need to reorder the data according to block variances:
+```{r}
+(new.order <- rownames(tmp)[order(tmp[,"sd"])])
+idx <- do.call(c, lapply(new.order, function(b){
+  which(dat$block == b)
+}))
+dat2 <- dat[idx,]
+```
+
+## With `gls` ignoring genotype effects
+
+The `gls` function from the `nlme` package, performing inference via generalized least squares, can't handle random effects.
+
+```{r}
+fit.gls <- nlme::gls(model=y ~ 1 + block, data=dat2,
+                     weights=varIdent(form=~1|block))
+beta.hat <- coef(fit.gls)
+cbind(beta, beta.hat)
+sigma.b.hat <- c(1, exp(coef(fit.gls$modelStruct$varStruct)))
+cbind(sigma.b[new.order], sigma.b.hat)
+summary(fit.gls)
+scaled.residuals <- residuals(fit.gls) / rep(sigma.b.hat, each=G)
+plot(x=scaled.residuals, main="Diagnostics gls",
+     y=jitter(fitted(fit.gls)), las=1)
+abline(v=c(-2,0,2), lty=2)
+tmp <- cbind(dat2, scaled.residuals)
+boxplot(scaled.residuals ~ block, data=dat2, las=1, varwidth=TRUE,
+        xlab="scaled residuals", ylab="blocks", horizontal=TRUE,
+        main="Diagnostics gls")
+abline(v=c(-2,0,2), lty=2)
+lattice::dotplot(geno ~ scaled.residuals, data=tmp,
+                 main="Diagnostics gls",
+                 panel=function(x,y,...){
+                   panel.dotplot(x,y,...)
+                   panel.abline(v=c(-2,0,2), lty=2)
+                 })
+```
+
+The residuals per block look fine, which is expected as the heteroscedasticity was taken into account.
+
+The residuals per genotype look overdispersed, which is expected as the genotypic variance wasn't taken into account.
+
+
+## With `lmer` assuming homoscedasticity
+
+The `lmer` function from the `lme4` package, performing inference via ReML, can't handle heteroscedasticity.
+
+```{r}
+fit.lmer.hom <- lme4::lmer(formula=y ~ 1 + block + (1|geno), data=dat2)
+beta.hat <- fixef(fit.lmer.hom)
+cbind(beta, beta.hat)
+sigma(fit.lmer.hom)
+summary(fit.lmer.hom)
+scaled.residuals <- residuals(fit.lmer.hom) / sigma(fit.lmer.hom)
+plot(x=scaled.residuals, main="Diagnostics lmer",
+     y=fitted(fit.lmer.hom), las=1)
+abline(v=c(-2,0,2), lty=2)
+tmp <- cbind(dat2, scaled.residuals)
+boxplot(scaled.residuals ~ block, data=dat2, las=1, varwidth=TRUE,
+        xlab="scaled residuals", ylab="blocks", horizontal=TRUE,
+         main="Diagnostics lmer")
+abline(v=c(-2,0,2), lty=2)
+lattice::dotplot(geno ~ scaled.residuals, data=tmp,
+                  main="Diagnostics lmer",
+                 panel=function(x,y,...){
+                   panel.dotplot(x,y,...)
+                   panel.abline(v=c(-2,0,2), lty=2)
+                 })
+```
+
+The residuals clearly have different variances depending on the blocks, which is expected as heteroscedasticity wasn't taken into account.
+
+The residuals per genotype look fine, as expected thanks to the genotypic variance component.
+
+
+## With `lme` assuming heteroscedasticity
+
+The `lme` function from the `lme4` package, performing inference via ReML, can handle both random effects and heteroscedasticity.
+
+```{r, fig.width=12}
+fit.lme.het <- nlme::lme(fixed=y ~ 1 + block, random=~1|geno,
+                         weights=varIdent(form=~1|block),
+                         data=dat2)
+beta.hat <- fixef(fit.lme.het)
+cbind(beta, beta.hat)
+sigma.b.hat <- c(1, exp(coef(fit.lme.het$modelStruct$varStruct)))
+cbind(sigma.b[new.order], sigma.b.hat)
+summary(fit.lme.het)
+scaled.residuals <- residuals(fit.lme.het) / rep(sigma.b.hat, each=G)
+plot(x=scaled.residuals, main="Diagnostics lme",
+     y=fitted(fit.lme.het), las=1)
+abline(v=c(-2,0,2), lty=2)
+tmp <- cbind(dat2, scaled.residuals)
+boxplot(scaled.residuals ~ block, data=dat2, las=1, varwidth=TRUE,
+        xlab="scaled residuals", ylab="blocks", horizontal=TRUE,
+        main="Diagnostics lme")
+abline(v=c(-2,0,2), lty=2)
+lattice::dotplot(geno ~ scaled.residuals, data=tmp,
+                 main="Diagnostics lme",
+                 panel=function(x,y,...){
+                   panel.dotplot(x,y,...)
+                   panel.abline(v=c(-2,0,2), lty=2)
+                 })
+```
+
+Residuals per block and per genotype look fine, as expected (except maybe for block "A", as well as a few genotype outliers?).
+
+
+# More flexible alternative
+
+The `lme4` and `nlme` packages used above are powerful, but not as flexible as other packages when it comes to deal with missing responses or fat-tail error distribution.
+This is partly due to the fact that they implement the [ReML algorithm](https://en.wikipedia.org/wiki/Restricted_maximum_likelihood) only for a specific subset of all possible regression models.
+An alternative is to choose the Bayesian paradigm, and perform inference via the [Gibbs simpler](https://en.wikipedia.org/wiki/Gibbs_sampling) (with `rjags`) or the [HMC algorithm](https://en.wikipedia.org/wiki/Hybrid_Monte_Carlo) (with `rstan`).
+
+TODO: try `rstan`
+
+
+# Appendix
+
+```{r info}
+t1 <- proc.time()
+t1 - t0
+print(sessionInfo(), locale=FALSE)
+```
