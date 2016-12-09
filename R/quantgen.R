@@ -65,7 +65,7 @@ alleles2dose <- function(x, na.string="--", verbose=1){
 
 ##' JoinMap/MapQTL to R/qtl
 ##'
-##' Return the correspondence between the "segregation" format used by JoinMap and the one used by \href{https://cran.r-project.org/package=qtl}{qtl}.
+##' Return the correspondence in terms of genotype coding between the "segregation" format used by \href{https://www.kyazma.nl/index.php/JoinMap/}{JoinMap} and the one used by \href{https://cran.r-project.org/package=qtl}{qtl}.
 ##' @return data.frame
 ##' @author Timothee Flutre
 ##' @export
@@ -77,7 +77,7 @@ segregJoinMap2Qtl <- function(){
                rep("efxeg", 4),
                rep("hkxhk", 4)),
       phase=c("0-", "1-",
-              "-0", "1",
+              "-0", "-1",
               "00", "01", "10", "11",
               "00", "01", "10", "11",
               "00", "01", "10", "11"),

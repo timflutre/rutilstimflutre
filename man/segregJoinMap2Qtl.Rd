@@ -10,7 +10,7 @@ segregJoinMap2Qtl()
 data.frame
 }
 \description{
-Return the correspondence between the "segregation" format used by JoinMap and the one used by \href{https://cran.r-project.org/package=qtl}{qtl}.
+Return the correspondence in terms of genotype coding between the "segregation" format used by \href{https://www.kyazma.nl/index.php/JoinMap/}{JoinMap} and the one used by \href{https://cran.r-project.org/package=qtl}{qtl}.
 }
 \author{
 Timothee Flutre
