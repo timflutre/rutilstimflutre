@@ -31,7 +31,7 @@ library(devtools)
 build_vignettes()
 -->
 
-```{r, echo=FALSE}
+```{r knitr_setup, echo=FALSE}
 library(knitr)
 knitr::opts_chunk$set(fig.width=6, fig.height=5, fig.align="center",
                       global.par=TRUE)
@@ -49,13 +49,17 @@ References:
 
 * [Galecki and Burzykowski (2013)](dx.doi.org/10.1007/978-1-4614-3900-4): "Linear mixed-effects models using R: a step-by-step approach"
 
+* [Carpenter et al (2016)](http://www.stat.columbia.edu/~gelman/research/unpublished/stan-resubmit-JSS1293.pdf): "Stan: a probabilistic programming language"
+
 External packages:
 
 ```{r load_pkg}
 library(rutilstimflutre)
+library(lattice)
 library(nlme)
 library(lme4)
-library(lattice)
+library(rstan)
+library(loo)
 ```
 
 This R chunk is used to assess how much time it takes to execute the R code in this document until the end:
@@ -64,23 +68,23 @@ t0 <- proc.time()
 ```
 
 
-# Generative model
+# Model
 
 Goal: study the genotype-phenotype map
 
 Notations:
 
-* $g \in \{1,\ldots,G\}$: index of the genotype (assuming a plant species whose genotypes can be vegetatively multipled, hence cloned and planted in multiple blocks)
+* $g \in \{1,\ldots,G\}$: index of the genotype (assuming a plant species whose genotypes can be vegetatively multipled, hence cloned and planted in multiple blocks, such as perennial crops)
 
 * $b \in \{1,\ldots,B\}$: index of the block (field plots often are divided into multiple blocks to handle spatial heterogeneity)
 
 * $y_{gb}$: observed value (phenotype) of the $g$-th genotype in the $b$-th block
 
-* $\beta_b$: fixed effect of the $b$-th block
+* $\beta_b$: fixed-effect parameter of the $b$-th block
 
 * $\mu$: global intercept
 
-* $u_g$: random effect of the $g$-th genotype
+* $u_g$: random variable corresponding to the $g$-th genotype
 
 Likelihood:
 
@@ -88,166 +92,484 @@ Likelihood:
 y_{gb} = \mu + \beta_b + u_g + \epsilon_{gb} \text{ where } \epsilon_{gb} \sim \mathcal{N}(0, \sigma_b^2) \text{ and } u_g \sim \mathcal{N}(0, \sigma_u^2)
 \]
 
-This model is heteroscedastic as the errors have different variances depending on the block, e.g. $\sigma_{b=1}$ may be different from $\sigma_{b=2}$.
+This model is heteroscedastic as the errors have different variances depending on the block, that is, $\sigma_{b=1}$ may be different from $\sigma_{b=2}$, etc.
+
+With real data, it is not that rare to have large errors ("outliers"), which would call for a more robust noise model, e.g. with the Student's $t$ distribution, $\epsilon_{gb} \sim t(\nu, 0, \sigma_b^2)$ which, when the number of degrees of freedom $\nu \rightarrow + \infty$, falls back to a Normal.
+
+Moreover, it is also frequent to have missing data, which inbalances the design.
 
 
-# Data simulation
+# Simulation
 
-```{r}
+```{r simul}
 set.seed(1859)
-B <- 5
-G <- 10^3
+B <- 3
+G <- 2.5*10^2
+head(geno.ids <- sprintf(fmt=paste0("g%0", floor(log10(G)) + 1, "i"), 1:G))
 dat <- data.frame(block=rep(LETTERS[1:B], each=G),
-                  geno=rep(paste0("g", 1:G), B),
-                  y=NA)
+                  geno=rep(geno.ids, B))
 X <- model.matrix(~ 1 + block, data=dat)
 mu <- 50
-beta <- c(mu, rnorm(n=B-1, mean=0, sd=3))
+(beta <- c(mu, rnorm(n=B-1, mean=0, sd=3)))
 Z <- model.matrix(~ -1 + geno, data=dat)
-sigma.u <- 2
-u <- rnorm(n=G, mean=0, sd=sigma.u)
-(sigma.b <- setNames(sample(1:B), levels(dat$block)))
+sigma.u <- 4
+u <- setNames(rnorm(n=G, mean=0, sd=sigma.u), geno.ids)
+(sigma.b <- setNames(sample(1:8, size=B, replace=ifelse(8 < B, TRUE, FALSE)),
+                     levels(dat$block)))
+nu <- + Inf
 epsilon <- do.call(c, lapply(sigma.b, function(sd.b){
-  rnorm(n=G, mean=0, sd=sd.b)
+  if(is.infinite(nu)){
+    rnorm(n=G, mean=0, sd=sd.b)
+  } else
+    rt(n=G, df=nu, ncp=sd.b)
 }))
 dat$y <- X %*% beta + Z %*% u + epsilon
+str(dat)
 ```
+
+Don't hesitate to play by changing some values, e.g. increasing or decreasing $B$ and/or $G$, setting $\sigma_u$ at 0 or not, setting $\nu$ at $+\infty$ or not, etc.
 
 
 # Data exploration
 
 Descriptive stats:
-```{r}
+```{r desc_stat}
 (tmp <- do.call(rbind, tapply(dat$y, dat$block, function(y.b){
   c(mean=mean(y.b), sd=sd(y.b))
 })))
 ```
 
 Visualization:
-```{r}
+```{r visual}
 boxplot(y ~ block, data=dat, las=1, varwidth=TRUE,
-        xlab="blocks", ylab="phenotypes", main="Simulated data")
+        xlab="blocks", ylab="phenotypes",
+        main=paste0("Simulated data (nu=", nu,
+                    ", sigma_u=", format(sigma.u, digits=2), ")"))
 abline(h=mean(dat$y), lty=2)
 ```
 
 
 # Model fit and diagnostics
 
+<!--
 For some fitting functions, before using them, we need to reorder the data according to block variances:
-```{r}
+```{r reorder}
 (new.order <- rownames(tmp)[order(tmp[,"sd"])])
 idx <- do.call(c, lapply(new.order, function(b){
   which(dat$block == b)
 }))
 dat2 <- dat[idx,]
 ```
+-->
 
-## With `gls` ignoring genotype effects
+## Useful function
 
-The `gls` function from the `nlme` package, performing inference via generalized least squares, can't handle random effects.
+For diagnostics:
 
-```{r}
-fit.gls <- nlme::gls(model=y ~ 1 + block, data=dat2,
-                     weights=varIdent(form=~1|block))
+```{r diagno_fct}
+diagnose <- function(fit.name, tmp){
+  message("variance of all residuals:")
+  print(var(tmp$scaled.residuals))
+  message("variance of the residuals per block:")
+  print(tapply(tmp$scaled.residuals, tmp$block, function(res.b){
+    var(res.b)
+  }))
+  message("outliers among all residuals:")
+  print(c("<-2"=sum(tmp$scaled.residuals < - 2), ">+2"=sum(tmp$scaled.residuals > 2)))
+  message("outliers among residuals per block:")
+  print(do.call(rbind, tapply(tmp$scaled.residuals, tmp$block, function(res.b){
+    c("<-2"=sum(res.b < -2), ">+2"=sum(res.b > 2))
+  })))
+  plot(x=tmp$scaled.residuals,
+       y=tmp$y.hat, las=1,
+       main=paste0("Diagnostics ", fit.name),
+       xlab="scaled residuals",
+       ylab="y.hat")
+  abline(v=c(-2,0,2), lty=2)
+  boxplot(scaled.residuals ~ block, data=tmp, las=1, varwidth=TRUE,
+          xlab="scaled residuals", ylab="blocks", horizontal=TRUE,
+          main=paste0("Diagnostics ", fit.name))
+  abline(v=c(-2,0,2), lty=2)
+  dotplot(geno ~ scaled.residuals, data=tmp,
+          main=paste0("Diagnostics ", fit.name),
+          panel=function(x,y,...){
+            panel.dotplot(x,y,...)
+            panel.abline(v=c(-2,0,2), lty=2)
+          })
+  regplot(x=tmp$y, y=tmp$y.hat,
+          reg=c("lm","rlm"), col=c(lm="red",rlm="blue"), pred.int=FALSE,
+          asp=1, las=1,
+          main=paste0("Diagnostics ", fit.name),
+          xlab="y", ylab="y.hat", legend.x="bottomright")
+  abline(a=0, b=1, lty=2)
+  abline(v=mean(tmp$y), h=mean(tmp$y.hat), lty=2)
+}
+```
+
+For inference:
+```{r useful_infer}
+u.sort.desc <- sort(u, decreasing=TRUE)
+perc.threshold <- 10
+true.best.genos <- names(u.sort.desc)[1:ceiling(perc.threshold/100 * G)]
+summary(u[true.best.genos])
+```
+
+
+## `gls`
+
+### Model fit
+
+The `gls` function from the `nlme` package performs inference via generalized least squares, but can't handle random variables.
+
+```{r gls_fit}
+fit.gls <- gls(model=y ~ 1 + block, data=dat,
+               weights=varIdent(form=~1|block))
 beta.hat <- coef(fit.gls)
-cbind(beta, beta.hat)
-sigma.b.hat <- c(1, exp(coef(fit.gls$modelStruct$varStruct)))
-cbind(sigma.b[new.order], sigma.b.hat)
-summary(fit.gls)
+sigma.b.hat <- c(1, exp(coef(fit.gls$modelStruct$varStruct))) * fit.gls$sigma
 scaled.residuals <- residuals(fit.gls) / rep(sigma.b.hat, each=G)
-plot(x=scaled.residuals, main="Diagnostics gls",
-     y=jitter(fitted(fit.gls)), las=1)
-abline(v=c(-2,0,2), lty=2)
-tmp <- cbind(dat2, scaled.residuals)
-boxplot(scaled.residuals ~ block, data=dat2, las=1, varwidth=TRUE,
-        xlab="scaled residuals", ylab="blocks", horizontal=TRUE,
-        main="Diagnostics gls")
-abline(v=c(-2,0,2), lty=2)
-lattice::dotplot(geno ~ scaled.residuals, data=tmp,
-                 main="Diagnostics gls",
-                 panel=function(x,y,...){
-                   panel.dotplot(x,y,...)
-                   panel.abline(v=c(-2,0,2), lty=2)
-                 })
+y.hat <- fitted(fit.gls)
+tmp <- cbind(dat, scaled.residuals, y.hat)
 ```
 
-The residuals per block look fine, which is expected as the heteroscedasticity was taken into account.
+### Model comparison and selection
 
-The residuals per genotype look overdispersed, which is expected as the genotypic variance wasn't taken into account.
+```{r gls_modcomp}
+AIC(fit.gls)
+```
+
+### Diagnostics
+
+```{r gls_diagno}
+diagnose("gls", tmp)
+```
+
+### Inference
+
+```{r gls_infer}
+summary(fit.gls)
+cbind(beta, beta.hat, confint(fit.gls))
+cbind(sigma.b, sigma.b.hat)
+```
 
 
-## With `lmer` assuming homoscedasticity
+## `lmer`
 
-The `lmer` function from the `lme4` package, performing inference via ReML, can't handle heteroscedasticity.
+### Model fit
 
-```{r}
-fit.lmer.hom <- lme4::lmer(formula=y ~ 1 + block + (1|geno), data=dat2)
+The `lmer` function from the `lme4` package performs inference via ReML and handle random variables, but can't handle heteroscedasticity.
+
+```{r lmer_fit}
+fit.lmer.hom <- lmer(formula=y ~ 1 + block + (1|geno), data=dat)
 beta.hat <- fixef(fit.lmer.hom)
-cbind(beta, beta.hat)
+u.hat <- setNames(ranef(fit.lmer.hom)$geno[,"(Intercept)"],
+                  rownames(ranef(fit.lmer.hom)$geno))[names(u)]
+sigma.u.hat <- sqrt(VarCorr(fit.lmer.hom)$geno[1])
 sigma(fit.lmer.hom)
-summary(fit.lmer.hom)
 scaled.residuals <- residuals(fit.lmer.hom) / sigma(fit.lmer.hom)
-plot(x=scaled.residuals, main="Diagnostics lmer",
-     y=fitted(fit.lmer.hom), las=1)
-abline(v=c(-2,0,2), lty=2)
-tmp <- cbind(dat2, scaled.residuals)
-boxplot(scaled.residuals ~ block, data=dat2, las=1, varwidth=TRUE,
-        xlab="scaled residuals", ylab="blocks", horizontal=TRUE,
-         main="Diagnostics lmer")
-abline(v=c(-2,0,2), lty=2)
-lattice::dotplot(geno ~ scaled.residuals, data=tmp,
-                  main="Diagnostics lmer",
-                 panel=function(x,y,...){
-                   panel.dotplot(x,y,...)
-                   panel.abline(v=c(-2,0,2), lty=2)
-                 })
+y.hat <- fitted(fit.lmer.hom)
+tmp <- cbind(dat, scaled.residuals, y.hat)
 ```
 
-The residuals clearly have different variances depending on the blocks, which is expected as heteroscedasticity wasn't taken into account.
+### Model comparison and selection
 
-The residuals per genotype look fine, as expected thanks to the genotypic variance component.
+```{r lmer_modcomp}
+extractAIC(fit.lmer.hom)
+```
+
+### Diagnostics
+
+```{r lmer_diagno}
+diagnose("lmer", tmp)
+```
+
+### Inference
+
+```{r lmer_infer}
+summary(fit.lmer.hom)
+cbind(beta, beta.hat, confint(fit.lmer.hom, parm="beta_", quiet=TRUE))
+if(sigma.u > 0){
+  print(c(sigma.u, sigma.u.hat))
+  regplot(x=u, y=u.hat, pred.int=FALSE, asp=1, las=1,
+          main="Diagnostics lmer", xlab="u", ylab="u.hat", legend.x="bottomright")
+  abline(a=0, b=1, lty=2); abline(v=0, h=0, lty=2)
+  u.hat.sort.desc <- sort(u.hat, decreasing=TRUE)
+  pred.best.genos <- names(u.hat.sort.desc)[1:ceiling(0.1*G)]
+  message(paste0("genotypes predicted to be among the ",
+                 perc.threshold, "% best: ",
+                 sum(pred.best.genos %in% true.best.genos), "/",
+                 length(true.best.genos)))
+}
+```
 
 
-## With `lme` assuming heteroscedasticity
+## `lme`
 
-The `lme` function from the `lme4` package, performing inference via ReML, can handle both random effects and heteroscedasticity.
+### Model fit
 
-```{r, fig.width=12}
-fit.lme.het <- nlme::lme(fixed=y ~ 1 + block, random=~1|geno,
-                         weights=varIdent(form=~1|block),
-                         data=dat2)
+The `lme` function from the `nlme` package performs inference via ReML, and can handle both random variables and heteroscedasticity.
+
+```{r lme_fit}
+fit.lme.het <- lme(fixed=y ~ 1 + block, random=~1|geno,
+                   weights=varIdent(form=~1|block),
+                   data=dat)
 beta.hat <- fixef(fit.lme.het)
-cbind(beta, beta.hat)
-sigma.b.hat <- c(1, exp(coef(fit.lme.het$modelStruct$varStruct)))
-cbind(sigma.b[new.order], sigma.b.hat)
-summary(fit.lme.het)
+u.hat <- setNames(ranef(fit.lme.het)[,"(Intercept)"],
+                  rownames(ranef(fit.lme.het)))[names(u)]
+sigma.u.hat <- as.numeric(VarCorr(fit.lme.het)[1, "StdDev"])
+sigma.b.hat <- c(1, exp(coef(fit.lme.het$modelStruct$varStruct))) *
+  fit.lme.het$sigma
 scaled.residuals <- residuals(fit.lme.het) / rep(sigma.b.hat, each=G)
-plot(x=scaled.residuals, main="Diagnostics lme",
-     y=fitted(fit.lme.het), las=1)
-abline(v=c(-2,0,2), lty=2)
-tmp <- cbind(dat2, scaled.residuals)
-boxplot(scaled.residuals ~ block, data=dat2, las=1, varwidth=TRUE,
-        xlab="scaled residuals", ylab="blocks", horizontal=TRUE,
-        main="Diagnostics lme")
-abline(v=c(-2,0,2), lty=2)
-lattice::dotplot(geno ~ scaled.residuals, data=tmp,
-                 main="Diagnostics lme",
-                 panel=function(x,y,...){
-                   panel.dotplot(x,y,...)
-                   panel.abline(v=c(-2,0,2), lty=2)
-                 })
+y.hat <- fitted(fit.lme.het)
+tmp <- cbind(dat, scaled.residuals, y.hat)
 ```
 
-Residuals per block and per genotype look fine, as expected (except maybe for block "A", as well as a few genotype outliers?).
+### Model comparison and selection
+
+```{r lme_modcomp}
+AIC(fit.lme.het)
+```
+
+### Diagnostics
+
+```{r lme_diagno}
+diagnose("lme", tmp)
+```
+
+### Inference
+
+```{r lme_infer}
+summary(fit.lme.het)
+cbind(beta, beta.hat,
+      intervals(fit.lme.het, which="fixed")$fixed[,c("lower","upper")])
+cbind(sigma.b, sigma.b.hat)
+if(sigma.u > 0){
+  print(c(sigma.u, sigma.u.hat))
+  print(c(cor(u, u.hat, method="pearson"), cor(u, u.hat, method="spearman")))
+  regplot(x=u, y=u.hat, pred.int=FALSE, asp=1, las=1,
+          main="Diagnostics lme", xlab="u", ylab="u.hat", legend.x="bottomright")
+  abline(a=0, b=1, lty=2); abline(v=0, h=0, lty=2)
+  u.hat.sort.desc <- sort(u.hat, decreasing=TRUE)
+  pred.best.genos <- names(u.hat.sort.desc)[1:ceiling(0.1*G)]
+  message(paste0("genotypes predicted to be among the ",
+                 perc.threshold, "% best: ",
+                 sum(pred.best.genos %in% true.best.genos), "/",
+                 length(true.best.genos)))
+}
+```
 
 
-# More flexible alternative
+## `inla`
 
-The `lme4` and `nlme` packages used above are powerful, but not as flexible as other packages when it comes to deal with missing responses or fat-tail error distribution.
-This is partly due to the fact that they implement the [ReML algorithm](https://en.wikipedia.org/wiki/Restricted_maximum_likelihood) only for a specific subset of all possible regression models.
-An alternative is to choose the Bayesian paradigm, and perform inference via the [Gibbs simpler](https://en.wikipedia.org/wiki/Gibbs_sampling) (with `rjags`) or the [HMC algorithm](https://en.wikipedia.org/wiki/Hybrid_Monte_Carlo) (with `rstan`).
+TODO
 
-TODO: try `rstan`
+### Model fit
+
+The `inla` function from the `INLA` package performs inference via the "integrated nested Laplace approximation", and can handle both random variables and heteroscedasticity.
+
+```{r inla_fit, eval=TRUE}
+dat.inla <- list(block=dat$block,
+                 geno=dat$geno,
+                 Y=matrix(NA, nrow=nrow(dat), ncol=nlevels(dat$block)))
+for(b in 1:nlevels(dat$block)){
+  block <- levels(dat$block)[b]
+  idx <- which(dat$block == block)
+  dat.inla$Y[idx, b] <- dat$y[idx]
+}
+fit.inla <- inla(formula=Y ~ 1 + block + f(geno, model="iid"),
+                 data=dat.inla,
+                 family=rep("gaussian", nlevels(dat$block)),
+                 control.compute=list(waic=TRUE))
+beta.hat <- fit.inla$summary.fixed[,"mean"]
+u.hat <- setNames(fit.inla$summary.random$geno[,"mean"],
+                  fit.inla$summary.random$geno[,"ID"])
+sigma.u.hat <- 1 / sqrt(fit.inla$summary.hyperpar[B+1, "mean"])
+sigma.b.hat <- 1 / sqrt(fit.inla$summary.hyperpar[1:B, "mean"])
+y.hat <- fit.inla$summary.linear.predictor[,"mean"]
+residuals <- dat$y - y.hat
+scaled.residuals <- residuals / rep(sigma.b.hat, each=G)
+tmp <- cbind(dat, scaled.residuals, y.hat)
+```
+
+### Model comparison and selection
+
+```{r inla_modcomp, eval=TRUE}
+c(fit.inla$waic$p.eff, fit.inla$waic$waic)
+```
+
+### Diagnostics
+
+```{r inla_diagno, eval=TRUE}
+diagnose("inla", tmp)
+```
+
+### Inference
+
+```{r inla_infer, eval=TRUE}
+summary(fit.inla)
+cbind(beta, beta.hat,
+      do.call(rbind, lapply(fit.inla$marginals.fixed, function(x){
+        matrix(inla.hpdmarginal(0.95, x), 1, 2,
+               dimnames=list(NULL, c("2.5 %"," 97.5 %")))
+      })))
+cbind(sigma.b, sigma.b.hat,
+      do.call(rbind, lapply(fit.inla$marginals.hyperpar[1:B], function(x){
+        setNames(rev(1 / sqrt(inla.hpdmarginal(0.95, x))),
+                 c("2.5 %"," 97.5 %"))
+      })))
+if(sigma.u > 0){
+  print(setNames(c(sigma.u, sigma.u.hat,
+                   rev(1 / sqrt(inla.hpdmarginal(0.95,
+                                                 fit.inla$marginals.hyperpar[[B+1]])))),
+                 c("sigma.u", "sigma.u.hat", "2.5 %", " 97.5 %")))
+  print(c(cor(u, u.hat, method="pearson"), cor(u, u.hat, method="spearman")))
+  regplot(x=u, y=u.hat, pred.int=FALSE, asp=1, las=1,
+          main="Diagnostics inla", xlab="u", ylab="u.hat", legend.x="bottomright")
+  abline(a=0, b=1, lty=2); abline(v=0, h=0, lty=2)
+  u.hat.sort.desc <- sort(u.hat, decreasing=TRUE)
+  pred.best.genos <- names(u.hat.sort.desc)[1:ceiling(0.1*G)]
+  message(paste0("genotypes predicted to be among the ",
+                 perc.threshold, "% best: ",
+                 sum(pred.best.genos %in% true.best.genos), "/",
+                 length(true.best.genos)))
+}
+```
+
+
+## `stan`
+
+### Model fit
+
+The `stan` function from the `rstan` package performs inference via HMC, and can handle both random variables and heteroscedasticity.
+
+```{r stan_fit, eval=FALSE}
+stan.model.spec <- "
+data {
+  int<lower=0> N;
+  int<lower=0> G;
+  int<lower=0> B;
+  vector[N] y;
+  matrix[N, B] X;
+  matrix[N, G] Z;
+  real loc_mu;
+  real<lower=0> scale_mu;
+  real<lower=0> nu;
+  int idx_block[N];
+}
+parameters {
+  vector[B] beta;
+  vector[G] u;
+  vector[B] sigma_e;
+  real<lower=0> sigma_u;
+}
+model {
+  int idx_lo;
+  int idx_up;
+  vector[G] mean_u;
+  mean_u = rep_vector(0, G);
+
+  beta[1] ~ cauchy(loc_mu, scale_mu);
+  for(b in 2:B)
+    beta[b] ~ cauchy(0, 5);
+  sigma_u ~ cauchy(0, 5);
+  u ~ normal(mean_u, sigma_u);
+  for(b in 1:B){
+    sigma_e[b] ~ cauchy(0, 5);
+    idx_lo = 1 + (b-1) * G;
+    idx_up = (b-1) * G + G;
+    if(is_inf(nu)){
+      y[idx_lo:idx_up] ~ normal(X[idx_lo:idx_up,] * beta + Z[idx_lo:idx_up,] * u,
+                                sigma_e[b]);
+    } else
+      y[idx_lo:idx_up] ~ student_t(nu, X[idx_lo:idx_up,] * beta + Z[idx_lo:idx_up,] * u,
+                                   sigma_e[b]);
+  }
+}
+generated quantities {
+  vector[N] fitted;
+  vector[N] log_lik;
+  fitted = X * beta + Z * u;
+  for(n in 1:N){
+    if(is_inf(nu)){
+      log_lik[n] = normal_lpdf(y[n] | X[n,] * beta + Z[n,] * u,
+                                      sigma_e[idx_block[n]]);
+    } else
+      log_lik[n] = student_t_lpdf(y[n] | nu, X[n,] * beta + Z[n,] * u,
+                                         sigma_e[idx_block[n]]);
+  }
+}
+"
+
+dat.stan <- list(N=G*B, G=G, B=B, y=dat$y[,1], X=X, Z=Z,
+                 loc_mu=0, scale_mu=mean(dat$y), nu=5,
+                 idx_block=as.numeric(dat$block))
+nb.chains <- 2
+burnin <- 1 * 10^3
+thin <- 10
+nb.usable.iters <- 2 * 10^3
+nb.iters <- ceiling(burnin + (nb.usable.iters * thin) / nb.chains)
+fit.stan <- stan(data=dat.stan, model_code=stan.model.spec,
+                 chains=nb.chains, iter=nb.iters, warmup=burnin, thin=thin,
+                 verbose=FALSE, refresh=0)
+beta.hat <- colMeans(extract(fit.stan, pars="beta")$beta)
+u.hat <- colMeans(extract(fit.stan, pars="u")$u)
+sigma.u.hat <- mean(extract(fit.stan, pars="sigma_u")$sigma_u)
+sigma.b.hat <- colMeans(extract(fit.stan, pars="sigma_e")$sigma_e)
+y.hat <- colMeans(extract(fit.stan, "fitted")$fitted)
+residuals <- dat$y - y.hat
+scaled.residuals <- residuals / rep(sigma.b.hat, each=G)
+tmp <- cbind(dat, scaled.residuals, y.hat)
+```
+
+The [shinystan](https://cran.r-project.org/package=shinystan) package can help a lot when inspecting the output `fit.stan` to check that the chains converged.
+
+To use a robust noise model, we can simply replace `normal` by `student_t`, with the number of degrees of freedom being passed as data.
+
+To jointly estimate parameters and predict (impute) missing responses, we can simply add a second response vector: `y_miss ~ normal(X_miss * beta + Z_miss * u, sigma_e[b])`.
+
+### Model comparison and selection
+
+```{r stan_modcomp, eval=FALSE}
+loo(extract_log_lik(fit.stan))
+waic(extract_log_lik(fit.stan))
+```
+
+### Diagnostics
+
+Check first if we have convergence (the true value is indicated in red on the plots):
+```{r stan_convergence, eval=FALSE}
+summary(summary(fit.stan)$summary[, c("n_eff","Rhat")])
+res.mcmc <- As.mcmc.list(object=fit.stan,
+                         pars=names(fit.stan)[c(grep("beta", names(fit.stan)),
+                                                grep("sigma", names(fit.stan)))])
+plotMcmcChain(res.mcmc[[1]], "sigma_u", pe=sigma.u)
+for(b in 1:B)
+  plotMcmcChain(res.mcmc[[1]], paste0("sigma_e[",b,"]"), pe=sigma.b[b])
+```
+
+```{r stan_diagno, eval=FALSE}
+diagnose("stan", tmp)
+```
+
+### Inference
+
+```{r stan_infer, eval=FALSE}
+cbind(beta, beta.hat)
+cbind(sigma.b, sigma.b.hat)
+c(sigma.u, sigma.u.hat)
+c(cor(u, u.hat, method="pearson"), cor(u, u.hat, method="spearman"))
+print(fit.stan,
+      pars=names(fit.stan)[c(grep("beta", names(fit.stan)),
+                             grep("sigma", names(fit.stan)))],
+      probs=c(0.025, 0.5, 0.95))
+plot(fit.stan,
+     pars=names(fit.stan)[grep("sigma", names(fit.stan))])
+pairs(fit.stan,
+      pars=names(fit.stan)[c(grep("beta", names(fit.stan)),
+                             grep("sigma", names(fit.stan)))])
+regplot(x=u, y=u.hat, pred.int=FALSE, asp=1, las=1,
+        main="Diagnostics stan", xlab="u", ylab="u.hat", legend.x="bottomright")
+abline(a=0, b=1, lty=2); abline(v=0, h=0, lty=2)
+```
 
 
 # Appendix

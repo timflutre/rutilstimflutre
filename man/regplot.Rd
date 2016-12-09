@@ -4,30 +4,50 @@
 \alias{regplot}
 \title{Scatter plot with regression lines}
 \usage{
-regplot(x, y, reg = "lm", ...)
+regplot(x, y, reg = "lm", col = c(lm = "red"), show.cor = TRUE,
+  ci.int = TRUE, pred.int = TRUE, legend.x = "right", legend.y = NULL,
+  ...)
 }
 \arguments{
-\item{x}{vector (missing data coded as NA will be automatically discarded)}
+\item{x}{vector or 1-column matrix (missing data coded as NA will be automatically discarded)}
 
-\item{y}{vector (missing data coded as NA will be automatically discarded)}
+\item{y}{vector or 1-column matrix (missing data coded as NA will be automatically discarded)}
 
-\item{reg}{specifies which model to use to add regression lines(s) (lm/loess/rlm)}
+\item{reg}{specifies which model(s) to use to add regression lines(s) (lm/loess/rlm; can be \code{c("lm", "rlm")})}
+
+\item{col}{named vector specifying the color(s) of the regression line(s) specified via \code{reg}}
+
+\item{show.cor}{if TRUE, Pearson and Spearman correlation coefficients are shown in the top left corner}
+
+\item{ci.int}{if \code{reg="lm"}, add lines corresponding to confidence intervals}
+
+\item{pred.int}{if \code{reg="lm"}, add lines corresponding to prediction intervals}
+
+\item{legend.x}{the x co-ordinate to be used to position the legend (see \code{\link[graphics]{legend}})}
+
+\item{legend.y}{the y co-ordinate to be used to position the legend (see \code{\link[graphics]{legend}})}
 
 \item{...}{arguments to be passed to \code{\link[graphics]{plot}}}
 }
 \value{
-object returned by the function specified via \code{reg}
+list of object(s) returned by the function(s) specified via \code{reg}
 }
 \description{
 Make a scatter plot of y as a function of x, along with regression line(s).
 }
 \examples{
 set.seed(1859)
-n <- 100
+n <- 500
 x <- rnorm(n=n, mean=37, sd=3)
 y <- 50 + 1.2 * x + rnorm(n=n, mean=0, sd=3)
-fit <- regplot(x=x, y=y, las=1, main="Linear regression")
-text(x=40, y=84, labels=paste0("R2 = ", format(summary(fit)$r.squared, digits=2)))
+fit <- regplot(x=x, y=y, reg="lm", las=1, main="Linear regression")
+fit <- regplot(x=x, y=y, reg="loess", las=1, col=c(loess="red"),
+               main="Locally weighted scatterplot smoothing (loess)")
+y2 <- y + sample(x=c(rep(0, 0.7*floor(n)),
+                     rnorm(n=ceiling(0.3*n), mean=c(7,13), sd=20)), size=n)
+fit <- regplot(x=x, y=y2, reg=c("lm","rlm"), las=1,
+               col=c(lm="red", rlm="blue"), legend.x="bottomright",
+               main="(Robust) linear regressions")
 }
 \author{
 Timothee Flutre

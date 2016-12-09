@@ -3,52 +3,115 @@
 ##' Scatter plot with regression lines
 ##'
 ##' Make a scatter plot of y as a function of x, along with regression line(s).
-##' @param x vector (missing data coded as NA will be automatically discarded)
-##' @param y vector (missing data coded as NA will be automatically discarded)
-##' @param reg specifies which model to use to add regression lines(s) (lm/loess/rlm)
+##' @param x vector or 1-column matrix (missing data coded as NA will be automatically discarded)
+##' @param y vector or 1-column matrix (missing data coded as NA will be automatically discarded)
+##' @param reg specifies which model(s) to use to add regression lines(s) (lm/loess/rlm; can be \code{c("lm", "rlm")})
+##' @param col named vector specifying the color(s) of the regression line(s) specified via \code{reg}
+##' @param show.cor if TRUE, Pearson and Spearman correlation coefficients are shown in the top left corner
+##' @param ci.int if \code{reg="lm"}, add lines corresponding to confidence intervals
+##' @param pred.int if \code{reg="lm"}, add lines corresponding to prediction intervals
+##' @param legend.x the x co-ordinate to be used to position the legend (see \code{\link[graphics]{legend}})
+##' @param legend.y the y co-ordinate to be used to position the legend (see \code{\link[graphics]{legend}})
 ##' @param ... arguments to be passed to \code{\link[graphics]{plot}}
-##' @return object returned by the function specified via \code{reg}
+##' @return list of object(s) returned by the function(s) specified via \code{reg}
 ##' @author Timothee Flutre
 ##' @examples
 ##' set.seed(1859)
-##' n <- 100
+##' n <- 500
 ##' x <- rnorm(n=n, mean=37, sd=3)
 ##' y <- 50 + 1.2 * x + rnorm(n=n, mean=0, sd=3)
-##' fit <- regplot(x=x, y=y, las=1, main="Linear regression")
-##' text(x=40, y=84, labels=paste0("R2 = ", format(summary(fit)$r.squared, digits=2)))
+##' fit <- regplot(x=x, y=y, reg="lm", las=1, main="Linear regression")
+##' fit <- regplot(x=x, y=y, reg="loess", las=1, col=c(loess="red"),
+##'                main="Locally weighted scatterplot smoothing (loess)")
+##' y2 <- y + sample(x=c(rep(0, 0.7*floor(n)),
+##'                      rnorm(n=ceiling(0.3*n), mean=c(7,13), sd=20)), size=n)
+##' fit <- regplot(x=x, y=y2, reg=c("lm","rlm"), las=1,
+##'                col=c(lm="red", rlm="blue"), legend.x="bottomright",
+##'                main="(Robust) linear regressions")
 ##' @export
-regplot <- function(x, y, reg="lm", ...){
-  stopifnot(is.vector(x),
-            is.vector(y),
-            length(x) == length(y),
-            reg %in% c("lm", "loess"))
-  if(reg == "rlm"){
-    stop("reg=rlm not (yet) available")
+regplot <- function(x, y, reg="lm", col=c(lm="red"), show.cor=TRUE,
+                    ci.int=TRUE, pred.int=TRUE,
+                    legend.x="right", legend.y=NULL,
+                    ...){
+  stopifnot(is.numeric(x) || is.vector(x) || (is.matrix(x) && ncol(x) == 1),
+            is.numeric(y) || is.vector(y) || (is.matrix(y) && ncol(y) == 1),
+            is.character(reg),
+            all(reg %in% c("lm", "loess", "rlm")),
+            all(names(col) %in% c("lm", "loess", "rlm")),
+            length(col) == length(reg),
+            is.logical(ci.int),
+            is.logical(pred.int))
+  if("rlm" %in% reg){
     requireNamespace("MASS")
   }
 
+  fit <- list()
+
   x <- as.numeric(x)
   y <- as.numeric(y)
+  stopifnot(length(x) == length(y))
   tmp <- data.frame(x=x, y=y)
   tmp <- tmp[stats::complete.cases(tmp),]
 
   graphics::plot(formula=y ~ x, data=tmp, ...)
+  legd <- c()
+  col.order <- c()
 
-  if(reg == "lm"){
-    fit <- stats::lm(formula=y ~ x, data=tmp)
-    graphics::abline(fit, col="red")
+  if("lm" %in% reg){
+    fit$lm <- stats::lm(formula=y ~ x, data=tmp)
+    graphics::abline(fit$lm, col=col["lm"])
+    legd <- append(legd, "lm")
+    col.order <- append(col.order, col["lm"])
 
     newx <- seq(min(tmp$x), max(tmp$x), length.out=length(tmp$x))
-    pred.ci <- stats::predict(fit, newdata=data.frame(x=newx), interval="confidence")
-    graphics::lines(newx, pred.ci[,"lwr"], lty=2)
-    graphics::lines(newx, pred.ci[,"upr"], lty=2)
-    pred.pi <- stats::predict(fit, newdata=data.frame(x=newx), interval="prediction")
-    graphics::lines(newx, pred.pi[,"lwr"], lty=3)
-    graphics::lines(newx, pred.pi[,"upr"], lty=3)
-  } else if(reg == "loess"){
-    fit <- stats::loess(formula=y ~ x, data=tmp)
-    tmp$fitted <- fit$fitted
-    graphics::lines(x=tmp$x[order(tmp$x)], y=tmp$fitted[order(tmp$x)], col="red")
+    if(ci.int){
+      pred.ci <- stats::predict(fit$lm, newdata=data.frame(x=newx),
+                                interval="confidence")
+      graphics::lines(newx, pred.ci[,"lwr"], lty=2)
+      graphics::lines(newx, pred.ci[,"upr"], lty=2)
+    }
+    if(pred.int){
+      pred.pi <- stats::predict(fit$lm, newdata=data.frame(x=newx),
+                                interval="prediction")
+      graphics::lines(newx, pred.pi[,"lwr"], lty=3)
+      graphics::lines(newx, pred.pi[,"upr"], lty=3)
+    }
+  }
+  if("loess" %in% reg){
+    fit$loess <- stats::loess(formula=y ~ x, data=tmp)
+    tmp$fitted.loess <- fit$loess$fitted
+    graphics::lines(x=tmp$x[order(tmp$x)],
+                    y=tmp$fitted.loess[order(tmp$x)],
+                    col=col["loess"])
+    legd <- append(legd, "loess")
+    col.order <- append(col.order, col["loess"])
+  }
+  if("rlm" %in% reg){
+    fit$rlm <- MASS::rlm(formula=y ~ x, data=tmp)
+    tmp$fitted.rlm <- stats::fitted(fit$rlm)
+    graphics::lines(x=tmp$x[order(tmp$x)],
+                    y=tmp$fitted.rlm[order(tmp$x)],
+                    col=col["rlm"])
+    legd <- append(legd, "rlm")
+    col.order <- append(col.order, col["rlm"])
+  }
+
+  graphics::legend(x=legend.x, y=legend.y, legend=legd, col=col.order, lty=1,
+                   bty="n")
+
+  if(show.cor){
+    fit$cor.p <- stats::cor(x=x, y=y, method="pearson")
+    fit$cor.s <- stats::cor(x=x, y=y, method="spearman")
+    graphics::text(x=graphics::par("usr")[1] +
+                     0.03 * abs(graphics::par("usr")[2] -
+                                graphics::par("usr")[1]),
+                   y=graphics::par("usr")[4] -
+                     0.03 * abs(graphics::par("usr")[4] -
+                                graphics::par("usr")[3]),
+                   adj=c(0, 1),
+                   labels=paste0("cor.Pearson=", format(fit$cor.p, digits=2),
+                                 "\n",
+                                 "cor.Spearman=", format(fit$cor.s, digits=2)))
   }
 
   invisible(fit)
