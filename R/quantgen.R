@@ -347,9 +347,10 @@ plotHistMinAllelFreq <- function(X=NULL, maf=NULL, main=NULL, xlim=c(0,0.5),
   if(is.null(main))
     main <- paste0("MAFs of ", length(maf), " SNPs")
 
-  tmp <- graphics::hist(x=maf, xlab="Minor allele frequency", ylab="Number of SNPs",
-              main=main, xlim=xlim, col=col, border=border, las=las,
-              breaks=breaks, ...)
+  tmp <- graphics::hist(x=maf, xlab="Minor allele frequency",
+                        ylab="Number of SNPs",
+                        main=main, xlim=xlim, col=col, border=border,
+                        las=las, breaks=breaks, ...)
 
   if(add.ml.beta){
     fn.beta <- function(theta, x){
@@ -534,15 +535,20 @@ haplosList2Matrix <- function(haplos){
 ##' Site frequency spectrum
 ##'
 ##' Convert the SFS of independent replicates into a matrix of allele dosage.
-##' @param seg.sites list returned by scrm()
+##' @param seg.sites list of haplotypes returned by \code{scrm}, each component of which corresponds to a matrix with haplotypes in rows and SNP in columns
 ##' @param ind.ids vector with the identifiers of the individuals
 ##' @param snp.ids vector with the identifiers of the SNPs (if NULL, the SNP identifiers from seg.sites will be used if they aren't NULL, too)
+##' @param rnd.choice.ref.all if TRUE, the reference alleles are randomly chosen
+##' @param seed seed for the pseudo-random number generator
 ##' @return matrix with diploid individuals in rows and SNPs in columns
 ##' @author Timothee Flutre
 ##' @export
-segSites2allDoses <- function(seg.sites, ind.ids=NULL, snp.ids=NULL){
+segSites2allDoses <- function(seg.sites, ind.ids=NULL, snp.ids=NULL,
+                              rnd.choice.ref.all=TRUE, seed=NULL){
   stopifnot(is.list(seg.sites),
-            length(unique(sapply(seg.sites, nrow))) == 1)
+            all(sapply(seg.sites, class) == "matrix"),
+            length(unique(sapply(seg.sites, nrow))) == 1,
+            is.logical(rnd.choice.ref.all))
   if(! is.null(ind.ids))
     stopifnot(is.vector(ind.ids),
               is.character(ind.ids),
@@ -566,12 +572,23 @@ segSites2allDoses <- function(seg.sites, ind.ids=NULL, snp.ids=NULL){
   }
 
   j <- 1
-  for(x in seq_along(seg.sites)){
+  for(x in seq_along(seg.sites)){ # for loop over "chromosomes"
     X[,j:(j+ncol(seg.sites[[x]])-1)] <-
       do.call(rbind, lapply(seq(1, 2*nb.inds, by=2), function(i){
         colSums(seg.sites[[x]][c(i,i+1),])
       }))
     j <- j + ncol(seg.sites[[x]])
+  }
+
+  ## permute the reference allele of a random half of SNPs
+  if(rnd.choice.ref.all){
+    if(! is.null(seed))
+      set.seed(seed)
+    col.idx <- sample.int(n=ncol(X), size=floor(0.5*ncol(X)))
+    row.idx.0 <- which(X[,col.idx] == 0)
+    row.idx.2 <- which(X[,col.idx] == 2)
+    X[,col.idx][row.idx.0] <- 2
+    X[,col.idx][row.idx.2] <- 0
   }
 
   return(X)
@@ -580,7 +597,7 @@ segSites2allDoses <- function(seg.sites, ind.ids=NULL, snp.ids=NULL){
 ##' Site frequency spectrum
 ##'
 ##' Make a data.frame of SNP coordinates from the SFS of independent replicates.
-##' @param seg.sites list returned by scrm()
+##' @param seg.sites list of haplotypes returned by \code{scrm}, each component of which corresponds to a matrix with haplotypes in rows and SNP in columns
 ##' @param snp.ids vector of identifiers (one per SNP)
 ##' @param chrom.len chromosome length (same for all)
 ##' @param prefix character string
@@ -589,6 +606,7 @@ segSites2allDoses <- function(seg.sites, ind.ids=NULL, snp.ids=NULL){
 ##' @export
 segSites2snpCoords <- function(seg.sites, snp.ids, chrom.len, prefix="chr"){
   stopifnot(is.list(seg.sites),
+            all(sapply(seg.sites, class) == "matrix"),
             length(unique(sapply(seg.sites, nrow))) == 1)
 
   nb.chrs <- length(seg.sites)
@@ -2069,7 +2087,7 @@ haplosAlleles2num <- function(haplos, alleles, nb.cores=1){
 ##' @param nb.samp.haplos number of haplotypes sampled from the posterior distribution obtained from a particular random start of the EM algorithm
 ##' @param estim.haplos estimate haplotypes by minimizing individual error
 ##' @param nb.clusters number of clusters
-##' @param seed seed for random number generation
+##' @param seed seed for the pseudo-random number generator for fastPHASE
 ##' @param clean remove files
 ##' @param verbose verbosity level (0/1)
 ##' @return list with matrix of genotypes before imputation, and matrix of haplotypes (2 per individual, in rows) after imputation
@@ -3601,7 +3619,7 @@ simulLogistic <- function(t=1:20, a=50, g.t0=1, r=0.6, sigma2=0){
 ##' @param task.id identifier of the task (used in temporary and output file names)
 ##' @param verbose verbosity level (0/1)
 ##' @param clean remove files: none, some (temporary only), all (temporary and results)
-##' @param seed seed for the generator of pseudo-random numbers
+##' @param seed seed for the pseudo-random number generator for GEMMA
 ##' @param burnin number of iterations to discard as burn-in (if model="bslmm")
 ##' @param nb.iters number of iterations (if model="bslmm")
 ##' @param thin thining (if model="bslmm")

@@ -33,7 +33,7 @@ gemma(model = "ulmm", y, X, snp.coords, alleles, maf = 0.01, K.c = NULL,
 
 \item{clean}{remove files: none, some (temporary only), all (temporary and results)}
 
-\item{seed}{seed for the generator of pseudo-random numbers}
+\item{seed}{seed for the pseudo-random number generator for GEMMA}
 
 \item{burnin}{number of iterations to discard as burn-in (if model="bslmm")}
 

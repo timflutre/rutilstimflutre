@@ -7,7 +7,7 @@
 segSites2snpCoords(seg.sites, snp.ids, chrom.len, prefix = "chr")
 }
 \arguments{
-\item{seg.sites}{list returned by scrm()}
+\item{seg.sites}{list of haplotypes returned by \code{scrm}, each component of which corresponds to a matrix with haplotypes in rows and SNP in columns}
 
 \item{snp.ids}{vector of identifiers (one per SNP)}
 

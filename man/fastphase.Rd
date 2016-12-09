@@ -30,7 +30,7 @@ fastphase(X, snp.coords, alleles, out.dir = getwd(), task.id = "fastphase",
 
 \item{nb.clusters}{number of clusters}
 
-\item{seed}{seed for random number generation}
+\item{seed}{seed for the pseudo-random number generator for fastPHASE}
 
 \item{clean}{remove files}
 

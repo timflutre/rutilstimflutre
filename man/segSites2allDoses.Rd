@@ -4,14 +4,19 @@
 \alias{segSites2allDoses}
 \title{Site frequency spectrum}
 \usage{
-segSites2allDoses(seg.sites, ind.ids = NULL, snp.ids = NULL)
+segSites2allDoses(seg.sites, ind.ids = NULL, snp.ids = NULL,
+  rnd.choice.ref.all = TRUE, seed = NULL)
 }
 \arguments{
-\item{seg.sites}{list returned by scrm()}
+\item{seg.sites}{list of haplotypes returned by \code{scrm}, each component of which corresponds to a matrix with haplotypes in rows and SNP in columns}
 
 \item{ind.ids}{vector with the identifiers of the individuals}
 
 \item{snp.ids}{vector with the identifiers of the SNPs (if NULL, the SNP identifiers from seg.sites will be used if they aren't NULL, too)}
+
+\item{rnd.choice.ref.all}{if TRUE, the reference alleles are randomly chosen}
+
+\item{seed}{seed for the pseudo-random number generator}
 }
 \value{
 matrix with diploid individuals in rows and SNPs in columns
