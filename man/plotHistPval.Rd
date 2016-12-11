@@ -46,6 +46,10 @@ pval.bonf <- p.adjust(pvalues, method="bonferroni")
 sum(pval.bonf <= thresh, na.rm=TRUE) # 9
 pval.bh <- p.adjust(pvalues, method="BH")
 sum(pval.bh <= thresh, na.rm=TRUE) # 104
+if(require(qvalue)){
+  qv <- qvalue(p=pvalues, fdr.level=thresh, pfdr=TRUE)
+  summary(qv)
+}
 }
 \author{
 Timothee Flutre

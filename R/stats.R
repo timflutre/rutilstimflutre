@@ -476,6 +476,10 @@ precMatAR1 <- function(n, rho, sigma2){
 ##' sum(pval.bonf <= thresh, na.rm=TRUE) # 9
 ##' pval.bh <- p.adjust(pvalues, method="BH")
 ##' sum(pval.bh <= thresh, na.rm=TRUE) # 104
+##' if(require(qvalue)){
+##'   qv <- qvalue(p=pvalues, fdr.level=thresh, pfdr=TRUE)
+##'   summary(qv)
+##' }
 ##' @export
 plotHistPval <- function(pvalues, breaks=seq(0, 1, 0.05), freq=FALSE,
                          main=NULL, col="grey", border="white", pi0=NULL){

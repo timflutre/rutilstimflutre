@@ -84,4 +84,7 @@ summary(posterior.samples)
 \author{
 Timothee Flutre [aut,cre], Dalel Ahmed [ctb]
 }
+\seealso{
+\code{link{gemmaUlmmPerChr}}
+}
 

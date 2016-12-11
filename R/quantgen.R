@@ -3625,6 +3625,7 @@ simulLogistic <- function(t=1:20, a=50, g.t0=1, r=0.6, sigma2=0){
 ##' @param thin thining (if model="bslmm")
 ##' @return invisible list
 ##' @author Timothee Flutre [aut,cre], Dalel Ahmed [ctb]
+##' @seealso \code{link{gemmaUlmmPerChr}}
 ##' @examples
 ##' \dontrun{## simulate genotypes
 ##' set.seed(1859)
@@ -3807,6 +3808,7 @@ gemma <- function(model="ulmm", y, X, snp.coords, alleles, maf=0.01, K.c=NULL,
 ##' @param verbose verbosity level (0/1)
 ##' @return a data.frame with GEMMA's output for all chromosomes
 ##' @author Timothee Flutre [aut,cre], Dalel Ahmed [ctb]
+##' @seealso \code{link{gemma}}, \code{\link{plotHistPval}}, \code{\link{qqplotPval}}
 ##' @export
 gemmaUlmmPerChr <- function(y, X, snp.coords, alleles=NULL, chr.ids=NULL, W,
                             out.dir, task.id="", clean="none", verbose=1){
