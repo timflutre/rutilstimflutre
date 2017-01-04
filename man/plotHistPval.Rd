@@ -5,7 +5,7 @@
 \title{P values}
 \usage{
 plotHistPval(pvalues, breaks = seq(0, 1, 0.05), freq = FALSE, main = NULL,
-  col = "grey", border = "white", pi0 = NULL)
+  col = "grey", border = "white", pi0 = NULL, verbose = 1)
 }
 \arguments{
 \item{pvalues}{vector of raw p values (missing values will be omitted)}
@@ -21,6 +21,8 @@ plotHistPval(pvalues, breaks = seq(0, 1, 0.05), freq = FALSE, main = NULL,
 \item{border}{the color of the border around the bars (see \code{\link[graphics]{hist}})}
 
 \item{pi0}{estimate of the proportion of null hypotheses}
+
+\item{verbose}{verbosity level (0/1)}
 }
 \value{
 invisible output of \code{\link[graphics]{hist}}

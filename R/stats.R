@@ -459,6 +459,7 @@ precMatAR1 <- function(n, rho, sigma2){
 ##' @param col a colour to be used to fill the bars (see \code{\link[graphics]{hist}})
 ##' @param border the color of the border around the bars (see \code{\link[graphics]{hist}})
 ##' @param pi0 estimate of the proportion of null hypotheses
+##' @param verbose verbosity level (0/1)
 ##' @return invisible output of \code{\link[graphics]{hist}}
 ##' @seealso \code{\link{qqplotPval}}
 ##' @author Timothee Flutre
@@ -482,14 +483,18 @@ precMatAR1 <- function(n, rho, sigma2){
 ##' }
 ##' @export
 plotHistPval <- function(pvalues, breaks=seq(0, 1, 0.05), freq=FALSE,
-                         main=NULL, col="grey", border="white", pi0=NULL){
+                         main=NULL, col="grey", border="white", pi0=NULL,
+                         verbose=1){
   stopifnot(is.numeric(pvalues),
             is.vector(pvalues),
             is.vector(breaks))
 
   isna <- is.na(pvalues)
   if(any(isna)){
-    warning(paste0(sum(isna), " NA are discarded"))
+    if(verbose > 0){
+      msg <- paste0(sum(isna), " NA are discarded")
+      write(msg, stdout())
+    }
     pvalues <- pvalues[! is.na(pvalues)]
   }
 
@@ -534,15 +539,24 @@ plotHistPval <- function(pvalues, breaks=seq(0, 1, 0.05), freq=FALSE,
 ##' Q-Q plot for p values
 ##'
 ##' Produce a quantile-quantile plot for p values and display its confidence interval.
-##' A quantile is an order statistic, and the j-th order statistic from a Uniform(0,1) sample has a Beta(j,N-j+1) distribution (Casella & Berger, 2001, 2nd edition, p230). Let us assume we have N independent p values, \eqn{\{p_1,\ldots,p_N\}}. Under the null, they are independent and identically uniformly distributed: \eqn{\forall i \; p_i \sim \mathcal{U}_{[0,1]}}. Therefore, the 95\% confidence interval for the j-th quantile of the set of p values can be calculated with: qbeta(0.95, j, N-j+1). See also the qqman package.
+##' A quantile is an order statistic, and the j-th order statistic from a Uniform(0,1) sample has a Beta(j,N-j+1) distribution (Casella & Berger, 2001, 2nd edition, p230).
+##' Let us assume we have N independent p values, \eqn{\{p_1,\ldots,p_N\}}.
+##' Under the null, they are independent and identically uniformly distributed: \eqn{\forall i \; p_i \sim \mathcal{U}_{[0,1]}}.
+##' Therefore, the 95\% confidence interval for the j-th quantile of the set of p values can be calculated with: qbeta(0.95, j, N-j+1).
+##' See also the \href{https://cran.r-project.org/package=qqman}{qqman} package.
 ##' @param pvalues vector of raw p values (missing values will be omitted)
 ##' @param plot.conf.int show the confidence interval
 ##' @param xlab a title for the x axis (see default)
 ##' @param ylab a title for the x axis (see default)
+##' @param thresh significance threshold at which to control the FWER and the FDR
+##' @param ctl.fwer.bonf control the family-wise error rate with the Bonferroni procedure
+##' @param ctl.fdr.bh control the false discovery rate with the Benjamini-Hochberg procedure
+##' @param ctl.fdr.storey control the false discovery rate with Storey's procedure in the \href{http://bioconductor.org/packages/release/bioc/html/qvalue.html}{qvalue} package
+##' @param plot.signif show line(s) corresponding to the significance threshold
 ##' @param main an overall title for the plot (default: "Q-Q plot (<length(pvalues)> p values)")
 ##' @param col vector of plotting color(s) for the points (default is all points in black)
-##' @param ... graphical parameters other than xlim, ylim, xlab, ylab, las and col
-##' @return invisible vector of pvalues with NA omitted
+##' @param verbose verbosity level (0/1)
+##' @return invisible list with the vector of p values (NA omitted) and the adjusted p values if any of \code{ctl.fwer.bonf} and \code{ctl.fdr.bh} is set
 ##' @seealso \code{\link{plotHistPval}}
 ##' @author Timothee Flutre (inspired by an anonymous comment at http://gettinggeneticsdone.blogspot.fr/2009/11/qq-plots-of-p-values-in-r-using-ggplot2.html)
 ##' @examples
@@ -555,38 +569,44 @@ plotHistPval <- function(pvalues, breaks=seq(0, 1, 0.05), freq=FALSE,
 ##' pvalues <- c(pvalues.0, pvalues.1)
 ##' pvalues[c(1,10)] <- NA
 ##' plotHistPval(pvalues, pi0=(P-P1)/P, freq=TRUE)
-##' pvalues <- qqplotPval(pvalues)
-##' pval.bonf <- p.adjust(pvalues, method="bonferroni")
-##' sum(pval.bonf <= thresh) # 9
-##' names(pvalues)[pval.bonf <= thresh]
-##' pval.bh <- p.adjust(pvalues, method="BH")
-##' sum(pval.bh <= thresh) # 104
-##' names(pvalues)[pval.bh <= thresh]
-##' lim.pval.bonf <- sort(pvalues[pval.bonf <= thresh], decreasing=TRUE)[1]
-##' abline(h=-log10(lim.pval.bonf), lty=2)
-##' lim.pval.BH <- sort(pvalues[pval.bh <= thresh], decreasing=TRUE)[1]
-##' abline(h=-log10(lim.pval.BH), lty=3)
-##' legend(x=2.2, y=1.8, legend=c(paste0(sum(pval.bonf <= thresh),
-##'  " tests significant at 5%\nwith FWER controlled via Bonferroni"),
-##'  paste0(sum(pval.bh <= thresh), " tests significant at 5%",
-##'  "\nwith FDR controlled via BH")), lty=c(2,3), bty="n", y.intersp=2)
+##' qqplotPval(pvalues)
+##' out <- qqplotPval(pvalues, ctl.fwer.bonf=TRUE, ctl.fdr.bh=TRUE, plot.signif=TRUE)
+##' pvalues <- out$pvalues # NA omitted
+##' names(out$pvalues)[out$pv.bonf <= thresh]
+##' names(out$pvalues)[out$pv.bh <= thresh]
 ##' @export
 qqplotPval <- function(pvalues, plot.conf.int=TRUE,
                        xlab=expression(Expected~~-log[10](italic(p)~values)),
                        ylab=expression(Observed~~-log[10](italic(p)~values)),
-                       main=NULL, col=NULL){
+                       thresh=0.05, ctl.fwer.bonf=FALSE, ctl.fdr.bh=FALSE,
+                       ctl.fdr.storey=FALSE, plot.signif=FALSE,
+                       main=NULL, col=NULL, verbose=1){
   stopifnot(is.numeric(pvalues),
-            is.vector(pvalues))
+            is.vector(pvalues),
+            is.logical(plot.conf.int),
+            is.logical(ctl.fwer.bonf),
+            is.logical(ctl.fdr.bh),
+            is.logical(ctl.fdr.storey),
+            is.logical(plot.signif))
   if(! is.null(col))
     stopifnot(is.vector(col),
               length(col) == length(pvalues))
+  if(! is.null(thresh))
+    stopifnot(is.numeric(thresh),
+              length(thresh) == 1,
+              thresh >= 0,
+              thresh <= 1)
 
   if(is.null(col))
     col <- rep(1, length(pvalues))
 
+  ## discard missing p values
   isna <- is.na(pvalues)
   if(any(isna)){
-    warning(paste0(sum(isna), " NA are discarded"))
+    if(verbose > 0){
+      msg <- paste0(sum(isna), " NA are discarded")
+      write(msg, stdout())
+    }
     pvalues <- pvalues[! isna]
     col <- col[! isna]
   }
@@ -596,6 +616,7 @@ qqplotPval <- function(pvalues, plot.conf.int=TRUE,
   observed <- - log10(pvalues)
   MAX <- max(c(expected, observed))
 
+  ## calculate and plot the confidence interval
   if(plot.conf.int){
     c95 <- rep(0, N)
     c05 <- rep(0, N)
@@ -613,16 +634,91 @@ qqplotPval <- function(pvalues, plot.conf.int=TRUE,
     graphics::par(new=T)
   }
 
+  ## add the Q-Q plot
   if(is.null(main))
     main <- paste0("Q-Q plot (", N, " p values)")
-
   graphics::plot(x=sort(expected), y=sort(observed),
-       xlim=c(0,MAX), ylim=c(0,MAX),
-       las=1, col=col[order(observed)],
-       xlab=xlab, ylab=ylab, main=main)
+                 xlim=c(0,MAX), ylim=c(0,MAX),
+                 las=1, col=col[order(observed)],
+                 xlab=xlab, ylab=ylab, main=main)
   graphics::abline(0, 1, col="red")
 
-  invisible(pvalues)
+  ## multiple testing correction: FWER with Bonferroni
+  pv.bonf <- NULL
+  if(ctl.fwer.bonf){
+    pv.bonf <- stats::p.adjust(pvalues, method="bonferroni")
+    if(verbose > 0){
+      msg <- paste0("signif tests at ", format(100*thresh, digits=2),
+                    "% (FWER, Bonf): ", sum(pv.bonf <= thresh))
+      write(msg, stdout())
+    }
+    if(plot.signif){
+      lim.pv.bonf <- sort(pvalues[pv.bonf <= thresh], decreasing=TRUE)[1]
+      ## graphics::abline(h=-log10(lim.pv.bonf), lty=2)
+      graphics::segments(x0=graphics::par("usr")[1], y0=-log10(lim.pv.bonf),
+                         x1=-log10(lim.pv.bonf), y1=-log10(lim.pv.bonf),
+                         lty=2)
+    }
+  }
+
+  ## multiple testing correction: FDR with B-H
+  pv.bh <- NULL
+  if(ctl.fdr.bh){
+    pv.bh <- stats::p.adjust(pvalues, method="BH")
+    if(verbose > 0){
+      msg <- paste0("signif tests at ", format(100*thresh, digits=2),
+                    "% (FDR, BH): ", sum(pv.bh <= thresh))
+      write(msg, stdout())
+    }
+    if(plot.signif){
+      lim.pv.bh <- sort(pvalues[pv.bh <= thresh], decreasing=TRUE)[1]
+      ## graphics::abline(h=-log10(lim.pv.bh), lty=3)
+      graphics::segments(x0=graphics::par("usr")[1], y0=-log10(lim.pv.bh),
+                         x1=-log10(lim.pv.bh), y1=-log10(lim.pv.bh),
+                         lty=3)
+    }
+  }
+
+  ## multiple testing correction: FDR with Storey
+  qv.st <- NULL
+  if(all(ctl.fdr.storey, requireNamespace("qvalue"))){
+    out.st <- qvalue::qvalue(p=pvalues, fdr.level=thresh, pfdr=TRUE)
+    qv.st <- out.st$qvalues
+    if(verbose > 0){
+      msg <- paste0("signif tests at ", format(100*thresh, digits=2),
+                    "% (FDR, Storey): ", sum(out.st$significant))
+      write(msg, stdout())
+    }
+    if(plot.signif){
+      lim.pv.st <- sort(pvalues[out.st$qvalues <= thresh], decreasing=TRUE)[1]
+      ## graphics::abline(h=-log10(lim.pv.st), lty=3)
+      graphics::segments(x0=graphics::par("usr")[1], y0=-log10(lim.pv.st),
+                         x1=-log10(lim.pv.st), y1=-log10(lim.pv.st),
+                         lty=4)
+    }
+  }
+
+  ## plot threshold lines on p value scale
+  if(plot.signif){
+    lgd <- c()
+    lty <- c()
+    if(ctl.fwer.bonf){
+      lgd <- c(lgd, "FWER controlled via Bonferroni")
+      lty <- c(lty, 2)
+    }
+    if(ctl.fdr.bh){
+      lgd <- c(lgd, "FDR controlled via BH")
+      lty <- c(lty, 3)
+    }
+    if(ctl.fdr.storey){
+      lgd <- c(lgd, "FDR controlled via Storey")
+      lty <- c(lty, 4)
+    }
+    graphics::legend("bottomright", legend=lgd,
+                     lty=lty, bty="n", y.intersp=2)
+  }
+
+  invisible(list(pvalues=pvalues, pv.bonf=pv.bonf, pv.bh=pv.bh, qv.st=qv.st))
 }
 
 ##' FDR

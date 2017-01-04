@@ -6,7 +6,9 @@
 \usage{
 qqplotPval(pvalues, plot.conf.int = TRUE, xlab = expression(Expected ~
   ~-log[10](italic(p) ~ values)), ylab = expression(Observed ~
-  ~-log[10](italic(p) ~ values)), main = NULL, col = NULL)
+  ~-log[10](italic(p) ~ values)), thresh = 0.05, ctl.fwer.bonf = FALSE,
+  ctl.fdr.bh = FALSE, ctl.fdr.storey = FALSE, plot.signif = FALSE,
+  main = NULL, col = NULL, verbose = 1)
 }
 \arguments{
 \item{pvalues}{vector of raw p values (missing values will be omitted)}
@@ -17,18 +19,32 @@ qqplotPval(pvalues, plot.conf.int = TRUE, xlab = expression(Expected ~
 
 \item{ylab}{a title for the x axis (see default)}
 
+\item{thresh}{significance threshold at which to control the FWER and the FDR}
+
+\item{ctl.fwer.bonf}{control the family-wise error rate with the Bonferroni procedure}
+
+\item{ctl.fdr.bh}{control the false discovery rate with the Benjamini-Hochberg procedure}
+
+\item{ctl.fdr.storey}{control the false discovery rate with Storey's procedure in the \href{http://bioconductor.org/packages/release/bioc/html/qvalue.html}{qvalue} package}
+
+\item{plot.signif}{show line(s) corresponding to the significance threshold}
+
 \item{main}{an overall title for the plot (default: "Q-Q plot (<length(pvalues)> p values)")}
 
 \item{col}{vector of plotting color(s) for the points (default is all points in black)}
 
-\item{...}{graphical parameters other than xlim, ylim, xlab, ylab, las and col}
+\item{verbose}{verbosity level (0/1)}
 }
 \value{
-invisible vector of pvalues with NA omitted
+invisible list with the vector of p values (NA omitted) and the adjusted p values if any of \code{ctl.fwer.bonf} and \code{ctl.fdr.bh} is set
 }
 \description{
 Produce a quantile-quantile plot for p values and display its confidence interval.
-A quantile is an order statistic, and the j-th order statistic from a Uniform(0,1) sample has a Beta(j,N-j+1) distribution (Casella & Berger, 2001, 2nd edition, p230). Let us assume we have N independent p values, \eqn{\{p_1,\ldots,p_N\}}. Under the null, they are independent and identically uniformly distributed: \eqn{\forall i \; p_i \sim \mathcal{U}_{[0,1]}}. Therefore, the 95\% confidence interval for the j-th quantile of the set of p values can be calculated with: qbeta(0.95, j, N-j+1). See also the qqman package.
+A quantile is an order statistic, and the j-th order statistic from a Uniform(0,1) sample has a Beta(j,N-j+1) distribution (Casella & Berger, 2001, 2nd edition, p230).
+Let us assume we have N independent p values, \eqn{\{p_1,\ldots,p_N\}}.
+Under the null, they are independent and identically uniformly distributed: \eqn{\forall i \; p_i \sim \mathcal{U}_{[0,1]}}.
+Therefore, the 95\% confidence interval for the j-th quantile of the set of p values can be calculated with: qbeta(0.95, j, N-j+1).
+See also the \href{https://cran.r-project.org/package=qqman}{qqman} package.
 }
 \examples{
 set.seed(1859)
@@ -40,21 +56,11 @@ pvalues.1 <- setNames(rbeta(n=P1, shape1=1, shape2=10^3),
 pvalues <- c(pvalues.0, pvalues.1)
 pvalues[c(1,10)] <- NA
 plotHistPval(pvalues, pi0=(P-P1)/P, freq=TRUE)
-pvalues <- qqplotPval(pvalues)
-pval.bonf <- p.adjust(pvalues, method="bonferroni")
-sum(pval.bonf <= thresh) # 9
-names(pvalues)[pval.bonf <= thresh]
-pval.bh <- p.adjust(pvalues, method="BH")
-sum(pval.bh <= thresh) # 104
-names(pvalues)[pval.bh <= thresh]
-lim.pval.bonf <- sort(pvalues[pval.bonf <= thresh], decreasing=TRUE)[1]
-abline(h=-log10(lim.pval.bonf), lty=2)
-lim.pval.BH <- sort(pvalues[pval.bh <= thresh], decreasing=TRUE)[1]
-abline(h=-log10(lim.pval.BH), lty=3)
-legend(x=2.2, y=1.8, legend=c(paste0(sum(pval.bonf <= thresh),
- " tests significant at 5\%\\nwith FWER controlled via Bonferroni"),
- paste0(sum(pval.bh <= thresh), " tests significant at 5\%",
- "\\nwith FDR controlled via BH")), lty=c(2,3), bty="n", y.intersp=2)
+qqplotPval(pvalues)
+out <- qqplotPval(pvalues, ctl.fwer.bonf=TRUE, ctl.fdr.bh=TRUE, plot.signif=TRUE)
+pvalues <- out$pvalues # NA omitted
+names(out$pvalues)[out$pv.bonf <= thresh]
+names(out$pvalues)[out$pv.bh <= thresh]
 }
 \author{
 Timothee Flutre (inspired by an anonymous comment at http://gettinggeneticsdone.blogspot.fr/2009/11/qq-plots-of-p-values-in-r-using-ggplot2.html)

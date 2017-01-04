@@ -3608,13 +3608,13 @@ simulLogistic <- function(t=1:20, a=50, g.t0=1, r=0.6, sigma2=0){
 ##'
 ##' See Zhou & Stephens (Nature Genetics, 2012) and Zhou et al (PLoS Genetics, 2013).
 ##' @param model name of the model to fit (ulmm/bslmm)
-##' @param y N-vector of phenotypes
-##' @param X NxP matrix of SNP genotypes encoded in number of copies of the 2nd allele, i.e. as allele doses in {0,1,2}, with individuals in rows and SNPs in columns
+##' @param y vector of phenotypes with individual names
+##' @param X matrix of SNP genotypes encoded in number of copies of the 2nd allele, i.e. as allele doses in {0,1,2}, with individuals in rows and SNPs in columns
 ##' @param snp.coords data.frame with 3 columns (snp, coord, chr)
 ##' @param alleles data.frame with SNPs in rows (names as row names) and alleles in columns (first is "minor", second is "major")
 ##' @param maf SNPs with minor allele frequency strictly below this threshold will be discarded
-##' @param K.c NxN kinship matrix; if NULL, will be estimated using X via \code{\link{estimGenRel}} with relationships="additive" and method="zhou"
-##' @param W NxQ matrix of covariates with individuals in rows (names as row names), a first column of 1 and a second column of covariates values
+##' @param K.c kinship matrix; if NULL, will be estimated using X via \code{\link{estimGenRel}} with \code{relationships="additive"} and \code{method="zhou"}
+##' @param W matrix of covariates with individuals in rows (names as row names), a first column of 1 and a second column of covariates values
 ##' @param out.dir directory in which the output files will be saved
 ##' @param task.id identifier of the task (used in temporary and output file names)
 ##' @param verbose verbosity level (0/1)
@@ -3637,11 +3637,14 @@ simulLogistic <- function(t=1:20, a=50, g.t0=1, r=0.6, sigma2=0){
 ##' model <- simulBvsr(Q=1, X=X, pi=0.01, pve.A=0.7, sigma.a2=1)
 ##'
 ##' ## test SNPs one by one with the univariate LMM
-##' snp.coords <- data.frame(snp=colnames(X), coord=1:ncol(X),
-##'                          chr="chr1", stringsAsFactors=FALSE)
+##' snp.coords <- data.frame(coord=1:ncol(X),
+##'                          chr="chr1",
+##'                          row.names=colnames(X),
+##'                          stringsAsFactors=FALSE)
 ##' alleles <- data.frame(minor=rep("a", ncol(X)),
-##'                       major="A", stringsAsFactors=FALSE)
-##' rownames(alleles) <- colnames(X)
+##'                       major="A",
+##'                       row.names=colnames(X),
+##'                       stringsAsFactors=FALSE)
 ##' fit.u <- gemma(model="ulmm", model$Y[,1], X, snp.coords, alleles,
 ##'                W=model$W, out.dir=tempdir(), clean="all")
 ##' cor(model$a[model$gamma == 1], fit.u$tests$beta[model$gamma == 1])
@@ -3665,31 +3668,49 @@ gemma <- function(model="ulmm", y, X, snp.coords, alleles, maf=0.01, K.c=NULL,
                   seed=1859, burnin=1000, nb.iters=7000, thin=10){
   stopifnot(file.exists(Sys.which("gemma")),
             model %in% c("ulmm", "bslmm"))
+  stopIfNotValidGenosDose(X, check.rown=TRUE)
   if(is.matrix(y)){
-    stopifnot(ncol(y) == 1)
-    y <- as.vector(y)
+    stopifnot(ncol(y) == 1,
+              ! is.null(rownames(y)))
+    y <- stats::setNames(y[,1], rownames(y))
   }
-  stopIfNotValidGenosDose(X, check.rown=FALSE)
   stopifnot(is.vector(y),
-            is.data.frame(snp.coords),
-            ncol(snp.coords) == 3,
+            ! is.null(names(y)),
+            length(y) == nrow(X),
+            all(names(y) == rownames(X)),
+            .isValidSnpCoords(snp.coords),
+            all(rownames(snp.coords) %in% colnames(X)),
+            all(colnames(X) %in% rownames(snp.coords)),
+            is.data.frame(alleles),
             ! is.null(row.names(alleles)),
             colnames(alleles) == c("minor","major"),
-            all(colnames(snp.coords) == c("snp", "coord", "chr")),
-            all(snp.coords$snp == colnames(X)),
-            all(snp.coords$snp == rownames(alleles)),
+            all(rownames(alleles) %in% colnames(X)),
             is.numeric(maf),
             length(maf) == 1,
             maf >= 0,
             maf <= 1,
             is.matrix(W),
             all(W[,1] == 1),
+            nrow(W) == length(y),
             file.exists(out.dir),
             is.character(task.id),
             length(task.id) == 1,
             clean %in% c("none", "some", "all"))
 
   output <- list()
+
+  ## discard SNPs with low MAF
+  X <- discardSnpsLowMaf(X=X, thresh=maf, verbose=verbose)
+
+  ## reformat inputs for GEMMA
+  snp.coords <- snp.coords[colnames(X),]
+  if(! "coord" %in% colnames(snp.coords))
+    colnames(snp.coords)[colnames(snp.coords) == "pos"] <- "coord"
+  alleles <- alleles[colnames(X),]
+  sc.gemma <- data.frame(snp=rownames(snp.coords),
+                         coord=snp.coords$coord,
+                         chr=snp.coords$chr,
+                         stringsAsFactors=FALSE)
 
   ## prepare input files
   tmp.files <- c()
@@ -3700,8 +3721,8 @@ gemma <- function(model="ulmm", y, X, snp.coords, alleles, maf=0.01, K.c=NULL,
   tmp.files <- c(tmp.files,
                  snp.coords=paste0(out.dir, "/snp-coords_", task.id, ".txt"))
   utils::write.table(x=snp.coords,
-              file=tmp.files["snp.coords"],
-              quote=FALSE, sep="\t", row.names=FALSE, col.names=FALSE)
+                     file=tmp.files["snp.coords"],
+                     quote=FALSE, sep="\t", row.names=FALSE, col.names=FALSE)
   if(is.null(K.c))
     K.c <- estimGenRel(X=X, thresh=maf, relationships="additive",
                        method="zhou", verbose=verbose)
@@ -3709,18 +3730,18 @@ gemma <- function(model="ulmm", y, X, snp.coords, alleles, maf=0.01, K.c=NULL,
                  kinship.center=paste0(out.dir, "/kinship-center_", task.id,
                                        ".txt"))
   utils::write.table(x=K.c,
-              file=tmp.files["kinship.center"],
-              quote=FALSE, sep="\t", row.names=FALSE, col.names=FALSE)
+                     file=tmp.files["kinship.center"],
+                     quote=FALSE, sep="\t", row.names=FALSE, col.names=FALSE)
   tmp.files <- c(tmp.files,
                  covars=paste0(out.dir, "/covars_", task.id, ".txt"))
   utils::write.table(x=W,
-              file=tmp.files["covars"],
-              quote=FALSE, sep="\t", row.names=FALSE, col.names=FALSE)
+                     file=tmp.files["covars"],
+                     quote=FALSE, sep="\t", row.names=FALSE, col.names=FALSE)
   tmp.files <- c(tmp.files,
                  phenos=paste0(out.dir, "/phenos_", task.id, ".txt.gz"))
   utils::write.table(x=y,
-              file=gzfile(tmp.files["phenos"]),
-              quote=FALSE, sep="\t", row.names=FALSE, col.names=FALSE)
+                     file=gzfile(tmp.files["phenos"]),
+                     quote=FALSE, sep="\t", row.names=FALSE, col.names=FALSE)
 
   ## prepare cmd-line and execute it
   cmd <- paste0("cd ", out.dir,
@@ -3766,21 +3787,20 @@ gemma <- function(model="ulmm", y, X, snp.coords, alleles, maf=0.01, K.c=NULL,
       file.remove(f)
   } else if(model == "bslmm"){
     f <- paste0(out.dir, "/results_", task.id, ".hyp.txt")
-    output[["hyperparams"]] <- utils::read.table(file=f,
-                                          sep="\t",
-                                          skip=1, stringsAsFactors=FALSE,
-                                          header=FALSE,
-                                          col.names=c("h", "pve", "rho", "pge",
-                                                      "pi", "n_gamma", ""))
+    output[["hyperparams"]] <-
+      utils::read.table(file=f, header=FALSE, sep="\t", skip=1,
+                        stringsAsFactors=FALSE,
+                        col.names=c("h", "pve", "rho", "pge",
+                                    "pi", "n_gamma", ""))
     output[["hyperparams"]][7] <- NULL
     if(clean == "all")
       file.remove(f)
     f <- paste0(out.dir, "/results_", task.id, ".param.txt")
-    output[["params"]] <- utils::read.table(file=f,
-                                     sep="\t", skip=1,
-                                     stringsAsFactors=FALSE, header=FALSE,
-                                     col.names=c("chr", "rs", "ps", "n_miss",
-                                                 "alpha", "beta", "gamma"))
+    output[["params"]] <-
+      utils::read.table(file=f, header=FALSE, sep="\t", skip=1,
+                        stringsAsFactors=FALSE,
+                        col.names=c("chr", "rs", "ps", "n_miss",
+                                    "alpha", "beta", "gamma"))
     if(clean == "all")
       file.remove(f)
   }
@@ -3796,10 +3816,11 @@ gemma <- function(model="ulmm", y, X, snp.coords, alleles, maf=0.01, K.c=NULL,
 ##' GEMMA uLMM per chromosome
 ##'
 ##' See Zhou & Stephens (Nature Genetics, 2012).
-##' @param y vector of phenotypes
+##' @param y vector of phenotypes with individual names
 ##' @param X matrix of SNP genotypes encoded in number of copies of the 2nd allele, i.e. as allele doses in {0,1,2}, with individuals in rows and SNPs in columns
-##' @param snp.coords data.frame with SNP identifiers as row names, and two columns, "chr" and "coord" or "pos"
+##' @param snp.coords data.frame with 3 columns (snp, coord, chr)
 ##' @param alleles data.frame with SNPs in rows (names as row names) and alleles in columns (first is "minor", second is "major"); will be made of A's and B's if missing
+##' @param maf SNPs with minor allele frequency strictly below this threshold will be discarded
 ##' @param chr.ids set of chromosome identifiers to analyze (optional, all by default)
 ##' @param W matrix of covariates with individuals in rows (names as row names), a first column of 1 and a second column of covariates values
 ##' @param out.dir directory in which the data files will be found
@@ -3810,15 +3831,30 @@ gemma <- function(model="ulmm", y, X, snp.coords, alleles, maf=0.01, K.c=NULL,
 ##' @author Timothee Flutre [aut,cre], Dalel Ahmed [ctb]
 ##' @seealso \code{link{gemma}}, \code{\link{plotHistPval}}, \code{\link{qqplotPval}}
 ##' @export
-gemmaUlmmPerChr <- function(y, X, snp.coords, alleles=NULL, chr.ids=NULL, W,
-                            out.dir, task.id="", clean="none", verbose=1){
+gemmaUlmmPerChr <- function(y, X, snp.coords, alleles=NULL, maf=0.01,
+                            chr.ids=NULL, W, out.dir, task.id="gemma", clean="none",
+                            verbose=1){
+  stopifnot(file.exists(Sys.which("gemma")))
   stopIfNotValidGenosDose(X, check.rown=FALSE)
+  if(is.matrix(y)){
+    stopifnot(ncol(y) == 1,
+              ! is.null(rownames(y)))
+    y <- stats::setNames(y[,1], rownames(y))
+  }
   stopifnot(is.vector(y),
+            ! is.null(names(y)),
+            length(y) == nrow(X),
+            all(names(y) == rownames(X)),
             .isValidSnpCoords(snp.coords),
             all(rownames(snp.coords) %in% colnames(X)),
             all(colnames(X) %in% rownames(snp.coords)),
+            is.numeric(maf),
+            length(maf) == 1,
+            maf >= 0,
+            maf <= 1,
             is.matrix(W),
             all(W[,1] == 1),
+            nrow(W) == length(y),
             file.exists(out.dir),
             is.character(task.id),
             length(task.id) == 1,
@@ -3832,37 +3868,41 @@ gemmaUlmmPerChr <- function(y, X, snp.coords, alleles=NULL, chr.ids=NULL, W,
 
   out <- list()
 
+  ## discard SNPs with low MAF
+  X <- discardSnpsLowMaf(X=X, thresh=maf, verbose=verbose)
+
+  ## make and/or reformat inputs
   snp.coords <- snp.coords[colnames(X),]
   if(! "coord" %in% colnames(snp.coords))
     colnames(snp.coords)[colnames(snp.coords) == "pos"] <- "coord"
   if(is.null(alleles)){
     alleles <- data.frame(minor=rep("A", nrow(snp.coords)),
                           major=rep("B", nrow(snp.coords)),
+                          row.names=rownames(snp.coords),
                           stringsAsFactors=FALSE)
-    rownames(alleles) <- rownames(snp.coords)
   } else
     alleles <- alleles[colnames(X),]
-  sc.gemma <- data.frame(snp=rownames(snp.coords),
-                         coord=snp.coords$coord,
-                         chr=snp.coords$chr,
-                         stringsAsFactors=FALSE)
 
   if(is.null(chr.ids))
     chr.ids <- sort(unique(as.character(snp.coords$chr)))
 
+  ## launch GEMMA for each chromosome
   for(chr.id in chr.ids){
     subset.snp.ids <- (snp.coords$chr == chr.id)
     if(verbose > 0)
-      message(paste0(chr.id, ": ", sum(subset.snp.ids), " SNPs"))
-    K.c <- estimGenRel(X=X[, ! subset.snp.ids], method="zhou")
-    out[[chr.id]] <- gemma(model="ulmm",
-                           y=y,
-                           X=X[, subset.snp.ids],
-                           snp.coords=sc.gemma[subset.snp.ids,],
-                           alleles=alleles[subset.snp.ids,],
-                           K.c=K.c, W=W, out.dir=out.dir,
-                           task.id=paste0(task.id, "-", chr.id),
-                           verbose=verbose-1, clean=clean)
+      write(paste0(chr.id, ": ", sum(subset.snp.ids), " SNPs"), stdout())
+    K.c <- estimGenRel(X=X[, ! subset.snp.ids], thresh=maf,
+                       relationships="additive", method="zhou",
+                       verbose=verbose)
+    out.chr.id <- gemma(model="ulmm",
+                        y=y,
+                        X=X[, subset.snp.ids],
+                        snp.coords=snp.coords[subset.snp.ids,],
+                        alleles=alleles[subset.snp.ids,],
+                        maf=maf, K.c=K.c, W=W, out.dir=out.dir,
+                        task.id=paste0(task.id, "-", chr.id),
+                        verbose=verbose-1, clean=clean)
+    out[[chr.id]] <- out.chr.id$tests
   }
   out <- do.call(rbind, out)
   rownames(out) <- out$rs

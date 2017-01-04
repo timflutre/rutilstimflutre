@@ -4,17 +4,20 @@
 \alias{gemmaUlmmPerChr}
 \title{GEMMA uLMM per chromosome}
 \usage{
-gemmaUlmmPerChr(y, X, snp.coords, alleles = NULL, chr.ids = NULL, W,
-  out.dir, task.id = "", clean = "none", verbose = 1)
+gemmaUlmmPerChr(y, X, snp.coords, alleles = NULL, maf = 0.01,
+  chr.ids = NULL, W, out.dir, task.id = "gemma", clean = "none",
+  verbose = 1)
 }
 \arguments{
-\item{y}{vector of phenotypes}
+\item{y}{vector of phenotypes with individual names}
 
 \item{X}{matrix of SNP genotypes encoded in number of copies of the 2nd allele, i.e. as allele doses in {0,1,2}, with individuals in rows and SNPs in columns}
 
-\item{snp.coords}{data.frame with SNP identifiers as row names, and two columns, "chr" and "coord" or "pos"}
+\item{snp.coords}{data.frame with 3 columns (snp, coord, chr)}
 
 \item{alleles}{data.frame with SNPs in rows (names as row names) and alleles in columns (first is "minor", second is "major"); will be made of A's and B's if missing}
+
+\item{maf}{SNPs with minor allele frequency strictly below this threshold will be discarded}
 
 \item{chr.ids}{set of chromosome identifiers to analyze (optional, all by default)}
 

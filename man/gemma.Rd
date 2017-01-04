@@ -11,9 +11,9 @@ gemma(model = "ulmm", y, X, snp.coords, alleles, maf = 0.01, K.c = NULL,
 \arguments{
 \item{model}{name of the model to fit (ulmm/bslmm)}
 
-\item{y}{N-vector of phenotypes}
+\item{y}{vector of phenotypes with individual names}
 
-\item{X}{NxP matrix of SNP genotypes encoded in number of copies of the 2nd allele, i.e. as allele doses in {0,1,2}, with individuals in rows and SNPs in columns}
+\item{X}{matrix of SNP genotypes encoded in number of copies of the 2nd allele, i.e. as allele doses in {0,1,2}, with individuals in rows and SNPs in columns}
 
 \item{snp.coords}{data.frame with 3 columns (snp, coord, chr)}
 
@@ -21,9 +21,9 @@ gemma(model = "ulmm", y, X, snp.coords, alleles, maf = 0.01, K.c = NULL,
 
 \item{maf}{SNPs with minor allele frequency strictly below this threshold will be discarded}
 
-\item{K.c}{NxN kinship matrix; if NULL, will be estimated using X via \code{\link{estimGenRel}} with relationships="additive" and method="zhou"}
+\item{K.c}{kinship matrix; if NULL, will be estimated using X via \code{\link{estimGenRel}} with \code{relationships="additive"} and \code{method="zhou"}}
 
-\item{W}{NxQ matrix of covariates with individuals in rows (names as row names), a first column of 1 and a second column of covariates values}
+\item{W}{matrix of covariates with individuals in rows (names as row names), a first column of 1 and a second column of covariates values}
 
 \item{out.dir}{directory in which the output files will be saved}
 
@@ -58,11 +58,14 @@ X <- simulGenosDose(nb.genos=I, nb.snps=P)
 model <- simulBvsr(Q=1, X=X, pi=0.01, pve.A=0.7, sigma.a2=1)
 
 ## test SNPs one by one with the univariate LMM
-snp.coords <- data.frame(snp=colnames(X), coord=1:ncol(X),
-                         chr="chr1", stringsAsFactors=FALSE)
+snp.coords <- data.frame(coord=1:ncol(X),
+                         chr="chr1",
+                         row.names=colnames(X),
+                         stringsAsFactors=FALSE)
 alleles <- data.frame(minor=rep("a", ncol(X)),
-                      major="A", stringsAsFactors=FALSE)
-rownames(alleles) <- colnames(X)
+                      major="A",
+                      row.names=colnames(X),
+                      stringsAsFactors=FALSE)
 fit.u <- gemma(model="ulmm", model$Y[,1], X, snp.coords, alleles,
                W=model$W, out.dir=tempdir(), clean="all")
 cor(model$a[model$gamma == 1], fit.u$tests$beta[model$gamma == 1])
