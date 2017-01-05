@@ -4238,6 +4238,56 @@ calcL10ApproximateBayesFactorWenStephens <- function(sstats, phi2, oma2){
   return(as.numeric(l10abf))
 }
 
+##' Boxplot of QTL
+##'
+##' Make a boxplot of a candidate QTL.
+##' @param y vector of phenotypes with individual names
+##' @param X matrix of SNP genotypes encoded in number of copies of the 2nd allele, i.e. as allele doses in {0,1,2}, with individuals in rows and SNPs in columns
+##' @param snp character with SNP name corresponding to the candidate QTL to plot
+##' @param xlab label ox the x-axis
+##' @param ylab label of the y-axis
+##' @param verbose verbosity level (0/1)
+##' @param ... other arguments to \code{\link[graphics]{boxplot}}
+##' @return invisible list with \code{y} and \code{x} used to make the boxplot (same order, with no missing data)
+##' @author Timothee Flutre
+##' @export
+boxplotCandidateQtl <- function(y, X, snp, xlab="Genotype", ylab="Phenotype",
+                                 verbose=1, ...){
+  stopIfNotValidGenosDose(X, check.na=FALSE)
+  if(is.matrix(y)){
+    stopifnot(ncol(y) == 1,
+              ! is.null(rownames(y)))
+    y <- stats::setNames(y[,1], rownames(y))
+  }
+  stopifnot(is.vector(y),
+            ! is.null(names(y)),
+            length(y) == nrow(X),
+            all(names(y) == rownames(X)),
+            is.character(snp),
+            snp %in% colnames(X))
+
+  ## reformat the inputs
+  x <- stats::setNames(X[, snp], rownames(X))
+  x <- x[! is.na(x)]
+  y <- y[! is.na(y)]
+  ind.names <- intersect(names(y), names(x))
+  x <- x[ind.names]
+  y <- y[ind.names]
+
+  if(verbose > 0){
+    print(table(x))
+    print(do.call(rbind, tapply(y, factor(x), function(tmp){
+      c(mean.y=mean(tmp), sd.y=stats::sd(tmp))
+    })), digits=3)
+  }
+
+  ## make boxplot
+  graphics::boxplot(y ~ x, varwidth=TRUE, notch=TRUE, las=1,
+                    xlab=xlab, ylab=ylab, ...)
+
+  invisible(list(y=y, x=x))
+}
+
 ##' Returns the genetic map contained in a BioMercator TXT file.
 ##'
 ##' http://moulon.inra.fr/index.php/en/tranverse-team/atelier-de-bioinformatique/projects/projets/135
