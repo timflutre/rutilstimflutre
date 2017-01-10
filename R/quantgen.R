@@ -3604,6 +3604,99 @@ simulLogistic <- function(t=1:20, a=50, g.t0=1, r=0.6, sigma2=0){
               g.t=g.t, tI=tI, g.tI=g.tI))
 }
 
+##' Plant Association genetics
+##'
+##' Subset and sort inputs necessary to perform an analysis of plant association genetics, that is, the subset of cultivars with genotypes and phenotypes, and the subset of markers having genotypes and coordinates.
+##' @param ids data.frame of identifiers, with (at least) column names \code{cultivar.code} and \code{accession.code}; the outputs will be sorted according to this option
+##' @param y vector, matrix or data.frame which row names should be present in \code{ids$cultivar.code} or \code{ids$accession.code}
+##' @param X matrix of SNP genotypes encoded in number of copies of the 2nd allele, i.e. as allele doses in {0,1,2}, with individuals in rows and SNPs in columns; row names should be present in \code{ids$accession.code} or \code{ids$cultivar.code}, and column names in \code{rownames(snp.coords)}
+##' @param snp.coords data.frame with 2 columns \code{coord} and \code{chr}, and SNP identifiers as row names
+##' @param alleles data.frame with SNPs in rows (names as row names) and alleles in columns (first is "minor", second is "major")
+##' @param verbose verbosity level (0/1)
+##' @return list with inputs after subsetting and sorting
+##' @author Timothee Flutre
+##' @export
+rearrangeInputsForAssoGenet <- function(ids, y, X, snp.coords, alleles,
+                                        verbose=1){
+  ## check inputs separately from each other
+  stopifnot(is.data.frame(ids),
+            all(c("cultivar.code", "accession.code") %in% colnames(ids)),
+            sum(is.na(ids)) == 0)
+  ids <- convertFactorColumnsToCharacter(ids)
+  ids$cultivar.code <- as.character(ids$cultivar.code)
+  ids$accession.code <- as.character(ids$accession.code)
+  if(is.vector(y)){
+    stopifnot(! is.null(names(y)))
+    y <- as.data.frame(y,
+                       row.names=names(y))
+  } else if(is.matrix(y)){
+    stopifnot(! is.null(rownames(y)))
+    y <- as.data.frame(y)
+  }
+  stopifnot(is.data.frame(y),
+            ! is.null(rownames(y)))
+  y <- convertFactorColumnsToCharacter(y)
+  stopIfNotValidGenosDose(X, check.na=FALSE)
+  stopifnot(.isValidSnpCoords(snp.coords),
+            is.data.frame(alleles),
+            ! is.null(row.names(alleles)),
+            colnames(alleles) == c("minor","major"))
+
+  ## determine if the genotypes of y are accession or cultivar codes
+  in.geno.y <- NA
+  if(all(rownames(y) %in% ids$accession.code)){
+    in.geno.y <- "accession"
+  } else if(all(rownames(y) %in% ids$cultivar.code)){
+    in.geno.y <- "cultivar"
+  }
+  if(is.na(in.geno.y)){
+    msg <- "rownames(y) should be all accession codes or all cultivar codes"
+    stop(msg)
+  }
+  if(in.geno.y == "accession")
+    rownames(y) <- ids$cultivar.code[match(rownames(y), ids$accession.code)]
+
+  ## determine if the genotypes of X are accession or cultivar codes
+  in.geno.X <- NA
+  if(all(rownames(X) %in% ids$accession.code)){
+    in.geno.X <- "accession"
+  } else if(all(rownames(X) %in% ids$cultivar.code)){
+    in.geno.X <- "cultivar"
+  }
+  if(is.na(in.geno.X)){
+    msg <- "rownames(X) should be all accession codes or all cultivar codes"
+    stop(msg)
+  }
+  if(in.geno.X == "accession")
+    rownames(X) <- ids$cultivar.code[match(rownames(X), ids$accession.code)]
+
+  ## determine the subset of genotypes in y and X (as cultivar codes)
+  cultivars.tokeep <- intersect(rownames(y), rownames(X))
+  if(verbose > 0){
+    msg <- paste0("nb of genotypes: ", length(cultivars.tokeep))
+    write(msg, stdout())
+  }
+  ## sort them according to "ids"
+  cultivars.tokeep <- cultivars.tokeep[order(match(cultivars.tokeep,
+                                                   ids$cultivar.code))]
+  y <- droplevels(y[cultivars.tokeep, , drop=FALSE])
+  X <- X[cultivars.tokeep, , drop=FALSE]
+
+  ## determine the SNPs for which genotypes and coordinates are available
+  stopifnot(all(colnames(X) %in% rownames(snp.coords)),
+            all(rownames(alleles) %in% rownames(snp.coords)))
+  snps.tokeep <- intersect(colnames(X), rownames(alleles))
+  if(verbose > 0){
+    msg <- paste0("nb of SNPs: ", length(snps.tokeep))
+    write(msg, stdout())
+  }
+  snp.coords <- droplevels(snp.coords[snps.tokeep,])
+  X <- X[, snps.tokeep, drop=FALSE]
+  alleles <- droplevels(alleles[snps.tokeep,])
+
+  return(list(ids=ids, y=y, X=X, snp.coords=snp.coords, alleles=alleles))
+}
+
 ##' Launch GEMMA
 ##'
 ##' See Zhou & Stephens (Nature Genetics, 2012) and Zhou et al (PLoS Genetics, 2013).

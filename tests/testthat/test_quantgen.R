@@ -777,3 +777,41 @@ test_that("mme", {
 
   expect_equal(format(observed, digits=1), format(expected, digits=1))
 })
+
+
+test_that("rearrangeInputsForAssoGenet", {
+  ids <- data.frame(cultivar.code=c(34, 150, 19),
+                    cultivar.name=c("Grenache", "Syrah", "Carigan"),
+                    accession.code=c("34Mtp6", "150Mtp11", "18Mtp17"),
+                    stringsAsFactors=FALSE)
+  y <- setNames(c(1.72, 0.98), c("18Mtp17", "34Mtp6"))
+  X <- matrix(c(1,0, 2,0), nrow=2, ncol=2,
+              dimnames=list(c("34Mtp6", "150Mtp11"), c("snp2", "snp5")))
+  snp.coords <- data.frame(chr=c("chr7", "chr2", "chr2", "chr3"),
+                           coord=c(726354, 12536, 18700, 763542),
+                           row.names=c("snp1", "snp2", "snp5", "snp8"))
+  alleles <- data.frame(minor=c("A", "G", "C"),
+                        major=c("T", "C", "G"),
+                        row.names=c("snp2", "snp5", "snp8"),
+                        stringsAsFactors=FALSE)
+
+  cultivars.tokeep <- c("34")
+  snps.tokeep <- c("snp2", "snp5")
+  exp <- list(ids=ids,
+              y=data.frame(y=y["34Mtp6"],
+                           row.names=cultivars.tokeep,
+                           stringsAsFactors=FALSE),
+              X=X["34Mtp6", snps.tokeep, drop=FALSE],
+              snp.coords=droplevels(snp.coords[snps.tokeep,]),
+              alleles=droplevels(alleles[snps.tokeep,]))
+  exp$ids$cultivar.code <- as.character(exp$ids$cultivar.code)
+  rownames(exp$X) <- "34"
+
+  obs <- rearrangeInputsForAssoGenet(ids=ids, y=y, X=X, snp.coords=snp.coords,
+                                     alleles=alleles, verbose=0)
+  expect_equal(obs$ids, exp$ids)
+  expect_equal(obs$y, exp$y)
+  expect_equal(obs$X, exp$X)
+  expect_equal(obs$snp.coords, exp$snp.coords)
+  expect_equal(obs$alleles, exp$alleles)
+})

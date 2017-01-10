@@ -49,3 +49,17 @@ removeFileExtension <- function(file, fileext){
 
   return(out)
 }
+
+##' Data.frame
+##'
+##' Convert the factor columns into character.
+##' @param x data.frame
+##' @return data.frame
+##' @author Timothee Flutre
+##' @export
+convertFactorColumnsToCharacter <- function(x){
+  stopifnot(is.data.frame(x))
+  idx <- sapply(x, is.factor)
+  x[idx] <- lapply(x[idx], as.character)
+  return(x)
+}
