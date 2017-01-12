@@ -9,7 +9,7 @@ haplosAlleles2num(haplos, alleles, nb.cores = 1)
 \arguments{
 \item{haplos}{matrix with haplotypes in rows (2 consecutive per individual) and SNPs in columns}
 
-\item{alleles}{data.frame with SNPs in rows (names as row names) and alleles in columns (first is "minor", second is "major")}
+\item{alleles}{data.frame with SNPs in rows (names as row names) and alleles in columns (named "minor" and "major")}
 
 \item{nb.cores}{the number of cores to use, i.e. at most how many child processes will be run simultaneously (not on Windows)}
 }

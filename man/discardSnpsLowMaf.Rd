@@ -7,7 +7,7 @@
 discardSnpsLowMaf(X, mafs = NULL, thresh = 0.01, verbose = 1)
 }
 \arguments{
-\item{X}{matrix of SNP genotypes encoded in number of copies of the 2nd allele, i.e. as allele doses in {0,1,2}, with individuals in rows and SNPs in columns}
+\item{X}{matrix of SNP genotypes encoded in number of copies of the 2nd allele, i.e. as allele doses in {0,1,2}, with individuals in rows and SNPs in columns; missing values should be encoded as NA}
 
 \item{mafs}{vector of minor allele frequencies; if NULL, will be estimated with \code{\link{estimSnpMaf}}}
 

@@ -1,12 +1,13 @@
 library(rutilstimflutre)
 context("Quantgen")
 
-test_that("dose2alleles", {
+test_that("genoDoses2genoClasses", {
   N <- 2 # individuals
   P <- 4 # SNPs
   X <- matrix(c(1,1, NA,0, 2,1, 1,NA), nrow=N, ncol=P,
               dimnames=list(paste0("ind", 1:N), paste0("snp", 1:P)))
-  alleles <- data.frame(minor=c("A","A","T","G"), major=c("T","T","A","C"),
+  alleles <- data.frame(first=c("T","T","A","C"),
+                        second=c("A","A","T","G"),
                         stringsAsFactors=FALSE)
   rownames(alleles) <- colnames(X)
 
@@ -15,7 +16,8 @@ test_that("dose2alleles", {
                          stringsAsFactors=FALSE)
   rownames(expected) <- colnames(X)
 
-  observed <- dose2alleles(tX=t(X), alleles=alleles, na.string="??")
+  observed <- genoDoses2genoClasses(tX=t(X), alleles=alleles, na.string="??",
+                                    verbose=0)
 
   expect_equal(observed, expected)
 })
@@ -41,15 +43,28 @@ test_that("haplosAlleles2num", {
   expect_equal(observed, expected)
 })
 
-test_that("calcFreqMissSnpGenos", {
+test_that("calcFreqMissSnpGenosPerSnp", {
   N <- 2 # individuals
   P <- 4 # SNPs
   X <- matrix(c(1,1, NA,NA, 2,1, 1,NA), nrow=N, ncol=P,
               dimnames=list(paste0("ind", 1:N), paste0("snp", 1:P)))
 
-  expected <- setNames(c(0/2, 2/2, 0/2, 1/2), colnames(X))
+  expected <- setNames(c(0/N, 2/N, 0/N, 1/N), colnames(X))
 
-  observed <- calcFreqMissSnpGenos(X)
+  observed <- calcFreqMissSnpGenosPerSnp(X)
+
+  expect_equal(observed, expected)
+})
+
+test_that("calcFreqMissSnpGenosPerGeno", {
+  N <- 2 # individuals
+  P <- 4 # SNPs
+  X <- matrix(c(1,1, NA,NA, 2,1, 1,NA), nrow=N, ncol=P,
+              dimnames=list(paste0("ind", 1:N), paste0("snp", 1:P)))
+
+  expected <- setNames(c(1/P, 2/P), rownames(X))
+
+  observed <- calcFreqMissSnpGenosPerGeno(X)
 
   expect_equal(observed, expected)
 })
@@ -116,6 +131,87 @@ test_that("discardSnpsLowMaf", {
   observed <- discardSnpsLowMaf(X=X, mafs=mafs, thresh=0.2, verbose=0)
   expected <- X[, c("snp1", "snp2")]
   expect_equal(observed, expected)
+})
+
+test_that("recodeGenosMinorSnpAllele", {
+  N <- 4 # individuals
+  P <- 3 # SNPs
+  X <- matrix(c(2,0,2,1, 1,1,0,1, 1,NA,0,2), nrow=N, ncol=P,
+              dimnames=list(paste0("ind", 1:N), paste0("snp", 1:P)))
+  alleles <- data.frame(first=c("A", "G", "T"),
+                        second=c("T", "C", "A"),
+                        row.names=colnames(X),
+                        stringsAsFactors=FALSE)
+
+  expected <- list(X=matrix(c(0,2,0,1, 1,1,0,1, 1,NA,0,2), nrow=N, ncol=P,
+                            dimnames=dimnames(X)),
+                   alleles=data.frame(major=c("T", "G", "T"),
+                                      minor=c("A", "C", "A"),
+                                      row.names=colnames(X),
+                                      stringsAsFactors=FALSE))
+
+  observed <- recodeGenosMinorSnpAllele(X=X, alleles=alleles, verbose=0)
+
+  expect_equal(observed, expected)
+})
+
+test_that("countGenotypicClasses", {
+  N <- 3 # individuals
+  P <- 4 # SNPs
+  X <- matrix(c(0,0,2, 1,1,0, 0,1,0, 1,NA,0), nrow=N, ncol=P,
+              dimnames=list(paste0("ind", 1:N), paste0("snp", 1:P)))
+
+  expected <- matrix(c(2,0,1,0, 1,2,0,0, 2,1,0,0, 1,1,0,1), byrow=TRUE,
+                     nrow=P, ncol=4,
+                     dimnames=list(colnames(X), c("0", "1", "2", "NA")))
+
+  observed <- countGenotypicClasses(X=X)
+
+  expect_equal(observed, expected)
+})
+
+test_that("chiSqSnpGenos", {
+  N <- 3 # individuals
+  P <- 5 # SNPs
+  X <- matrix(c(0,0,2, 1,1,0, 0,1,0, 1,NA,0, 0,0,0), nrow=N, ncol=P,
+              dimnames=list(paste0("ind", 1:N), paste0("snp", 1:P)))
+  alleles <- data.frame(first=c("A", "G", "T", "T", "C"),
+                        second=c("T", "C", "A", "A", "G"),
+                        row.names=colnames(X),
+                        stringsAsFactors=FALSE)
+
+  ## external check
+  if(FALSE){
+    library(HardyWeinberg) # available on CRAN
+    cts <- countGenotypicClasses(X=X)[, -4]
+    colnames(cts) <- c("AA","AB","BB")
+    suppressWarnings(HWChisqMat(X=cts, cc=0, verbose=FALSE))
+    suppressWarnings(HWChisqMat(X=cts, cc=0.5, verbose=FALSE))
+  }
+
+  n.AB <- c(0, 2, 1, 1, 0)
+  n <- c(N, N, N, N-1, N)
+  p <- c(2, 2, 1, 1, 0) / (2 * n)
+  q <- 1 - p
+  e.AB <- 2 * n * p * q
+  D <- 0.5 * (n.AB - e.AB)
+  expected <- setNames(D^2 / (p^2 * q^2 * n),
+                       colnames(X))
+
+  observed <- chiSqSnpGenos(X=X, c=0, calc.with.D=TRUE)
+  expect_equal(observed[,"chi2"], expected)
+
+  observed <- chiSqSnpGenos(X=X, c=0, calc.with.D=FALSE)
+  expect_equal(observed[,"chi2"], expected)
+
+  c <- 0.5
+  expected <- setNames((D^2 - 2*c*abs(D)*(1-p*q) + c^2*(1-(3/2)*p*q)) /
+                       (p^2 * q^2 * n),
+                       colnames(X))
+  observed <- chiSqSnpGenos(X=X, c=c, thresh.c=0, calc.with.D=TRUE)
+  expect_equal(observed[,"chi2"], expected)
+  observed <- chiSqSnpGenos(X=X, c=c, thresh.c=0, calc.with.D=FALSE)
+  expect_equal(observed[,"chi2"], expected)
 })
 
 test_that("imputeGenosWithMean", {

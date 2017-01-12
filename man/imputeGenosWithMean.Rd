@@ -8,7 +8,7 @@ imputeGenosWithMean(X, min.maf = 0.1, max.miss = 0.3,
   rm.still.miss = TRUE)
 }
 \arguments{
-\item{X}{NxP matrix of marker genotypes numerically encoded (if SNPs, in number of copies of the 2nd allele, i.e. as allele doses in {0,1,2}), with individuals in rows and markers in columns; NA if missing}
+\item{X}{matrix of marker genotypes numerically encoded (if SNPs, in number of copies of the 2nd allele, i.e. as allele doses in {0,1,2}), with individuals in rows and markers in columns; NA if missing}
 
 \item{min.maf}{minimum minor allele frequency (before imputation) below which SNPs are discarded}
 
@@ -17,10 +17,11 @@ imputeGenosWithMean(X, min.maf = 0.1, max.miss = 0.3,
 \item{rm.still.miss}{if TRUE, remove marker(s) still with missing genotype(s) after imputation (depending on \code{min.maf} and \code{max.miss})}
 }
 \value{
-NxP matrix with imputed genotypes
+matrix with imputed genotypes
 }
 \description{
-Impute missing marker genotypes with the mean of the non-missing. The code was inspired from the \code{A.mat} function from the \href{https://cran.r-project.org/web/packages/rrBLUP/}{rrBLUP} package.
+Impute missing marker genotypes with the mean of the non-missing.
+The code was inspired from the \code{A.mat} function from the \href{https://cran.r-project.org/web/packages/rrBLUP/}{rrBLUP} package.
 }
 \author{
 Timothee Flutre

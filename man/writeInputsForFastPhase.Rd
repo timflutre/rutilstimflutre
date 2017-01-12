@@ -11,7 +11,7 @@ writeInputsForFastPhase(X, snp.coords, alleles, file, verbose = 0)
 
 \item{snp.coords}{data.frame with SNP identifiers as row names, and two columns, "chr" and "coord" or "pos"}
 
-\item{alleles}{data.frame with SNPs in rows (names as row names) and alleles in columns (first is "minor", second is "major")}
+\item{alleles}{data.frame with SNPs in rows (names as row names) and alleles in columns (named "minor" and "major")}
 
 \item{file}{write the genotype data to this file (for instance 'genotypes_fastphase.txt' or 'genotypes_fastphase.txt.gz', but don't use \code{\link[base]{gzfile}})}
 

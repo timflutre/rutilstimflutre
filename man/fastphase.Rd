@@ -14,7 +14,7 @@ fastphase(X, snp.coords, alleles, out.dir = getwd(), task.id = "fastphase",
 
 \item{snp.coords}{data.frame with SNP identifiers as row names, and two columns, "chr" and "coord" or "pos"}
 
-\item{alleles}{data.frame with SNPs in rows (names as row names) and alleles in columns (first is "minor", second is "major")}
+\item{alleles}{data.frame with SNPs in rows (names as row names) and alleles in columns (named "minor" and "major")}
 
 \item{out.dir}{directory in which the output files will be saved}
 

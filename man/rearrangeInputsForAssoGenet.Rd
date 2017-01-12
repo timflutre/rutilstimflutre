@@ -15,7 +15,7 @@ rearrangeInputsForAssoGenet(ids, y, X, snp.coords, alleles, verbose = 1)
 
 \item{snp.coords}{data.frame with 2 columns \code{coord} and \code{chr}, and SNP identifiers as row names}
 
-\item{alleles}{data.frame with SNPs in rows (names as row names) and alleles in columns (first is "minor", second is "major")}
+\item{alleles}{data.frame with SNPs in rows (names as row names) and alleles in columns (named "minor" and "major")}
 
 \item{verbose}{verbosity level (0/1)}
 }

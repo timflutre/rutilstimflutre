@@ -17,7 +17,7 @@ gemma(model = "ulmm", y, X, snp.coords, alleles, maf = 0.01, K.c = NULL,
 
 \item{snp.coords}{data.frame with 3 columns (snp, coord, chr)}
 
-\item{alleles}{data.frame with SNPs in rows (names as row names) and alleles in columns (first is "minor", second is "major")}
+\item{alleles}{data.frame with SNPs in rows (names as row names) and alleles in columns (named "minor" and "major")}
 
 \item{maf}{SNPs with minor allele frequency strictly below this threshold will be discarded}
 
