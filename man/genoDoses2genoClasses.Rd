@@ -35,6 +35,6 @@ The code is not particularly efficient, but at least it exists.
 Timothee Flutre
 }
 \seealso{
-\code{link{alleles2dose}}
+\code{link{genoClasses2genoDoses}}
 }
 

@@ -2,13 +2,12 @@
 
 ##' Summary
 ##'
-##' Print the output of \code{\link{summary}} in a single line, as well as the total number of observations and the number of missing data.
+##' Format the output of \code{\link{summary}} in a single line, as well as the total number of observations and the number of missing data.
 ##' @param x vector of numbers
-##' @param spec specifier, see \code{\link{sprintf}}
-##' @return invisible summary
+##' @return vector
 ##' @author Timothee Flutre
 ##' @export
-prettyPrintSummary <- function(x, spec="%.2f"){
+betterSummary <- function(x){
   stopifnot(is.vector(x),
             is.numeric(x))
 
@@ -26,6 +25,20 @@ prettyPrintSummary <- function(x, spec="%.2f"){
   out["mean"] <- mean(x)
   out["q3"] <- stats::quantile(x, 0.75)
   out["max"] <- max(x)
+
+  return(out)
+}
+
+##' Summary
+##'
+##' Print the output of \code{\link{betterSummary}} in a single line, as well as the total number of observations and the number of missing data.
+##' @param x vector of numbers
+##' @param spec specifier, see \code{\link{sprintf}}
+##' @return invisible summary
+##' @author Timothee Flutre
+##' @export
+prettyPrintSummary <- function(x, spec="%.2f"){
+  out <- betterSummary(x)
 
   fmt <- paste(paste0(names(out), "=", spec), collapse=" ")
   txt <- sprintf(fmt=fmt, out["n"], out["na"], out["min"], out["q1"], out["med"],

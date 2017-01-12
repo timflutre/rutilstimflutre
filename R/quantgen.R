@@ -2,14 +2,15 @@
 
 ##' Convert genotypes
 ##'
-##' Convert SNP genotype data from alleles (say, "AA" and "AT") to minor allele doses (here, 0 and 1 if "T" is the minor allele). Not particularly efficient, but at least it exists.
-##' @param x matrix or data.frame with SNPs in rows and individuals in columns, the SNP identifiers being in the first column
+##' Convert SNP genotypes from "genotypic classes" into "allele doses" by counting the number of minor alleles.
+##' The code is not particularly efficient, but at least it exists.
+##' @param x matrix or data.frame with SNPs in rows and genotypes in columns, the SNP identifiers being in the first column
 ##' @param na.string a character to be interpreted as NA values
 ##' @param verbose verbosity level (0/1)
-##' @return list of a matrix (allele doses, SNPs in columns and individuals in rows) and a vector (minor alleles)
+##' @return list of a matrix of allele doses with SNPs in columns and genotypes in rows, and a matrix with major and minor alleles
 ##' @author Timothee Flutre
 ##' @export
-alleles2dose <- function(x, na.string="--", verbose=1){
+genoClasses2genoDoses <- function(x, na.string="--", verbose=1){
   stopifnot(is.matrix(x) || is.data.frame(x),
             ! is.null(colnames(x)))
 
@@ -23,9 +24,9 @@ alleles2dose <- function(x, na.string="--", verbose=1){
   }
 
   geno.doses <- matrix(data=NA, nrow=N, ncol=P,
-                       dimnames=list(ind=ind.names, snp=snp.names))
+                       dimnames=list(ind.names, snp.names))
   alleles <- matrix(data=NA, nrow=P, ncol=2,
-                    dimnames=list(snp.names, c("minor", "major")))
+                    dimnames=list(snp.names, c("major", "minor")))
 
   for(p in 1:P){ # for each SNP
     raw.genos <- as.character(unlist(x[p, -1]))
@@ -37,7 +38,8 @@ alleles2dose <- function(x, na.string="--", verbose=1){
     distinct.alleles <- sort(unique(tmp))
     allele.counts <- sort(table(tmp))
     if(length(distinct.alleles) > 2){ # SNP with more than 2 alleles
-      stop("SNP ", paste0(x[p,1], " has more than 2 alleles"))
+      msg <- paste0("SNP ", colnames(x)[p], " has more than 2 alleles")
+      stop(msg)
     } else if(length(distinct.alleles) == 2){ # SNP with exactly 2 alleles
       alleles[p, "minor"] <- names(allele.counts)[1]
       alleles[p, "major"] <- names(allele.counts)[2]
@@ -193,7 +195,7 @@ stopIfNotValidGenosDose <- function(X, check.hasColNames=TRUE,
 ##' @param verbose verbosity level (0/1)
 ##' @return data.frame with SNPs in rows and individuals in columns
 ##' @author Timothee Flutre
-##' @seealso \code{link{alleles2dose}}
+##' @seealso \code{link{genoClasses2genoDoses}}
 ##' @export
 genoDoses2genoClasses <- function(X=NULL, tX=NULL, alleles, na.string="--", verbose=1){
   stopifnot(xor(is.null(X), is.null(tX)),
@@ -542,10 +544,10 @@ chiSqSnpGenos <- function(X, afs=NULL, c=0.5, thresh.c=0.01, calc.with.D=TRUE,
   out <- cbind(out, chi2=chi2)
 
   if(calc.pval)
-    out <- cbind(out, pvalues=stats::pchisq(q=chi2, df=1, lower.tail=FALSE))
+    out <- cbind(out, pvalue=stats::pchisq(q=chi2, df=1, lower.tail=FALSE))
 
   if(! is.null(thresh.pval))
-    out <- cbind(out, signif=out[,"pvalues"] <= thresh.pval)
+    out <- cbind(out, signif=out[,"pvalue"] <= thresh.pval)
 
   return(out)
 }

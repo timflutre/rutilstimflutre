@@ -1,6 +1,32 @@
 library(rutilstimflutre)
 context("Quantgen")
 
+test_that("genoClasses2genoDoses", {
+  N <- 3 # individuals
+  P <- 4 # SNPs
+  genoClasses <- data.frame(snp=paste0("snp", 1:P),
+                            ind1=c("AA", "GC", "AA", "GC"),
+                            ind2=c("AA", "GC", "AT", "??"),
+                            ind3=c("TT", "GG", "AA", "CC"),
+                            stringsAsFactors=FALSE)
+
+  X <- matrix(c(0,0,2,
+                1,1,0,
+                0,1,0,
+                1,NA,0),
+              nrow=N, ncol=P,
+              dimnames=list(colnames(genoClasses)[-1], genoClasses[,1]))
+  alleles <- matrix(c("A","T", "G","C", "A","T", "C","G"),
+                    byrow=TRUE, nrow=P, ncol=2,
+                    dimnames=list(colnames(X), c("major", "minor")))
+  expected <- list(geno.doses=X,
+                   alleles=alleles)
+
+  observed <- genoClasses2genoDoses(x=genoClasses, na.string="??", verbose=0)
+
+  expect_equal(observed, expected)
+})
+
 test_that("genoDoses2genoClasses", {
   N <- 2 # individuals
   P <- 4 # SNPs
