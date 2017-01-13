@@ -19,7 +19,7 @@ genoClasses2genoDoses <- function(x, na.string="--", verbose=1){
   ind.names <- colnames(x)[-1]
   N <- length(ind.names)
   if(verbose > 0){
-    txt <- paste0(P, " SNPs and ", N, " individuals")
+    txt <- paste0("convert to doses ", P, " SNPs and ", N, " genotypes...")
     write(txt, stdout())
   }
 
