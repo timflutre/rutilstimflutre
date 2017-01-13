@@ -4,7 +4,7 @@
 ##'
 ##' Convert SNP genotypes from "genotypic classes" into "allele doses" by counting the number of minor alleles.
 ##' The code is not particularly efficient, but at least it exists.
-##' @param x matrix or data.frame with SNPs in rows and genotypes in columns, the SNP identifiers being in the first column
+##' @param x matrix or data.frame with bi-allelic SNPs in rows and genotypes in columns, the SNP identifiers being in the first column
 ##' @param na.string a character to be interpreted as NA values
 ##' @param verbose verbosity level (0/1)
 ##' @return list of a matrix of allele doses with SNPs in columns and genotypes in rows, and a matrix with major and minor alleles
@@ -19,8 +19,8 @@ genoClasses2genoDoses <- function(x, na.string="--", verbose=1){
   ind.names <- colnames(x)[-1]
   N <- length(ind.names)
   if(verbose > 0){
-    txt <- paste0("convert to doses ", P, " SNPs and ", N, " genotypes...")
-    write(txt, stdout())
+    msg <- paste0("convert to doses ", P, " SNPs and ", N, " genotypes...")
+    write(msg, stdout())
   }
 
   geno.doses <- matrix(data=NA, nrow=N, ncol=P,
@@ -140,7 +140,7 @@ segregJoinMap2Qtl <- function(){
 
 ##' Genotypes
 ##'
-##' Check that the input is a valid matrix of genotypes coded in allele doses.
+##' Check that the input is a valid matrix of bi-allelic SNP genotypes coded in allele doses.
 ##' @param X input matrix
 ##' @param check.hasColNames logical
 ##' @param check.hasRowNames logical
@@ -188,12 +188,12 @@ stopIfNotValidGenosDose <- function(X, check.hasColNames=TRUE,
 ##' Those being heterozygous are "1" and will be "AB".
 ##' Finally, those being homozygous for the second allele are "2" and will be "BB".
 ##' The code is not particularly efficient, but at least it exists.
-##' @param X matrix of SNP genotypes encoded in number of copies of the second allele, i.e. as allele doses in {0,1,2}, with individuals in rows and SNPs in columns; the "second" allele is arbitrary, it corresponds to the second column of \code{alleles}, which can be the minor or the major allele
-##' @param tX matrix with SNPs in rows and individuals in columns
-##' @param alleles data.frame with SNPs in rows (names as row names) and alleles in columns (exactly 2 columns are required)
+##' @param X matrix of bi-allelic SNP genotypes encoded, for each SNP, in number of copies of its second allele, i.e. as allele doses in {0,1,2}, with genotypes in rows and SNPs in columns; the "second" allele is arbitrary, it corresponds to the second column of \code{alleles}, which can be the minor or the major allele
+##' @param tX matrix with SNPs in rows and genotypes in columns
+##' @param alleles data.frame with SNPs in rows (names as row names) and alleles in columns (exactly 2 columns are required); the second column should correspond to the allele which number of copies is counted at each SNP in \code{X}
 ##' @param na.string character used to replace NA values
 ##' @param verbose verbosity level (0/1)
-##' @return data.frame with SNPs in rows and individuals in columns
+##' @return data.frame with SNPs in rows and genotypes in columns
 ##' @author Timothee Flutre
 ##' @seealso \code{link{genoClasses2genoDoses}}
 ##' @export
@@ -248,14 +248,14 @@ genoDoses2genoClasses <- function(X=NULL, tX=NULL, alleles, na.string="--", verb
 
 ##' Missing genotypes
 ##'
-##' Calculate the frequency of missing SNP genotypes for each SNP.
-##' @param X matrix of SNP genotypes encoded in number of copies of the 2nd allele, i.e. as allele doses in {0,1,2}, with individuals in rows and SNPs in columns; missing values should be encoded as NA
+##' Calculate the frequency of missing genotypes for each marker.
+##' @param X matrix of marker genotypes, with genotypes in rows and markers in columns; missing values should be encoded as NA
 ##' @return vector
 ##' @author Timothee Flutre
 ##' @export
 calcFreqMissSnpGenosPerSnp <- function(X){
   stopIfNotValidGenosDose(X, check.hasColNames=FALSE, check.hasRowNames=FALSE,
-                          check.noNA=FALSE)
+                          check.noNA=FALSE, check.isDose=FALSE)
 
   N <- nrow(X) # number of genotypes
   out <- apply(X, 2, function(Xp){sum(is.na(Xp)) / N})
@@ -265,16 +265,16 @@ calcFreqMissSnpGenosPerSnp <- function(X){
 
 ##' Missing genotypes
 ##'
-##' Calculate the frequency of missing SNP genotypes for each genotype.
-##' @param X matrix of SNP genotypes encoded in number of copies of the 2nd allele, i.e. as allele doses in {0,1,2}, with individuals in rows and SNPs in columns; missing values should be encoded as NA
+##' Calculate the frequency of missing marker genotypes for each genotype.
+##' @param X matrix of marker genotypes, with genotypes in rows and markers in columns; missing values should be encoded as NA
 ##' @return vector
 ##' @author Timothee Flutre
 ##' @export
 calcFreqMissSnpGenosPerGeno <- function(X){
   stopIfNotValidGenosDose(X, check.hasColNames=FALSE, check.hasRowNames=FALSE,
-                          check.noNA=FALSE)
+                          check.noNA=FALSE, check.isDose=FALSE)
 
-  P <- ncol(X) # number of SNPs
+  P <- ncol(X) # number of markers
   out <- apply(X, 1, function(Xn){sum(is.na(Xn)) / P})
 
   return(out)
@@ -282,18 +282,18 @@ calcFreqMissSnpGenosPerGeno <- function(X){
 
 ##' Missing genotypes
 ##'
-##' Plot missing SNP genotypes as a grid. Data will be represented in black if missing, white otherwise.
-##' @param X matrix of SNP genotypes encoded in number of copies of the 2nd allele, i.e. as allele doses in {0,1,2}, with individuals in rows and SNPs in columns; NA if missing
+##' Plot missing marker genotypes as a grid, represented in black if missing, white otherwise.
+##' @param X matrix of marker genotypes, with genotypes in rows and markers in columns; missing values should be encoded as NA
 ##' @param main an overall title for the plot
 ##' @param xlab a title for the x axis
 ##' @param ylab a title for the y axis
 ##' @return nothing
 ##' @author Timothee Flutre
 ##' @export
-plotGridMissGenos <- function(X, main="Missing genotypes", xlab="Individuals",
-                              ylab="SNPs"){
+plotGridMissGenos <- function(X, main="Missing marker genotypes",
+                              xlab="Genotypes", ylab="markers"){
   stopIfNotValidGenosDose(X, check.hasColNames=FALSE, check.hasRowNames=FALSE,
-                          check.noNA=FALSE)
+                          check.noNA=FALSE, check.isDose=FALSE)
 
   graphics::image(1:nrow(X), 1:ncol(X), is.na(X), col=c("white","black"),
         main=main, xlab=xlab, ylab=ylab)
@@ -302,7 +302,7 @@ plotGridMissGenos <- function(X, main="Missing genotypes", xlab="Individuals",
 ##' Missing genotypes
 ##'
 ##' Discard all markers with at least one missing genotype.
-##' @param X matrix of markers' genotypes numerically encoded (if SNPs, in number of copies of the 2nd allele, i.e. as allele doses in {0,1,2}), with individuals in rows and markers in columns; NA if missing
+##' @param X matrix of marker genotypes, with genotypes in rows and markers in columns; missing values should be encoded as NA
 ##' @param verbose verbosity level (0/1)
 ##' @return matrix similar to X but possibly with less columns
 ##' @author Timothee Flutre
@@ -328,9 +328,8 @@ discardMarkersMissGenos <- function(X, verbose=1){
 
 ##' Allele frequencies
 ##'
-##' Estimate the frequency of the second allele for each SNP.
-##' Note that the "second" allele may not be the "minor" allele (the least frequent).
-##' @param X matrix of SNP genotypes encoded in number of copies of the 2nd allele, i.e. as allele doses in {0,1,2}, with individuals in rows and SNPs in columns; missing values should be encoded as NA in order to be ignored
+##' Estimate allele frequencies of bi-allelic SNPs.
+##' @param X matrix of bi-allelic SNP genotypes encoded in allele doses in [0,2], with genotypes in rows and SNPs in columns; missing values should be encoded as NA
 ##' @return vector
 ##' @seealso \code{\link{estimSnpMaf}}
 ##' @author Timothee Flutre
@@ -349,9 +348,9 @@ estimSnpAf <- function(X){
 
 ##' Minor allele frequencies
 ##'
-##' Estimate the frequency of the minor allele for each SNP.
-##' @param X matrix of SNP genotypes encoded in number of copies of the 2nd allele, i.e. as allele doses in {0,1,2}, with individuals in rows and SNPs in columns; missing values should be encoded as NA in order to be ignored; if X is NULL, afs should be specified
-##' @param afs vector with 2nd allele frequencies; if NULL, X should be specified, and the frequencies will be estimated with \code{\link{estimSnpAf}}
+##' Estimate minor allele frequencies of bi-allelic SNPs.
+##' @param X matrix of bi-allelic SNP genotypes encoded in allele doses in [0,2], with genotypes in rows and SNPs in columns; missing values should be encoded as NA
+##' @param afs vector of allele frequencies; if NULL, X should be specified, and the allele frequencies will be estimated with \code{\link{estimSnpAf}}
 ##' @return vector
 ##' @seealso \code{\link{estimSnpAf}}
 ##' @author Timothee Flutre
@@ -369,27 +368,25 @@ estimSnpMaf <- function(X=NULL, afs=NULL){
 
 ##' Minor allele frequencies
 ##'
-##' Recode SNP genotypes in terms of the number of copies of the minor allele.
-##' Let be a bi-allelic SNP with two alleles, A, the first allele, and B, the second allele, "first" and "second" being arbitrary.
-##' The SNP genotypes are originally coded in number of copies of the 2nd allele: if a genotype is "AA", then its allele dose is \code{0}; if "AB", then \code{1}; and if "BB", then \code{2}.
-##' Let us now assume that "A" is the minor (least frequent) allele, then, when recoding SNP genotypes in terms of minor allele, "AA" will correspond to \code{2}, "AB" to \code{1} and "BB" to \code{0}.
-##' @param X matrix of SNP genotypes encoded in number of copies of the 2nd allele, i.e. as allele doses in [0,2], with individuals in rows and SNPs in columns; missing values should be encoded as NA; genotypes can be imputed
-##' @param alleles data.frame with SNPs in rows (names as row names) and alleles in columns (named "minor" and "major")
+##' Recode bi-allelic SNP genotypes in terms of the number of copies of the minor allele.
+##' Let be a bi-allelic SNP with two alleles, A, the first allele, and B, the second allele.
+##' Here, "first" and "second" are arbitrary, meaning that "A" as "B" can be the minor (least frequent) allele.
+##' The SNP genotypes are originally coded in number of copies of the second allele: that is, if a genotype is "AA", its allele dose is \code{0}; if "AB", then \code{1}; and if "BB", then \code{2}.
+##' Let us now assume that, in fact, "A" is the minor (least frequent) allele, then, when recoding SNP genotypes in terms of minor alleles, "AA" will correspond to \code{2}, "AB" to \code{1} and "BB" to \code{0}.
+##' @param X matrix of bi-allelic SNP genotypes encoded, for each SNP, in number of copies of its second allele, i.e. as allele doses in [0,2], with genotypes in rows and SNPs in columns; missing values should be encoded as NA; the "second" allele is arbitrary, it corresponds to the second column of \code{alleles}, which can be the minor or the major allele
+##' @param alleles data.frame with SNPs in rows (names as row names) and alleles in columns (exactly 2 columns are required); the second column should correspond to the allele which number of copies is counted at each SNP in \code{X}
 ##' @param verbose verbosity level (0/1)
-##' @return list with a matrix of SNP genotypes encoded in number of copies of the minor allele with individuals in rows and SNPs in columns, and a data.frame of alleles which columns are named "minor" and "major"
+##' @return list with a matrix of SNP genotypes encoded, for each SNP, in number of copies of its minor allele, with genotypes in rows and SNPs in columns, and a data.frame of alleles which columns are named "minor" and "major"
 ##' @author Timothee Flutre
 ##' @export
 recodeGenosMinorSnpAllele <- function(X, alleles, verbose=1){
   stopIfNotValidGenosDose(X, check.noNA=FALSE)
   stopifnot(is.data.frame(alleles),
-            ncol(alleles) >= 2,
-            all(c("first", "second") %in% colnames(alleles)),
+            ncol(alleles) == 2,
             ! is.null(row.names(alleles)),
-            nrow(alleles) == ncol(X),
-            all(rownames(alleles) %in% colnames(X)),
             all(colnames(X) %in% rownames(alleles)))
 
-  X <- X[, rownames(alleles)] # put in same order
+  alleles <- alleles[colnames(X),] # put in same order
   alleles <- convertFactorColumnsToCharacter(alleles)
   out <- list(X=X, alleles=alleles)
   colnames(out$alleles) <- c("major", "minor")
@@ -405,8 +402,8 @@ recodeGenosMinorSnpAllele <- function(X, alleles, verbose=1){
       write(msg, stdout())
     }
     out$X[, idx.snps] <- abs(X[, idx.snps] - 2)
-    out$alleles[idx.snps, "minor"] <- alleles[idx.snps, "first"]
-    out$alleles[idx.snps, "major"] <- alleles[idx.snps, "second"]
+    out$alleles[idx.snps, "minor"] <- alleles[idx.snps, 1]
+    out$alleles[idx.snps, "major"] <- alleles[idx.snps, 2]
   }
 
   return(out)
@@ -414,8 +411,8 @@ recodeGenosMinorSnpAllele <- function(X, alleles, verbose=1){
 
 ##' Genotypic classes
 ##'
-##' Counts the genotypic classes per SNP (not imputed, i.e. 0, 1, 2 and NA).
-##' @param X matrix of SNP genotypes encoded in number of copies of the 2nd allele, i.e. as allele doses in {0,1,2}, with individuals in rows and SNPs in columns; missing values should be encoded as NA
+##' Count the genotypic classes per SNP (not imputed, i.e. 0, 1, 2 and NA).
+##' @param X matrix of bi-allelic SNP genotypes encoded in allele doses in {0,1,2}, with genotypes in rows and SNPs in columns; missing values should be encoded as NA
 ##' @return matrix with 4 columns and as many rows as there are SNPs
 ##' @author Timothee Flutre
 ##' @export
@@ -423,10 +420,12 @@ countGenotypicClasses <- function(X){
   stopIfNotValidGenosDose(X, check.hasColNames=FALSE, check.hasRowNames=FALSE,
                           check.noNA=FALSE, check.notImputed=TRUE)
 
-  counts <- t(apply(X, 2, function(Xj){
-    c(sum(Xj == 0, na.rm=TRUE), sum(Xj == 1, na.rm=TRUE),
-      sum(Xj == 2, na.rm=TRUE), sum(is.na(Xj)))
+  counts <- t(apply(X, 2, function(Xp){
+    c(sum(Xp == 0, na.rm=TRUE), sum(Xp == 1, na.rm=TRUE),
+      sum(Xp == 2, na.rm=TRUE), sum(is.na(Xp)))
   }))
+  ## colnames(counts) <- c("homozygotes.first", "heterozygotes",
+  ##                       "homozygotes.second", "missing")
   colnames(counts) <- c("0", "1", "2", "NA")
 
   return(counts)
@@ -436,16 +435,15 @@ countGenotypicClasses <- function(X){
 ##'
 ##' Calculate the chi2 statistic to test for Hardy-Weinberg equilibrium.
 ##' See \href{http://www.karger.com/?doi=10.1159/000108939}{Graffelman & Camarena (2007)} and \href{https://dx.doi.org/10.1002/gepi.20612}{Shriner (2011)}.
-##' @param X matrix of SNP genotypes encoded in number of copies of the second allele, i.e. as allele doses in {0,1,2}, with individuals in rows and SNPs in columns; missing values should be encoded as NA
-##' @param afs vector with second allele frequencies; if NULL, the frequencies will be estimated with \code{\link{estimSnpAf}}
+##' @param X matrix of bi-allelic SNP genotypes encoded as allele doses in {0,1,2}, with genotypes in rows and SNPs in columns; missing values should be encoded as NA
+##' @param mafs vector of minor allele frequencies; if NULL, the frequencies will be estimated by feeding \code{X} to \code{\link{estimSnpMaf}}
 ##' @param c continuity correction (\code{0} means "no correction"; usually, \code{0.5} is used, from \href{http://dx.doi.org/10.2307/2983604}{Yates (1934)})
-##' @param thresh.c threshold on minor allele frequency below which the continuity correction isn't applied (when \code{c > 0}); see \href{https://dx.doi.org/10.1016\%2Fj.ajhg.2009.11.019}{Graffelman (2010)}
+##' @param thresh.c threshold on minor allele frequencies below which the continuity correction isn't applied (used when \code{c > 0}); see \href{https://dx.doi.org/10.1016\%2Fj.ajhg.2009.11.019}{Graffelman (2010)}
 ##' @param calc.with.D calculate the chi2 statistic with D, the deviation from independence for the heterozygote, as in equation 1 from Graffelman & Camarena (2007), which only requires the number of heterozygotes; otherwise, use equation 4
 ##' @param calc.pval calculate the p values associated with the test statistics (Chi-squared distribution with one degree of freedom)
-##' @param thresh.pval threshold on p values below which the null hypothesis of Hardy-Weinberg equilibrium is rejected
 ##' @return matrix
 ##' @author Timothee Flutre
-##' @seealso \code{\link{estimSnpAf}}, \code{\link{countGenotypicClasses}}
+##' @seealso \code{\link{estimSnpMaf}}, \code{\link{countGenotypicClasses}}
 ##' @examples
 ##' \dontrun{set.seed(1859)
 ##' library(scrm)
@@ -459,9 +457,9 @@ countGenotypicClasses <- function(X){
 ##'                            pop.recomb.rate=4 * Ne * c * chrom.len,
 ##'                            chrom.len=chrom.len)
 ##' X <- genomes$genos
-##' out <- chiSqSnpGenos(X, c=0.5, thresh.pval=0.01)
+##' out <- chiSqSnpGenos(X)
 ##' head(out)
-##' sum(out[,"signif"]) # number of SNPs for which HW equilibrium is rejected
+##' sum(p.adjust(out[,"pvalue"], "BH") <= 0.05)
 ##' ## library(HardyWeinberg) # available on CRAN
 ##' ## cts <- countGenotypicClasses(X=X)[, -4]
 ##' ## colnames(cts) <- c("AA","AB","BB")
@@ -470,16 +468,17 @@ countGenotypicClasses <- function(X){
 ##' ## HWTernaryPlot(X=cts, region=2)
 ##' }
 ##' @export
-chiSqSnpGenos <- function(X, afs=NULL, c=0.5, thresh.c=0.01, calc.with.D=TRUE,
-                          calc.pval=TRUE, thresh.pval=0.01){
+chiSqSnpGenos <- function(X, mafs=NULL, c=0.5, thresh.c=0.01, calc.with.D=TRUE,
+                          calc.pval=TRUE){
   stopIfNotValidGenosDose(X=X, check.hasColNames=TRUE, check.hasRowNames=FALSE,
                           check.noNA=FALSE, check.isDose=TRUE,
                           check.notImputed=TRUE)
-  if(! is.null(afs))
-    stopifnot(is.vector(afs),
-              is.numeric(afs),
-              ! is.null(names(afs)),
-              all(names(afs) == colnames(X)))
+  if(! is.null(mafs))
+    stopifnot(is.vector(mafs),
+              is.numeric(mafs),
+              ! is.null(names(mafs)),
+              all(mafs <= 0.5),
+              all(colnames(X) %in% names(mafs)))
   stopifnot(is.numeric(c),
             length(c) == 1,
             all(c >= 0, c <= 1),
@@ -491,14 +490,17 @@ chiSqSnpGenos <- function(X, afs=NULL, c=0.5, thresh.c=0.01, calc.with.D=TRUE,
   out <- NULL
 
   N <- nrow(X)
-  if(is.null(afs))
-    afs <- estimSnpAf(X=X)
-  p.hat <- afs       # estimated frequency of the second allele, B
-  q.hat <- 1 - p.hat # estimated frequency of the first allele, A
+  if(is.null(mafs)){
+    mafs <- estimSnpMaf(X=X)
+  } else
+    mafs <- mafs[colnames(X)] # put in same order
+  p.hat <- mafs
+  q.hat <- 1 - p.hat
   out <- as.matrix(p.hat)
-  colnames(out) <- "p.hat"
+  colnames(out) <- "maf"
 
   ## calculate the chi2 test statistics
+  chi2 <- stats::setNames(rep(NA, ncol(X)), colnames(X))
   if(calc.with.D){
     ## observed counts of heterozygotes
     obs.AB <- apply(X, 2, function(Xp){
@@ -511,9 +513,8 @@ chiSqSnpGenos <- function(X, afs=NULL, c=0.5, thresh.c=0.01, calc.with.D=TRUE,
 
     D <- 0.5 * (obs.AB - exp.AB)
     numerator <- D^2
-    if(c != 0){
-      mafs <- estimSnpMaf(afs=afs)
-      idx <- which(mafs >= thresh.c) # indices to which correction is applied
+    if(c > 0){
+      idx <- which(mafs >= thresh.c)
       if(length(idx) > 0)
         numerator[idx] <- numerator[idx] -
           2 * c * abs(D[idx]) * (1 - p.hat[idx] * q.hat[idx]) +
@@ -531,14 +532,15 @@ chiSqSnpGenos <- function(X, afs=NULL, c=0.5, thresh.c=0.01, calc.with.D=TRUE,
     exp.AA <- N.noNA * q.hat^2
     exp.AB <- 2 * N.noNA * p.hat * q.hat
     exp.BB <- N.noNA * p.hat^2
-    if(c == 0){
-      chi2 <- (obs.AA - exp.AA)^2 / exp.AA +
-        (obs.AB - exp.AB)^2 / exp.AB +
-        (obs.BB - exp.BB)^2 / exp.BB
-    } else{ # eq 5 in Graffelman & Camarena (2007)
-      chi2 <- (abs(obs.AA - exp.AA) - c)^2 / exp.AA +
-        (abs(obs.AB - exp.AB) - c)^2 / exp.AB +
-        (abs(obs.BB - exp.BB) - c)^2 / exp.BB
+    chi2 <- (obs.AA - exp.AA)^2 / exp.AA +
+      (obs.AB - exp.AB)^2 / exp.AB +
+      (obs.BB - exp.BB)^2 / exp.BB
+    if(c > 0){ # eq 5 in Graffelman & Camarena (2007)
+      idx <- which(mafs >= thresh.c)
+      if(length(idx) > 0)
+        chi2[idx] <- (abs(obs.AA[idx] - exp.AA[idx]) - c)^2 / exp.AA[idx] +
+          (abs(obs.AB[idx] - exp.AB[idx]) - c)^2 / exp.AB[idx] +
+          (abs(obs.BB[idx] - exp.BB[idx]) - c)^2 / exp.BB[idx]
     }
   }
   out <- cbind(out, chi2=chi2)
@@ -546,17 +548,14 @@ chiSqSnpGenos <- function(X, afs=NULL, c=0.5, thresh.c=0.01, calc.with.D=TRUE,
   if(calc.pval)
     out <- cbind(out, pvalue=stats::pchisq(q=chi2, df=1, lower.tail=FALSE))
 
-  if(! is.null(thresh.pval))
-    out <- cbind(out, signif=out[,"pvalue"] <= thresh.pval)
-
   return(out)
 }
 
 ##' Minor allele frequencies
 ##'
 ##' Plot the histogram of the minor allele frequency per SNP.
-##' @param X matrix of SNP genotypes encoded in number of copies of the 2nd allele, i.e. as allele doses in {0,1,2}, with individuals in rows and SNPs in columns (optional if maf is not null); if X is not NULL, minor allele frequencies will be estimated via \code{\link{estimSnpMaf}}
-##' @param maf vector of minor allele frequencies (optional if X is not null)
+##' @param X matrix of bi-allelic SNP genotypes encoded, for each SNP, in number of copies of its minor allele, i.e. as allele doses in [0,2], with genotypes in rows and SNPs in columns; if X is not NULL, minor allele frequencies will be estimated via \code{\link{estimSnpAf}}
+##' @param mafs vector of minor allele frequencies (not used if X is not NULL)
 ##' @param main string for the main title
 ##' @param xlim limits of the x-axis
 ##' @param col color for the bars
@@ -569,30 +568,40 @@ chiSqSnpGenos <- function(X, afs=NULL, c=0.5, thresh.c=0.01, calc.with.D=TRUE,
 ##' @return nothing
 ##' @author Timothee Flutre
 ##' @export
-plotHistMinAllelFreq <- function(X=NULL, maf=NULL, main=NULL, xlim=c(0,0.5),
+plotHistMinAllelFreq <- function(X=NULL, mafs=NULL, main=NULL, xlim=c(0,0.5),
                                  col="grey", border="white", las=1,
                                  breaks="FD", add.ml.beta=FALSE,
                                  verbose=1, ...){
-  stopifnot(! is.null(X) || ! is.null(maf),
+  stopifnot(xor(! is.null(X), ! is.null(mafs)),
             is.logical(add.ml.beta))
 
-  if(! is.null(X) & is.null(maf)){
-    stopIfNotValidGenosDose(X, check.hasColNames=FALSE, check.hasRowNames=FALSE,
+  if(! is.null(X)){
+    stopIfNotValidGenosDose(X, check.hasColNames=FALSE,
+                            check.hasRowNames=FALSE,
                             check.noNA=FALSE)
     N <- nrow(X)
     P <- ncol(X)
     if(verbose > 0){
-      txt <- paste0(P, " SNPs and ", N, " individuals")
-      write(txt, stdout())
+      msg <- paste0(P, " SNPs and ", N, " genotypes")
+      write(msg, stdout())
     }
-    maf <- estimSnpMaf(X)
-  }
+    mafs <- estimSnpAf(X)
+    if(any(mafs > 0.5, na.rm=TRUE)){
+      msg <- paste0(sum(mafs > 0.5), " SNPs are not encoded",
+                    " in terms of their minor allele",
+                    "\nuse recodeGenosMinorSnpAllele()")
+      stop(msg)
+    }
+  } else # is.null(X)
+    stopifnot(is.vector(mafs),
+              is.numeric(mafs),
+              all(mafs <= 0.5))
 
   if(is.null(main))
-    main <- paste0("MAFs of ", length(maf), " SNPs")
+    main <- paste0("MAFs of ", length(mafs), " markers")
 
-  tmp <- graphics::hist(x=maf, xlab="Minor allele frequency",
-                        ylab="Number of SNPs",
+  tmp <- graphics::hist(x=mafs, xlab="Minor allele frequency",
+                        ylab="Number of markers",
                         main=main, xlim=xlim, col=col, border=border,
                         las=las, breaks=breaks, ...)
 
@@ -600,12 +609,12 @@ plotHistMinAllelFreq <- function(X=NULL, maf=NULL, main=NULL, xlim=c(0,0.5),
     fn.beta <- function(theta, x){
       sum(-stats::dbeta(x, theta[1], theta[2], log=TRUE))
     }
-    fit <- stats::optim(par=c(0.3,0.3), fn=fn.beta, x=maf, method="L-BFGS-B",
+    fit <- stats::optim(par=c(0.3,0.3), fn=fn.beta, x=mafs, method="L-BFGS-B",
                  lower=c(0.0001,0.0001), upper=c(1,1))
     ## http://stackoverflow.com/a/20078645/597069
-    x <- seq(min(maf), max(maf), length=100)
+    x <- seq(min(mafs), max(mafs), length=100)
     y <- stats::dbeta(x, fit$par[1], fit$par[2])
-    y <- y * diff(tmp$mids[1:2]) * length(maf)
+    y <- y * diff(tmp$mids[1:2]) * length(mafs)
     graphics::lines(x, y, col="red")
     graphics::legend("topright", legend=paste0("Beta(", format(fit$par[1], digits=2),
                                      ", ", format(fit$par[2], digits=2),
@@ -617,7 +626,7 @@ plotHistMinAllelFreq <- function(X=NULL, maf=NULL, main=NULL, xlim=c(0,0.5),
 ##' Minor allele frequencies
 ##'
 ##' Discard the SNPs with a minor allele frequency below the given threshold.
-##' @param X matrix of SNP genotypes encoded in number of copies of the 2nd allele, i.e. as allele doses in {0,1,2}, with individuals in rows and SNPs in columns; missing values should be encoded as NA
+##' @param X matrix of bi-allelic SNP genotypes encoded in allele doses in [0,2], with genotypes in rows and SNPs in columns; missing values should be encoded as NA
 ##' @param mafs vector of minor allele frequencies; if NULL, will be estimated with \code{\link{estimSnpMaf}}
 ##' @param thresh threshold on minor allele frequencies below which SNPs are ignored
 ##' @param verbose verbosity level (0/1)
@@ -627,15 +636,24 @@ plotHistMinAllelFreq <- function(X=NULL, maf=NULL, main=NULL, xlim=c(0,0.5),
 discardSnpsLowMaf <- function(X, mafs=NULL, thresh=0.01, verbose=1){
   stopIfNotValidGenosDose(X, check.hasColNames=FALSE, check.hasRowNames=FALSE,
                           check.noNA=FALSE)
+  if(! is.null(mafs))
+    stopifnot(is.vector(mafs),
+              is.numeric(mafs),
+              ! is.null(names(mafs)),
+              all(mafs <= 0.5),
+              all(names(mafs) %in% colnames(X)),
+              all(colnames(X) %in% names(mafs)))
 
-  if(is.null(mafs))
+  if(is.null(mafs)){
     mafs <- estimSnpMaf(X=X)
+  } else
+    mafs <- mafs[colnames(X)] # put in same order
 
   snps.low <- mafs < thresh
   if(any(snps.low)){
     if(verbose > 0){
-      txt <- paste0("skip ", sum(snps.low), " SNPs with MAF below ", thresh)
-      write(txt, stdout())
+      msg <- paste0("discard ", sum(snps.low), " SNPs with MAF below ", thresh)
+      write(msg, stdout())
     }
     idx.rm <- which(snps.low)
     X <- X[, -idx.rm, drop=FALSE]
@@ -647,26 +665,28 @@ discardSnpsLowMaf <- function(X, mafs=NULL, thresh=0.01, verbose=1){
 ##' Convert genotypes
 ##'
 ##' Convert SNP genotypes to the file formats used by BimBam, as specified in its \href{http://www.haplotype.org/download/bimbam-manual.pdf}{manual}.
-##' @param X matrix of SNP genotypes encoded in number of copies of the 2nd allele, i.e. as allele doses in {0,1,2}, with individuals in rows and SNPs in columns
-##' @param tX matrix with SNPs in rows and individuals in columns
-##' @param alleles data.frame with SNPs in rows (names as row names) and alleles in columns (named "minor" and "major")
-##' @param file write the genotype data to this file if non NULL (for instance 'genotypes_bimbam.txt' or 'genotypes_bimbam.txt.gz', but don't use \code{\link[base]{gzfile}})
+##' @param X matrix of bi-allelic SNP genotypes encoded in allele doses in {0,1,2}, with genotypes in rows and SNPs in columns; for each SNP, the allele which copy number is counted, should correspond to the second column of \code{alleles}, whether this column corresponds to minor or major alleles (for GEMMA, it should be the minor allele)
+##' @param tX matrix with SNPs in rows and genotypes in columns
+##' @param alleles data.frame with SNPs in rows (names as row names) and alleles in columns; the second column should correspond to the allele which number of copies is counted at each SNP in \code{X}
+##' @param file write the genotype data to this file if not NULL (for instance 'genotypes_bimbam.txt' or 'genotypes_bimbam.txt.gz', but don't use \code{\link[base]{gzfile}})
 ##' @param format BimBam's format in which the data should be saved (mean/basic)
 ##' @return invisible data.frame
 ##' @author Timothee Flutre
 ##' @export
-dose2bimbam <- function(X=NULL, tX=NULL, alleles, file=NULL, format="mean"){
+genoDoses2bimbam <- function(X=NULL, tX=NULL, alleles, file=NULL, format="mean"){
   stopifnot(xor(is.null(X), is.null(tX)),
             is.data.frame(alleles),
             ncol(alleles) == 2,
-            colnames(alleles) == c("minor", "major"),
             ! is.null(row.names(alleles)),
             format %in% c("mean", "basic"))
   if(! is.null(X)){
     stopIfNotValidGenosDose(X, check.hasColNames=FALSE, check.hasRowNames=FALSE)
     tX <- t(X)
   }
+  stopifnot(all(rownames(alleles) %in% rownames(tX)),
+            all(rownames(tX) %in% rownames(alleles)))
   alleles <- convertFactorColumnsToCharacter(alleles)
+  alleles <- alleles[rownames(tX),] # put in same order
 
   if(format == "mean"){
     out <- cbind(alleles, tX)
@@ -695,7 +715,7 @@ dose2bimbam <- function(X=NULL, tX=NULL, alleles, file=NULL, format="mean"){
 ##' Genetic relatedness
 ##'
 ##' Reformat the output of \code{related::coancestry} (http://frasierlab.wordpress.com/software/) into a matrix.
-##' By default, off-diagonal elements  correspond to coancestry coefficients between two individuals, and each diagonal element corresponds to (1 + f) / 2 where f corresponds to the inbreeding coefficient of the given individual.
+##' By default, off-diagonal elements  correspond to coancestry coefficients between two genotypes, and each diagonal element corresponds to (1 + f) / 2 where f corresponds to the inbreeding coefficient of the given genotype.
 ##' To learn more about genetic relatedness, see Weir et al (2006), Astle & Balding (2009) and Legarra (2016).
 ##' @param x list returned by \code{related::coancestry}
 ##' @param estim.coancestry name of the coancestry estimator (e.g. "dyadml") as used in \code{related::coancestry}
@@ -749,10 +769,10 @@ coancestry2relmat <- function(x, estim.coancestry, estim.inbreeding=NULL,
   return(mat)
 }
 
-##' Haplotype list to matrix
+##' Convert haplotypes
 ##'
 ##' Convert a list of haplotypes into a matrix.
-##' @param haplos list of matrices (one per chromosome, with individuals in rows and markers in columns)
+##' @param haplos list of matrices (one per chromosome, with genotypes in rows and SNPs in columns)
 ##' @return matrix
 ##' @author Timothee Flutre
 ##' @export
@@ -761,7 +781,7 @@ haplosList2Matrix <- function(haplos){
             all(sapply(haplos, class) == "matrix"))
 
   nb.chroms <- length(haplos)
-  nb.haplos <- nrow(haplos[[1]]) # 2 x nb of individuals
+  nb.haplos <- nrow(haplos[[1]]) # 2 x nb of genotypes
   nb.snps <- sapply(haplos, ncol)
   P <- sum(nb.snps) # nb of SNPs
 
@@ -779,13 +799,13 @@ haplosList2Matrix <- function(haplos){
 
 ##' Site frequency spectrum
 ##'
-##' Convert the SFS of independent replicates into a matrix of allele dosage.
-##' @param seg.sites list of haplotypes returned by \code{scrm}, each component of which corresponds to a matrix with haplotypes in rows and SNP in columns
-##' @param ind.ids vector with the identifiers of the individuals
+##' Convert the SFS of independent replicates into a matrix of allele doses.
+##' @param seg.sites list of haplotypes returned by \code{scrm::scrm}, each component of which corresponds to a matrix with haplotypes in rows and SNP in columns
+##' @param ind.ids vector with the identifiers of the genotypes
 ##' @param snp.ids vector with the identifiers of the SNPs (if NULL, the SNP identifiers from seg.sites will be used if they aren't NULL, too)
 ##' @param rnd.choice.ref.all if TRUE, the reference alleles are randomly chosen
 ##' @param seed seed for the pseudo-random number generator
-##' @return matrix with diploid individuals in rows and SNPs in columns
+##' @return matrix with diploid genotypes in rows and SNPs in columns
 ##' @author Timothee Flutre
 ##' @export
 segSites2allDoses <- function(seg.sites, ind.ids=NULL, snp.ids=NULL,
@@ -803,7 +823,7 @@ segSites2allDoses <- function(seg.sites, ind.ids=NULL, snp.ids=NULL,
               is.character(snp.ids),
               length(snp.ids) == sum(sapply(seg.sites, ncol)))
 
-  nb.inds <- nrow(seg.sites[[1]]) / 2 # nb of diploid individuals
+  nb.inds <- nrow(seg.sites[[1]]) / 2 # nb of diploid genotypes
   nb.snps <- sum(sapply(seg.sites, ncol)) # nb of SNPs
   X <- matrix(data=NA, nrow=nb.inds, ncol=nb.snps)
   if(! is.null(ind.ids))
@@ -885,7 +905,7 @@ segSites2snpCoords <- function(seg.sites, snp.ids, chrom.len, prefix="chr"){
 ##' @param geno.ids vector of genotype identifiers (if NULL, will be "geno001", etc)
 ##' @param snp.ids vector of SNP identifiers (if NULL, will be "snp001", etc)
 ##' @param mafs vector of minor allele frequencies; by default, they are uniformly distributed between 0.05 and 0.5
-##' @return matrix with individuals in rows and SNPs in columns
+##' @return matrix with genotypes in rows and SNPs in columns
 ##' @author Peter Carbonetto [aut], Timothee Flutre [ctb]
 ##' @export
 simulGenosDose <- function(nb.genos, nb.snps, geno.ids=NULL, snp.ids=NULL, mafs=NULL){
@@ -917,13 +937,13 @@ simulGenosDose <- function(nb.genos, nb.snps, geno.ids=NULL, snp.ids=NULL, mafs=
 ##'
 ##' Simulate haplotypes according to an approximation to the coalescent with recombination named the Sequential Coalescent with Recombination Model. Requires the scrm package (Staab et al, 2014).
 ##' @param nb.inds diploids (thus nb of haplotypes is 2 * nb.inds)
-##' @param ind.ids vector of identifiers (one per individual)
+##' @param ind.ids vector of identifiers (one per genotype)
 ##' @param nb.reps number of independent loci that will be produced (could be seen as distinct chromosomes)
 ##' @param pop.mut.rate theta = 4 N0 mu
 ##' @param pop.recomb.rate rho = 4 N0 r
 ##' @param chrom.len in bp
 ##' @param other character vector of length 1 with other parameters to the simulator (e.g. time-specific parameters such as "-G 6.93 -eG 0.2 0.0 -eN 0.3 0.5")
-##' @param nb.pops number of populations (\code{\link{kmeans}} will then be used to pair haplotypes into diploid individuals)
+##' @param nb.pops number of populations (\code{\link{kmeans}} will then be used to pair haplotypes into diploid genotypes)
 ##' @param mig.rate migration rate = 4 N0 m (will be symmetric)
 ##' @param get.trees get gene genealogies in the Newick format
 ##' @param get.tmrca get time to most recent common ancestor and local tree lengths
@@ -1012,7 +1032,7 @@ simulCoalescent <- function(nb.inds=100,
                                    prefix)
   out[["snp.coords"]] <- snp.coords
 
-  ## randomize haplotypes to make diploid individuals, and set names
+  ## randomize haplotypes to make diploid genotypes, and set names
   out[["haplos"]] <- list()
   idx <- sample.int(nb.samples)
   if(nb.pops > 1){
@@ -1036,8 +1056,8 @@ simulCoalescent <- function(nb.inds=100,
   ## make a matrix with genotypes encoded as allele dose
   X <- segSites2allDoses(out$haplos, ind.ids, snp.ids)
   if(verbose > 0){
-    txt <- paste0("nb of SNPs: ", nb.snps)
-    write(txt, stdout())
+    msg <- paste0("nb of SNPs: ", nb.snps)
+    write(msg, stdout())
     print(sapply(sum.stats$seg_sites, ncol))
   }
   out[["genos"]] <- X
@@ -1061,9 +1081,9 @@ simulCoalescent <- function(nb.inds=100,
 
 ##' Genomes
 ##'
-##' From a set of individual genomes simulated together, split them into a training (for estimation) and testing (for prediction) sets.
+##' From a set of genomes simulated together, split them into a training (for estimation) and testing (for prediction) sets.
 ##' @param genomes list, e.g. returned by \code{\link{simulCoalescent}}
-##' @param nb.inds.pred number of individuals for whom prediction will be performed
+##' @param nb.inds.pred number of genotypes for whom prediction will be performed
 ##' @return list composed of two lists, genomes and genomes.pred
 ##' @author Timothee Flutre
 ##' @export
@@ -1129,7 +1149,7 @@ calcAvgPwDiffBtwHaplos <- function(haplos.chr){
 ##' Haplotypes
 ##'
 ##' Plot haplotypes as an image.
-##' @param haplos matrix of haplotypes with haplotypes (2 per individual) in rows and sites in columns
+##' @param haplos matrix of haplotypes, with haplotypes (2 per genotype) in rows and sites in columns
 ##' @param main main title
 ##' @return nothing
 ##' @author Timothee Flutre
@@ -1152,10 +1172,10 @@ plotHaplosMatrix <- function(haplos, main="Haplotypes"){
   on.exit(graphics::par(opar))
 }
 
-##' Individual names
+##' Genotype names
 ##'
-##' Return the identifiers of all individuals
-##' @param haplos list of matrices (one per chromosome, with individuals in rows)
+##' Return the identifiers of all genotypes
+##' @param haplos list of matrices (one per chromosome, with genotypes in rows)
 ##' @return vector
 ##' @author Timothee Flutre
 ##' @export
@@ -1171,11 +1191,11 @@ getIndNamesFromHaplos <- function(haplos){
   return(ind.names)
 }
 
-##' Haplotypes of an individual
+##' Haplotypes of an genotype
 ##'
-##' Retrieve both haplotypes for all chromosomes of a given individual.
+##' Retrieve both haplotypes for all chromosomes of a given genotype.
 ##' @param haplos list with one matrix per chromosome, with haplotype in rows and SNPs in columns, as returned by \code{\link{simulCoalescent}}
-##' @param ind.name identifier of the individual to retrieve
+##' @param ind.name identifier of the genotype to retrieve
 ##' @return list similar to "haplos"
 ##' @author Timothee Flutre
 ##' @export
@@ -1183,7 +1203,7 @@ getHaplosInd <- function(haplos, ind.name){
   stopifnot(is.list(haplos),
             is.character(ind.name))
 
-  ## for each chromosome, retrieve both haplotypes of the given individual
+  ## for each chromosome, retrieve both haplotypes of the given genotype
   haplos.ind <- lapply(haplos, function(haplos.chr){
     idx <- grep(paste0("^", ind.name, "_h[12]"), rownames(haplos.chr))
     if(length(idx) == 2){
@@ -1197,11 +1217,11 @@ getHaplosInd <- function(haplos, ind.name){
   return(haplos.ind)
 }
 
-##' Haplotypes of several individuals
+##' Haplotypes of several genotypes
 ##'
-##' Retrieve both haplotypes for all chromosomes of certain individuals.
+##' Retrieve both haplotypes for all chromosomes of certain genotypes.
 ##' @param haplos list with one matrix per chromosome, with haplotype in rows and SNPs in columns, as returned by \code{\link{simulCoalescent}}
-##' @param ind.names identifier of the individuals to retrieve
+##' @param ind.names identifier of the genotypes to retrieve
 ##' @return list similar to "haplos"
 ##' @author Timothee Flutre
 ##' @export
@@ -1209,15 +1229,15 @@ getHaplosInds <- function(haplos, ind.names){
   stopifnot(is.list(haplos),
             length(unique(sapply(haplos, class))) == 1,
             unique(sapply(haplos, class)) == "matrix",
-            length(unique(sapply(haplos, nrow))) == 1, # same nb of individuals
+            length(unique(sapply(haplos, nrow))) == 1, # same nb of genotypes
             all(sapply(haplos, function(x){! is.null(rownames(x))})), # has row names
             is.character(ind.names))
 
-  ## for each chromosome, retrieve both haplotypes of the given individuals
+  ## for each chromosome, retrieve both haplotypes of the given genotypes
   haplos.inds <- lapply(haplos, function(haplos.chr){
     idx <- do.call(c, lapply(ind.names, grep, rownames(haplos.chr)))
     if(length(idx) == 0){
-      msg <- paste0("can't find haplotypes for the given individuals")
+      msg <- paste0("can't find haplotypes for the given genotypes")
       stop(msg)
     } else{
       haplos.chr[idx, , drop=FALSE]
@@ -1314,7 +1334,7 @@ fecundation <- function(gam1, gam2, child.name){
 
 ##' Cross
 ##'
-##' Make a cross. If two different individuals are given, then a fecundation is made with one gamete from each individual. If the same individual is given twice, an autofecondation is made with two different gametes from this individual. If a single individual is given, a haplodiploidization is made with a single gamete from this individual.
+##' Make a cross. If two different genotypes are given, then a fecundation is made with one gamete from each genotype. If the same genotype is given twice, an autofecondation is made with two different gametes from this genotype. If a single genotype is given, a haplodiploidization is made with a single gamete from this genotype.
 ##' @param haplos.par1 list of matrices (one per chromosome) for the first parent
 ##' @param loc.crossovers.par1 list of vectors (one per chromosome) for the first parent
 ##' @param haplos.par2 list of matrices (one per chromosome) for the second parent
@@ -1460,7 +1480,7 @@ makeCrosses <- function(haplos, crosses, loc.crossovers=NULL,
   stopifnot(is.list(haplos),
             length(unique(sapply(haplos, class))) == 1,
             unique(sapply(haplos, class)) == "matrix",
-            length(unique(sapply(haplos, nrow))) == 1, # same nb of individuals
+            length(unique(sapply(haplos, nrow))) == 1, # same nb of genotypes
             is.data.frame(crosses),
             ncol(crosses) >= 3,
             all(c("parent1", "parent2", "child") %in% colnames(crosses)),
@@ -1580,9 +1600,10 @@ distSnpPairs <- function(snp.pairs, snp.coords, nb.cores=1, verbose=1){
 
 ##' Genomic relatedness
 ##'
-##' Estimate genetic relationships between individuals from their SNP genotypes. Note that "relationships" are estimated, and not "coancestries" which are equal to 2 times "relationhips".
-##' @param X matrix of SNP genotypes encoded in number of copies of the 2nd allele, i.e. as allele doses in {0,1,2}, with individuals in rows and SNPs in columns; missing values should be encoded as NA in order to be ignored
-##' @param afs vector with 2nd allele frequencies (calculated with \code{\link{estimSnpAf}} if NULL)
+##' Estimate genetic relationships between genotypes from their SNP genotypes.
+##' Note that "relationships" are estimated, and not "coancestries", which are equal to 2 times "relationhips".
+##' @param X matrix of bi-allelic SNP genotypes encoded in allele doses in {0,1,2}, with genotypes in rows and SNPs in columns; missing values should be encoded as NA
+##' @param afs vector of allele frequencies, corresponding to the alleles whose copies are counted in \code{X} (if NULL, will be calculated with \code{\link{estimSnpAf}})
 ##' @param thresh threshold on minor allele frequencies below which SNPs are ignored (e.g. 0.01; NULL to skip this step)
 ##' @param relationships relationship to estimate (additive/dominant/gaussian) where "gaussian" corresponds to the Gaussian kernel from Endelman (2011)
 ##' @param method if additive relationships, can be "vanraden1" (first method in VanRaden, 2008), "habier" (similar to 'vanraden1' without giving more importance to rare alleles; from Habier et al, 2007), "astle-balding" (two times equation 2.2 in Astle & Balding, 2009), "yang" (similar to 'astle-balding' but without ignoring sampling error per SNP; from Yang et al, 2010), "zhou" (centering the genotypes and not assuming that rare variants have larger effects; from Zhou et al, 2013) or "center-std"; if dominant relationships, can be "vitezica" (classical/statistical parametrization from Vitezica et al, 2013) or "su" (from Su et al, PLoS One, 2012)
@@ -1591,8 +1612,7 @@ distSnpPairs <- function(snp.pairs, snp.coords, nb.cores=1, verbose=1){
 ##' @return matrix
 ##' @author Timothee Flutre
 ##' @examples
-##' \dontrun{## simulate haplotypes and genotypes in a single population
-##' set.seed(1859)
+##' \dontrun{set.seed(1859)
 ##' nb.genos <- 200
 ##' Ne <- 10^4
 ##' chrom.len <- 10^5
@@ -1632,15 +1652,17 @@ estimGenRel <- function(X, afs=NULL, thresh=NULL, relationships="additive",
               theta <= 1)
   }
   if(! is.null(afs)){
-    stopifnot(! is.null(names(afs)),
+    stopifnot(is.vector(afs),
+              is.numeric(afs),
+              ! is.null(names(afs)),
               all(colnames(X) %in% names(afs)),
               all(names(afs) %in% colnames(X)))
-    afs <- afs[colnames(X)] # re-order if necessary
+    afs <- afs[colnames(X)] # put in same order
   }
 
   gen.rel <- NULL # to be filled and returned
 
-  N <- nrow(X) # nb of individuals
+  N <- nrow(X) # nb of genotypes
   P <- ncol(X) # nb of SNPs
 
   ## discard SNPs with missing data
@@ -1659,17 +1681,19 @@ estimGenRel <- function(X, afs=NULL, thresh=NULL, relationships="additive",
   if(all(relationships == "additive", method == "center-std",
          is.null(thresh))){
     if(any(afs == 0, afs == 1)){
-      msg <- paste0("some SNPs are not polymorphic, ",
-                    "a threshold of 1% will hence be used")
+      msg <- paste0("some SNPs have fixed alleles, ",
+                    "a threshold of 1% on MAFs will hence be used")
       write(msg, stdout())
       thresh <- 0.01
     }
   }
   if(! is.null(thresh)){
     mafs <- estimSnpMaf(afs=afs)
-    X <- discardSnpsLowMaf(X=X, mafs=mafs, thresh=thresh, verbose=verbose)
-    P <- ncol(X)
-    afs <- afs[colnames(X)]
+    if(any(mafs < thresh)){
+      X <- discardSnpsLowMaf(X=X, mafs=mafs, thresh=thresh, verbose=verbose)
+      P <- ncol(X)
+      afs <- afs[colnames(X)]
+    }
   }
 
   ## estimate relationships (not coancestries)
@@ -1743,12 +1767,12 @@ estimGenRel <- function(X, afs=NULL, thresh=NULL, relationships="additive",
 
 ##' Pairwise linkage disequilibrium
 ##'
-##' Estimates linkage disequilibrium between pairs of SNPs when the observations are the genotypes of individuals, not their gametes (i.e. the gametic phases are unknown).
+##' Estimates linkage disequilibrium between pairs of SNPs when the observations are the genotypes of genotypes, not their gametes (i.e. the gametic phases are unknown).
 ##' When ignoring kinship and population structure, the estimator of Rogers and Huff (Genetics, 2009) can be used.
 ##' When kinship and/or population structure are controlled for, the estimator of Mangin et al (Heredity, 2012) is used via their LDcorSV package.
-##' @param X matrix of SNP genotypes encoded in number of copies of the 2nd allele, i.e. as allele doses in {0,1,2}, with individuals in rows and SNPs in columns
-##' @param K matrix of kinship
-##' @param pops vector of characters indicating the population of each individual
+##' @param X matrix of bi-allelic SNP genotypes encoded in allele doses in {0,1,2}, with genotypes in rows and SNPs in columns; missing values should be encoded as NA
+##' @param K matrix of "kinship" (additive genetic relationships)
+##' @param pops vector of characters indicating the population of each genotype
 ##' @param snp.coords data.frame with SNP identifiers as row names, and two columns, "chr" and "pos"
 ##' @param only.chr identifier of a given chromosome
 ##' @param only.pop identifier of a given population
@@ -1795,7 +1819,7 @@ estimLd <- function(X, K=NULL, pops=NULL, snp.coords,
   subset.inds <- 1:nrow(X)
   if(! is.null(only.chr) | ! is.null(only.pop)){
     if(verbose > 0)
-      write("extract relevant individuals and SNPs ...", stdout())
+      write("extract relevant genotypes and SNPs ...", stdout())
     if(! is.null(only.chr))
       subset.snps <- which(snp.coords$chr == only.chr)
     if(! is.null(only.pop))
@@ -2053,12 +2077,12 @@ thinSnps <- function(method, threshold, snp.coords, only.chr=NULL){
 
 ##' Genotype imputation
 ##'
-##' Impute missing marker genotypes with the mean of the non-missing.
+##' Impute missing SNP genotypes with the mean of the non-missing.
 ##' The code was inspired from the \code{A.mat} function from the \href{https://cran.r-project.org/web/packages/rrBLUP/}{rrBLUP} package.
-##' @param X matrix of marker genotypes numerically encoded (if SNPs, in number of copies of the 2nd allele, i.e. as allele doses in {0,1,2}), with individuals in rows and markers in columns; NA if missing
+##' @param X matrix of bi-allelic SNP genotypes encoded in allele doses in {0,1,2}, with genotypes in rows and SNPs in columns; missing values should be encoded as NA
 ##' @param min.maf minimum minor allele frequency (before imputation) below which SNPs are discarded
 ##' @param max.miss maximum amount of missing genotypes (before imputation) above which SNPs are discarded
-##' @param rm.still.miss if TRUE, remove marker(s) still with missing genotype(s) after imputation (depending on \code{min.maf} and \code{max.miss})
+##' @param rm.still.miss if TRUE, remove SNP(s) still with missing genotype(s) after imputation (depending on \code{min.maf} and \code{max.miss})
 ##' @return matrix with imputed genotypes
 ##' @author Timothee Flutre
 ##' @seealso \code{\link{imputeGenosWithMeanPerPop}}
@@ -2083,7 +2107,7 @@ imputeGenosWithMean <- function(X, min.maf=0.1, max.miss=0.3, rm.still.miss=TRUE
   X.out[,tokeep][idx.na] <- 0
   X.out[,tokeep][idx.na] <- (X.out[,tokeep] + 2 * afs.mat)[idx.na]
 
-  ## remove markers with remaining missing genotypes
+  ## remove SNPs with remaining missing genotypes
   if(all(rm.still.miss, sum(is.na(X.out)) > 0))
     X.out <- discardMarkersMissGenos(X=X.out, verbose=0)
 
@@ -2092,14 +2116,14 @@ imputeGenosWithMean <- function(X, min.maf=0.1, max.miss=0.3, rm.still.miss=TRUE
 
 ##' Genotype imputation
 ##'
-##' Impute missing marker genotypes with the mean of the non-missing, population by population.
-##' @param X NxP matrix of marker genotypes numerically encoded (if SNPs, in number of copies of the 2nd allele, i.e. as allele doses in {0,1,2}), with individuals in rows and markers in columns; NA if missing
+##' Impute missing SNP genotypes with the mean of the non-missing, population by population.
+##' @param X matrix of bi-allelic SNP genotypes encoded in allele doses in {0,1,2}, with genotypes in rows and SNPs in columns; missing values should be encoded as NA
 ##' @param pops data.frame with 2 columns, "ind" and "pop"
 ##' @param min.maf.pop minimum minor allele frequency per population (before imputation) below which SNPs are discarded
 ##' @param max.miss.pop maximum amount of missing genotypes per population (before imputation) above which SNPs are discarded
-##' @param rm.still.miss if TRUE, remove marker(s) still with missing genotype(s) in at least one population (depending on \code{min.maf.pop} and \code{max.miss.pop})
+##' @param rm.still.miss if TRUE, remove SNP(s) still with missing genotype(s) in at least one population (depending on \code{min.maf.pop} and \code{max.miss.pop})
 ##' @param verbose verbosity level (0/1)
-##' @return NxP matrix with imputed genotypes
+##' @return matrix with imputed genotypes
 ##' @author Timothee Flutre
 ##' @seealso \code{\link{imputeGenosWithMean}}
 ##' @export
@@ -2117,8 +2141,8 @@ imputeGenosWithMeanPerPop <- function(X, pops, min.maf.pop=0.1,
   pops$pop <- as.character(pops$pop)
 
   if(verbose > 0){
-    msg <- paste0("nb of individuals: ", nrow(X),
-                  "\nnb of markers: ", ncol(X),
+    msg <- paste0("nb of genotypes: ", nrow(X),
+                  "\nnb of SNPs: ", ncol(X),
                   "\nnb of genotypes: ", nrow(X) * ncol(X),
                   "\nnb of missing genotypes: ", sum(is.na(X)),
                   " (", format(100 * sum(is.na(X)) / (nrow(X) * ncol(X)),
@@ -2128,11 +2152,11 @@ imputeGenosWithMeanPerPop <- function(X, pops, min.maf.pop=0.1,
   }
 
   for(pop in unique(pops$pop)){
-    ## identify subset of individuals
+    ## identify subset of genotypes
     idxI <- which(rownames(X) %in% pops$ind[pops$pop == pop])
     if(verbose > 0){
       msg <- paste0("impute missing genotypes in ", length(idxI),
-                    " individuals from ", pop, " ...")
+                    " genotypes from ", pop, " ...")
       write(msg, stdout())
     }
     ## perform imputation
@@ -2149,7 +2173,7 @@ imputeGenosWithMeanPerPop <- function(X, pops, min.maf.pop=0.1,
     write(msg, stdout())
   }
 
-  ## remove markers with remaining missing genotypes
+  ## remove SNPs with remaining missing genotypes
   if(all(rm.still.miss, sum(is.na(X.out)) > 0))
     X.out <- discardMarkersMissGenos(X=X.out, verbose=verbose - 1)
 
@@ -2159,22 +2183,25 @@ imputeGenosWithMeanPerPop <- function(X, pops, min.maf.pop=0.1,
 ##' Convert genotypes
 ##'
 ##' Use the external software fcGENE from \href{dx.plos.org/10.1371/journal.pone.0097589}{Roshyara and Scholz (2014)}.
-##' @param X matrix of SNP genotypes encoded in number of copies of the 2nd allele, i.e. as allele doses in {0,1,2}, with individuals in rows and SNPs in columns
+##' @param X matrix of bi-allelic SNP genotypes encoded, for each SNP, in number of copies of its second allele, i.e. as allele doses in {0,1,2}, with genotypes in rows and SNPs in columns; the "second" allele is arbitrary, it corresponds to the second column of \code{alleles}, which can be the minor or the major allele
 ##' @param snp.coords data.frame with SNP identifiers as row names, and two columns, "chr" and "coord" or "pos"
-##' @param alleles data.frame with SNPs in rows (names as row names) and alleles in columns (named "minor" and "major")
+##' @param alleles data.frame with SNPs in rows (names as row names) and alleles in columns (exactly 2 columns are required); the second column should correspond to the allele which number of copies is counted at each SNP in \code{X}
 ##' @param file write the genotype data to this file (for instance 'genotypes_fastphase.txt' or 'genotypes_fastphase.txt.gz', but don't use \code{\link[base]{gzfile}})
 ##' @param verbose verbosity level (0/1/2)
 ##' @return nothing
 ##' @author Timothee Flutre
 ##' @export
 writeInputsForFastPhase <- function(X, snp.coords, alleles, file, verbose=0){
-  stopifnot(file.exists(Sys.which("fcgene")),
-            .isValidSnpCoords(snp.coords),
-            is.data.frame(alleles),
-            "minor" %in% colnames(alleles),
-            "major" %in% colnames(alleles))
+  stopifnot(file.exists(Sys.which("fcgene")))
   stopIfNotValidGenosDose(X, check.noNA=FALSE)
+  stopifnot(.isValidSnpCoords(snp.coords),
+            is.data.frame(alleles),
+            ncol(alleles) == 2)
   alleles <- convertFactorColumnsToCharacter(alleles)
+
+  ## put in same order
+  snp.coords <- snp.coords[colnames(X),]
+  alleles <- alleles[colnames(X),]
 
   if(verbose > 0)
     write("save SNP genotypes as 'r-formatted' file for fcGENE...", stdout())
@@ -2193,8 +2220,8 @@ writeInputsForFastPhase <- function(X, snp.coords, alleles, file, verbose=0){
   snp.info <- data.frame(snpid=rownames(snp.coords),
                          rsid=rownames(snp.coords),
                          position=snp.coords$pos,
-                         allele1=alleles$minor,
-                         allele2=alleles$major,
+                         allele1=alleles[,2],
+                         allele2=alleles[,1],
                          stringsAsFactors=FALSE)
   utils::write.table(x=snp.info, file=tmp.snpinfo.file, quote=FALSE, sep="\t",
                      row.names=FALSE)
@@ -2240,7 +2267,7 @@ writeInputsForFastPhase <- function(X, snp.coords, alleles, file, verbose=0){
 ##' Extract the genotypes from the output file of fastPHASE.
 ##' @param file character
 ##' @param snp.ids vector of SNP identifiers
-##' @return matrix with genotypes in rows (2 per individual) and SNPs in columns
+##' @return matrix with genotypes in rows (2 per genotype) and SNPs in columns
 ##' @author Timothee Flutre
 ##' @export
 readGenosFastPhase <- function(file, snp.ids){
@@ -2270,7 +2297,7 @@ readGenosFastPhase <- function(file, snp.ids){
 ##' Extract the haplotypes from the output file of fastPHASE.
 ##' @param file character
 ##' @param snp.ids vector of SNP identifiers
-##' @return matrix with haplotypes in rows (2 per individual) and SNPs in columns
+##' @return matrix with haplotypes in rows (2 per genotype) and SNPs in columns
 ##' @author Timothee Flutre
 ##' @export
 readHaplosFastPhase <- function(file, snp.ids){
@@ -2299,7 +2326,7 @@ readHaplosFastPhase <- function(file, snp.ids){
 ##' Haplotypes
 ##'
 ##' Reformat haplotypes from alleles as string into numeric.
-##' @param haplos matrix with haplotypes in rows (2 consecutive per individual) and SNPs in columns
+##' @param haplos matrix with haplotypes in rows (2 consecutive per genotype) and SNPs in columns
 ##' @param alleles data.frame with SNPs in rows (names as row names) and alleles in columns (named "minor" and "major")
 ##' @param nb.cores the number of cores to use, i.e. at most how many child processes will be run simultaneously (not on Windows)
 ##' @return matrix with 0 for major alleles and 1 for minor alleles
@@ -2310,6 +2337,7 @@ haplosAlleles2num <- function(haplos, alleles, nb.cores=1){
             ! is.null(colnames(haplos)),
             is.data.frame(alleles),
             ! is.null(rownames(alleles)),
+            all(c("minor", "major") %in% colnames(alleles)),
             all(colnames(haplos) %in% rownames(alleles)))
 
   out <- matrix(data=NA, nrow=nrow(haplos), ncol=ncol(haplos),
@@ -2333,7 +2361,7 @@ haplosAlleles2num <- function(haplos, alleles, nb.cores=1){
 ##' Genotype imputation
 ##'
 ##' Impute SNP genotypes via fastPHASE (Scheet and Stephens, 2006).
-##' @param X NxP matrix of SNP genotypes encoded in number of copies of the 2nd allele, i.e. as allele doses in {0,1,2}, with individuals in rows and SNPs in columns
+##' @param X matrix of bi-allelic SNP genotypes encoded in number of copies of the 2nd allele, i.e. as allele doses in {0,1,2}, with genotypes in rows and SNPs in columns
 ##' @param snp.coords data.frame with SNP identifiers as row names, and two columns, "chr" and "coord" or "pos"
 ##' @param alleles data.frame with SNPs in rows (names as row names) and alleles in columns (named "minor" and "major")
 ##' @param out.dir directory in which the output files will be saved
@@ -2341,12 +2369,12 @@ haplosAlleles2num <- function(haplos, alleles, nb.cores=1){
 ##' @param nb.starts number of random starts of the EM algorithm
 ##' @param nb.iters number of iterations of the EM algorithm
 ##' @param nb.samp.haplos number of haplotypes sampled from the posterior distribution obtained from a particular random start of the EM algorithm
-##' @param estim.haplos estimate haplotypes by minimizing individual error
+##' @param estim.haplos estimate haplotypes by minimizing genotype error
 ##' @param nb.clusters number of clusters
 ##' @param seed seed for the pseudo-random number generator for fastPHASE
 ##' @param clean remove files
 ##' @param verbose verbosity level (0/1)
-##' @return list with matrix of genotypes before imputation, and matrix of haplotypes (2 per individual, in rows) after imputation
+##' @return list with matrix of genotypes before imputation, and matrix of haplotypes (2 per genotype, in rows) after imputation
 ##' @author Timothee Flutre
 ##' @examples
 ##' \dontrun{## simulate haplotypes and genotypes in a single population
@@ -2398,8 +2426,8 @@ fastphase <- function(X, snp.coords, alleles, out.dir=getwd(),
   stopIfNotValidGenosDose(X, check.noNA=FALSE)
 
   if(verbose > 0){
-    txt <- "prepare input files..."
-    write(txt, stdout())
+    msg <- "prepare input files..."
+    write(msg, stdout())
   }
   tmp.files <- c()
   tmp.files <- c(tmp.files,
@@ -2407,8 +2435,8 @@ fastphase <- function(X, snp.coords, alleles, out.dir=getwd(),
   writeInputsForFastPhase(X, snp.coords, alleles, tmp.files["genos"])
 
   if(verbose > 0){
-    txt <- "run fastPHASE..."
-    write(txt, stdout())
+    msg <- "run fastPHASE..."
+    write(msg, stdout())
   }
   args <- paste0("-o", task.id,
                  " -T", nb.starts,
@@ -2424,8 +2452,8 @@ fastphase <- function(X, snp.coords, alleles, out.dir=getwd(),
   system2(command="fastPHASE", args=args, stdout=TRUE, stderr=TRUE)
 
   if(verbose > 0){
-    txt <- "load files..."
-    write(txt, stdout())
+    msg <- "load files..."
+    write(msg, stdout())
   }
   tmp.files["haplos"] <- paste0(out.dir, "/", task.id, "_hapguess_switch.out")
   tmp.files["finallik"] <- "fastphase_finallikelihoods"
@@ -3516,11 +3544,11 @@ stanAM <- function(data, relmat, errors.Student=FALSE,
 ##' BVSR
 ##'
 ##' Simulate phenotypes according to the following model: Y = W c + Z X_A a + epsilon where Y is N x 1; W is N x Q; c is Q x 1; Z is N x I; X_A is I x P and epsilon is N x 1 with epsilon ~ Normal_N(0, sigma^2 Id) and c ~ Normal(mean_a, sd_a) so that sd_a is large ("fixed effect"). For SNP p, a_p ~ Prob(gamma_p=1) Normal_1(0, sigma_a^2) + Prob(gamma_p=0) delta_0, where Prog(gamma_p=1) is named pi, and delta_0 is Dirac's delta function at 0. For the case where pi is small, see Guan & Stephens (2011), Carbonetto & Stephens (2012), Peltola et al (2012), Verzelen (2012).
-##' @param Q number of fixed effects, i.e. the intercept plus the number of years during which individuals are phenotyped (starting in 2010)
+##' @param Q number of fixed effects, i.e. the intercept plus the number of years during which genotypes are phenotyped (starting in 2010)
 ##' @param mu overall mean
 ##' @param mean.c mean of the prior on c[2:Q]
 ##' @param sd.c std dev of the prior on c[2:Q]
-##' @param X matrix of SNP genotypes encoded in number of copies of the 2nd allele, i.e. as allele doses in {0,1,2}, with individuals in rows and SNPs in columns (SNPs with missing values or low MAF should be discarded beforehand); will be used in the simulations as X_A which is the column-centered version of X when encoded in {-1,0,1}
+##' @param X matrix of bi-allelic SNP genotypes encoded in allele doses in [0,2], with genotypes in rows and SNPs in columns (SNPs with missing values or low MAF should be discarded beforehand); will be used in the simulations as X_A which is the column-centered version of X when encoded in {-1,0,1}
 ##' @param pi proportion of marker effects (a) that are non-zero; setting pi at 1 means simulating from the additive infinitesimal model (equivalent to ridge regression)
 ##' @param pve.A proportion of phenotypic variance explained by SNPs with non-zero effect ("heritability"); PVE_A = V[X_A a] / V[y]; used along with option sigma.a2 to choose a value for sigma^2
 ##' @param sigma.a2 prior variance of the non-zero additive effects
@@ -3656,11 +3684,11 @@ simulBvsr <- function(Q=3, mu=50, mean.c=5, sd.c=2,
 ##' BSLMM
 ##'
 ##' Simulate phenotypes according to the Bayesian sparse linear mixed model (Zhou, Carbonetto & Stephens, 2013)): y = W alpha + Z X_c beta-tilde + Z u + epsilon where y is N x 1; W is N x Q; alpha is Q x 1; Z is N x I; X_c is I x P; u is I x 1 and epsilon is N x 1. For all p, beta-tilde_p ~ pi Norm_1(0, sigma_betat^2/sigma^2) + (1 - pi) delta_0; u ~ Norm_I(0, (sigma_u^2/sigma^2) K) and epsilon ~ Norm_N(0, sigma^2 I).
-##' @param Q number of fixed effects, i.e. the intercept plus the number of years during which individuals are phenotyped (starting in 2010)
+##' @param Q number of fixed effects, i.e. the intercept plus the number of years during which genotypes are phenotyped (starting in 2010)
 ##' @param mu overall mean
 ##' @param mean.a mean of the prior on alpha[2:Q]
 ##' @param sd.a std dev of the prior on alpha[2:Q]
-##' @param X matrix of SNP genotypes encoded in number of copies of the 2nd allele, i.e. as allele doses in {0,1,2}, with individuals in rows and SNPs in columns (SNPs with missing values or low MAF should be discarded beforehand).
+##' @param X matrix of bi-allelic SNP genotypes encoded in allele doses in [0,2], with genotypes in rows and SNPs in columns (SNPs with missing values or low MAF should be discarded beforehand).
 ##' @param pi proportion of beta-tilde values that are non-zero; if NULL, log(pi) is drawn from Unif(log(1/P),log(1))
 ##' @param h approximation to E[PVE]; if NULL, drawn from Unif(0,1)
 ##' @param rho approximation to E[PGE]; if NULL and pi=0, then rho=0, else rho is drawn from Unif(0,1)
@@ -3860,14 +3888,14 @@ simulLogistic <- function(t=1:20, a=50, g.t0=1, r=0.6, sigma2=0){
               g.t=g.t, tI=tI, g.tI=g.tI))
 }
 
-##' Plant Association genetics
+##' Plant association genetics
 ##'
 ##' Subset and sort inputs necessary to perform an analysis of plant association genetics, that is, the subset of cultivars with genotypes and phenotypes, and the subset of markers having genotypes and coordinates.
 ##' @param ids data.frame of identifiers, with (at least) column names \code{cultivar.code} and \code{accession.code}; the outputs will be sorted according to this option
 ##' @param y vector, matrix or data.frame which row names should be present in \code{ids$cultivar.code} or \code{ids$accession.code}
-##' @param X matrix of SNP genotypes encoded in number of copies of the 2nd allele, i.e. as allele doses in {0,1,2}, with individuals in rows and SNPs in columns; row names should be present in \code{ids$accession.code} or \code{ids$cultivar.code}, and column names in \code{rownames(snp.coords)}
+##' @param X matrix of bi-allelic SNP genotypes encoded in allele doses in [0,2], with genotypes in rows and SNPs in columns; the "second" allele is arbitrary, it corresponds to the second column of \code{alleles}, which can be the minor or the major allele; row names should be present in \code{ids$accession.code} or \code{ids$cultivar.code}, and column names in \code{rownames(snp.coords)}
 ##' @param snp.coords data.frame with 2 columns \code{coord} and \code{chr}, and SNP identifiers as row names
-##' @param alleles data.frame with SNPs in rows (names as row names) and alleles in columns (named "minor" and "major")
+##' @param alleles data.frame with SNPs in rows (names as row names) and alleles in columns (exactly 2 columns are required); the second column should correspond to the allele which number of copies is counted at each SNP in \code{X}
 ##' @param verbose verbosity level (0/1)
 ##' @return list with inputs after subsetting and sorting
 ##' @author Timothee Flutre
@@ -3896,7 +3924,7 @@ rearrangeInputsForAssoGenet <- function(ids, y, X, snp.coords, alleles,
   stopifnot(.isValidSnpCoords(snp.coords),
             is.data.frame(alleles),
             ! is.null(row.names(alleles)),
-            colnames(alleles) == c("minor","major"))
+            ncol(alleles) == 2)
   alleles <- convertFactorColumnsToCharacter(alleles)
 
   ## determine if the genotypes of y are accession or cultivar codes
@@ -3936,6 +3964,7 @@ rearrangeInputsForAssoGenet <- function(ids, y, X, snp.coords, alleles,
   ## sort them according to "ids"
   cultivars.tokeep <- cultivars.tokeep[order(match(cultivars.tokeep,
                                                    ids$cultivar.code))]
+  ids <- ids[ids$cultivar.code %in% cultivars.tokeep,]
   y <- droplevels(y[cultivars.tokeep, , drop=FALSE])
   X <- X[cultivars.tokeep, , drop=FALSE]
 
@@ -3956,15 +3985,15 @@ rearrangeInputsForAssoGenet <- function(ids, y, X, snp.coords, alleles,
 
 ##' Launch GEMMA
 ##'
-##' See Zhou & Stephens (Nature Genetics, 2012) and Zhou et al (PLoS Genetics, 2013).
+##' See Zhou & Stephens (Nature Genetics, 2012), and Zhou et al (PLoS Genetics, 2013).
 ##' @param model name of the model to fit (ulmm/bslmm)
-##' @param y vector of phenotypes with individual names
-##' @param X matrix of SNP genotypes encoded in number of copies of the 2nd allele, i.e. as allele doses in {0,1,2}, with individuals in rows and SNPs in columns
+##' @param y vector of phenotypes with genotype names
+##' @param X matrix of bi-allelic SNP genotypes encoded, for each SNP, in number of copies of its second allele, i.e. as allele doses in {0,1,2}, with genotypes in rows and SNPs in columns; the "second" allele is arbitrary, it corresponds to the second column of \code{alleles}, which can be the minor or the major allele
 ##' @param snp.coords data.frame with 3 columns (snp, coord, chr)
-##' @param alleles data.frame with SNPs in rows (names as row names) and alleles in columns (named "minor" and "major")
+##' @param alleles data.frame with SNPs in rows (names as row names) and alleles in columns (exactly 2 columns are required); the second column should correspond to the allele which number of copies is counted at each SNP in \code{X}; if NULL, fake alleles will be generated
 ##' @param maf SNPs with minor allele frequency strictly below this threshold will be discarded
 ##' @param K.c kinship matrix; if NULL, will be estimated using X via \code{\link{estimGenRel}} with \code{relationships="additive"} and \code{method="zhou"}
-##' @param W matrix of covariates with individuals in rows (names as row names), a first column of 1 and a second column of covariates values
+##' @param W matrix of covariates with genotypes in rows (names as row names), a first column of 1 and a second column of covariates values
 ##' @param out.dir directory in which the output files will be saved
 ##' @param task.id identifier of the task (used in temporary and output file names)
 ##' @param verbose verbosity level (0/1)
@@ -3991,8 +4020,8 @@ rearrangeInputsForAssoGenet <- function(ids, y, X, snp.coords, alleles,
 ##'                          chr="chr1",
 ##'                          row.names=colnames(X),
 ##'                          stringsAsFactors=FALSE)
-##' alleles <- data.frame(minor=rep("a", ncol(X)),
-##'                       major="A",
+##' alleles <- data.frame(major=rep("A", ncol(X)),
+##'                       minor="a",
 ##'                       row.names=colnames(X),
 ##'                       stringsAsFactors=FALSE)
 ##' fit.u <- gemma(model="ulmm", model$Y[,1], X, snp.coords, alleles,
@@ -4013,28 +4042,23 @@ rearrangeInputsForAssoGenet <- function(ids, y, X, snp.coords, alleles,
 ##' summary(posterior.samples)
 ##' }
 ##' @export
-gemma <- function(model="ulmm", y, X, snp.coords, alleles, maf=0.01, K.c=NULL,
+gemma <- function(model="ulmm", y, X, snp.coords, alleles=NULL, maf=0.01, K.c=NULL,
                   W, out.dir=getwd(), task.id="gemma", verbose=1, clean="none",
                   seed=1859, burnin=1000, nb.iters=7000, thin=10){
   stopifnot(file.exists(Sys.which("gemma")),
             model %in% c("ulmm", "bslmm"))
-  stopIfNotValidGenosDose(X, check.hasRowNames=TRUE)
   if(is.matrix(y)){
     stopifnot(ncol(y) == 1,
               ! is.null(rownames(y)))
     y <- stats::setNames(y[,1], rownames(y))
   }
+  stopIfNotValidGenosDose(X)
   stopifnot(is.vector(y),
             ! is.null(names(y)),
             length(y) == nrow(X),
             all(names(y) == rownames(X)),
             .isValidSnpCoords(snp.coords),
-            all(rownames(snp.coords) %in% colnames(X)),
             all(colnames(X) %in% rownames(snp.coords)),
-            is.data.frame(alleles),
-            ! is.null(row.names(alleles)),
-            colnames(alleles) == c("minor","major"),
-            all(rownames(alleles) %in% colnames(X)),
             is.numeric(maf),
             length(maf) == 1,
             maf >= 0,
@@ -4046,17 +4070,43 @@ gemma <- function(model="ulmm", y, X, snp.coords, alleles, maf=0.01, K.c=NULL,
             is.character(task.id),
             length(task.id) == 1,
             clean %in% c("none", "some", "all"))
+  if(! is.null(alleles))
+    stopifnot(is.data.frame(alleles),
+              ! is.null(rownames(alleles)),
+              ncol(alleles) == 2,
+              all(colnames(X) %in% rownames(alleles)))
 
   output <- list()
 
-  ## discard SNPs with low MAF
-  X <- discardSnpsLowMaf(X=X, thresh=maf, verbose=verbose)
+  ## generate or reformat alleles
+  if(is.null(alleles)){
+    alleles <- data.frame(first=rep("A", ncol(X)),
+                          second=rep("B", ncol(X)),
+                          row.names=colnames(X),
+                          stringsAsFactors=FALSE)
+  } else
+    alleles <- alleles[colnames(X),]
 
-  ## reformat inputs for GEMMA
+  ## for GEMMA, recode SNP genotypes in terms of minor alleles, if necessary
+  afs <- estimSnpAf(X=X)
+  if(any(afs > 0.5)){
+    msg <- paste0(sum(afs > 0.5), " SNPs in X are not encoded",
+                  " in terms of their minor allele")
+    write(msg, stdout())
+    tmp <- recodeGenosMinorSnpAllele(X=X, alleles=alleles, verbose=verbose)
+    X <- tmp$X
+    alleles <- tmp$alleles
+  }
+
+  ## discard SNPs with low MAF
+  mafs <- estimSnpMaf(afs=afs)
+  X <- discardSnpsLowMaf(X=X, mafs=mafs, thresh=maf, verbose=verbose)
+  alleles <- alleles[colnames(X),]
+
+  ## reformat snp.coords
   snp.coords <- snp.coords[colnames(X),]
   if(! "coord" %in% colnames(snp.coords))
     colnames(snp.coords)[colnames(snp.coords) == "pos"] <- "coord"
-  alleles <- alleles[colnames(X),]
   sc.gemma <- data.frame(snp=rownames(snp.coords),
                          coord=snp.coords$coord,
                          chr=snp.coords$chr,
@@ -4066,8 +4116,8 @@ gemma <- function(model="ulmm", y, X, snp.coords, alleles, maf=0.01, K.c=NULL,
   tmp.files <- c()
   tmp.files <- c(tmp.files,
                  genos=paste0(out.dir, "/genos_", task.id, ".txt.gz"))
-  dose2bimbam(X=X, alleles=alleles,
-              file=gzfile(tmp.files["genos"]))
+  genoDoses2bimbam(X=X, alleles=alleles,
+                   file=gzfile(tmp.files["genos"]))
   tmp.files <- c(tmp.files,
                  snp.coords=paste0(out.dir, "/snp-coords_", task.id, ".txt"))
   utils::write.table(x=snp.coords,
@@ -4166,13 +4216,13 @@ gemma <- function(model="ulmm", y, X, snp.coords, alleles, maf=0.01, K.c=NULL,
 ##' GEMMA uLMM per chromosome
 ##'
 ##' See Zhou & Stephens (Nature Genetics, 2012).
-##' @param y vector of phenotypes with individual names
-##' @param X matrix of SNP genotypes encoded in number of copies of the 2nd allele, i.e. as allele doses in {0,1,2}, with individuals in rows and SNPs in columns
+##' @param y vector of phenotypes with genotype names
+##' @param X matrix of bi-allelic SNP genotypes encoded, for each SNP, in number of copies of its second allele, i.e. as allele doses in {0,1,2}, with genotypes in rows and SNPs in columns; the "second" allele is arbitrary, it corresponds to the second column of \code{alleles}, which can be the minor or the major allele
 ##' @param snp.coords data.frame with 3 columns (snp, coord, chr)
-##' @param alleles data.frame with SNPs in rows (names as row names) and alleles in columns (named "minor" and "major"); will be made of A's and B's if missing
+##' @param alleles data.frame with SNPs in rows (names as row names) and alleles in columns (exactly 2 columns are required); the second column should correspond to the allele which number of copies is counted at each SNP in \code{X}; if NULL, fake alleles will be generated
 ##' @param maf SNPs with minor allele frequency strictly below this threshold will be discarded
 ##' @param chr.ids set of chromosome identifiers to analyze (optional, all by default)
-##' @param W matrix of covariates with individuals in rows (names as row names), a first column of 1 and a second column of covariates values
+##' @param W matrix of covariates with genotypes in rows (names as row names), a first column of 1 and a second column of covariates values
 ##' @param out.dir directory in which the data files will be found
 ##' @param task.id identifier of the task (used in output file names)
 ##' @param clean remove files: none, some (temporary only), all (temporary and results)
@@ -4185,18 +4235,17 @@ gemmaUlmmPerChr <- function(y, X, snp.coords, alleles=NULL, maf=0.01,
                             chr.ids=NULL, W, out.dir, task.id="gemma", clean="none",
                             verbose=1){
   stopifnot(file.exists(Sys.which("gemma")))
-  stopIfNotValidGenosDose(X, check.hasRowNames=FALSE)
   if(is.matrix(y)){
     stopifnot(ncol(y) == 1,
               ! is.null(rownames(y)))
     y <- stats::setNames(y[,1], rownames(y))
   }
+  stopIfNotValidGenosDose(X)
   stopifnot(is.vector(y),
             ! is.null(names(y)),
             length(y) == nrow(X),
             all(names(y) == rownames(X)),
             .isValidSnpCoords(snp.coords),
-            all(rownames(snp.coords) %in% colnames(X)),
             all(colnames(X) %in% rownames(snp.coords)),
             is.numeric(maf),
             length(maf) == 1,
@@ -4212,26 +4261,40 @@ gemmaUlmmPerChr <- function(y, X, snp.coords, alleles=NULL, maf=0.01,
   if(! is.null(alleles))
     stopifnot(is.data.frame(alleles),
               ! is.null(rownames(alleles)),
-              colnames(alleles) == c("minor","major"),
-              all(colnames(X) %in% rownames(alleles)),
-              all(rownames(alleles) %in% colnames(X)))
+              ncol(alleles) == 2,
+              all(colnames(X) %in% rownames(alleles)))
 
   out <- list()
 
-  ## discard SNPs with low MAF
-  X <- discardSnpsLowMaf(X=X, thresh=maf, verbose=verbose)
-
-  ## make and/or reformat inputs
-  snp.coords <- snp.coords[colnames(X),]
-  if(! "coord" %in% colnames(snp.coords))
-    colnames(snp.coords)[colnames(snp.coords) == "pos"] <- "coord"
+  ## generate or reformat alleles
   if(is.null(alleles)){
-    alleles <- data.frame(minor=rep("A", nrow(snp.coords)),
-                          major=rep("B", nrow(snp.coords)),
-                          row.names=rownames(snp.coords),
+    alleles <- data.frame(first=rep("A", ncol(X)),
+                          second=rep("B", ncol(X)),
+                          row.names=colnames(X),
                           stringsAsFactors=FALSE)
   } else
     alleles <- alleles[colnames(X),]
+
+  ## for GEMMA, recode SNP genotypes in terms of minor alleles, if necessary
+  afs <- estimSnpAf(X=X)
+  if(any(afs > 0.5)){
+    msg <- paste0(sum(afs > 0.5), " SNPs in X are not encoded",
+                  " in terms of their minor allele")
+    write(msg, stdout())
+    tmp <- recodeGenosMinorSnpAllele(X=X, alleles=alleles, verbose=verbose)
+    X <- tmp$X
+    alleles <- tmp$alleles
+  }
+
+  ## discard SNPs with low MAF
+  mafs <- estimSnpMaf(afs=afs)
+  X <- discardSnpsLowMaf(X=X, mafs=mafs, thresh=maf, verbose=verbose)
+  alleles <- alleles[colnames(X),]
+
+  ## reformat snp.coords
+  snp.coords <- snp.coords[colnames(X),]
+  if(! "coord" %in% colnames(snp.coords))
+    colnames(snp.coords)[colnames(snp.coords) == "pos"] <- "coord"
 
   if(is.null(chr.ids))
     chr.ids <- sort(unique(as.character(snp.coords$chr)))
@@ -4262,18 +4325,18 @@ gemmaUlmmPerChr <- function(y, X, snp.coords, alleles=NULL, maf=0.01,
 
 ##' QTLRel per chromosome
 ##'
-##' Given I individuals, P SNPs, Q covariates (e.g. replicates) and N=I*Q phenotypes, the whole likelihood is: y = W alpha + Z X beta + epsilon, where y is Nx1, W is NxQ, Z is NxI, X is IxP and u = X beta.
+##' Given I genotypes, P SNPs, Q covariates (e.g. replicates) and N=I*Q phenotypes, the whole likelihood is: y = W alpha + Z X beta + epsilon, where y is Nx1, W is NxQ, Z is NxI, X is IxP and u = X beta.
 ##' The QTLRel package (Cheng et al, BMC Genetics, 2011) decomposes the inference into an \emph{ad hoc} procedure of two steps.
 ##' First, the variance components and fixed effects are estimated: y = W alpha + Z u + epsilon.
 ##' Second the allele effects are tested SNP per SNP: for all p in {1,..,P}, y = W alpha + Z x_p beta_p + Z u + epsilon, using the fixed effects and variance components estimated in the first step.
 ##' As the SNPs can be in linkage disequilibrium, it is advised (Yang et al, Nature Genetics, 2014) to perform the procedure chromosome per chromosome, which is the goal of this function; but I advise to also run it with chr.ids=NULL.
 ##' @param y vector or one-column matrix of phenotypes (the order is important and should be in agreement with the other arguments X, W and Z)
-##' @param X matrix of SNP genotypes encoded in number of copies of the 2nd allele, i.e. as allele doses in {0,1,2}, with individuals in rows and SNPs in columns
+##' @param X matrix of bi-allelic SNP genotypes encoded in allele doses in {0,1,2}, with genotypes in rows and SNPs in columns
 ##' @param snp.coords data.frame with SNP identifiers as row names and two columns named "chr" and "coord" (or "pos")
 ##' @param thresh threshold on minor allele frequencies below which SNPs are ignored via \code{\link{discardSnpsLowMaf}} (default=0.01; NULL to skip this step; SNPs are ignored for testing, but all are still used to calculate the matrix of additive genetic relationships as rare SNPs are informative in this purpose)
 ##' @param chr.ids vector of chromosome identifiers to analyze (if NULL, the regular QTLRel procedure is launched, i.e. all chromosomes are used to estimate the variance components)
 ##' @param W incidence matrix of covariates (should not contain the column of 1's for the intercept; use \code{\link[stats]{model.matrix}} if necessary)
-##' @param Z incidence matrix relating phenotypes to individuals (if nrow(y) and nrow(X) are different, diagonal otherwise; use \code{\link[stats]{model.matrix}} if necessary)
+##' @param Z incidence matrix relating phenotypes to genotypes (if nrow(y) and nrow(X) are different, diagonal otherwise; use \code{\link[stats]{model.matrix}} if necessary)
 ##' @param method.A method to estimate the additive relationships (see \code{\link{estimGenRel}})
 ##' @param verbose verbosity level (0/1)
 ##' @return a list with three data.frames as components, variance.components, fixed.effects and scan
@@ -4591,8 +4654,8 @@ calcL10ApproximateBayesFactorWenStephens <- function(sstats, phi2, oma2){
 ##' Boxplot of QTL
 ##'
 ##' Make a boxplot of a candidate QTL.
-##' @param y vector of phenotypes with individual names
-##' @param X matrix of SNP genotypes encoded in number of copies of the 2nd allele, i.e. as allele doses in {0,1,2}, with individuals in rows and SNPs in columns
+##' @param y vector of phenotypes with genotype names
+##' @param X matrix of bi-allelic SNP genotypes encoded in allele doses in [0,2], with genotypes in rows and SNPs in columns; missing values should be encoded as NA; SNP genotypes at the given snp should not be imputed
 ##' @param snp character with SNP name corresponding to the candidate QTL to plot
 ##' @param xlab label ox the x-axis
 ##' @param ylab label of the y-axis
@@ -4602,8 +4665,7 @@ calcL10ApproximateBayesFactorWenStephens <- function(sstats, phi2, oma2){
 ##' @author Timothee Flutre
 ##' @export
 boxplotCandidateQtl <- function(y, X, snp, xlab="Genotype", ylab="Phenotype",
-                                 verbose=1, ...){
-  stopIfNotValidGenosDose(X, check.noNA=FALSE)
+                                verbose=1, ...){
   if(is.matrix(y)){
     stopifnot(ncol(y) == 1,
               ! is.null(rownames(y)))
@@ -4612,12 +4674,15 @@ boxplotCandidateQtl <- function(y, X, snp, xlab="Genotype", ylab="Phenotype",
   stopifnot(is.vector(y),
             ! is.null(names(y)),
             length(y) == nrow(X),
-            all(names(y) == rownames(X)),
+            all(names(y) %in% rownames(X)),
+            all(rownames(X) %in% names(y)),
             is.character(snp),
             snp %in% colnames(X))
+  X.snp <- X[names(y), snp, drop=FALSE]
+  stopIfNotValidGenosDose(X.snp, check.noNA=FALSE, check.notImputed=TRUE)
 
   ## reformat the inputs
-  x <- stats::setNames(X[, snp], rownames(X))
+  x <- stats::setNames(as.vector(X.snp), rownames(X.snp))
   x <- x[! is.na(x)]
   y <- y[! is.na(y)]
   ind.names <- intersect(names(y), names(x))
@@ -4699,7 +4764,7 @@ readBiomercator <- function(file){
     }))
 
     txt <- paste0("map '", gmap$mapName, "':")
-    txt <- paste0(txt, "\n\tnb of individuals: ", gmap$popSize)
+    txt <- paste0(txt, "\n\tnb of genotypes: ", gmap$popSize)
     txt <- paste0(txt, "\n\tnb of markers: ", gmap$nbMarkers)
     txt <- paste0(txt, "\n\tnb of chromosomes: ", length(gmap$map))
     txt <- paste0(txt, "\n\tnb of linkage groups: ", gmap$nbLinkageGroups)
@@ -4720,7 +4785,7 @@ readBiomercator <- function(file){
 ##' Plot a pedigree using the "igraph" package.
 ##' This function was inspired by plot.pedigree() from the "synbreed" package (under GPL-3).
 ##' It add options for monoecious species and auto-fecondation.
-##' @param inds identifiers of the individuals
+##' @param inds identifiers of the genotypes
 ##' @param mothers identifiers of their mother; can be NA
 ##' @param fathers identifiers of their father; can be NA
 ##' @param generations should start at 0
@@ -4759,7 +4824,7 @@ plotPedigree <- function(inds, mothers, fathers, generations, sexes=NULL,
   ## check inds
   inds <- as.character(inds)
   if(length(unique(inds)) != length(inds)){
-    msg <- paste0(length(inds), " individuals, but only ",
+    msg <- paste0(length(inds), " genotypes, but only ",
                   length(unique(inds)), " unique")
     stop(msg)
   }

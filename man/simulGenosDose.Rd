@@ -19,7 +19,7 @@ simulGenosDose(nb.genos, nb.snps, geno.ids = NULL, snp.ids = NULL,
 \item{mafs}{vector of minor allele frequencies; by default, they are uniformly distributed between 0.05 and 0.5}
 }
 \value{
-matrix with individuals in rows and SNPs in columns
+matrix with genotypes in rows and SNPs in columns
 }
 \description{
 Simulate SNP genotypes as allele dose additively encoded, i.e. 0,1,2.

@@ -7,7 +7,7 @@
 haplosAlleles2num(haplos, alleles, nb.cores = 1)
 }
 \arguments{
-\item{haplos}{matrix with haplotypes in rows (2 consecutive per individual) and SNPs in columns}
+\item{haplos}{matrix with haplotypes in rows (2 consecutive per genotype) and SNPs in columns}
 
 \item{alleles}{data.frame with SNPs in rows (names as row names) and alleles in columns (named "minor" and "major")}
 

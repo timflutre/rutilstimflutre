@@ -7,7 +7,7 @@
 discardMarkersMissGenos(X, verbose = 1)
 }
 \arguments{
-\item{X}{matrix of markers' genotypes numerically encoded (if SNPs, in number of copies of the 2nd allele, i.e. as allele doses in {0,1,2}), with individuals in rows and markers in columns; NA if missing}
+\item{X}{matrix of marker genotypes, with genotypes in rows and markers in columns; missing values should be encoded as NA}
 
 \item{verbose}{verbosity level (0/1)}
 }

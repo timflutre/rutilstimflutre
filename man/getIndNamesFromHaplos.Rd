@@ -2,18 +2,18 @@
 % Please edit documentation in R/quantgen.R
 \name{getIndNamesFromHaplos}
 \alias{getIndNamesFromHaplos}
-\title{Individual names}
+\title{Genotype names}
 \usage{
 getIndNamesFromHaplos(haplos)
 }
 \arguments{
-\item{haplos}{list of matrices (one per chromosome, with individuals in rows)}
+\item{haplos}{list of matrices (one per chromosome, with genotypes in rows)}
 }
 \value{
 vector
 }
 \description{
-Return the identifiers of all individuals
+Return the identifiers of all genotypes
 }
 \author{
 Timothee Flutre

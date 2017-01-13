@@ -12,7 +12,7 @@ readHaplosFastPhase(file, snp.ids)
 \item{snp.ids}{vector of SNP identifiers}
 }
 \value{
-matrix with haplotypes in rows (2 per individual) and SNPs in columns
+matrix with haplotypes in rows (2 per genotype) and SNPs in columns
 }
 \description{
 Extract the haplotypes from the output file of fastPHASE.

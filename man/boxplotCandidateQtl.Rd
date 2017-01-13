@@ -8,9 +8,9 @@ boxplotCandidateQtl(y, X, snp, xlab = "Genotype", ylab = "Phenotype",
   verbose = 1, ...)
 }
 \arguments{
-\item{y}{vector of phenotypes with individual names}
+\item{y}{vector of phenotypes with genotype names}
 
-\item{X}{matrix of SNP genotypes encoded in number of copies of the 2nd allele, i.e. as allele doses in {0,1,2}, with individuals in rows and SNPs in columns}
+\item{X}{matrix of bi-allelic SNP genotypes encoded in allele doses in [0,2], with genotypes in rows and SNPs in columns; missing values should be encoded as NA; SNP genotypes at the given snp should not be imputed}
 
 \item{snp}{character with SNP name corresponding to the candidate QTL to plot}
 

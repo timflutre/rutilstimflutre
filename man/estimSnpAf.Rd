@@ -7,14 +7,13 @@
 estimSnpAf(X)
 }
 \arguments{
-\item{X}{matrix of SNP genotypes encoded in number of copies of the 2nd allele, i.e. as allele doses in {0,1,2}, with individuals in rows and SNPs in columns; missing values should be encoded as NA in order to be ignored}
+\item{X}{matrix of bi-allelic SNP genotypes encoded in allele doses in [0,2], with genotypes in rows and SNPs in columns; missing values should be encoded as NA}
 }
 \value{
 vector
 }
 \description{
-Estimate the frequency of the second allele for each SNP.
-Note that the "second" allele may not be the "minor" allele (the least frequent).
+Estimate allele frequencies of bi-allelic SNPs.
 }
 \author{
 Timothee Flutre

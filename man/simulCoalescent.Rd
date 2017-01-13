@@ -12,7 +12,7 @@ simulCoalescent(nb.inds = 100, ind.ids = NULL, nb.reps = 10,
 \arguments{
 \item{nb.inds}{diploids (thus nb of haplotypes is 2 * nb.inds)}
 
-\item{ind.ids}{vector of identifiers (one per individual)}
+\item{ind.ids}{vector of identifiers (one per genotype)}
 
 \item{nb.reps}{number of independent loci that will be produced (could be seen as distinct chromosomes)}
 
@@ -24,7 +24,7 @@ simulCoalescent(nb.inds = 100, ind.ids = NULL, nb.reps = 10,
 
 \item{other}{character vector of length 1 with other parameters to the simulator (e.g. time-specific parameters such as "-G 6.93 -eG 0.2 0.0 -eN 0.3 0.5")}
 
-\item{nb.pops}{number of populations (\code{\link{kmeans}} will then be used to pair haplotypes into diploid individuals)}
+\item{nb.pops}{number of populations (\code{\link{kmeans}} will then be used to pair haplotypes into diploid genotypes)}
 
 \item{mig.rate}{migration rate = 4 N0 m (will be symmetric)}
 

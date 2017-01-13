@@ -22,7 +22,7 @@ stopIfNotValidGenosDose(X, check.hasColNames = TRUE,
 \item{check.notImputed}{logical}
 }
 \description{
-Check that the input is a valid matrix of genotypes coded in allele doses.
+Check that the input is a valid matrix of bi-allelic SNP genotypes coded in allele doses.
 }
 \author{
 Timothee Flutre

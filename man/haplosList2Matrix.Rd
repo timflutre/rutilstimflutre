@@ -2,12 +2,12 @@
 % Please edit documentation in R/quantgen.R
 \name{haplosList2Matrix}
 \alias{haplosList2Matrix}
-\title{Haplotype list to matrix}
+\title{Convert haplotypes}
 \usage{
 haplosList2Matrix(haplos)
 }
 \arguments{
-\item{haplos}{list of matrices (one per chromosome, with individuals in rows and markers in columns)}
+\item{haplos}{list of matrices (one per chromosome, with genotypes in rows and SNPs in columns)}
 }
 \value{
 matrix

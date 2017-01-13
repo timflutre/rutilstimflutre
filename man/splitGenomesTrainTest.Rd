@@ -9,13 +9,13 @@ splitGenomesTrainTest(genomes, nb.inds.pred)
 \arguments{
 \item{genomes}{list, e.g. returned by \code{\link{simulCoalescent}}}
 
-\item{nb.inds.pred}{number of individuals for whom prediction will be performed}
+\item{nb.inds.pred}{number of genotypes for whom prediction will be performed}
 }
 \value{
 list composed of two lists, genomes and genomes.pred
 }
 \description{
-From a set of individual genomes simulated together, split them into a training (for estimation) and testing (for prediction) sets.
+From a set of genomes simulated together, split them into a training (for estimation) and testing (for prediction) sets.
 }
 \author{
 Timothee Flutre

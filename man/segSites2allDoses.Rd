@@ -8,9 +8,9 @@ segSites2allDoses(seg.sites, ind.ids = NULL, snp.ids = NULL,
   rnd.choice.ref.all = TRUE, seed = NULL)
 }
 \arguments{
-\item{seg.sites}{list of haplotypes returned by \code{scrm}, each component of which corresponds to a matrix with haplotypes in rows and SNP in columns}
+\item{seg.sites}{list of haplotypes returned by \code{scrm::scrm}, each component of which corresponds to a matrix with haplotypes in rows and SNP in columns}
 
-\item{ind.ids}{vector with the identifiers of the individuals}
+\item{ind.ids}{vector with the identifiers of the genotypes}
 
 \item{snp.ids}{vector with the identifiers of the SNPs (if NULL, the SNP identifiers from seg.sites will be used if they aren't NULL, too)}
 
@@ -19,10 +19,10 @@ segSites2allDoses(seg.sites, ind.ids = NULL, snp.ids = NULL,
 \item{seed}{seed for the pseudo-random number generator}
 }
 \value{
-matrix with diploid individuals in rows and SNPs in columns
+matrix with diploid genotypes in rows and SNPs in columns
 }
 \description{
-Convert the SFS of independent replicates into a matrix of allele dosage.
+Convert the SFS of independent replicates into a matrix of allele doses.
 }
 \author{
 Timothee Flutre

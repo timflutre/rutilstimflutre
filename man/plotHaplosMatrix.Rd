@@ -7,7 +7,7 @@
 plotHaplosMatrix(haplos, main = "Haplotypes")
 }
 \arguments{
-\item{haplos}{matrix of haplotypes with haplotypes (2 per individual) in rows and sites in columns}
+\item{haplos}{matrix of haplotypes, with haplotypes (2 per genotype) in rows and sites in columns}
 
 \item{main}{main title}
 }

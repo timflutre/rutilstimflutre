@@ -7,13 +7,13 @@
 calcFreqMissSnpGenosPerGeno(X)
 }
 \arguments{
-\item{X}{matrix of SNP genotypes encoded in number of copies of the 2nd allele, i.e. as allele doses in {0,1,2}, with individuals in rows and SNPs in columns; missing values should be encoded as NA}
+\item{X}{matrix of marker genotypes, with genotypes in rows and markers in columns; missing values should be encoded as NA}
 }
 \value{
 vector
 }
 \description{
-Calculate the frequency of missing SNP genotypes for each genotype.
+Calculate the frequency of missing marker genotypes for each genotype.
 }
 \author{
 Timothee Flutre

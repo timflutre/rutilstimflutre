@@ -12,7 +12,7 @@ plotPedigree(inds, mothers, fathers, generations, sexes = NULL,
   edge.arrow.width = 0.75, edge.arrow.size = 0.75, ...)
 }
 \arguments{
-\item{inds}{identifiers of the individuals}
+\item{inds}{identifiers of the genotypes}
 
 \item{mothers}{identifiers of their mother; can be NA}
 

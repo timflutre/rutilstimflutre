@@ -8,19 +8,19 @@ imputeGenosWithMean(X, min.maf = 0.1, max.miss = 0.3,
   rm.still.miss = TRUE)
 }
 \arguments{
-\item{X}{matrix of marker genotypes numerically encoded (if SNPs, in number of copies of the 2nd allele, i.e. as allele doses in {0,1,2}), with individuals in rows and markers in columns; NA if missing}
+\item{X}{matrix of bi-allelic SNP genotypes encoded in allele doses in {0,1,2}, with genotypes in rows and SNPs in columns; missing values should be encoded as NA}
 
 \item{min.maf}{minimum minor allele frequency (before imputation) below which SNPs are discarded}
 
 \item{max.miss}{maximum amount of missing genotypes (before imputation) above which SNPs are discarded}
 
-\item{rm.still.miss}{if TRUE, remove marker(s) still with missing genotype(s) after imputation (depending on \code{min.maf} and \code{max.miss})}
+\item{rm.still.miss}{if TRUE, remove SNP(s) still with missing genotype(s) after imputation (depending on \code{min.maf} and \code{max.miss})}
 }
 \value{
 matrix with imputed genotypes
 }
 \description{
-Impute missing marker genotypes with the mean of the non-missing.
+Impute missing SNP genotypes with the mean of the non-missing.
 The code was inspired from the \code{A.mat} function from the \href{https://cran.r-project.org/web/packages/rrBLUP/}{rrBLUP} package.
 }
 \author{

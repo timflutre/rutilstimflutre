@@ -9,19 +9,19 @@ gemmaUlmmPerChr(y, X, snp.coords, alleles = NULL, maf = 0.01,
   verbose = 1)
 }
 \arguments{
-\item{y}{vector of phenotypes with individual names}
+\item{y}{vector of phenotypes with genotype names}
 
-\item{X}{matrix of SNP genotypes encoded in number of copies of the 2nd allele, i.e. as allele doses in {0,1,2}, with individuals in rows and SNPs in columns}
+\item{X}{matrix of bi-allelic SNP genotypes encoded, for each SNP, in number of copies of its second allele, i.e. as allele doses in {0,1,2}, with genotypes in rows and SNPs in columns; the "second" allele is arbitrary, it corresponds to the second column of \code{alleles}, which can be the minor or the major allele}
 
 \item{snp.coords}{data.frame with 3 columns (snp, coord, chr)}
 
-\item{alleles}{data.frame with SNPs in rows (names as row names) and alleles in columns (named "minor" and "major"); will be made of A's and B's if missing}
+\item{alleles}{data.frame with SNPs in rows (names as row names) and alleles in columns (exactly 2 columns are required); the second column should correspond to the allele which number of copies is counted at each SNP in \code{X}; if NULL, fake alleles will be generated}
 
 \item{maf}{SNPs with minor allele frequency strictly below this threshold will be discarded}
 
 \item{chr.ids}{set of chromosome identifiers to analyze (optional, all by default)}
 
-\item{W}{matrix of covariates with individuals in rows (names as row names), a first column of 1 and a second column of covariates values}
+\item{W}{matrix of covariates with genotypes in rows (names as row names), a first column of 1 and a second column of covariates values}
 
 \item{out.dir}{directory in which the data files will be found}
 

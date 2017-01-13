@@ -2,20 +2,20 @@
 % Please edit documentation in R/quantgen.R
 \name{getHaplosInd}
 \alias{getHaplosInd}
-\title{Haplotypes of an individual}
+\title{Haplotypes of an genotype}
 \usage{
 getHaplosInd(haplos, ind.name)
 }
 \arguments{
 \item{haplos}{list with one matrix per chromosome, with haplotype in rows and SNPs in columns, as returned by \code{\link{simulCoalescent}}}
 
-\item{ind.name}{identifier of the individual to retrieve}
+\item{ind.name}{identifier of the genotype to retrieve}
 }
 \value{
 list similar to "haplos"
 }
 \description{
-Retrieve both haplotypes for all chromosomes of a given individual.
+Retrieve both haplotypes for all chromosomes of a given genotype.
 }
 \author{
 Timothee Flutre

@@ -4,11 +4,11 @@
 \alias{plotGridMissGenos}
 \title{Missing genotypes}
 \usage{
-plotGridMissGenos(X, main = "Missing genotypes", xlab = "Individuals",
-  ylab = "SNPs")
+plotGridMissGenos(X, main = "Missing marker genotypes", xlab = "Genotypes",
+  ylab = "markers")
 }
 \arguments{
-\item{X}{matrix of SNP genotypes encoded in number of copies of the 2nd allele, i.e. as allele doses in {0,1,2}, with individuals in rows and SNPs in columns; NA if missing}
+\item{X}{matrix of marker genotypes, with genotypes in rows and markers in columns; missing values should be encoded as NA}
 
 \item{main}{an overall title for the plot}
 
@@ -20,7 +20,7 @@ plotGridMissGenos(X, main = "Missing genotypes", xlab = "Individuals",
 nothing
 }
 \description{
-Plot missing SNP genotypes as a grid. Data will be represented in black if missing, white otherwise.
+Plot missing marker genotypes as a grid, represented in black if missing, white otherwise.
 }
 \author{
 Timothee Flutre

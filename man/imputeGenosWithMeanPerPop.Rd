@@ -8,7 +8,7 @@ imputeGenosWithMeanPerPop(X, pops, min.maf.pop = 0.1, max.miss.pop = 0.3,
   rm.still.miss = TRUE, verbose = 1)
 }
 \arguments{
-\item{X}{NxP matrix of marker genotypes numerically encoded (if SNPs, in number of copies of the 2nd allele, i.e. as allele doses in {0,1,2}), with individuals in rows and markers in columns; NA if missing}
+\item{X}{matrix of bi-allelic SNP genotypes encoded in allele doses in {0,1,2}, with genotypes in rows and SNPs in columns; missing values should be encoded as NA}
 
 \item{pops}{data.frame with 2 columns, "ind" and "pop"}
 
@@ -16,15 +16,15 @@ imputeGenosWithMeanPerPop(X, pops, min.maf.pop = 0.1, max.miss.pop = 0.3,
 
 \item{max.miss.pop}{maximum amount of missing genotypes per population (before imputation) above which SNPs are discarded}
 
-\item{rm.still.miss}{if TRUE, remove marker(s) still with missing genotype(s) in at least one population (depending on \code{min.maf.pop} and \code{max.miss.pop})}
+\item{rm.still.miss}{if TRUE, remove SNP(s) still with missing genotype(s) in at least one population (depending on \code{min.maf.pop} and \code{max.miss.pop})}
 
 \item{verbose}{verbosity level (0/1)}
 }
 \value{
-NxP matrix with imputed genotypes
+matrix with imputed genotypes
 }
 \description{
-Impute missing marker genotypes with the mean of the non-missing, population by population.
+Impute missing SNP genotypes with the mean of the non-missing, population by population.
 }
 \author{
 Timothee Flutre

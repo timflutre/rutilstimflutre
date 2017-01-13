@@ -4,23 +4,21 @@
 \alias{chiSqSnpGenos}
 \title{Chi-squared for Hardy-Weinberg}
 \usage{
-chiSqSnpGenos(X, afs = NULL, c = 0.5, thresh.c = 0.01,
-  calc.with.D = TRUE, calc.pval = TRUE, thresh.pval = 0.01)
+chiSqSnpGenos(X, mafs = NULL, c = 0.5, thresh.c = 0.01,
+  calc.with.D = TRUE, calc.pval = TRUE)
 }
 \arguments{
-\item{X}{matrix of SNP genotypes encoded in number of copies of the second allele, i.e. as allele doses in {0,1,2}, with individuals in rows and SNPs in columns; missing values should be encoded as NA}
+\item{X}{matrix of bi-allelic SNP genotypes encoded as allele doses in {0,1,2}, with genotypes in rows and SNPs in columns; missing values should be encoded as NA}
 
-\item{afs}{vector with second allele frequencies; if NULL, the frequencies will be estimated with \code{\link{estimSnpAf}}}
+\item{mafs}{vector of minor allele frequencies; if NULL, the frequencies will be estimated by feeding \code{X} to \code{\link{estimSnpMaf}}}
 
 \item{c}{continuity correction (\code{0} means "no correction"; usually, \code{0.5} is used, from \href{http://dx.doi.org/10.2307/2983604}{Yates (1934)})}
 
-\item{thresh.c}{threshold on minor allele frequency below which the continuity correction isn't applied (when \code{c > 0}); see \href{https://dx.doi.org/10.1016\%2Fj.ajhg.2009.11.019}{Graffelman (2010)}}
+\item{thresh.c}{threshold on minor allele frequencies below which the continuity correction isn't applied (used when \code{c > 0}); see \href{https://dx.doi.org/10.1016\%2Fj.ajhg.2009.11.019}{Graffelman (2010)}}
 
 \item{calc.with.D}{calculate the chi2 statistic with D, the deviation from independence for the heterozygote, as in equation 1 from Graffelman & Camarena (2007), which only requires the number of heterozygotes; otherwise, use equation 4}
 
 \item{calc.pval}{calculate the p values associated with the test statistics (Chi-squared distribution with one degree of freedom)}
-
-\item{thresh.pval}{threshold on p values below which the null hypothesis of Hardy-Weinberg equilibrium is rejected}
 }
 \value{
 matrix
@@ -42,9 +40,9 @@ genomes <- simulCoalescent(nb.inds=nb.genos,
                            pop.recomb.rate=4 * Ne * c * chrom.len,
                            chrom.len=chrom.len)
 X <- genomes$genos
-out <- chiSqSnpGenos(X, c=0.5, thresh.pval=0.01)
+out <- chiSqSnpGenos(X)
 head(out)
-sum(out[,"signif"]) # number of SNPs for which HW equilibrium is rejected
+sum(p.adjust(out[,"pvalue"], "BH") <= 0.05)
 ## library(HardyWeinberg) # available on CRAN
 ## cts <- countGenotypicClasses(X=X)[, -4]
 ## colnames(cts) <- c("AA","AB","BB")
@@ -57,6 +55,6 @@ sum(out[,"signif"]) # number of SNPs for which HW equilibrium is rejected
 Timothee Flutre
 }
 \seealso{
-\code{\link{estimSnpAf}}, \code{\link{countGenotypicClasses}}
+\code{\link{estimSnpMaf}}, \code{\link{countGenotypicClasses}}
 }
 

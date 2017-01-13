@@ -8,11 +8,11 @@ estimLd(X, K = NULL, pops = NULL, snp.coords, only.chr = NULL,
   only.pop = NULL, use.ldcorsv = FALSE, verbose = 1)
 }
 \arguments{
-\item{X}{matrix of SNP genotypes encoded in number of copies of the 2nd allele, i.e. as allele doses in {0,1,2}, with individuals in rows and SNPs in columns}
+\item{X}{matrix of bi-allelic SNP genotypes encoded in allele doses in {0,1,2}, with genotypes in rows and SNPs in columns; missing values should be encoded as NA}
 
-\item{K}{matrix of kinship}
+\item{K}{matrix of "kinship" (additive genetic relationships)}
 
-\item{pops}{vector of characters indicating the population of each individual}
+\item{pops}{vector of characters indicating the population of each genotype}
 
 \item{snp.coords}{data.frame with SNP identifiers as row names, and two columns, "chr" and "pos"}
 
@@ -28,7 +28,7 @@ estimLd(X, K = NULL, pops = NULL, snp.coords, only.chr = NULL,
 data frame
 }
 \description{
-Estimates linkage disequilibrium between pairs of SNPs when the observations are the genotypes of individuals, not their gametes (i.e. the gametic phases are unknown).
+Estimates linkage disequilibrium between pairs of SNPs when the observations are the genotypes of genotypes, not their gametes (i.e. the gametic phases are unknown).
 When ignoring kinship and population structure, the estimator of Rogers and Huff (Genetics, 2009) can be used.
 When kinship and/or population structure are controlled for, the estimator of Mangin et al (Heredity, 2012) is used via their LDcorSV package.
 }

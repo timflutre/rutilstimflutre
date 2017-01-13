@@ -7,20 +7,21 @@
 recodeGenosMinorSnpAllele(X, alleles, verbose = 1)
 }
 \arguments{
-\item{X}{matrix of SNP genotypes encoded in number of copies of the 2nd allele, i.e. as allele doses in [0,2], with individuals in rows and SNPs in columns; missing values should be encoded as NA; genotypes can be imputed}
+\item{X}{matrix of bi-allelic SNP genotypes encoded, for each SNP, in number of copies of its second allele, i.e. as allele doses in [0,2], with genotypes in rows and SNPs in columns; missing values should be encoded as NA; the "second" allele is arbitrary, it corresponds to the second column of \code{alleles}, which can be the minor or the major allele}
 
-\item{alleles}{data.frame with SNPs in rows (names as row names) and alleles in columns (named "minor" and "major")}
+\item{alleles}{data.frame with SNPs in rows (names as row names) and alleles in columns (exactly 2 columns are required); the second column should correspond to the allele which number of copies is counted at each SNP in \code{X}}
 
 \item{verbose}{verbosity level (0/1)}
 }
 \value{
-list with a matrix of SNP genotypes encoded in number of copies of the minor allele with individuals in rows and SNPs in columns, and a data.frame of alleles which columns are named "minor" and "major"
+list with a matrix of SNP genotypes encoded, for each SNP, in number of copies of its minor allele, with genotypes in rows and SNPs in columns, and a data.frame of alleles which columns are named "minor" and "major"
 }
 \description{
-Recode SNP genotypes in terms of the number of copies of the minor allele.
-Let be a bi-allelic SNP with two alleles, A, the first allele, and B, the second allele, "first" and "second" being arbitrary.
-The SNP genotypes are originally coded in number of copies of the 2nd allele: if a genotype is "AA", then its allele dose is \code{0}; if "AB", then \code{1}; and if "BB", then \code{2}.
-Let us now assume that "A" is the minor (least frequent) allele, then, when recoding SNP genotypes in terms of minor allele, "AA" will correspond to \code{2}, "AB" to \code{1} and "BB" to \code{0}.
+Recode bi-allelic SNP genotypes in terms of the number of copies of the minor allele.
+Let be a bi-allelic SNP with two alleles, A, the first allele, and B, the second allele.
+Here, "first" and "second" are arbitrary, meaning that "A" as "B" can be the minor (least frequent) allele.
+The SNP genotypes are originally coded in number of copies of the second allele: that is, if a genotype is "AA", its allele dose is \code{0}; if "AB", then \code{1}; and if "BB", then \code{2}.
+Let us now assume that, in fact, "A" is the minor (least frequent) allele, then, when recoding SNP genotypes in terms of minor alleles, "AA" will correspond to \code{2}, "AB" to \code{1} and "BB" to \code{0}.
 }
 \author{
 Timothee Flutre

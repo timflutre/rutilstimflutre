@@ -12,7 +12,7 @@ readGenosFastPhase(file, snp.ids)
 \item{snp.ids}{vector of SNP identifiers}
 }
 \value{
-matrix with genotypes in rows (2 per individual) and SNPs in columns
+matrix with genotypes in rows (2 per genotype) and SNPs in columns
 }
 \description{
 Extract the genotypes from the output file of fastPHASE.

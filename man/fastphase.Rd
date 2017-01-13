@@ -10,7 +10,7 @@ fastphase(X, snp.coords, alleles, out.dir = getwd(), task.id = "fastphase",
   verbose = 1)
 }
 \arguments{
-\item{X}{NxP matrix of SNP genotypes encoded in number of copies of the 2nd allele, i.e. as allele doses in {0,1,2}, with individuals in rows and SNPs in columns}
+\item{X}{matrix of bi-allelic SNP genotypes encoded in number of copies of the 2nd allele, i.e. as allele doses in {0,1,2}, with genotypes in rows and SNPs in columns}
 
 \item{snp.coords}{data.frame with SNP identifiers as row names, and two columns, "chr" and "coord" or "pos"}
 
@@ -26,7 +26,7 @@ fastphase(X, snp.coords, alleles, out.dir = getwd(), task.id = "fastphase",
 
 \item{nb.samp.haplos}{number of haplotypes sampled from the posterior distribution obtained from a particular random start of the EM algorithm}
 
-\item{estim.haplos}{estimate haplotypes by minimizing individual error}
+\item{estim.haplos}{estimate haplotypes by minimizing genotype error}
 
 \item{nb.clusters}{number of clusters}
 
@@ -37,7 +37,7 @@ fastphase(X, snp.coords, alleles, out.dir = getwd(), task.id = "fastphase",
 \item{verbose}{verbosity level (0/1)}
 }
 \value{
-list with matrix of genotypes before imputation, and matrix of haplotypes (2 per individual, in rows) after imputation
+list with matrix of genotypes before imputation, and matrix of haplotypes (2 per genotype, in rows) after imputation
 }
 \description{
 Impute SNP genotypes via fastPHASE (Scheet and Stephens, 2006).

@@ -23,7 +23,7 @@ matrix
 }
 \description{
 Reformat the output of \code{related::coancestry} (http://frasierlab.wordpress.com/software/) into a matrix.
-By default, off-diagonal elements  correspond to coancestry coefficients between two individuals, and each diagonal element corresponds to (1 + f) / 2 where f corresponds to the inbreeding coefficient of the given individual.
+By default, off-diagonal elements  correspond to coancestry coefficients between two genotypes, and each diagonal element corresponds to (1 + f) / 2 where f corresponds to the inbreeding coefficient of the given genotype.
 To learn more about genetic relatedness, see Weir et al (2006), Astle & Balding (2009) and Legarra (2016).
 }
 \author{

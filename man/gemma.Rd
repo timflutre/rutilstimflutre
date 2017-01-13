@@ -4,26 +4,27 @@
 \alias{gemma}
 \title{Launch GEMMA}
 \usage{
-gemma(model = "ulmm", y, X, snp.coords, alleles, maf = 0.01, K.c = NULL,
-  W, out.dir = getwd(), task.id = "gemma", verbose = 1, clean = "none",
-  seed = 1859, burnin = 1000, nb.iters = 7000, thin = 10)
+gemma(model = "ulmm", y, X, snp.coords, alleles = NULL, maf = 0.01,
+  K.c = NULL, W, out.dir = getwd(), task.id = "gemma", verbose = 1,
+  clean = "none", seed = 1859, burnin = 1000, nb.iters = 7000,
+  thin = 10)
 }
 \arguments{
 \item{model}{name of the model to fit (ulmm/bslmm)}
 
-\item{y}{vector of phenotypes with individual names}
+\item{y}{vector of phenotypes with genotype names}
 
-\item{X}{matrix of SNP genotypes encoded in number of copies of the 2nd allele, i.e. as allele doses in {0,1,2}, with individuals in rows and SNPs in columns}
+\item{X}{matrix of bi-allelic SNP genotypes encoded, for each SNP, in number of copies of its second allele, i.e. as allele doses in {0,1,2}, with genotypes in rows and SNPs in columns; the "second" allele is arbitrary, it corresponds to the second column of \code{alleles}, which can be the minor or the major allele}
 
 \item{snp.coords}{data.frame with 3 columns (snp, coord, chr)}
 
-\item{alleles}{data.frame with SNPs in rows (names as row names) and alleles in columns (named "minor" and "major")}
+\item{alleles}{data.frame with SNPs in rows (names as row names) and alleles in columns (exactly 2 columns are required); the second column should correspond to the allele which number of copies is counted at each SNP in \code{X}; if NULL, fake alleles will be generated}
 
 \item{maf}{SNPs with minor allele frequency strictly below this threshold will be discarded}
 
 \item{K.c}{kinship matrix; if NULL, will be estimated using X via \code{\link{estimGenRel}} with \code{relationships="additive"} and \code{method="zhou"}}
 
-\item{W}{matrix of covariates with individuals in rows (names as row names), a first column of 1 and a second column of covariates values}
+\item{W}{matrix of covariates with genotypes in rows (names as row names), a first column of 1 and a second column of covariates values}
 
 \item{out.dir}{directory in which the output files will be saved}
 
@@ -45,7 +46,7 @@ gemma(model = "ulmm", y, X, snp.coords, alleles, maf = 0.01, K.c = NULL,
 invisible list
 }
 \description{
-See Zhou & Stephens (Nature Genetics, 2012) and Zhou et al (PLoS Genetics, 2013).
+See Zhou & Stephens (Nature Genetics, 2012), and Zhou et al (PLoS Genetics, 2013).
 }
 \examples{
 \dontrun{## simulate genotypes
@@ -62,8 +63,8 @@ snp.coords <- data.frame(coord=1:ncol(X),
                          chr="chr1",
                          row.names=colnames(X),
                          stringsAsFactors=FALSE)
-alleles <- data.frame(minor=rep("a", ncol(X)),
-                      major="A",
+alleles <- data.frame(major=rep("A", ncol(X)),
+                      minor="a",
                       row.names=colnames(X),
                       stringsAsFactors=FALSE)
 fit.u <- gemma(model="ulmm", model$Y[,1], X, snp.coords, alleles,

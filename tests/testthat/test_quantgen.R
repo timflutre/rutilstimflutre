@@ -164,8 +164,8 @@ test_that("recodeGenosMinorSnpAllele", {
   P <- 3 # SNPs
   X <- matrix(c(2,0,2,1, 1,1,0,1, 1,NA,0,2), nrow=N, ncol=P,
               dimnames=list(paste0("ind", 1:N), paste0("snp", 1:P)))
-  alleles <- data.frame(first=c("A", "G", "T"),
-                        second=c("T", "C", "A"),
+  alleles <- data.frame(A=c("A", "G", "T"),
+                        B=c("T", "C", "A"),
                         row.names=colnames(X),
                         stringsAsFactors=FALSE)
 
@@ -919,7 +919,7 @@ test_that("rearrangeInputsForAssoGenet", {
 
   cultivars.tokeep <- c("34")
   snps.tokeep <- c("snp2", "snp5")
-  exp <- list(ids=ids,
+  exp <- list(ids=ids[1, , drop=FALSE],
               y=data.frame(y=y["34Mtp6"],
                            row.names=cultivars.tokeep,
                            stringsAsFactors=FALSE),

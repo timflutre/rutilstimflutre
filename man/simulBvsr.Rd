@@ -8,7 +8,7 @@ simulBvsr(Q = 3, mu = 50, mean.c = 5, sd.c = 2, X, pi = 1,
   pve.A = 0.7, sigma.a2 = 1, perc.NA = 0, err.df = Inf, seed = NULL)
 }
 \arguments{
-\item{Q}{number of fixed effects, i.e. the intercept plus the number of years during which individuals are phenotyped (starting in 2010)}
+\item{Q}{number of fixed effects, i.e. the intercept plus the number of years during which genotypes are phenotyped (starting in 2010)}
 
 \item{mu}{overall mean}
 
@@ -16,7 +16,7 @@ simulBvsr(Q = 3, mu = 50, mean.c = 5, sd.c = 2, X, pi = 1,
 
 \item{sd.c}{std dev of the prior on c[2:Q]}
 
-\item{X}{matrix of SNP genotypes encoded in number of copies of the 2nd allele, i.e. as allele doses in {0,1,2}, with individuals in rows and SNPs in columns (SNPs with missing values or low MAF should be discarded beforehand); will be used in the simulations as X_A which is the column-centered version of X when encoded in {-1,0,1}}
+\item{X}{matrix of bi-allelic SNP genotypes encoded in allele doses in [0,2], with genotypes in rows and SNPs in columns (SNPs with missing values or low MAF should be discarded beforehand); will be used in the simulations as X_A which is the column-centered version of X when encoded in {-1,0,1}}
 
 \item{pi}{proportion of marker effects (a) that are non-zero; setting pi at 1 means simulating from the additive infinitesimal model (equivalent to ridge regression)}
 

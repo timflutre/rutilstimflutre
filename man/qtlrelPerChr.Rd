@@ -10,7 +10,7 @@ qtlrelPerChr(y, X, snp.coords, thresh = 0.01, chr.ids = NULL, W = NULL,
 \arguments{
 \item{y}{vector or one-column matrix of phenotypes (the order is important and should be in agreement with the other arguments X, W and Z)}
 
-\item{X}{matrix of SNP genotypes encoded in number of copies of the 2nd allele, i.e. as allele doses in {0,1,2}, with individuals in rows and SNPs in columns}
+\item{X}{matrix of bi-allelic SNP genotypes encoded in allele doses in {0,1,2}, with genotypes in rows and SNPs in columns}
 
 \item{snp.coords}{data.frame with SNP identifiers as row names and two columns named "chr" and "coord" (or "pos")}
 
@@ -20,7 +20,7 @@ qtlrelPerChr(y, X, snp.coords, thresh = 0.01, chr.ids = NULL, W = NULL,
 
 \item{W}{incidence matrix of covariates (should not contain the column of 1's for the intercept; use \code{\link[stats]{model.matrix}} if necessary)}
 
-\item{Z}{incidence matrix relating phenotypes to individuals (if nrow(y) and nrow(X) are different, diagonal otherwise; use \code{\link[stats]{model.matrix}} if necessary)}
+\item{Z}{incidence matrix relating phenotypes to genotypes (if nrow(y) and nrow(X) are different, diagonal otherwise; use \code{\link[stats]{model.matrix}} if necessary)}
 
 \item{method.A}{method to estimate the additive relationships (see \code{\link{estimGenRel}})}
 
@@ -30,7 +30,7 @@ qtlrelPerChr(y, X, snp.coords, thresh = 0.01, chr.ids = NULL, W = NULL,
 a list with three data.frames as components, variance.components, fixed.effects and scan
 }
 \description{
-Given I individuals, P SNPs, Q covariates (e.g. replicates) and N=I*Q phenotypes, the whole likelihood is: y = W alpha + Z X beta + epsilon, where y is Nx1, W is NxQ, Z is NxI, X is IxP and u = X beta.
+Given I genotypes, P SNPs, Q covariates (e.g. replicates) and N=I*Q phenotypes, the whole likelihood is: y = W alpha + Z X beta + epsilon, where y is Nx1, W is NxQ, Z is NxI, X is IxP and u = X beta.
 The QTLRel package (Cheng et al, BMC Genetics, 2011) decomposes the inference into an \emph{ad hoc} procedure of two steps.
 First, the variance components and fixed effects are estimated: y = W alpha + Z u + epsilon.
 Second the allele effects are tested SNP per SNP: for all p in {1,..,P}, y = W alpha + Z x_p beta_p + Z u + epsilon, using the fixed effects and variance components estimated in the first step.

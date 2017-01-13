@@ -2,7 +2,7 @@
 % Please edit documentation in R/quantgen.R
 \name{rearrangeInputsForAssoGenet}
 \alias{rearrangeInputsForAssoGenet}
-\title{Plant Association genetics}
+\title{Plant association genetics}
 \usage{
 rearrangeInputsForAssoGenet(ids, y, X, snp.coords, alleles, verbose = 1)
 }
@@ -11,11 +11,11 @@ rearrangeInputsForAssoGenet(ids, y, X, snp.coords, alleles, verbose = 1)
 
 \item{y}{vector, matrix or data.frame which row names should be present in \code{ids$cultivar.code} or \code{ids$accession.code}}
 
-\item{X}{matrix of SNP genotypes encoded in number of copies of the 2nd allele, i.e. as allele doses in {0,1,2}, with individuals in rows and SNPs in columns; row names should be present in \code{ids$accession.code} or \code{ids$cultivar.code}, and column names in \code{rownames(snp.coords)}}
+\item{X}{matrix of bi-allelic SNP genotypes encoded in allele doses in [0,2], with genotypes in rows and SNPs in columns; the "second" allele is arbitrary, it corresponds to the second column of \code{alleles}, which can be the minor or the major allele; row names should be present in \code{ids$accession.code} or \code{ids$cultivar.code}, and column names in \code{rownames(snp.coords)}}
 
 \item{snp.coords}{data.frame with 2 columns \code{coord} and \code{chr}, and SNP identifiers as row names}
 
-\item{alleles}{data.frame with SNPs in rows (names as row names) and alleles in columns (named "minor" and "major")}
+\item{alleles}{data.frame with SNPs in rows (names as row names) and alleles in columns (exactly 2 columns are required); the second column should correspond to the allele which number of copies is counted at each SNP in \code{X}}
 
 \item{verbose}{verbosity level (0/1)}
 }

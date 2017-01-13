@@ -8,9 +8,9 @@ estimGenRel(X, afs = NULL, thresh = NULL, relationships = "additive",
   method = "vanraden1", theta = 0.5, verbose = 1)
 }
 \arguments{
-\item{X}{matrix of SNP genotypes encoded in number of copies of the 2nd allele, i.e. as allele doses in {0,1,2}, with individuals in rows and SNPs in columns; missing values should be encoded as NA in order to be ignored}
+\item{X}{matrix of bi-allelic SNP genotypes encoded in allele doses in {0,1,2}, with genotypes in rows and SNPs in columns; missing values should be encoded as NA}
 
-\item{afs}{vector with 2nd allele frequencies (calculated with \code{\link{estimSnpAf}} if NULL)}
+\item{afs}{vector of allele frequencies, corresponding to the alleles whose copies are counted in \code{X} (if NULL, will be calculated with \code{\link{estimSnpAf}})}
 
 \item{thresh}{threshold on minor allele frequencies below which SNPs are ignored (e.g. 0.01; NULL to skip this step)}
 
@@ -26,11 +26,11 @@ estimGenRel(X, afs = NULL, thresh = NULL, relationships = "additive",
 matrix
 }
 \description{
-Estimate genetic relationships between individuals from their SNP genotypes. Note that "relationships" are estimated, and not "coancestries" which are equal to 2 times "relationhips".
+Estimate genetic relationships between genotypes from their SNP genotypes.
+Note that "relationships" are estimated, and not "coancestries", which are equal to 2 times "relationhips".
 }
 \examples{
-\dontrun{## simulate haplotypes and genotypes in a single population
-set.seed(1859)
+\dontrun{set.seed(1859)
 nb.genos <- 200
 Ne <- 10^4
 chrom.len <- 10^5
