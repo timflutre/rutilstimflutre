@@ -1,6 +1,28 @@
 library(rutilstimflutre)
 context("Quantgen")
 
+test_that("reformatGenoClasses", {
+  N <- 3 # individuals
+  P <- 4 # SNPs
+  genoClasses <- data.frame(ind1=c("AA", "GC", "AA", "GC"),
+                            ind2=c("AA", "GC", "AT", "??"),
+                            ind3=c("TA", "UU", "AA", "CG"),
+                            row.names=paste0("snp", 1:P))
+
+  expected <- matrix(c("AA", "CG", "AA", "CG",
+                       "AA", "CG", "AT", NA,
+                       "AT", NA, "AA", "CG"),
+                     byrow=TRUE,
+                     nrow=N,
+                     ncol=P,
+                     dimnames=list(colnames(genoClasses),
+                                   rownames(genoClasses)))
+
+  observed <- reformatGenoClasses(x=genoClasses, na.string="??", verbose=1)
+
+  expect_equal(observed, expected)
+})
+
 test_that("genoClasses2genoDoses", {
   N <- 3 # individuals
   P <- 4 # SNPs

@@ -2,6 +2,71 @@
 
 ##' Convert genotypes
 ##'
+##' Reformat bi-allelic SNP genotypes encoded in genotypic classes to ease subsequent manipulations.
+##' @param file the name of the file which the data are to be read from, with a header line, columns separated by a tabulation, and row names as the first column
+##' @param x if \code{file=NULL}, data.frame of bi-allelic SNP genotypes encoded in genotypic classes, i.e. in {AA,AB or BA,BB}, with SNPs in rows and genotypes in columns
+##' @param na.string a character to be interpreted as NA values
+##' @param verbose verbosity level (0/1)
+##' @return matrix with SNPs in columns and genotypes in rows
+##' @author Eric Duchene [aut], Timothee Flutre [ctb]
+##' @seealso \code{link{genoClasses2genoDoses}}
+##' @export
+reformatGenoClasses <- function(file=NULL, x=NULL, na.string="--", verbose=1){
+  stopifnot(xor(! is.null(file), ! is.null(x)))
+  if(! is.null(file)){
+    stopifnot(is.character(file),
+              file.exists(file))
+  } else if(! is.null(x))
+    stopifnot(is.data.frame(x))
+
+  if(! is.null(file))
+    x <- utils::read.table(file=file, header=TRUE, sep="\t", row.names=1)
+  x <- convertFactorColumnsToCharacter(x)
+  x <- as.matrix(x)
+  x <- t(x)
+  N <- nrow(x)
+  P <- ncol(x)
+  if(verbose > 0){
+    msg <- paste0("reformat ", P, " SNPs and ", N, " genotypes...")
+    write(msg, stdout())
+  }
+
+  ## insure that each genotypic class is sorted by alleles
+  allowed.genoClasses <- c("AA", "AC", "AG", "AT",
+                           "CA", "CC", "CG", "CT",
+                           "GA", "GC", "GG", "GT",
+                           "TA", "TC", "TG", "TT",
+                           na.string)
+  tmp <- data.frame(bad=c("CA","GA","TA","GC","TC","TG"),
+                    good=c("AC","AG","AT","CG","CT","GT"),
+                    stringsAsFactors=FALSE)
+  for(i in 1:nrow(tmp)){
+    is.bad <- x == tmp$bad[i]
+    if(any(is.bad))
+      x[is.bad] <- tmp$good[i]
+  }
+
+  ## replace not allowed genotypic classes with NA
+  distinct.genoClasses <- unique(c(x))
+  if(verbose > 0){
+    msg <- paste0("distinct genotypic classes: ", length(distinct.genoClasses))
+    write(msg, stdout())
+  }
+  is.bad <- ! distinct.genoClasses %in% allowed.genoClasses
+  if(any(is.bad)){
+    if(verbose > 0){
+      msg <- paste0(sum(is.bad), " not allowed: replaced by NA")
+      write(msg, stdout())
+    }
+    for(not.allowed.gC in c(na.string, distinct.genoClasses[is.bad]))
+      x[x == not.allowed.gC] <- NA
+  }
+
+  return(x)
+}
+
+##' Convert genotypes
+##'
 ##' Convert SNP genotypes from "genotypic classes" into "allele doses" by counting the number of minor alleles.
 ##' The code is not particularly efficient, but at least it exists.
 ##' @param x matrix or data.frame with bi-allelic SNPs in rows and genotypes in columns, the SNP identifiers being in the first column
