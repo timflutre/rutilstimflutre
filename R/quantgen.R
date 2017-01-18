@@ -1164,10 +1164,17 @@ plotHaplosMatrix <- function(haplos, main="Haplotypes"){
 
   graphics::title(main=main, line=3)
   graphics::axis(side=3, at=seq(1, ncol(haplos), length.out=7) / ncol(haplos),
-       labels=colnames(haplos)[seq(1, ncol(haplos), length.out=7)])
-  graphics::axis(side=2, at=rev(seq(1, nrow(haplos), length.out=10) / nrow(haplos)),
-       labels=rownames(haplos)[seq(1, nrow(haplos), length.out=10)],
-       las=1, padj=0)
+                 labels=colnames(haplos)[seq(1, ncol(haplos), length.out=7)])
+  if(nrow(haplos) <= 10){
+    nb.intervals <- 2 * nrow(haplos) - 2
+    at <- seq(from=0, to=1, length.out=nb.intervals + 1)
+    graphics::axis(side=2, at=rev(at[seq(from=1, to=length(at), by=2)]),
+                   labels=rownames(haplos),
+                   las=1, padj=0)
+  } else
+    graphics::axis(side=2, at=rev(seq(1, nrow(haplos), length.out=10) / nrow(haplos)),
+                   labels=rownames(haplos)[seq(1, nrow(haplos), length.out=10)],
+                   las=1, padj=0)
 
   on.exit(graphics::par(opar))
 }
