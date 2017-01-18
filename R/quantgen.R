@@ -1069,10 +1069,10 @@ simulCoalescent <- function(nb.inds=100,
 
   ## make a data.frame of alleles
   if(get.alleles){
-    alleles <- data.frame(minor=sample(x=c("T","C"), size=nb.snps, replace=TRUE),
-                          stringsAsFactors=FALSE)
-    alleles$major <- gsub(pattern="T", replacement="A", x=alleles$minor)
-    alleles$major <- gsub(pattern="C", replacement="G", x=alleles$major)
+    alleles <- data.frame(major=sample(x=c("A","G"), size=nb.snps, replace=TRUE),
+                          row.names=snp.ids, stringsAsFactors=FALSE)
+    alleles$minor <- gsub(pattern="A", replacement="T", x=alleles$major)
+    alleles$minor <- gsub(pattern="G", replacement="C", x=alleles$minor)
     out[["alleles"]] <- alleles
   }
 
