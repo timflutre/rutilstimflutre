@@ -18,7 +18,7 @@ test_that("reformatGenoClasses", {
                      dimnames=list(colnames(genoClasses),
                                    rownames(genoClasses)))
 
-  observed <- reformatGenoClasses(x=genoClasses, na.string="??", verbose=1)
+  observed <- reformatGenoClasses(x=genoClasses, na.string="??", verbose=0)
 
   expect_equal(observed, expected)
 })
