@@ -49,6 +49,34 @@ test_that("genoClasses2genoDoses", {
   expect_equal(observed, expected)
 })
 
+test_that("updateJoinMap", {
+  N <- 4 # individuals
+  P <- 5 # loci
+  x <- data.frame(locus=paste0("snp", 1:P),
+                  seg=c("<abxcd>", "<abxac>", "<abxab>", "<abxaa>", "<aaxab>"),
+                  phase=c("{00}", "{01}", "{10}", "{0-}", "{-1}"),
+                  clas=NA,
+                  ind1=c("ac", "aa", "aa", "aa", "aa"),
+                  ind2=c("ad", "ac", "ab", "aa", "ab"),
+                  ind3=c("bc", "ba", "ba", "ba", "aa"),
+                  ind4=c("bd", "bc", "bb", "ba", "--"),
+                  stringsAsFactors=FALSE)
+
+  expected <- data.frame(locus=paste0("snp", 1:P),
+                         seg=c("<abxcd>", "<efxeg>", "<hkxhk>", "<lmxll>", "<nnxnp>"),
+                         phase=x$phase,
+                         clas=NA,
+                         ind1=c("ac", "ee", "hh", "ll", "nn"),
+                         ind2=c("ad", "eg", "hk", "ll", "np"),
+                         ind3=c("bc", "fe", "kh", "ml", "nn"),
+                         ind4=c("bd", "fg", "kk", "ml", "--"),
+                         stringsAsFactors=FALSE)
+
+  observed <- updateJoinMap(x=x, verbose=0)
+
+  expect_equal(observed, expected)
+})
+
 test_that("genoDoses2genoClasses", {
   N <- 2 # individuals
   P <- 4 # SNPs

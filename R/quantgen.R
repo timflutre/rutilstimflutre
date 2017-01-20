@@ -130,6 +130,112 @@ genoClasses2genoDoses <- function(x, na.string="--", verbose=1){
               alleles=alleles))
 }
 
+##' JoinMap format
+##'
+##' The \href{https://www.kyazma.nl/index.php/JoinMap/}{JoinMap} software needs a locus genotype file ("loc-file") containing the information (genotypes, phased or not) of the loci for a single segregating population.
+##' This function converts a data.frame in the JoinMap v2 format into the JoinMap v3-v4 format.
+##' It is assumed that the population is of type CP: "a population resulting from a cross between two heterogeneously heterozygous and homozygous diploid parents, linkage phases originally (possibly) unknown".
+##' @param x data.frame in the JoinMap v2 format; the first four lines of a JoinMap loc-file should obviously be absent; columns \code{<locus name>}, \code{[PHASE]} and \code{[CLAS]} are ignored; missing genotypes are coded as "--"
+##' @param verbose verbosity level (0/1)
+##' @return data.frame
+##' @author Timothee Flutre
+##' @export
+updateJoinMap <- function(x, verbose=1){
+  stopifnot(is.data.frame(x),
+            all(colnames(x)[1:4] == c("locus", "seg", "phase", "clas")))
+
+  x <- convertFactorColumnsToCharacter(x)
+
+  output <- x
+
+  if(verbose > 0)
+    pb <- utils::txtProgressBar(min=0, max=nrow(x), style=3)
+
+  for(i in 1:nrow(output)){
+    stopifnot(x$seg[i] %in% c("<abxcd>", "<abxac>", "<abxab>", "<abxaa>",
+                              "<aaxab>"))
+
+    if(x$seg[i] == "<abxac>"){
+      if(! all(x[i, 5: ncol(x)] %in% c("aa", "ac", "ca", "ba", "ab", "bc",
+                                       "cb", "--"))){
+        msg <- paste0("wrong genotype(s) at row ", i)
+        stop(msg)
+      }
+      output$seg[i] <- "<efxeg>"
+      for(j in 5:ncol(x))
+        if(x[i, j] == "aa"){
+          output[i, j] <- "ee"
+        } else if(x[i, j] == "ac"){
+          output[i, j] <- "eg"
+        } else if(x[i, j] == "ca"){
+          output[i, j] <- "ge"
+        } else if(x[i, j] == "ba"){
+          output[i, j] <- "fe"
+        } else if(x[i, j] == "ab"){
+          output[i, j] <- "ef"
+        } else if(x[i, j] == "bc"){
+          output[i, j] <- "fg"
+        } else if(x[i, j] == "cb"){
+          output[i, j] <- "gf"
+        }
+
+    } else if(x$seg[i] == "<abxab>"){
+      if(! all(x[i, 5: ncol(x)] %in% c("aa", "ab", "ba", "bb", "--"))){
+        msg <- paste0("wrong genotype(s) at row ", i)
+        stop(msg)
+      }
+      output$seg[i] <- "<hkxhk>"
+      for(j in 5:ncol(x))
+        if(x[i, j] == "aa"){
+          output[i, j] <- "hh"
+        } else if(x[i, j] == "ab"){
+          output[i, j] <- "hk"
+        } else if(x[i, j] == "ba"){
+          output[i, j] <- "kh"
+        } else if(x[i, j] == "bb"){
+          output[i, j] <- "kk"
+        }
+
+    } else if(x$seg[i] == "<abxaa>"){
+      if(! all(x[i, 5: ncol(x)] %in% c("aa", "ba", "ab", "--"))){
+        msg <- paste0("wrong genotype(s) at row ", i)
+        stop(msg)
+      }
+      output$seg[i] <- "<lmxll>"
+      for(j in 5:ncol(x))
+        if(x[i, j] == "aa"){
+          output[i, j] <- "ll"
+        } else if(x[i, j] == "ba"){
+          output[i, j] <- "ml"
+        } else if(x[i, j] == "ab"){
+          output[i, j] <- "lm"
+        }
+
+    } else if(x$seg[i] == "<aaxab>"){
+      if(! all(x[i, 5: ncol(x)] %in% c("aa", "ab", "ba", "--"))){
+        msg <- paste0("wrong genotype(s) at row ", i)
+        stop(msg)
+      }
+      output$seg[i] <- "<nnxnp>"
+      for(j in 5:ncol(x))
+        if(x[i, j] == "aa"){
+          output[i, j] <- "nn"
+        } else if(x[i, j] == "ab"){
+          output[i, j] <- "np"
+        } else if(x[i, j] == "ba"){
+          output[i, j] <- "pn"
+        }
+
+    }
+    if(verbose > 0)
+      utils::setTxtProgressBar(pb, i)
+  }
+  if(verbose > 0)
+    close(pb)
+
+  return(output)
+}
+
 ##' JoinMap/MapQTL to R/qtl
 ##'
 ##' Return the correspondence in terms of genotype coding between the "segregation" format used by \href{https://www.kyazma.nl/index.php/JoinMap/}{JoinMap} and the one used by \href{https://cran.r-project.org/package=qtl}{qtl}.
