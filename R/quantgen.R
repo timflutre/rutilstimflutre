@@ -1955,6 +1955,22 @@ distSnpPairs <- function(snp.pairs, snp.coords, nb.cores=1, verbose=1){
   return(dist.loc)
 }
 
+##' SNP genotypes
+##'
+##' Recode SNP genotypes from additive to dominant.
+##' @param X matrix of bi-allelic SNP genotypes encoded in allele doses in {0,1,2}, with genotypes in rows and SNPs in columns; missing values should be encoded as NA
+##' @return matrix with genotypes in {0,1}
+##' @author Timothee Flutre
+##' @export
+recodeIntoDominant <- function(X){
+  stopIfNotValidGenosDose(X=X, check.hasColNames=FALSE,
+                          check.hasRowNames=FALSE, check.noNA=FALSE,
+                          check.notImputed=TRUE)
+  X.D <- X
+  X.D[X.D != 1] <- 0
+  return(X.D)
+}
+
 ##' Genomic relatedness
 ##'
 ##' Estimate genetic relationships between genotypes from their SNP genotypes.
@@ -2107,8 +2123,7 @@ estimGenRel <- function(X, afs=NULL, thresh=NULL, relationships="additive",
       }
       gen.rel <- tcrossprod(W, W) / sum((2 * afs * (1 - afs))^2)
     } else if(method == "su"){
-      H <- X
-      H[H != 1] <- 0 # recode genotypes as {0,1,0}
+      H <- recodeIntoDominant(X=X)
       H <- sweep(x=H, MARGIN=2, STATS=2*afs*(1-afs), FUN="-")
       gen.rel <- tcrossprod(H, H) /
         (2 * sum(afs * (1 - afs) * (1 - 2 * afs * (1 - afs))))
@@ -3900,15 +3915,19 @@ stanAM <- function(data, relmat, errors.Student=FALSE,
 
 ##' BVSR
 ##'
-##' Simulate phenotypes according to the following model: Y = W c + Z X_A a + epsilon where Y is N x 1; W is N x Q; c is Q x 1; Z is N x I; X_A is I x P and epsilon is N x 1 with epsilon ~ Normal_N(0, sigma^2 Id) and c ~ Normal(mean_a, sd_a) so that sd_a is large ("fixed effect"). For SNP p, a_p ~ Prob(gamma_p=1) Normal_1(0, sigma_a^2) + Prob(gamma_p=0) delta_0, where Prog(gamma_p=1) is named pi, and delta_0 is Dirac's delta function at 0. For the case where pi is small, see Guan & Stephens (2011), Carbonetto & Stephens (2012), Peltola et al (2012), Verzelen (2012).
+##' Simulate phenotypes according to the following model: Y = W c + Z X_A a + + Z X_D d + epsilon where Y is N x 1; W is N x Q; c is Q x 1; Z is N x I; X_A/D is I x P and epsilon is N x 1 with epsilon ~ Normal_N(0, sigma^2 Id) and c ~ Normal(mean_a, sd_a) so that sd_a is large ("fixed effect").
+##' For SNP p, gamma_p indicates if it is causal, i.e. non-zero additive and/or dominant effect, where Prob(gamma_p=1) is named pi.
+##' For the case where pi is small, see Guan & Stephens (2011), Carbonetto & Stephens (2012), Peltola et al (2012), Verzelen (2012).
+##' Causal SNP p can have an additive effect, a_p | gamma_p=1 ~ Normal_1(0, sigma_a^2), a dominant effect, d_p | gamma_p=1 ~ Normal_1(0, sigma_d^2), or both.
 ##' @param Q number of fixed effects, i.e. the intercept plus the number of years during which genotypes are phenotyped (starting in 2010)
 ##' @param mu overall mean
 ##' @param mean.c mean of the prior on c[2:Q]
 ##' @param sd.c std dev of the prior on c[2:Q]
 ##' @param X matrix of bi-allelic SNP genotypes encoded in allele doses in [0,2], with genotypes in rows and SNPs in columns (SNPs with missing values or low MAF should be discarded beforehand); will be used in the simulations as X_A which is the column-centered version of X when encoded in {-1,0,1}
 ##' @param pi proportion of marker effects (a) that are non-zero; setting pi at 1 means simulating from the additive infinitesimal model (equivalent to ridge regression)
-##' @param pve.A proportion of phenotypic variance explained by SNPs with non-zero effect ("heritability"); PVE_A = V[X_A a] / V[y]; used along with option sigma.a2 to choose a value for sigma^2
+##' @param pve proportion of phenotypic variance explained by SNPs with non-zero effects ("heritability"); PVE = V[g] / V[y] where y = g + e and g = g_a + g_d (no epistasis); the magnitude of g_a (resp. g_d) depends on whether or not \code{sigma.a2} (resp. \code{sigma.d2}) is set to zero; a value for sigma^2 is then chosen
 ##' @param sigma.a2 prior variance of the non-zero additive effects
+##' @param sigma.d2 prior variance of the non-zero dominant effects (if non-null, a reasonable choice is half of \code{sigma.a2}, as in Servin & Stephens (2007) with their prior D2)
 ##' @param perc.NA percentage of missing phenotypes, at random
 ##' @param err.df degrees of freedom of errors' Student's t-distribution
 ##' @param seed seed for the pseudo-random number generator
@@ -3924,18 +3943,38 @@ stanAM <- function(data, relmat, errors.Student=FALSE,
 ##' ## additive sparse genetic architecture
 ##' ## choose pi so that sum(gamma * (1 + log(P / sum(gamma)))) < I
 ##' Q <- 3
-##' model <- simulBvsr(Q=Q, X=X, pi=0.01, pve.A=0.7, sigma.a2=1)
+##' modelA <- simulBvsr(Q=Q, X=X, pi=0.01, pve=0.7, sigma.a2=1)
 ##'
-##' if(all(require(lme4), require(varbvs))){
-##'   dat <- data.frame(response=model$Y[,1],
+##' if(require(lme4)){
+##'   dat <- data.frame(response=modelA$Y[,1],
 ##'                     year=factor(rep(2010:(2010+Q-1), each=I)),
 ##'                     geno=factor(rep(rownames(X), Q)))
 ##'   fit1 <- lmer(formula=response ~ year + (1|geno), data=dat)
-##'   cbind(model$c, blues <- fixef(fit1))
+##'   cbind(modelA$c, blues <- fixef(fit1))
 ##'   blups <- ranef(fit1, drop=TRUE)$geno[rownames(X)]
-##'   cor(model$g.A, blups)
+##'   cor(modelA$g.A, blups, method="pearson")
+##'   cor(modelA$g.A, blups, method="spearman")
+##'   vc1 <- as.data.frame(VarCorr(fit1))
+##'   (pve1.hat <- vc1$vcov[1] / (vc1$vcov[1] + vc1$vcov[2]))
 ##'
-##'   fit2 <- varbvs(X=model$X.A, Z=NULL, y=blups, verbose=FALSE)
+##'   A <- estimGenRel(X=X, relationships="additive", method="vanraden1")
+##'   fit1A <- lmerAM(formula=response ~ year + (1|geno), data=dat,
+##'                   relmat=list(geno=A))
+##'   cbind(modelA$c, blues <- fixef(fit1A$merMod))
+##'   blupsA <- ranef(fit1A$merMod, drop=TRUE)$geno[rownames(X)]
+##'   cor(modelA$g.A, blupsA, method="pearson")
+##'   cor(modelA$g.A, blupsA, method="spearman")
+##'   vc1A <- as.data.frame(VarCorr(fit1A$merMod))
+##'   (pve1A.hat <- vc1A$vcov[1] / (vc1A$vcov[1] + vc1A$vcov[2]))
+##'
+##'   plot(x=modelA$g.A, y=blups, col="blue", asp=1)
+##'   points(x=modelA$g.A, y=blupsA, col="red")
+##'   segments(x0=modelA$g.A, y0=blups, x1=modelA$g.A, y1=blupsA)
+##'   abline(h=0, v=0, a=0, b=1, lty=2)
+##' }
+##'
+##' if(require(varbvs)){
+##'   fit2 <- varbvs(X=modelA$X.A, Z=NULL, y=blups, verbose=FALSE)
 ##'   print(fit2s <- summary(fit2))
 ##'
 ##'   (pi.hat <- 10^(fit2s$logodds$x0) / (1 + 10^(fit2s$logodds$x0)))
@@ -3945,23 +3984,48 @@ stanAM <- function(data, relmat, errors.Student=FALSE,
 ##'   w <- c(normalizelogweights(fit2$logw))
 ##'   pips <- c(fit2$alpha %*% w)
 ##'   cols <- rep("black", P)
-##'   cols[model$gamma != 0] <- "red"
+##'   cols[modelA$gamma != 0] <- "red"
 ##'   plot(x=1:P, y=pips, col=cols)
 ##'
-##'   y.pred <- predict(fit2, X=model$X.A, Z=NULL)
+##'   y.pred <- predict(fit2, X=modelA$X.A, Z=NULL)
 ##'   cor(blups, y.pred)
-##' }}
+##' }
+##'
+##' ## additive and dominant sparse genetic architecture
+##' Q <- 3
+##' modelAD <- simulBvsr(Q=Q, X=X, pi=0.01, pve=0.7, sigma.a2=1,
+##'                      sigma.d2=0.5)
+##' if(require(lme4)){
+##'   dat <- data.frame(response=modelAD$Y[,1],
+##'                     year=factor(rep(2010:(2010+Q-1), each=I)),
+##'                     geno.add=factor(rep(rownames(X), Q)))
+##'   dat$geno.dom <- dat$geno.add
+##'   fit3A <- lmerAM(formula=response ~ year + (1|geno.add), data=dat,
+##'                   relmat=list(geno.add=A))
+##'   vc3A <- as.data.frame(VarCorr(fit3A$merMod))
+##'   (pve3A.hat <- vc3A$vcov[1] / (vc3A$vcov[1] + vc3A$vcov[2]))
+##'
+##'   D <- estimGenRel(X=X, relationships="dominant", method="vitezica")
+##'   fit3AD <- lmerAM(formula=response ~ year + (1|geno.add) + (1|geno.dom),
+##'                    data=dat,
+##'                    relmat=list(geno.add=A, geno.dom=D))
+##'   vc3AD <- as.data.frame(VarCorr(fit3AD$merMod))
+##'   (pve3AD.hat <- (vc3AD$vcov[1] + vc3AD$vcov[2]) /
+##'                    (vc3AD$vcov[1] + vc3AD$vcov[2] + vc3AD$vcov[3]))
+##' }
+##' }
 ##' @export
 simulBvsr <- function(Q=3, mu=50, mean.c=5, sd.c=2,
-                      X, pi=1, pve.A=0.7, sigma.a2=1,
+                      X, pi=1, pve=0.7, sigma.a2=1, sigma.d2=0,
                       perc.NA=0, err.df=Inf, seed=NULL){
   stopIfNotValidGenosDose(X)
   stopifnot(sd.c >= 0,
             pi >= 0,
             pi <= 1,
-            pve.A >= 0,
-            pve.A <= 1,
+            pve >= 0,
+            pve <= 1,
             sigma.a2 >= 0,
+            sigma.d2 >= 0,
             perc.NA >= 0,
             perc.NA <= 100)
   if(! is.null(seed))
@@ -3985,6 +4049,8 @@ simulBvsr <- function(Q=3, mu=50, mean.c=5, sd.c=2,
     W <- stats::model.matrix(~ years)
   } else
     W <- matrix(data=1, nrow=N, ncol=1)
+  if(Q == 1)
+    rownames(W) <- rownames(X)
 
   ## "fixed effects"
   if(Q > 1){
@@ -4005,37 +4071,50 @@ simulBvsr <- function(Q=3, mu=50, mean.c=5, sd.c=2,
     inds <- levels.inds
   inds <- as.factor(inds)
   Z <- stats::model.matrix(~ inds - 1)
+  if(Q == 1)
+    rownames(Z) <- rownames(X)
   X.A <- scale(x=X - 1, center=TRUE, scale=FALSE)
+  X.D <- scale(x=recodeIntoDominant(X), center=TRUE, scale=FALSE)
 
   ## incidence vector of the causal genetic predictors
   gamma <- stats::setNames(object=stats::rbinom(n=P, size=1, prob=pi),
                            nm=colnames(X))
 
-  ## "random effects"
+  ## additive "random effects"
   a <- stats::setNames(object=stats::rnorm(n=P, mean=0, sd=sqrt(sigma.a2)),
                        nm=colnames(X))
   a[gamma == 0] <- 0
   g.A <- X.A %*% a
 
+  ## dominant "random effects"
+  d <- stats::setNames(object=stats::rnorm(n=P, mean=0, sd=sqrt(sigma.d2)),
+                       nm=colnames(X))
+  d[gamma == 0] <- 0
+  g.D <- X.D %*% d
+
   ## errors
-  sigma2 <- ((1 - pve.A) / pve.A) * stats::var(g.A)
+  sigma2 <- ((1 - pve) / pve) * stats::var(g.A + g.D)
   if(is.infinite(err.df)){
     epsilon <- matrix(stats::rnorm(n=N, mean=0, sd=sqrt(sigma2)))
   } else
     epsilon <- matrix(stats::rt(n=N, df=err.df, ncp=0))
 
   ## phenotypes
-  Y <- W %*% c + Z %*% X.A %*% a + epsilon
+  Y <- W %*% c + Z %*% g.A + Z %*% g.D + epsilon
   if(perc.NA > 0){
     idx <- sample.int(n=N, size=floor(perc.NA/100 * N))
     Y[idx, 1] <- NA
   }
+  if(Q == 1)
+    rownames(Y) <- rownames(X)
 
   return(list(Y=Y,
               W=W, c=c,
-              Z=Z, X.A=X.A, gamma=gamma,
-              pi=pi, pve.A=pve.A, sigma.a2=sigma.a2, sigma2=sigma2,
-              a=a, g.A=g.A))
+              Z=Z, X.A=X.A, X.D=X.D,
+              pi=pi, gamma=gamma,
+              sigma.a2=sigma.a2, sigma.d2=sigma.d2,
+              pve=pve, sigma2=sigma2,
+              a=a, g.A=g.A, d=d, g.D=g.D))
 }
 
 ##' BSLMM
@@ -4369,8 +4448,8 @@ rearrangeInputsForAssoGenet <- function(ids, y, X, snp.coords, alleles,
 ##' P <- 2000
 ##' X <- simulGenosDose(nb.genos=I, nb.snps=P)
 ##'
-##' ## simulate phenotypes
-##' model <- simulBvsr(Q=1, X=X, pi=0.01, pve.A=0.7, sigma.a2=1)
+##' ## simulate phenotypes (only additive effects)
+##' modelA <- simulBvsr(Q=1, X=X, pi=0.01, pve=0.7, sigma.a2=1)
 ##'
 ##' ## test SNPs one by one with the univariate LMM
 ##' snp.coords <- data.frame(coord=1:ncol(X),
@@ -4381,22 +4460,49 @@ rearrangeInputsForAssoGenet <- function(ids, y, X, snp.coords, alleles,
 ##'                       minor="a",
 ##'                       row.names=colnames(X),
 ##'                       stringsAsFactors=FALSE)
-##' fit.u <- gemma(model="ulmm", model$Y[,1], X, snp.coords, alleles,
-##'                W=model$W, out.dir=tempdir(), clean="all")
-##' cor(model$a[model$gamma == 1], fit.u$tests$beta[model$gamma == 1])
-##' cols <- rep("black",ncol(X)); cols[model$gamma==1] <- "red"
-##' qqplotPval(fit.u$tests$p_wald, col=cols)
+##' fit.u <- gemma(model="ulmm", modelA$Y[,1], X, snp.coords, alleles,
+##'                W=modelA$W, out.dir=tempdir(), clean="all")
+##' cor(modelA$a[modelA$gamma == 1], fit.u$tests$beta[modelA$gamma == 1])
+##' cols <- rep("black",ncol(X)); cols[modelA$gamma==1] <- "red"
+##' pv.adj <- qqplotPval(fit.u$tests$p_wald, col=cols, ctl.fdr.bh=TRUE,
+##'                      plot.signif=TRUE)
 ##'
 ##' ## fit all SNPs jointly with the BSLMM
 ##' burnin <- 10^3
 ##' nb.iters <- 10^4
 ##' thin <- 10^2
-##' fit.bs <- gemma(model="bslmm", model$Y[,1], X, snp.coords, alleles,
-##'                 W=model$W, out.dir=tempdir(), clean="all",
+##' fit.bs <- gemma(model="bslmm", y=modelA$Y[,1], X, snp.coords, alleles,
+##'                 W=modelA$W, out.dir=tempdir(), clean="all",
 ##'                 burnin=burnin, nb.iters=nb.iters, thin=thin)
 ##' posterior.samples <- coda::mcmc(data=fit.bs$hyperparams, start=burnin + 1,
 ##'                                 end=burnin + nb.iters, thin=thin)
 ##' summary(posterior.samples)
+##'
+##' ## simulate phenotypes (only dominant effects)
+##' set.seed(1859)
+##' modelD <- simulBvsr(Q=1, X=X, pi=0.01, pve=0.7, sigma.a2=0, sigma.d2=1)
+##'
+##' ## test additive SNPs one by one with the univariate LMM
+##' A.z <- estimGenRel(X=X, relationships="additive", method="zhou")
+##' fit.u.DA <- gemma(model="ulmm", y=modelD$Y[,1], X=X,
+##'                   snp.coords, alleles,
+##'                   K.c=A.z, W=modelD$W, out.dir=tempdir(), clean="all")
+##' cols <- rep("black",ncol(X)); cols[modelD$gamma==1] <- "red"
+##' pvadj.DA <- qqplotPval(fit.u.DA$tests$p_wald, col=cols, ctl.fdr.bh=TRUE,
+##'                        plot.signif=TRUE)
+##' t(binaryClassif(known.nulls=modelD$gamma == 0,
+##'                 called.nulls=pvadj.DA$pv.bh <= 0.05))
+##'
+##' ## test dominant SNPs one by one with the univariate LMM
+##' X.D <- recodeIntoDominant(X=X)
+##' fit.u.DD <- gemma(model="ulmm", y=modelD$Y[,1], X=X.D,
+##'                   snp.coords, alleles,
+##'                   K.c=A.z, W=modelD$W, out.dir=tempdir(), clean="all")
+##' cols <- rep("black",ncol(X)); cols[modelD$gamma==1] <- "red"
+##' pvadj.DD <- qqplotPval(fit.u.DD$tests$p_wald, col=cols, ctl.fdr.bh=TRUE,
+##'                        plot.signif=TRUE)
+##' t(binaryClassif(known.nulls=modelD$gamma == 0,
+##'                 called.nulls=pvadj.DD$pv.bh <= 0.05))
 ##' }
 ##' @export
 gemma <- function(model="ulmm", y, X, snp.coords, alleles=NULL, maf=0.01, K.c=NULL,
