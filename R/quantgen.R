@@ -36,13 +36,13 @@ reformatGenoClasses <- function(file=NULL, x=NULL, na.string="--", verbose=1){
                            "CA", "CC", "CG", "CT",
                            "GA", "GC", "GG", "GT",
                            "TA", "TC", "TG", "TT",
-                           na.string)
+                           na.string, NA)
   tmp <- data.frame(bad=c("CA","GA","TA","GC","TC","TG"),
                     good=c("AC","AG","AT","CG","CT","GT"),
                     stringsAsFactors=FALSE)
   for(i in 1:nrow(tmp)){
     is.bad <- x == tmp$bad[i]
-    if(any(is.bad))
+    if(any(is.bad, na.rm=TRUE))
       x[is.bad] <- tmp$good[i]
   }
 
@@ -135,7 +135,7 @@ genoClasses2genoDoses <- function(x, na.string="--", verbose=1){
 ##' The \href{https://www.kyazma.nl/index.php/JoinMap/}{JoinMap} software needs a locus genotype file ("loc-file") containing the information (genotypes, phased or not) of the loci for a single segregating population.
 ##' This function converts a data.frame in the JoinMap v2 format into the JoinMap v3-v4 format.
 ##' It is assumed that the population is of type CP: "a population resulting from a cross between two heterogeneously heterozygous and homozygous diploid parents, linkage phases originally (possibly) unknown".
-##' @param x data.frame in the JoinMap v2 format; the first four lines of a JoinMap loc-file should obviously be absent; columns \code{<locus name>}, \code{[PHASE]} and \code{[CLAS]} are ignored; missing genotypes are coded as "--"
+##' @param x data.frame in the JoinMap v2 format; the first four lines of a JoinMap loc-file should be absent; columns \code{<locus name>}, \code{[PHASE]} and \code{[CLAS]} are ignored; missing genotypes are coded as "--"
 ##' @param verbose verbosity level (0/1)
 ##' @return data.frame
 ##' @author Timothee Flutre
@@ -234,6 +234,185 @@ updateJoinMap <- function(x, verbose=1){
     close(pb)
 
   return(output)
+}
+
+##' Convert genotypes
+##'
+##' Convert SNP genotypes of a bi-parental cross from genotypic classes into the JoinMap format.
+##' For the moment, missing genotypes in parents result in the SNP being ignored, but we could imagine using genotypes in offsprings to impute such cases.
+##' @param x data.frame of bi-allelic SNP genotypes, with SNPs in rows and genotypes in columns; the first column should contain SNP identifiers, the second column should contain the SNP genotypes of the first parent (traditionnaly the mother), the third column should contain the SNP genotypes of the second parent (traditionnaly the father), and the remaining columns should contain the SNP genotypes of the offsprings (full siblings)
+##' @param reformat.input if TRUE, the function \code{\link{reformatGenoClasses}} will be used
+##' @param na.string a character to be interpreted as NA values by \code{\link{reformatGenoClasses}}
+##' @param verbose verbosity level (0/1)
+##' @return data.frame
+##' @author Timothee Flutre
+##' @seealso \code{link{reformatGenoClasses}}
+##' @export
+genoClasses2JoinMap <- function(x, reformat.input=TRUE, na.string="--", verbose=1){
+  stopifnot(is.logical(reformat.input))
+  if(reformat.input){
+    x <- as.data.frame(t(reformatGenoClasses(x=x, na.string=na.string,
+                                             verbose=verbose)))
+  } else
+    stopifnot(is.data.frame(x),
+              ! is.null(rownames(x)))
+  x <- convertFactorColumnsToCharacter(x)
+  if(verbose > 0){
+    msg <- paste0("nb of offsprings: ", ncol(x) - 2)
+    write(msg, stdout())
+  }
+
+  output <- data.frame(p1=x[,1],
+                       p2=x[,2],
+                       p1.A=NA,
+                       p1.B=NA,
+                       p2.C=NA,
+                       p2.D=NA,
+                       seg=NA,
+                       stringsAsFactors=FALSE)
+  colnames(output)[1:2] <- colnames(x)[1:2]
+  output <- cbind(output, x[,-c(1,2)])
+
+  ## determine parental alleles
+  output[, c("p1.A","p1.B")] <- do.call(rbind, strsplit(x[,1], ""))
+  output[, c("p2.C","p2.D")] <- do.call(rbind, strsplit(x[,2], ""))
+
+  if(verbose > 0)
+    pb <- utils::txtProgressBar(min=0, max=nrow(x), style=3)
+
+  for(i in 1:nrow(x)){
+    if(verbose > 0)
+      utils::setTxtProgressBar(pb, i)
+
+    ## count nb genotypic classes in offsprings
+    counts <- table(as.character(x[i, 3:ncol(x)]), useNA="always")
+
+    ## discard if no segregation
+    if(length(counts) <= 2)
+      next
+    ## discard if more than 2 parental alleles
+    if(length(unique(as.character(output[i,3:6]))) > 2)
+      next
+
+    ## if no missing genotype in parents, determine the segregation type
+    ## by looking only at the parental genotypes
+    if(! any(is.na(x[i, 1:2]))){
+
+      ## hkxhk
+      if(all(x[i,1] == x[i,2],
+             output[i,"p1.A"] != output[i,"p1.B"])){
+        output[i,1] <- "hk"
+        output[i,2] <- "hk"
+
+        tmp <- paste0(output[i,"p1.A"], output[i,"p2.C"])
+        idx <- which(output[i, 8:ncol(output)] == tmp)
+        if(length(idx) > 0)
+          output[i, 7+idx] <- rep("hh", length(idx))
+        tmp <- paste0(output[i,"p1.B"], output[i,"p2.D"])
+        idx <- which(output[i, 8:ncol(output)] == tmp)
+        if(length(idx) > 0)
+          output[i, 7+idx] <- rep("kk", length(idx))
+
+      } else{ ## lmxll or nnxnp
+        if(all(output[i,"p1.A"] != output[i,"p1.B"],
+               output[i,"p2.C"] == output[i,"p2.D"])){
+          output[i,1] <- "lm"
+          output[i,2] <- "ll"
+
+        } else{
+          output[i,1] <- "nn"
+          output[i,2] <- "np"
+        }
+      }
+
+      ## fill offspring columns
+      idx <- which(output[i, 8:ncol(output)] == x[i,1])
+      if(length(idx) > 0)
+        output[i, 7+idx] <- rep(output[i,1], length(idx))
+      idx <- which(output[i, 8:ncol(output)] == x[i,2])
+      if(length(idx) > 0)
+        output[i, 7+idx] <- rep(output[i,2], length(idx))
+    }
+  }
+  if(verbose > 0)
+    close(pb)
+
+  ## fill the "seg" column
+  idx <- which(output[,1] %in% c("nn", "lm", "hk"))
+  output$seg[idx] <- paste0("<", output[idx,1], "x", output[idx,2], ">")
+  if(verbose > 0){
+    msg <- paste0("proper segregations: ", sum(! is.na(output$seg)),
+                  " / ", nrow(output))
+    write(msg, stdout())
+  }
+
+  return(output)
+}
+
+##' Filter for segregation
+##'
+##' Filter genotypes based on the chi2 statistic to test for segregation distortion.
+##' @param x data.frame output from \code{\link{genoClasses2JoinMap}}
+##' @param verbose verbosity level (0/1)
+##' @return data.frame
+##' @author Timothee Flutre
+##' @seealso \code{link{updateJoinMap}}
+##' @export
+filterSegreg <- function(x, verbose=1){
+  stopifnot(is.data.frame(x),
+            colnames(x)[1] == "seg",
+            all(x$seg %in% c("<nnxnp>", "<lmxll>", "<hkxhk>", "<efxeg>",
+                             "<abxcd>", "NA", NA)))
+
+  output <- data.frame(nb.classes=rep(NA, nrow(x)),
+                       row.names=rownames(x))
+  for(cn in c(paste0("class", 1:4), paste0("obs", 1:4), paste0("exp", 1:4),
+              "chi2", "pvalue"))
+    output[[cn]] <- NA
+
+  if(verbose > 0)
+    pb <- utils::txtProgressBar(min=0, max=nrow(x), style=3)
+
+  for(i in (1:nrow(x))[! is.na(x$seg)]){
+    obs.classes <- as.character(x[i,-1])
+    distinct.classes <- sort(unique(obs.classes))
+    counts <- table(obs.classes, useNA="no")
+
+    output[i, "nb.classes"] <- length(distinct.classes)
+
+    ## observed counts
+    for(j in seq_along(distinct.classes)){
+      output[i, 1+j] <- distinct.classes[j]
+      output[i, 1+4+j] <- counts[distinct.classes[j]]
+    }
+
+    ## expected counts assuming no segregation distortion
+    if(x$seg[i] %in% c("<nnxnp>", "<lmxll>")){
+      output[i, 1+4+4+(1:2)] <- rep(0.5 * sum(counts), 2)
+    } else if(x$seg[i] == "<hkxhk>"){
+      output[i, 1+4+4+(1:3)] <- c(0.25 * sum(counts),
+                                  0.5 * sum(counts),
+                                  0.25 * sum(counts))
+    } else if(x$seg[i] %in% c("<efxeg>", "<abxcd>"))
+      output[i, 1+4+4+(1:4)] <- c(0.25 * sum(counts),
+                                  0.25 * sum(counts),
+                                  0.25 * sum(counts),
+                                  0.25 * sum(counts))
+
+    if(verbose > 0)
+      utils::setTxtProgressBar(pb, i)
+  }
+  if(verbose > 0)
+    close(pb)
+
+  ## calculate chi2 and p value
+  output$chi2 <- rowSums((output[,1+4+(1:4)] - output[,1+4+4+(1:4)])^2 /
+                         output[,1+4+4+(1:4)], na.rm=TRUE)
+  output$chi2[is.na(output$nb.classes)] <- NA
+  output$pvalue <- stats::pchisq(q=output$chi2, df=output$nb.classes - 1,
+                                 lower.tail=FALSE)
+
+  return(as.matrix(output[, c("chi2", "pvalue")]))
 }
 
 ##' JoinMap/MapQTL to R/qtl

@@ -7,7 +7,7 @@
 updateJoinMap(x, verbose = 1)
 }
 \arguments{
-\item{x}{data.frame in the JoinMap v2 format; the first four lines of a JoinMap loc-file should obviously be absent; columns \code{<locus name>}, \code{[PHASE]} and \code{[CLAS]} are ignored; missing genotypes are coded as "--"}
+\item{x}{data.frame in the JoinMap v2 format; the first four lines of a JoinMap loc-file should be absent; columns \code{<locus name>}, \code{[PHASE]} and \code{[CLAS]} are ignored; missing genotypes are coded as "--"}
 
 \item{verbose}{verbosity level (0/1)}
 }

@@ -77,6 +77,82 @@ test_that("updateJoinMap", {
   expect_equal(observed, expected)
 })
 
+test_that("genoClasses2JoinMap", {
+  nb.offs <- 4 # offsprings
+  N <- 2 + nb.offs
+  P <- 5 # SNPs
+  x <- data.frame(par1=c("AA", "GC", "CG", "AT", NA),
+                  par2=c("AT", "GC", "GG", "AT", "AT"),
+                  off1=c("AA", "GG", "CG", "AA", "AA"),
+                  off2=c("AT", "GG", "CG", "AT", "AT"),
+                  off3=c("AT", "GG", "GG", "TT", "TT"),
+                  off4=c(NA, NA, NA, NA, NA),
+                  row.names=paste0("snp", 1:P),
+                  stringsAsFactors=FALSE)
+
+  expected <- data.frame(par1=c("nn", "CG", "lm", "hk", NA),
+                         par2=c("np", "CG", "ll", "hk", "AT"),
+                         p1.A=c("A", "C", "C", "A", NA),
+                         p1.B=c("A", "G", "G", "T", NA),
+                         p2.C=c("A", "C", "G", "A", "A"),
+                         p2.D=c("T", "G", "G", "T", "T"),
+                         seg=c("<nnxnp>", NA, "<lmxll>", "<hkxhk>", NA),
+                         off1=c("nn", "GG", "lm", "hh", "AA"),
+                         off2=c("np", "GG", "lm", "hk", "AT"),
+                         off3=c("np", "GG", "ll", "kk", "TT"),
+                         off4=as.character(c(NA, NA, NA, NA, NA)),
+                         row.names=rownames(x),
+                         stringsAsFactors=FALSE)
+
+  observed <- genoClasses2JoinMap(x=x, reformat.input=TRUE, verbose=0)
+
+  expect_equal(observed, expected)
+})
+
+test_that("filterSegreg", {
+  nb.offs <- 6 # offsprings
+  N <- 2 + nb.offs
+  P <- 4 # SNPs
+  x <- data.frame(seg=c("<nnxnp>", NA, "<lmxll>", "<hkxhk>"),
+                  off1=c("nn", "GG", "lm", "hh"),
+                  off2=c("np", "GG", "lm", "hk"),
+                  off3=c("np", "GG", "ll", "kk"),
+                  off4=c("np", "GG", "ll", "kk"),
+                  off5=c("nn", "GG", "ll", "hk"),
+                  off6=c("np", NA, NA, "hk"),
+                  row.names=paste0("snp", 1:P),
+                  stringsAsFactors=FALSE)
+
+  tmp <- data.frame(nb.classes=c(2, NA, 2, 3),
+                    class1=c("nn", NA, "ll", "hh"),
+                    class2=c("np", NA, "lm", "hk"),
+                    class3=c(NA, NA, NA, "kk"),
+                    class4=c(NA, NA, NA, NA),
+                    obs1=c(2, NA, 3, 1),
+                    obs2=c(4, NA, 2, 3),
+                    obs3=c(NA, NA, NA, 2),
+                    obs4=c(NA, NA, NA, NA),
+                    exp1=c(0.5*6, NA, 0.5*5, 0.25*6),
+                    exp2=c(0.5*6, NA, 0.5*5, 0.5*6),
+                    exp3=c(NA, NA, NA, 0.25*6),
+                    exp4=c(NA, NA, NA, NA),
+                    row.names=rownames(x))
+  tmp$chi2 <- c((tmp$obs1[1] - tmp$exp1[1])^2 / tmp$exp1[1] +
+                (tmp$obs2[1] - tmp$exp2[1])^2 / tmp$exp2[1],
+                NA,
+                (tmp$obs1[3] - tmp$exp1[3])^2 / tmp$exp1[3] +
+                (tmp$obs2[3] - tmp$exp2[3])^2 / tmp$exp2[3],
+                (tmp$obs1[4] - tmp$exp1[4])^2 / tmp$exp1[4] +
+                (tmp$obs2[4] - tmp$exp2[4])^2 / tmp$exp2[4] +
+                (tmp$obs3[4] - tmp$exp3[4])^2 / tmp$exp3[4])
+  tmp$pvalue <- pchisq(q=tmp$chi2, df=tmp$nb.classes - 1, lower.tail=FALSE)
+  expected <- as.matrix(tmp[, c("chi2", "pvalue")])
+
+  observed <- filterSegreg(x=x, verbose=0)
+
+  expect_equal(observed, expected)
+})
+
 test_that("genoDoses2genoClasses", {
   N <- 2 # individuals
   P <- 4 # SNPs
