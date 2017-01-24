@@ -36,7 +36,7 @@ qqplotPval(pvalues, plot.conf.int = TRUE, xlab = expression(Expected ~
 \item{verbose}{verbosity level (0/1)}
 }
 \value{
-invisible list with the vector of p values (NA omitted) and the adjusted p values if any of \code{ctl.fwer.bonf} and \code{ctl.fdr.bh} is set
+invisible matrix with a column of p values (NA omitted) and the adjusted p values if any of \code{ctl.fwer.bonf} and \code{ctl.fdr.bh} is set
 }
 \description{
 Produce a quantile-quantile plot for p values and display its confidence interval.

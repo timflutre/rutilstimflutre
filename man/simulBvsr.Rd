@@ -49,6 +49,10 @@ I <- 200
 P <- 2000
 X <- simulGenosDose(nb.genos=I, nb.snps=P)
 
+## estimate genetic relationships
+A <- estimGenRel(X=X, relationships="additive", method="vanraden1")
+D <- estimGenRel(X=X, relationships="dominant", method="vitezica")
+
 ## additive sparse genetic architecture
 ## choose pi so that sum(gamma * (1 + log(P / sum(gamma)))) < I
 Q <- 3
@@ -66,7 +70,6 @@ if(require(lme4)){
   vc1 <- as.data.frame(VarCorr(fit1))
   (pve1.hat <- vc1$vcov[1] / (vc1$vcov[1] + vc1$vcov[2]))
 
-  A <- estimGenRel(X=X, relationships="additive", method="vanraden1")
   fit1A <- lmerAM(formula=response ~ year + (1|geno), data=dat,
                   relmat=list(geno=A))
   cbind(modelA$c, blues <- fixef(fit1A$merMod))
@@ -100,10 +103,10 @@ if(require(varbvs)){
   cor(blups, y.pred)
 }
 
-## additive and dominant sparse genetic architecture
+## dominant sparse genetic architecture
 Q <- 3
-modelAD <- simulBvsr(Q=Q, X=X, pi=0.01, pve=0.7, sigma.a2=1,
-                     sigma.d2=0.5)
+modelAD <- simulBvsr(Q=Q, X=X, pi=0.01, pve=0.7, sigma.a2=0, sigma.d2=1)
+
 if(require(lme4)){
   dat <- data.frame(response=modelAD$Y[,1],
                     year=factor(rep(2010:(2010+Q-1), each=I)),
@@ -114,10 +117,13 @@ if(require(lme4)){
   vc3A <- as.data.frame(VarCorr(fit3A$merMod))
   (pve3A.hat <- vc3A$vcov[1] / (vc3A$vcov[1] + vc3A$vcov[2]))
 
-  D <- estimGenRel(X=X, relationships="dominant", method="vitezica")
+  fit3D <- lmerAM(formula=response ~ year + (1|geno.dom), data=dat,
+                  relmat=list(geno.dom=D))
+  vc3D <- as.data.frame(VarCorr(fit3D$merMod))
+  (pve3D.hat <- vc3D$vcov[1] / (vc3D$vcov[1] + vc3D$vcov[2]))
+
   fit3AD <- lmerAM(formula=response ~ year + (1|geno.add) + (1|geno.dom),
-                   data=dat,
-                   relmat=list(geno.add=A, geno.dom=D))
+                   data=dat, relmat=list(geno.add=A, geno.dom=D))
   vc3AD <- as.data.frame(VarCorr(fit3AD$merMod))
   (pve3AD.hat <- (vc3AD$vcov[1] + vc3AD$vcov[2]) /
                    (vc3AD$vcov[1] + vc3AD$vcov[2] + vc3AD$vcov[3]))

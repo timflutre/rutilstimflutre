@@ -1959,15 +1959,23 @@ distSnpPairs <- function(snp.pairs, snp.coords, nb.cores=1, verbose=1){
 ##'
 ##' Recode SNP genotypes from additive to dominant.
 ##' @param X matrix of bi-allelic SNP genotypes encoded in allele doses in {0,1,2}, with genotypes in rows and SNPs in columns; missing values should be encoded as NA
+##' @param simplify.imputed if TRUE, imputed genotypes will be considered as homozygotes if less than 0.66 or more than 1.33, and heterozygotes otherwise
 ##' @return matrix with genotypes in {0,1}
 ##' @author Timothee Flutre
 ##' @export
-recodeIntoDominant <- function(X){
+recodeIntoDominant <- function(X, simplify.imputed=FALSE){
   stopIfNotValidGenosDose(X=X, check.hasColNames=FALSE,
                           check.hasRowNames=FALSE, check.noNA=FALSE,
-                          check.notImputed=TRUE)
+                          check.notImputed=! simplify.imputed)
   X.D <- X
-  X.D[X.D != 1] <- 0
+  if(simplify.imputed){
+    boundaries <- seq(from=0, to=2, length.out=4)
+    is.hom <- xor(X <= boundaries[2], X > boundaries[3])
+    X.D[is.hom] <- 0
+    X.D[! is.hom] <- 1
+  } else
+    X.D[X.D != 1] <- 0
+
   return(X.D)
 }
 
@@ -3940,6 +3948,10 @@ stanAM <- function(data, relmat, errors.Student=FALSE,
 ##' P <- 2000
 ##' X <- simulGenosDose(nb.genos=I, nb.snps=P)
 ##'
+##' ## estimate genetic relationships
+##' A <- estimGenRel(X=X, relationships="additive", method="vanraden1")
+##' D <- estimGenRel(X=X, relationships="dominant", method="vitezica")
+##'
 ##' ## additive sparse genetic architecture
 ##' ## choose pi so that sum(gamma * (1 + log(P / sum(gamma)))) < I
 ##' Q <- 3
@@ -3957,7 +3969,6 @@ stanAM <- function(data, relmat, errors.Student=FALSE,
 ##'   vc1 <- as.data.frame(VarCorr(fit1))
 ##'   (pve1.hat <- vc1$vcov[1] / (vc1$vcov[1] + vc1$vcov[2]))
 ##'
-##'   A <- estimGenRel(X=X, relationships="additive", method="vanraden1")
 ##'   fit1A <- lmerAM(formula=response ~ year + (1|geno), data=dat,
 ##'                   relmat=list(geno=A))
 ##'   cbind(modelA$c, blues <- fixef(fit1A$merMod))
@@ -3991,10 +4002,10 @@ stanAM <- function(data, relmat, errors.Student=FALSE,
 ##'   cor(blups, y.pred)
 ##' }
 ##'
-##' ## additive and dominant sparse genetic architecture
+##' ## dominant sparse genetic architecture
 ##' Q <- 3
-##' modelAD <- simulBvsr(Q=Q, X=X, pi=0.01, pve=0.7, sigma.a2=1,
-##'                      sigma.d2=0.5)
+##' modelAD <- simulBvsr(Q=Q, X=X, pi=0.01, pve=0.7, sigma.a2=0, sigma.d2=1)
+##'
 ##' if(require(lme4)){
 ##'   dat <- data.frame(response=modelAD$Y[,1],
 ##'                     year=factor(rep(2010:(2010+Q-1), each=I)),
@@ -4005,10 +4016,13 @@ stanAM <- function(data, relmat, errors.Student=FALSE,
 ##'   vc3A <- as.data.frame(VarCorr(fit3A$merMod))
 ##'   (pve3A.hat <- vc3A$vcov[1] / (vc3A$vcov[1] + vc3A$vcov[2]))
 ##'
-##'   D <- estimGenRel(X=X, relationships="dominant", method="vitezica")
+##'   fit3D <- lmerAM(formula=response ~ year + (1|geno.dom), data=dat,
+##'                   relmat=list(geno.dom=D))
+##'   vc3D <- as.data.frame(VarCorr(fit3D$merMod))
+##'   (pve3D.hat <- vc3D$vcov[1] / (vc3D$vcov[1] + vc3D$vcov[2]))
+##'
 ##'   fit3AD <- lmerAM(formula=response ~ year + (1|geno.add) + (1|geno.dom),
-##'                    data=dat,
-##'                    relmat=list(geno.add=A, geno.dom=D))
+##'                    data=dat, relmat=list(geno.add=A, geno.dom=D))
 ##'   vc3AD <- as.data.frame(VarCorr(fit3AD$merMod))
 ##'   (pve3AD.hat <- (vc3AD$vcov[1] + vc3AD$vcov[2]) /
 ##'                    (vc3AD$vcov[1] + vc3AD$vcov[2] + vc3AD$vcov[3]))
@@ -4448,10 +4462,7 @@ rearrangeInputsForAssoGenet <- function(ids, y, X, snp.coords, alleles,
 ##' P <- 2000
 ##' X <- simulGenosDose(nb.genos=I, nb.snps=P)
 ##'
-##' ## simulate phenotypes (only additive effects)
-##' modelA <- simulBvsr(Q=1, X=X, pi=0.01, pve=0.7, sigma.a2=1)
-##'
-##' ## test SNPs one by one with the univariate LMM
+##' ## make fake SNP coordinates and alleles
 ##' snp.coords <- data.frame(coord=1:ncol(X),
 ##'                          chr="chr1",
 ##'                          row.names=colnames(X),
@@ -4460,12 +4471,20 @@ rearrangeInputsForAssoGenet <- function(ids, y, X, snp.coords, alleles,
 ##'                       minor="a",
 ##'                       row.names=colnames(X),
 ##'                       stringsAsFactors=FALSE)
-##' fit.u <- gemma(model="ulmm", modelA$Y[,1], X, snp.coords, alleles,
+##'
+##' ## simulate phenotypes (only additive effects)
+##' modelA <- simulBvsr(Q=1, X=X, pi=0.01, pve=0.7, sigma.a2=1)
+##' summary(abs(modelA$a[modelA$gamma == 1]))
+##'
+##' ## test SNPs one by one with the univariate LMM
+##' fit.u <- gemma(model="ulmm", y=modelA$Y[,1], X=X, snp.coords, alleles,
 ##'                W=modelA$W, out.dir=tempdir(), clean="all")
 ##' cor(modelA$a[modelA$gamma == 1], fit.u$tests$beta[modelA$gamma == 1])
 ##' cols <- rep("black",ncol(X)); cols[modelA$gamma==1] <- "red"
-##' pv.adj <- qqplotPval(fit.u$tests$p_wald, col=cols, ctl.fdr.bh=TRUE,
-##'                      plot.signif=TRUE)
+##' pvadj.AA <- qqplotPval(fit.u$tests$p_wald, col=cols, ctl.fdr.bh=TRUE,
+##'                        plot.signif=TRUE)
+##' t(binaryClassif(known.nulls=modelA$gamma == 0,
+##'                 called.nulls=pvadj.AA$pv.bh > 0.05))
 ##'
 ##' ## fit all SNPs jointly with the BSLMM
 ##' burnin <- 10^3
@@ -4482,7 +4501,7 @@ rearrangeInputsForAssoGenet <- function(ids, y, X, snp.coords, alleles,
 ##' set.seed(1859)
 ##' modelD <- simulBvsr(Q=1, X=X, pi=0.01, pve=0.7, sigma.a2=0, sigma.d2=1)
 ##'
-##' ## test additive SNPs one by one with the univariate LMM
+##' ## test SNPs as "additive" one by one with the univariate LMM
 ##' A.z <- estimGenRel(X=X, relationships="additive", method="zhou")
 ##' fit.u.DA <- gemma(model="ulmm", y=modelD$Y[,1], X=X,
 ##'                   snp.coords, alleles,
@@ -4491,9 +4510,9 @@ rearrangeInputsForAssoGenet <- function(ids, y, X, snp.coords, alleles,
 ##' pvadj.DA <- qqplotPval(fit.u.DA$tests$p_wald, col=cols, ctl.fdr.bh=TRUE,
 ##'                        plot.signif=TRUE)
 ##' t(binaryClassif(known.nulls=modelD$gamma == 0,
-##'                 called.nulls=pvadj.DA$pv.bh <= 0.05))
+##'                 called.nulls=pvadj.DA$pv.bh > 0.05))
 ##'
-##' ## test dominant SNPs one by one with the univariate LMM
+##' ## test SNPs as "dominant" one by one with the univariate LMM
 ##' X.D <- recodeIntoDominant(X=X)
 ##' fit.u.DD <- gemma(model="ulmm", y=modelD$Y[,1], X=X.D,
 ##'                   snp.coords, alleles,
@@ -4502,7 +4521,7 @@ rearrangeInputsForAssoGenet <- function(ids, y, X, snp.coords, alleles,
 ##' pvadj.DD <- qqplotPval(fit.u.DD$tests$p_wald, col=cols, ctl.fdr.bh=TRUE,
 ##'                        plot.signif=TRUE)
 ##' t(binaryClassif(known.nulls=modelD$gamma == 0,
-##'                 called.nulls=pvadj.DD$pv.bh <= 0.05))
+##'                 called.nulls=pvadj.DD$pv.bh > 0.05))
 ##' }
 ##' @export
 gemma <- function(model="ulmm", y, X, snp.coords, alleles=NULL, maf=0.01, K.c=NULL,

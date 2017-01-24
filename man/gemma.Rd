@@ -55,10 +55,7 @@ I <- 200
 P <- 2000
 X <- simulGenosDose(nb.genos=I, nb.snps=P)
 
-## simulate phenotypes (only additive effects)
-modelA <- simulBvsr(Q=1, X=X, pi=0.01, pve=0.7, sigma.a2=1)
-
-## test SNPs one by one with the univariate LMM
+## make fake SNP coordinates and alleles
 snp.coords <- data.frame(coord=1:ncol(X),
                          chr="chr1",
                          row.names=colnames(X),
@@ -67,12 +64,20 @@ alleles <- data.frame(major=rep("A", ncol(X)),
                       minor="a",
                       row.names=colnames(X),
                       stringsAsFactors=FALSE)
-fit.u <- gemma(model="ulmm", modelA$Y[,1], X, snp.coords, alleles,
+
+## simulate phenotypes (only additive effects)
+modelA <- simulBvsr(Q=1, X=X, pi=0.01, pve=0.7, sigma.a2=1)
+summary(abs(modelA$a[modelA$gamma == 1]))
+
+## test SNPs one by one with the univariate LMM
+fit.u <- gemma(model="ulmm", y=modelA$Y[,1], X=X, snp.coords, alleles,
                W=modelA$W, out.dir=tempdir(), clean="all")
 cor(modelA$a[modelA$gamma == 1], fit.u$tests$beta[modelA$gamma == 1])
 cols <- rep("black",ncol(X)); cols[modelA$gamma==1] <- "red"
-pv.adj <- qqplotPval(fit.u$tests$p_wald, col=cols, ctl.fdr.bh=TRUE,
-                     plot.signif=TRUE)
+pvadj.AA <- qqplotPval(fit.u$tests$p_wald, col=cols, ctl.fdr.bh=TRUE,
+                       plot.signif=TRUE)
+t(binaryClassif(known.nulls=modelA$gamma == 0,
+                called.nulls=pvadj.AA$pv.bh > 0.05))
 
 ## fit all SNPs jointly with the BSLMM
 burnin <- 10^3
@@ -89,7 +94,7 @@ summary(posterior.samples)
 set.seed(1859)
 modelD <- simulBvsr(Q=1, X=X, pi=0.01, pve=0.7, sigma.a2=0, sigma.d2=1)
 
-## test additive SNPs one by one with the univariate LMM
+## test SNPs as "additive" one by one with the univariate LMM
 A.z <- estimGenRel(X=X, relationships="additive", method="zhou")
 fit.u.DA <- gemma(model="ulmm", y=modelD$Y[,1], X=X,
                   snp.coords, alleles,
@@ -98,9 +103,9 @@ cols <- rep("black",ncol(X)); cols[modelD$gamma==1] <- "red"
 pvadj.DA <- qqplotPval(fit.u.DA$tests$p_wald, col=cols, ctl.fdr.bh=TRUE,
                        plot.signif=TRUE)
 t(binaryClassif(known.nulls=modelD$gamma == 0,
-                called.nulls=pvadj.DA$pv.bh <= 0.05))
+                called.nulls=pvadj.DA$pv.bh > 0.05))
 
-## test dominant SNPs one by one with the univariate LMM
+## test SNPs as "dominant" one by one with the univariate LMM
 X.D <- recodeIntoDominant(X=X)
 fit.u.DD <- gemma(model="ulmm", y=modelD$Y[,1], X=X.D,
                   snp.coords, alleles,
@@ -109,7 +114,7 @@ cols <- rep("black",ncol(X)); cols[modelD$gamma==1] <- "red"
 pvadj.DD <- qqplotPval(fit.u.DD$tests$p_wald, col=cols, ctl.fdr.bh=TRUE,
                        plot.signif=TRUE)
 t(binaryClassif(known.nulls=modelD$gamma == 0,
-                called.nulls=pvadj.DD$pv.bh <= 0.05))
+                called.nulls=pvadj.DD$pv.bh > 0.05))
 }
 }
 \author{

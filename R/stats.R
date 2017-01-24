@@ -84,12 +84,13 @@ msd <- function(error){
   mean(error)
 }
 
+##' Hypothesis testing
+##'
 ##' Return the number of true positives, false positives, true negatives,
 ##' false negatives, true positive proportion (sensitivity), false positive
 ##' proportion, accuracy, true negative proportion (specificity), false
 ##' discovery proportion, false negative proportion and positive predictive
 ##' value (precision)
-##'
 ##' Both input vectors should be sorted beforehand
 ##' @title Binary classification
 ##' @param known.nulls vector of booleans (TRUE if the null is true)
@@ -132,16 +133,17 @@ binaryClassif <- function(known.nulls, called.nulls){
   fn <- sum(which(called.nulls) %in% which(! known.nulls))
 
   tpp <- tp / n1        # true positive prop (sensitivity)
+  fnp <- fn / n1        # false negative prop
+  tnp <- tn / n0        # true negative prop (specificity) = 1 - fpp
   fpp <- fp / n0        # false positive prop
-  acc <- (tp + tn) / n  # accuracy
-  tnp <- tn / n0        # true negative prop (specificity), = 1 - fpp
   fdp <- fp / r         # false discovery prop
-  fnp <- fn / a         # false negative prop
   ppv <- tp / r         # positive predictive value (precision)
+  acc <- (tp + tn) / n  # accuracy
 
-  return(c(n=n, n0=n0, n1=n1, a=a, r=r,
-           tp=tp, fp=fp, tn=tn, fn=fn,
-           tpp=tpp, fpp=fpp, acc=acc, tnp=tnp, fdp=fdp, fnp=fnp, ppv=ppv))
+  return(c(n=n, n0=n0, n1=n1,
+           r=r, tp=tp, fp=fp,
+           a=a, tn=tn, fn=fn,
+           tpp=tpp, fnp=fnp, tnp=tnp, fpp=fpp, fdp=fdp, ppv=ppv, acc=acc))
 }
 
 ##' Stable computation of \eqn{log_{10}(\sum_i w_i 10^x_i)}
@@ -569,7 +571,7 @@ plotHistPval <- function(pvalues, breaks=seq(0, 1, 0.05), freq=FALSE,
 ##' @param main an overall title for the plot (default: "Q-Q plot (<length(pvalues)> p values)")
 ##' @param col vector of plotting color(s) for the points (default is all points in black)
 ##' @param verbose verbosity level (0/1)
-##' @return invisible list with the vector of p values (NA omitted) and the adjusted p values if any of \code{ctl.fwer.bonf} and \code{ctl.fdr.bh} is set
+##' @return invisible matrix with a column of p values (NA omitted) and the adjusted p values if any of \code{ctl.fwer.bonf} and \code{ctl.fdr.bh} is set
 ##' @seealso \code{\link{plotHistPval}}
 ##' @author Timothee Flutre (inspired by an anonymous comment at http://gettinggeneticsdone.blogspot.fr/2009/11/qq-plots-of-p-values-in-r-using-ggplot2.html)
 ##' @examples
@@ -731,7 +733,78 @@ qqplotPval <- function(pvalues, plot.conf.int=TRUE,
                      lty=lty, bty="n", y.intersp=2)
   }
 
-  invisible(list(pvalues=pvalues, pv.bonf=pv.bonf, pv.bh=pv.bh, qv.st=qv.st))
+  output <- data.frame(pvalues=pvalues)
+  if(! is.null(pv.bonf))
+    output$pv.bonf <- pv.bonf
+  if(! is.null(pv.bh))
+    output$pv.bh <- pv.bh
+  if(! is.null(qv.st))
+    output$qv.st <- qv.st
+
+  invisible(output)
+}
+
+##' Multiple tests correction
+##'
+##' Call significance tests after multiplicity correction based on various criteria (FWER, FDR) and various procedure for each of them.
+##' @param pvalues vector of p values (can contain NA's)
+##' @param thresh.fwer.bonf if not NULL, vector of significance thresholds for the FWER criterion and the Bonferroni procedure
+##' @param thresh.fdr.bh if not NULL, vector of significance thresholds for the FDR criterion and the Benjamini-Hochberg procedure
+##' @param thresh.fdr.storey if not NULL, vector of significance thresholds for the FDR criterion and the Storey procedure (via the \href{http://bioconductor.org/packages/release/bioc/html/qvalue.html}{qvalue} package)
+##' @return list
+##' @author Timothee Flutre
+##' @seealso \code{\link{qqplotPval}}, \code{\link{binaryClassif}}
+##' @export
+significantTests <- function(pvalues, thresh.fwer.bonf=c(0.01, 0.05, 0.1),
+                             thresh.fdr.bh=c(0.01, 0.05, 0.1),
+                             thresh.fdr.storey=NULL){
+  stopifnot(is.numeric(pvalues),
+            is.vector(pvalues))
+  if(! is.null(thresh.fwer.bonf))
+    stopifnot(is.numeric(thresh.fwer.bonf),
+              is.vector(thresh.fwer.bonf),
+              all(thresh.fwer.bonf >= 0),
+              all(thresh.fwer.bonf <= 1))
+  if(! is.null(thresh.fdr.bh))
+    stopifnot(is.numeric(thresh.fdr.bh),
+              is.vector(thresh.fdr.bh),
+              all(thresh.fdr.bh >= 0),
+              all(thresh.fdr.bh <= 1))
+  if(! is.null(thresh.fdr.storey)){
+    requireNamespace("qvalue")
+    stopifnot(is.numeric(thresh.fdr.storey),
+              is.vector(thresh.fdr.storey),
+              all(thresh.fdr.storey >= 0),
+              all(thresh.fdr.storey <= 1))
+  }
+
+  output <- list(pvalues=pvalues)
+
+  if(! is.null(thresh.fwer.bonf)){
+    output[["fwer.bonf"]] <-
+      data.frame(pv.adj=stats::p.adjust(pvalues, method="bonferroni"))
+    for(thresh in thresh.fwer.bonf)
+      output[["fwer.bonf"]][[as.character(thresh)]] <-
+        output[["fwer.bonf"]][["pv.adj"]] <= thresh
+  }
+
+  if(! is.null(thresh.fdr.bh)){
+    output[["fdr.bh"]] <-
+      data.frame(pv.adj=stats::p.adjust(pvalues, method="BH"))
+    for(thresh in thresh.fdr.bh)
+      output[["fdr.bh"]][[as.character(thresh)]] <-
+        output[["fdr.bh"]][["pv.adj"]] <= thresh
+  }
+
+  if(! is.null(thresh.fdr.storey)){
+    tmp <- qvalue::qvalue(p=pvalues, pfdr=TRUE)
+    output[["fdr.storey"]][["qv"]] <- tmp$qvalues
+    for(thresh in thresh.fdr.bh)
+      output[["fdr.storey"]][[as.character(thresh)]] <-
+        output[["fdr.storey"]][["qv"]] <= thresh
+  }
+
+  return(output)
 }
 
 ##' FDR

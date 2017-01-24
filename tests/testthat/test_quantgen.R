@@ -406,6 +406,20 @@ test_that("recodeIntoDominant", {
   expect_equal(observed, expected)
 })
 
+test_that("recodeIntoDominant_imputed", {
+  N <- 3 # individuals
+  P <- 4 # SNPs
+  X <- matrix(c(0,0,2, 1.1,1,0, 0.2,1,0, 1,0,2), nrow=N, ncol=P,
+              dimnames=list(paste0("ind", 1:N), paste0("snp", 1:P)))
+
+  expected <- matrix(c(0,0,0, 1,1,0, 0,1,0, 1,0,0), nrow=N, ncol=P,
+                     dimnames=dimnames(X))
+
+  observed <- recodeIntoDominant(X=X, simplify.imputed=TRUE)
+
+  expect_equal(observed, expected)
+})
+
 test_that("estimGenRel_vanraden1", {
   N <- 3 # individuals
   P <- 4 # SNPs

@@ -15,13 +15,14 @@ binaryClassif(known.nulls, called.nulls)
 vector with names
 }
 \description{
+Hypothesis testing
+}
+\details{
 Return the number of true positives, false positives, true negatives,
 false negatives, true positive proportion (sensitivity), false positive
 proportion, accuracy, true negative proportion (specificity), false
 discovery proportion, false negative proportion and positive predictive
 value (precision)
-}
-\details{
 Both input vectors should be sorted beforehand
 }
 \author{
