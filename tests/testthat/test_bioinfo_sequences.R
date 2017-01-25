@@ -1,6 +1,18 @@
 library(rutilstimflutre)
 context("Bioinfo")
 
+test_that("chromNames2integers", {
+  x <- c("chr1_random", "chr10", "chrUn", "chr1", "chr10_random", "chr2")
+
+  expected <- data.frame(original=x,
+                         renamed=c(11L, 10L, 21L, 1L, 20L, 2L),
+                         stringsAsFactors=FALSE)
+
+  observed <- chromNames2integers(x=x)
+
+  expect_equal(observed, expected)
+})
+
 test_that("extractFasta", {
   if(all(requireNamespace("Biostrings"),
          requireNamespace("GenomicRanges"),

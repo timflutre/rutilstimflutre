@@ -1,5 +1,50 @@
 ## Contains functions handling sequences often used in bioinformatics.
 
+##' Rename chromosomes
+##'
+##' Rename chromosomes into integers.
+##' @param x vector of chromosome names
+##' @return data.frame with original and new names
+##' @author Timothee Flutre
+##' @examples
+##' \dontrun{chroms <- c("chr1", "chr1_random", "chr10", "chr10_random", "chrUn", "chr2")
+##' chromNames2integers(x=chroms)
+##' }
+##' @export
+chromNames2integers <- function(x){
+  stopifnot(is.character(x),
+            is.vector(x))
+
+  output <- data.frame(original=x,
+                       renamed=NA,
+                       stringsAsFactors=FALSE)
+
+  output$renamed <- suppressWarnings(as.integer(gsub("chr", "", x)))
+
+  if(any(is.na(output$renamed))){
+    max.chr.int <- max(output$renamed, na.rm=TRUE)
+
+    tmp <- data.frame(orig=x[is.na(output$renamed)],
+                      idx=which(is.na(output$renamed)),
+                      as.chr=NA,
+                      as.int=NA,
+                      stringsAsFactors=FALSE)
+    tmp$as.chr <- gsub("chr|_random", "", tmp$orig)
+    tmp <- tmp[order(tmp$as.chr),]
+
+    for(i in 1:nrow(tmp)){
+      suppressWarnings(tmp$as.int[i] <- as.integer(tmp$as.chr[i]))
+      if(! is.na(tmp$as.int[i])){ # e.g. chr1_random
+        output$renamed[tmp$idx[i]] <- max.chr.int + tmp$as.int[i]
+      } else{ # e.g. chrUn
+        output$renamed[tmp$idx[i]] <- 2 * max.chr.int + 1
+      }
+    }
+  }
+
+  return(output)
+}
+
 ##' Fasta file
 ##'
 ##' Return key aspects of a fasta file as summary (number of records, length of each record, letter frequency of each record, ...).
