@@ -5,7 +5,7 @@
 \title{Boxplot of QTL}
 \usage{
 boxplotCandidateQtl(y, X, snp, xlab = "Genotype", ylab = "Phenotype",
-  verbose = 1, ...)
+  show.points = FALSE, notch = TRUE, verbose = 1, ...)
 }
 \arguments{
 \item{y}{vector of phenotypes with genotype names}
@@ -18,6 +18,10 @@ boxplotCandidateQtl(y, X, snp, xlab = "Genotype", ylab = "Phenotype",
 
 \item{ylab}{label of the y-axis}
 
+\item{show.points}{if TRUE, individual points will be shown, with \code{\link{jitter}}, especially useful if some genotypic classes have very low counts}
+
+\item{notch}{if TRUE, a notch is drawn in each side of the boxes (see \code{\link[graphics]{boxplot}})}
+
 \item{verbose}{verbosity level (0/1)}
 
 \item{...}{other arguments to \code{\link[graphics]{boxplot}}}
@@ -27,6 +31,40 @@ invisible list with \code{y} and \code{x} used to make the boxplot (same order, 
 }
 \description{
 Make a boxplot of a candidate QTL.
+}
+\examples{
+\dontrun{## simulate genotypes
+set.seed(1859)
+I <- 200
+P <- 2000
+X <- simulGenosDose(nb.genos=I, nb.snps=P)
+
+## make fake SNP coordinates
+snp.coords <- data.frame(coord=1:ncol(X),
+                         chr="chr1",
+                         row.names=colnames(X),
+                         stringsAsFactors=FALSE)
+
+## simulate phenotypes (only additive effects)
+modelA <- simulBvsr(Q=1, X=X, pi=0.01, pve=0.7, sigma.a2=1)
+
+## test SNPs one by one with the univariate LMM
+fit.u <- gemma(model="ulmm", y=modelA$Y[,1], X=X, snp.coords,
+               W=modelA$W, out.dir=tempdir(), clean="all")
+
+## diagnostic plots
+plotHistPval(pvalues=fit.u$tests$p_wald)
+cols <- rep("black",ncol(X)); cols[modelA$gamma==1] <- "red"
+pvadj.AA <- qqplotPval(fit.u$tests$p_wald, col=cols, ctl.fdr.bh=TRUE,
+                       plot.signif=TRUE)
+
+## look at the best candidate QTL
+snp <- rownames(fit.u$tests[order(fit.u$tests$p_wald),])[1]
+boxplotCandidateQtl(y=modelA$Y[,1], X=X, snp=snp, main=snp, notch=FALSE,
+                    show.points=TRUE)
+abline(lm(modelA$Y[,1] ~ X[,snp]), col="red")
+abline(a=fit.u$global.mean["beta.hat"], b=fit.u$tests[snp,"beta"])
+}
 }
 \author{
 Timothee Flutre

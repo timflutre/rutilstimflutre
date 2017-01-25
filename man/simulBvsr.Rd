@@ -88,6 +88,7 @@ if(require(lme4)){
 if(require(varbvs)){
   fit2 <- varbvs(X=modelA$X.A, Z=NULL, y=blups, verbose=FALSE)
   print(fit2s <- summary(fit2))
+  names(sort(modelA$a[modelA$gamma == 1], decreasing=TRUE))
 
   (pi.hat <- 10^(fit2s$logodds$x0) / (1 + 10^(fit2s$logodds$x0)))
   (pi.hat.low <- 10^(fit2s$logodds$a) / (1 + 10^(fit2s$logodds$a)))
@@ -97,7 +98,8 @@ if(require(varbvs)){
   pips <- c(fit2$alpha \%*\% w)
   cols <- rep("black", P)
   cols[modelA$gamma != 0] <- "red"
-  plot(x=1:P, y=pips, col=cols)
+  plot(x=1:P, y=pips, col=cols, las=1, xlab="SNPs", ylab="PIP",
+       main="Posterior inclusion probabilities")
 
   y.pred <- predict(fit2, X=modelA$X.A, Z=NULL)
   cor(blups, y.pred)

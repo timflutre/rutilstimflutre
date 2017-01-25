@@ -3987,6 +3987,7 @@ stanAM <- function(data, relmat, errors.Student=FALSE,
 ##' if(require(varbvs)){
 ##'   fit2 <- varbvs(X=modelA$X.A, Z=NULL, y=blups, verbose=FALSE)
 ##'   print(fit2s <- summary(fit2))
+##'   names(sort(modelA$a[modelA$gamma == 1], decreasing=TRUE))
 ##'
 ##'   (pi.hat <- 10^(fit2s$logodds$x0) / (1 + 10^(fit2s$logodds$x0)))
 ##'   (pi.hat.low <- 10^(fit2s$logodds$a) / (1 + 10^(fit2s$logodds$a)))
@@ -3996,7 +3997,8 @@ stanAM <- function(data, relmat, errors.Student=FALSE,
 ##'   pips <- c(fit2$alpha %*% w)
 ##'   cols <- rep("black", P)
 ##'   cols[modelA$gamma != 0] <- "red"
-##'   plot(x=1:P, y=pips, col=cols)
+##'   plot(x=1:P, y=pips, col=cols, las=1, xlab="SNPs", ylab="PIP",
+##'        main="Posterior inclusion probabilities")
 ##'
 ##'   y.pred <- predict(fit2, X=modelA$X.A, Z=NULL)
 ##'   cor(blups, y.pred)
@@ -4658,6 +4660,13 @@ gemma <- function(model="ulmm", y, X, snp.coords, alleles=NULL, maf=0.01, K.c=NU
   ## load output files
   f <- paste0(out.dir, "/results_", task.id, ".log.txt")
   output[["log"]] <- readLines(f)
+  idx <- grep("beta estimate in the null model", output[["log"]])
+  if(length(idx) == 1){
+    tmp1 <- strsplit(output$log[idx], " ")[[1]]
+    tmp2 <- strsplit(output$log[idx+1], " ")[[1]]
+    output[["global.mean"]] <- c(beta.hat=as.numeric(tmp1[length(tmp1)]),
+                                 se.beta.hat=as.numeric(tmp2[length(tmp2)]))
+  }
   if(clean == "all")
     file.remove(f)
   if(model == "ulmm"){
@@ -5141,13 +5150,48 @@ calcL10ApproximateBayesFactorWenStephens <- function(sstats, phi2, oma2){
 ##' @param snp character with SNP name corresponding to the candidate QTL to plot
 ##' @param xlab label ox the x-axis
 ##' @param ylab label of the y-axis
+##' @param show.points if TRUE, individual points will be shown, with \code{\link{jitter}}, especially useful if some genotypic classes have very low counts
+##' @param notch if TRUE, a notch is drawn in each side of the boxes (see \code{\link[graphics]{boxplot}})
 ##' @param verbose verbosity level (0/1)
 ##' @param ... other arguments to \code{\link[graphics]{boxplot}}
 ##' @return invisible list with \code{y} and \code{x} used to make the boxplot (same order, with no missing data)
 ##' @author Timothee Flutre
+##' @examples
+##' \dontrun{## simulate genotypes
+##' set.seed(1859)
+##' I <- 200
+##' P <- 2000
+##' X <- simulGenosDose(nb.genos=I, nb.snps=P)
+##'
+##' ## make fake SNP coordinates
+##' snp.coords <- data.frame(coord=1:ncol(X),
+##'                          chr="chr1",
+##'                          row.names=colnames(X),
+##'                          stringsAsFactors=FALSE)
+##'
+##' ## simulate phenotypes (only additive effects)
+##' modelA <- simulBvsr(Q=1, X=X, pi=0.01, pve=0.7, sigma.a2=1)
+##'
+##' ## test SNPs one by one with the univariate LMM
+##' fit.u <- gemma(model="ulmm", y=modelA$Y[,1], X=X, snp.coords,
+##'                W=modelA$W, out.dir=tempdir(), clean="all")
+##'
+##' ## diagnostic plots
+##' plotHistPval(pvalues=fit.u$tests$p_wald)
+##' cols <- rep("black",ncol(X)); cols[modelA$gamma==1] <- "red"
+##' pvadj.AA <- qqplotPval(fit.u$tests$p_wald, col=cols, ctl.fdr.bh=TRUE,
+##'                        plot.signif=TRUE)
+##'
+##' ## look at the best candidate QTL
+##' snp <- rownames(fit.u$tests[order(fit.u$tests$p_wald),])[1]
+##' boxplotCandidateQtl(y=modelA$Y[,1], X=X, snp=snp, main=snp, notch=FALSE,
+##'                     show.points=TRUE)
+##' abline(lm(modelA$Y[,1] ~ X[,snp]), col="red")
+##' abline(a=fit.u$global.mean["beta.hat"], b=fit.u$tests[snp,"beta"])
+##' }
 ##' @export
 boxplotCandidateQtl <- function(y, X, snp, xlab="Genotype", ylab="Phenotype",
-                                verbose=1, ...){
+                                show.points=FALSE, notch=TRUE, verbose=1, ...){
   if(is.matrix(y)){
     stopifnot(ncol(y) == 1,
               ! is.null(rownames(y)))
@@ -5171,16 +5215,34 @@ boxplotCandidateQtl <- function(y, X, snp, xlab="Genotype", ylab="Phenotype",
   x <- x[ind.names]
   y <- y[ind.names]
 
+  counts <- table(x)
   if(verbose > 0){
-    print(table(x))
+    msg <- paste0("genotypic classes:")
+    for(i in seq_along(counts))
+      msg <- paste0(msg, " ", names(counts)[i], "=", counts[i])
+    msg <- paste0(msg, " (total=", sum(counts), ")")
+    write(msg, stdout())
+
+    af <- mean(x) / 2
+    maf <- ifelse(af <= 0.5, af, 1 - af)
+    msg <- sprintf("minor allele frequency: maf = %.3f", maf)
+    write(msg, stdout())
+
     print(do.call(rbind, tapply(y, factor(x), function(tmp){
       c(mean.y=mean(tmp), sd.y=stats::sd(tmp))
     })), digits=3)
   }
 
   ## make boxplot
-  graphics::boxplot(y ~ x, varwidth=TRUE, notch=TRUE, las=1,
-                    xlab=xlab, ylab=ylab, ...)
+  bp <- graphics::boxplot(y ~ x, las=1, varwidth=TRUE, notch=notch,
+                          xlab=xlab, ylab=ylab, ...)
+
+  if(show.points){
+    for(ct in sort(unique(x))){
+      tmp <- y[x == ct]
+      graphics::points(x=jitter(rep(ct+1, length(tmp))), y=tmp)
+    }
+  }
 
   invisible(list(y=y, x=x))
 }
