@@ -2,7 +2,7 @@ Package "rutilstimflutre"
 =========================
 
 This directory contains the "rutilstimflutre" package for the R programming language.
-This package contains Timothee Flutre's personal R code which can nevertheless be useful to others.
+This package contains Timothee Flutre's personal R code (mostly, as some functions are also contributed by others), which can nevertheless be useful to others.
 The development is funded by the Institut National de la Recherche Agronomique (INRA).
 
 The copyright is owned by the INRA.
@@ -13,7 +13,7 @@ It is also available under the GNU Affero General Public License (version 3 and 
 The content of this directory is versioned using git, the central repository being hosted on [GitHub](https://github.com/timflutre/rutilstimflutre).
 You can report issues on GitHub directly, but remember to copy-paste the output of sessionInfo().
 
-I have invested a lot of time and effort in creating this package, please cite it when using it for data analysis:
+I (and others) have invested a lot of time and effort in creating this package, please cite it when using it for data analysis:
 ```
 R> citation("rutilstimflutre")
 ```
