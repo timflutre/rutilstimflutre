@@ -1513,24 +1513,45 @@ summaryVariant <- function(vcf.file, genome, yieldSize=10^4, field="GQ",
   return(all.smry)
 }
 
+
+##' Keep single-element VCF records
+##'
+##' Returns a vcf object in which all multi-element 'ref' or 'alt' records and indels were discarded.
+##' @param vcf CollapsedVCF (see pkg VariantAnnotation)
+##' @return CollapsedVCF
+##' @author Gautier Sarah, Timothee Flutre
+##' @export
+getVcfOnlySingleElem <- function(vcf){
+  requireNamespaces(c("S4Vectors", "VariantAnnotation", "BiocInstaller"))
+
+  if(utils::compareVersion(as.character(BiocInstaller::biocVersion()),
+                           "3.4") < 0){
+    idxRef <- S4Vectors::elementLengths(VariantAnnotation::ref(vcf)) == 1L
+    idxAlt <- S4Vectors::elementLengths(VariantAnnotation::alt(vcf)) == 1L
+
+  } else{
+    idxRef <- S4Vectors::elementNROWS(VariantAnnotation::ref(vcf)) == 1L
+    idxAlt <- S4Vectors::elementNROWS(VariantAnnotation::alt(vcf)) == 1L
+  }
+
+  idx <- idxRef & idxAlt
+  if(! all(idx))
+    warning("only coercing single-element records")
+
+  return(vcf[idx])
+}
+
 ##' Convert GT to dosage
 ##'
-##' From Martin Morgan (see http://grokbase.com/t/r/bioconductor/135b460s2b/bioc-how-to-convert-genotype-snp-matrix-to-nucleotide-genotypes)
+##' Non-bi-allelic variants are discarded.
+##' From Martin Morgan (see http://grokbase.com/t/r/bioconductor/135b460s2b/bioc-how-to-convert-genotype-snp-matrix-to-nucleotide-genotypes).
 ##' @param vcf CollapsedVCF (see pkg VariantAnnotation)
 ##' @return matrix with variants in rows and samples in columns
 ##' @author Timothee Flutre
 ##' @export
 gtVcf2dose <- function(vcf){
-  requireNamespaces(c("S4Vectors", "VariantAnnotation", "BiocInstaller"))
-  if(utils::compareVersion(as.character(BiocInstaller::biocVersion()),
-                           "3.4") < 0){
-    idx <- S4Vectors::elementLengths(VariantAnnotation::alt(vcf)) == 1L
-  } else
-    idx <- S4Vectors::elementNROWS(VariantAnnotation::alt(vcf)) == 1L
-  if(!all(idx)) {
-    warning("only coercing single-element 'alt' records")
-  }
-  vcf <- vcf[idx]
+  requireNamespace("VariantAnnotation")
+  vcf <- getVcfOnlySingleElem(vcf)
   gt <- sub("\\|", "/", VariantAnnotation::geno(vcf)$GT) # ignore phasing
   gt[which(gt == "0/0")] <- 0
   gt[which(gt == "0/1")] <- 1
@@ -1542,23 +1563,15 @@ gtVcf2dose <- function(vcf){
 
 ##' Convert ranges to data.frame
 ##'
-##'
+##' Non-bi-allelic variants are discarded.
 ##' @param vcf CollapsedVCF (see pkg VariantAnnotation)
 ##' @return data.frame
 ##' @author Timothee Flutre
 ##' @export
 rngVcf2df <- function(vcf){
-  requireNamespaces(c("S4Vectors", "VariantAnnotation", "GenomeInfoDb",
-                      "BiocGenerics", "SummarizedExperiment", "BiocInstaller"))
-  if(utils::compareVersion(as.character(BiocInstaller::biocVersion()),
-                           "3.4") < 0){
-    idx <- S4Vectors::elementLengths(VariantAnnotation::alt(vcf)) == 1L
-  } else
-    idx <- S4Vectors::elementNROWS(VariantAnnotation::alt(vcf)) == 1L
-  if(!all(idx)) {
-    warning("only coercing single-element 'alt' records")
-  }
-  vcf <- vcf[idx]
+  requireNamespaces(c("VariantAnnotation", "GenomeInfoDb",
+                      "BiocGenerics", "SummarizedExperiment"))
+  vcf <- getVcfOnlySingleElem(vcf)
   tmp <- SummarizedExperiment::rowRanges(vcf)
   out <- data.frame(chrom=as.character(GenomeInfoDb::seqnames(tmp)),
                     start=BiocGenerics::start(tmp) - 1,
@@ -1611,19 +1624,20 @@ vcf2dosage <- function(vcf.file, genome, gdose.file, amap.file,
   tabix.file <- Rsamtools::TabixFile(file=vcf.file,
                                      yieldSize=yieldSize)
   if(! is.null(seq.id)){
-    if(is.null(seq.start) & is.null(seq.end)){
+    if(any(is.null(seq.start), is.null(seq.end))){
       dict <- readSamDict(file=dict.file)
       if(! seq.id %in% rownames(dict)){
         msg <- paste0("seq '", seq.id, "' not in '", dict.file, "'")
         stop(msg)
       }
-      rngs <- GenomicRanges::GRanges(seqnames=c(seq.id),
-                                     ranges=IRanges::IRanges(start=c(1),
-                                         end=c(dict$LN[rownames(dict) == seq.id])))
-    } else
-      rngs <- GenomicRanges::GRanges(seqnames=c(seq.id),
-                                     ranges=IRanges::IRanges(start=c(seq.start),
-                                         end=c(seq.end)))
+      if(is.null(seq.start))
+        seq.start <- 1
+      if(is.null(seq.end))
+        seq.end <- dict$LN[rownames(dict) == seq.id]
+    }
+    rngs <- GenomicRanges::GRanges(seqnames=c(seq.id),
+                                   ranges=IRanges::IRanges(start=c(seq.start),
+                                                           end=c(seq.end)))
     names(rngs) <- c(seq.id)
     vcf.params <- VariantAnnotation::ScanVcfParam(which=rngs)
     vcf <- VariantAnnotation::readVcf(file=tabix.file, genome=genome,
@@ -1634,11 +1648,12 @@ vcf2dosage <- function(vcf.file, genome, gdose.file, amap.file,
     cat(paste(colnames(gtmp), collapse="\t"), file=gdose.con,
         append=TRUE, sep="\n")
     utils::write.table(x=gtmp,
-                file=gdose.con, append=TRUE,
-                quote=FALSE, sep="\t", row.names=TRUE,
-                col.names=FALSE)
+                       file=gdose.con, append=TRUE,
+                       quote=FALSE, sep="\t", row.names=TRUE,
+                       col.names=FALSE)
     utils::write.table(x=atmp, file=amap.con, append=TRUE,
-                quote=FALSE, sep="\t", row.names=FALSE, col.names=FALSE)
+                       quote=FALSE, sep="\t", row.names=FALSE,
+                       col.names=FALSE)
   } else{
     open(tabix.file)
     nb.variants <- 0
@@ -1651,9 +1666,11 @@ vcf2dosage <- function(vcf.file, genome, gdose.file, amap.file,
             append=TRUE, sep="\n")
       nb.variants <- nb.variants + nrow(vcf)
       utils::write.table(x=gtmp, file=gdose.con, append=TRUE,
-                  quote=FALSE, sep="\t", row.names=TRUE, col.names=FALSE)
+                         quote=FALSE, sep="\t", row.names=TRUE,
+                         col.names=FALSE)
       utils::write.table(x=atmp, file=amap.con, append=TRUE,
-                  quote=FALSE, sep="\t", row.names=FALSE, col.names=FALSE)
+                         quote=FALSE, sep="\t", row.names=FALSE,
+                         col.names=FALSE)
     }
     close(tabix.file)
   }
@@ -1673,6 +1690,137 @@ vcf2dosage <- function(vcf.file, genome, gdose.file, amap.file,
 
   invisible(list(gdose.file=paste0(gdose.file, ".gz"),
                  amap.file=paste0(amap.file, ".gz")))
+}
+
+
+##' Convert GT to genotypic classes
+##'
+##' Non-bi-allelic variants are discarded.
+##' From Martin Morgan (see http://grokbase.com/t/r/bioconductor/135b460s2b/bioc-how-to-convert-genotype-snp-matrix-to-nucleotide-genotypes).
+##' @param vcf CollapsedVCF (see pkg VariantAnnotation)
+##' @param na.string a symbol to indicate missing genotypes (e.g. "NN" or NA)
+##' @return matrix with variants in rows and samples in columns
+##' @author Gautier Sarah
+##' @export
+gtVcf2genoClasses <- function(vcf, na.string="NN"){
+  requireNamespaces(c("VariantAnnotation", "GenomicRanges"))
+
+  vcf <- getVcfOnlySingleElem(vcf)
+  alt <- VariantAnnotation::alt(vcf)
+  ref <- VariantAnnotation::ref(vcf)
+
+  gt <- sub("\\|", "/", VariantAnnotation::geno(vcf)$GT) # ignore phasing
+
+  rowId <- (which(gt == "0/0")-1)  %% nrow(gt) + 1
+  gt[which(gt == "0/0")] <- paste0(as.character(ref[rowId]),
+                                   as.character(ref[rowId]))
+
+  rowId <- (which(gt == "0/1")-1)  %% nrow(gt) + 1
+  gt[which(gt == "0/1")] <- paste0(as.character(ref[rowId]),
+                                   GenomicRanges::as.data.frame(alt)[rowId,3])
+
+  rowId <- (which(gt == "1/1")-1)  %% nrow(gt) + 1
+  gt[which(gt == "1/1")] <- paste0(GenomicRanges::as.data.frame(alt)[rowId,3],
+                                   GenomicRanges::as.data.frame(alt)[rowId,3])
+
+  gt[which(gt == ".")] <- na.string
+
+  return(gt)
+}
+
+##' Convert VCF to genotypic classes
+##'
+##'Convert genotypes at bi-allelic SNPs from a VCF file into genotypic classes.
+##' @param vcf.file path to the VCF file (bgzip index should exist in same directory; should only contain SNPs and be already filtered for QD, FS, MQ, etc)
+##' @param genome genome identifier (e.g. "VITVI_12x2")
+##' @param gclasses.file path to the output file to record genotypes into genotypic classes (will be gzipped)
+##' @param yieldSize number of records to yield each time the file is read from (see \code{?TabixFile}) if seq.id is NULL
+##' @param dict.file path to the SAM dict file (see \url{https://broadinstitute.github.io/picard/command-line-overview.html#CreateSequenceDictionary}) if seq.id is specified with no start/end
+##' @param seq.id sequence identifier to work on (e.g. "chr2")
+##' @param seq.start start of the sequence to work on (if NULL, will be 1)
+##' @param seq.end end of the sequence to work on (if NULL, end of the whole sequence)
+##' @param na.string a symbol to indicate missing genotypes (e.g. "NN" or NA)
+##' @param verbose verbosity level (0/1)
+##' @return invisible vector with the path to the output file
+##' @author Gautier Sarah, Timothee Flutre
+##' @export
+vcf2genoClasses <- function(vcf.file, genome, gclasses.file,
+                            yieldSize=NA_integer_, dict.file=NULL,
+                            seq.id=NULL, seq.start=NULL, seq.end=NULL,
+                            na.string="--", verbose=1){
+  requireNamespaces(c("IRanges", "GenomicRanges", "VariantAnnotation",
+                      "Rsamtools"))
+  stopifnot(file.exists(vcf.file),
+            xor(is.na(yieldSize), is.null(seq.id)))
+  if(! is.null(seq.id) & is.null(seq.start) & is.null(seq.end))
+    stopifnot(! is.null(dict),
+              file.exists(dict.file))
+
+  if(file.exists(gclasses.file))
+    file.remove(gclasses.file)
+
+  gclasses.file <- sub("\\.gz$", "", gclasses.file)
+  gclasses.con <- file(gclasses.file, open="a")
+
+  tabix.file <- Rsamtools::TabixFile(file=vcf.file,
+                                     yieldSize=yieldSize)
+  if(! is.null(seq.id)){
+    if(any(is.null(seq.start), is.null(seq.end))){
+      dict <- readSamDict(file=dict.file)
+      if(! seq.id %in% rownames(dict)){
+        msg <- paste0("seq '", seq.id, "' not in '", dict.file, "'")
+        stop(msg)
+      }
+      if(is.null(seq.start))
+        seq.start <- 1
+      if(is.null(seq.end))
+        seq.end <- dict$LN[rownames(dict) == seq.id]
+    }
+    rngs <- GenomicRanges::GRanges(seqnames=c(seq.id),
+                                   ranges=IRanges::IRanges(start=c(seq.start),
+                                                           end=c(seq.end)))
+    names(rngs) <- c(seq.id)
+    vcf.params <- VariantAnnotation::ScanVcfParam(which=rngs)
+    vcf <- VariantAnnotation::readVcf(file=tabix.file, genome=genome,
+                                      param=vcf.params)
+    nb.variants <- nrow(vcf)
+    gtmp <- gtVcf2genoClasses(vcf, na.string)
+    cat(paste(colnames(gtmp), collapse="\t"), file=gclasses.con,
+        append=TRUE, sep="\n")
+    utils::write.table(x=gtmp,
+                       file=gclasses.con, append=TRUE,
+                       quote=FALSE, sep="\t", row.names=TRUE,
+                       col.names=FALSE)
+  } else{
+    open(tabix.file)
+    nb.variants <- 0
+    while(nrow(vcf <- VariantAnnotation::readVcf(file=tabix.file,
+                                                 genome=genome))){
+      gtmp <- gtVcf2genoClasses(vcf, na.string)
+      if(nb.variants == 0)
+        cat(paste(colnames(gtmp), collapse="\t"), file=gclasses.con,
+            append=TRUE, sep="\n")
+      nb.variants <- nb.variants + nrow(vcf)
+      utils::write.table(x=gtmp, file=gclasses.con, append=TRUE,
+                         quote=FALSE, sep="\t", row.names=TRUE,
+                         col.names=FALSE)
+    }
+    close(tabix.file)
+  }
+
+  if(verbose > 0){
+    msg <- paste0("nb of variants: ", nb.variants)
+    write(msg, stdout())
+  }
+
+  close(gclasses.con)
+  gz.out.file <- paste0(gclasses.file, ".gz")
+  if(file.exists(gz.out.file))
+    file.remove(gz.out.file)
+
+  system(command=paste("gzip", gclasses.file))
+
+  invisible(gz.out.file)
 }
 
 ##' BLAST

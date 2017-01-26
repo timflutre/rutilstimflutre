@@ -13,7 +13,7 @@ rngVcf2df(vcf)
 data.frame
 }
 \description{
-Convert ranges to data.frame
+Non-bi-allelic variants are discarded.
 }
 \author{
 Timothee Flutre

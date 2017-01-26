@@ -328,6 +328,47 @@ test_that("vcf2dosage", {
   }
 })
 
+test_that("vcf2genoClasses", {
+  if(all(requireNamespace("Rsamtools"),
+         requireNamespace("VariantAnnotation"),
+         requireNamespace("IRanges"),
+         requireNamespace("S4Vectors"))){
+    genome <- "fakeGenomeV0"
+    yieldSize <- 100
+    all.files <- c()
+
+    vcf.init.file <- system.file("extdata", "example.vcf",
+                                 package="rutilstimflutre")
+    vcf.init.file.bgz <- Rsamtools::bgzip(file=vcf.init.file,
+                                          overwrite=TRUE)
+    vcf.init.file.bgz.idx <- Rsamtools::indexTabix(file=vcf.init.file.bgz,
+                                                   format="vcf")
+    expected <- matrix(c("AA", "AC", "CC",
+                         "AC", "NN", "NN"),
+                       byrow=TRUE, nrow=2, ncol=3,
+                       dimnames=list(c("snp1", "snp2"),
+                                     c("ind1", "ind2", "ind3")))
+
+    prefix.obs <- tempfile()
+    gclasses.file <- paste0(prefix.obs, "_genoClasses.txt.gz")
+    all.files <- c(all.files, gclasses.file)
+    obs.file <- vcf2genoClasses(vcf.file=vcf.init.file.bgz,
+                                genome=genome,
+                                yieldSize=yieldSize,
+                                gclasses.file=gclasses.file,
+                                na.string="NN",
+                                verbose=0)
+    observed <- as.matrix(read.table(file=gclasses.file, header=TRUE,
+                                     sep="\t", row.names=1))
+
+    expect_equal(observed, expected)
+
+    for(f in all.files)
+      if(file.exists(f))
+        file.remove(f)
+  }
+})
+
 test_that("invertGRanges", {
   if(all(requireNamespace("S4Vectors"),
          requireNamespace("BiocGenerics"),

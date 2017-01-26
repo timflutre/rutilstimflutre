@@ -1,6 +1,6 @@
 Package: rutilstimflutre
 Title: Timothee Flutre's personal R code
-Version: 0.99.0
+Version: 0.100.0
 Authors@R: c(
     person("Timothee", "Flutre", email="timothee.flutre@supagro.inra.fr", role=c("aut", "ctb", "cre")),
     person("Carbonetto", "Peter", role="aut", comment="function from varbvs example"),
@@ -8,7 +8,8 @@ Authors@R: c(
     person("Xiaoquan", "Wen", role="aut", comment="function via collaboration"),
     person("Daniel", "Shriner", role="aut", comment="function from article"),
     person("Bertrand", "Servin", role="aut", comment="function from article"),
-    person("Eric", "Duchene", role="aut", comment="functions to filter SNP genotypes")
+    person("Eric", "Duchene", role="aut", comment="functions to filter SNP genotypes"),
+    person("Gautier", "Sarah", role="aut", comment="functions to reformat SNP genotypes")
     )
 Description: Miscellaneous R functions.
 Depends:
