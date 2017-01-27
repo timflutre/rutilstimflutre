@@ -7,7 +7,7 @@
 ##' @param x if \code{file=NULL}, data.frame of bi-allelic SNP genotypes encoded in genotypic classes, i.e. in {AA,AB or BA,BB}, with SNPs in rows and genotypes in columns
 ##' @param na.string a character to be interpreted as NA values
 ##' @param verbose verbosity level (0/1)
-##' @return matrix with SNPs in columns and genotypes in rows
+##' @return matrix with SNPs in rows and genotypes in columns
 ##' @author Eric Duchene [aut], Timothee Flutre [ctb]
 ##' @seealso \code{link{genoClasses2genoDoses}}
 ##' @export
@@ -23,11 +23,11 @@ reformatGenoClasses <- function(file=NULL, x=NULL, na.string="--", verbose=1){
     x <- utils::read.table(file=file, header=TRUE, sep="\t", row.names=1)
   x <- convertFactorColumnsToCharacter(x)
   x <- as.matrix(x)
-  x <- t(x)
-  N <- nrow(x)
-  P <- ncol(x)
+  nb.snps <- nrow(x)
+  nb.genos <- ncol(x)
   if(verbose > 0){
-    msg <- paste0("reformat ", P, " SNPs and ", N, " genotypes...")
+    msg <- paste0("reformat ", nb.snps, " SNPs for ",
+                  nb.genos, " genotypes...")
     write(msg, stdout())
   }
 
@@ -55,12 +55,19 @@ reformatGenoClasses <- function(file=NULL, x=NULL, na.string="--", verbose=1){
   is.bad <- ! distinct.genoClasses %in% allowed.genoClasses
   if(any(is.bad)){
     if(verbose > 0){
-      msg <- paste0(sum(is.bad), " not allowed: replaced by NA")
+      msg <- paste0(sum(is.bad), " not allowed (e.g. ",
+                    distinct.genoClasses[is.bad][1],
+                    "): replaced by NA")
       write(msg, stdout())
     }
-    for(not.allowed.gC in c(na.string, distinct.genoClasses[is.bad]))
+    for(not.allowed.gC in distinct.genoClasses[is.bad])
       x[x == not.allowed.gC] <- NA
   }
+
+  ## replace na.string with NA
+  idx.na.string <- which(x == na.string)
+  if(length(idx.na.string) > 0)
+    x[idx.na.string] <- NA
 
   return(x)
 }
@@ -240,7 +247,7 @@ updateJoinMap <- function(x, verbose=1){
 ##'
 ##' Convert SNP genotypes of a bi-parental cross from genotypic classes into the JoinMap format.
 ##' For the moment, missing genotypes in parents result in the SNP being ignored, but we could imagine using genotypes in offsprings to impute such cases.
-##' @param x data.frame of bi-allelic SNP genotypes, with SNPs in rows and genotypes in columns; the first column should contain SNP identifiers, the second column should contain the SNP genotypes of the first parent (traditionnaly the mother), the third column should contain the SNP genotypes of the second parent (traditionnaly the father), and the remaining columns should contain the SNP genotypes of the offsprings (full siblings)
+##' @param x data.frame of bi-allelic SNP genotypes, with SNPs in rows and genotypes in columns; row names should contain SNP identifiers, the first column should contain the SNP genotypes of the first parent (traditionnaly the mother), the second column should contain the SNP genotypes of the second parent (traditionnaly the father), and the remaining columns should contain the SNP genotypes of the offsprings (full siblings)
 ##' @param reformat.input if TRUE, the function \code{\link{reformatGenoClasses}} will be used
 ##' @param na.string a character to be interpreted as NA values by \code{\link{reformatGenoClasses}}
 ##' @param verbose verbosity level (0/1)
@@ -251,8 +258,8 @@ updateJoinMap <- function(x, verbose=1){
 genoClasses2JoinMap <- function(x, reformat.input=TRUE, na.string="--", verbose=1){
   stopifnot(is.logical(reformat.input))
   if(reformat.input){
-    x <- as.data.frame(t(reformatGenoClasses(x=x, na.string=na.string,
-                                             verbose=verbose)))
+    x <- as.data.frame(reformatGenoClasses(x=x, na.string=na.string,
+                                           verbose=verbose))
   } else
     stopifnot(is.data.frame(x),
               ! is.null(rownames(x)))
@@ -352,13 +359,14 @@ genoClasses2JoinMap <- function(x, reformat.input=TRUE, na.string="--", verbose=
 ##' Filter for segregation
 ##'
 ##' Filter genotypes based on the chi2 statistic to test for segregation distortion.
-##' @param x data.frame output from \code{\link{genoClasses2JoinMap}}
+##' @param x data.frame similar to the output from \code{\link{genoClasses2JoinMap}}, with locus in rows and where the first columns corresponding to parents are discarded, i.e. the first column should be named "seg" and the following should correspond to offsprings
+##' @param return.counts if TRUE, counts used to calculate the chi2 statistic are returned
 ##' @param verbose verbosity level (0/1)
-##' @return data.frame
+##' @return data.frame with one row per locus and several columns (chi2, p value, Bonferroni-adjusted p value, Benjamini-Hochberg-adjusted p value), as well as counts (if \code{return.counts=TRUE})
 ##' @author Timothee Flutre
-##' @seealso \code{link{updateJoinMap}}
+##' @seealso \code{\link{genoClasses2JoinMap}}, \code{\link{updateJoinMap}}, \code{\link{plotHistPval}}, \code{\link{qqplotPval}}
 ##' @export
-filterSegreg <- function(x, verbose=1){
+filterSegreg <- function(x, return.counts=FALSE, verbose=1){
   stopifnot(is.data.frame(x),
             colnames(x)[1] == "seg",
             all(x$seg %in% c("<nnxnp>", "<lmxll>", "<hkxhk>", "<efxeg>",
@@ -412,7 +420,14 @@ filterSegreg <- function(x, verbose=1){
   output$pvalue <- stats::pchisq(q=output$chi2, df=output$nb.classes - 1,
                                  lower.tail=FALSE)
 
-  return(as.matrix(output[, c("chi2", "pvalue")]))
+  ## adjust p values
+  output$pvalue.bonf <- stats::p.adjust(p=output$pvalue, method="bonferroni")
+  output$pvalue.bh <- stats::p.adjust(p=output$pvalue, method="BH")
+
+  idx <- 1:ncol(output)
+  if(! return.counts)
+    idx <- -(1:(grep("chi2", colnames(output)) - 1))
+  return(as.matrix(output[, idx]))
 }
 
 ##' JoinMap/MapQTL to R/qtl

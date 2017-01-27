@@ -4,15 +4,17 @@
 \alias{filterSegreg}
 \title{Filter for segregation}
 \usage{
-filterSegreg(x, verbose = 1)
+filterSegreg(x, return.counts = FALSE, verbose = 1)
 }
 \arguments{
-\item{x}{data.frame output from \code{\link{genoClasses2JoinMap}}}
+\item{x}{data.frame similar to the output from \code{\link{genoClasses2JoinMap}}, with locus in rows and where the first columns corresponding to parents are discarded, i.e. the first column should be named "seg" and the following should correspond to offsprings}
+
+\item{return.counts}{if TRUE, counts used to calculate the chi2 statistic are returned}
 
 \item{verbose}{verbosity level (0/1)}
 }
 \value{
-data.frame
+data.frame with one row per locus and several columns (chi2, p value, Bonferroni-adjusted p value, Benjamini-Hochberg-adjusted p value), as well as counts (if \code{return.counts=TRUE})
 }
 \description{
 Filter genotypes based on the chi2 statistic to test for segregation distortion.
@@ -21,6 +23,6 @@ Filter genotypes based on the chi2 statistic to test for segregation distortion.
 Timothee Flutre
 }
 \seealso{
-\code{link{updateJoinMap}}
+\code{\link{genoClasses2JoinMap}}, \code{\link{updateJoinMap}}, \code{\link{plotHistPval}}, \code{\link{qqplotPval}}
 }
 

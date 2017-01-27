@@ -8,7 +8,7 @@ genoClasses2JoinMap(x, reformat.input = TRUE, na.string = "--",
   verbose = 1)
 }
 \arguments{
-\item{x}{data.frame of bi-allelic SNP genotypes, with SNPs in rows and genotypes in columns; the first column should contain SNP identifiers, the second column should contain the SNP genotypes of the first parent (traditionnaly the mother), the third column should contain the SNP genotypes of the second parent (traditionnaly the father), and the remaining columns should contain the SNP genotypes of the offsprings (full siblings)}
+\item{x}{data.frame of bi-allelic SNP genotypes, with SNPs in rows and genotypes in columns; row names should contain SNP identifiers, the first column should contain the SNP genotypes of the first parent (traditionnaly the mother), the second column should contain the SNP genotypes of the second parent (traditionnaly the father), and the remaining columns should contain the SNP genotypes of the offsprings (full siblings)}
 
 \item{reformat.input}{if TRUE, the function \code{\link{reformatGenoClasses}} will be used}
 

@@ -17,7 +17,7 @@ reformatGenoClasses(file = NULL, x = NULL, na.string = "--",
 \item{verbose}{verbosity level (0/1)}
 }
 \value{
-matrix with SNPs in columns and genotypes in rows
+matrix with SNPs in rows and genotypes in columns
 }
 \description{
 Reformat bi-allelic SNP genotypes encoded in genotypic classes to ease subsequent manipulations.

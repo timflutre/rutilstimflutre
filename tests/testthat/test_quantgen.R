@@ -12,11 +12,9 @@ test_that("reformatGenoClasses", {
   expected <- matrix(c("AA", "CG", "AA", "CG",
                        "AA", "CG", "AT", NA,
                        "AT", NA, "AA", "CG"),
-                     byrow=TRUE,
-                     nrow=N,
-                     ncol=P,
-                     dimnames=list(colnames(genoClasses),
-                                   rownames(genoClasses)))
+                     nrow=P,
+                     ncol=N,
+                     dimnames=dimnames(genoClasses))
 
   observed <- reformatGenoClasses(x=genoClasses, na.string="??", verbose=0)
 
@@ -146,7 +144,9 @@ test_that("filterSegreg", {
                 (tmp$obs2[4] - tmp$exp2[4])^2 / tmp$exp2[4] +
                 (tmp$obs3[4] - tmp$exp3[4])^2 / tmp$exp3[4])
   tmp$pvalue <- pchisq(q=tmp$chi2, df=tmp$nb.classes - 1, lower.tail=FALSE)
-  expected <- as.matrix(tmp[, c("chi2", "pvalue")])
+  tmp$pvalue.bonf <- stats::p.adjust(p=tmp$pvalue, method="bonferroni")
+  tmp$pvalue.bh <- stats::p.adjust(p=tmp$pvalue, method="BH")
+  expected <- as.matrix(tmp[, c("chi2", "pvalue", "pvalue.bonf", "pvalue.bh")])
 
   observed <- filterSegreg(x=x, verbose=0)
 
