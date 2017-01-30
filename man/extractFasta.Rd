@@ -11,14 +11,14 @@ extractFasta(in.fa, sub.info, out.fa, split.names = " ", verbose = 1)
 
 \item{sub.info}{information on the subset to extract, as a data.frame with 3 columns, "seq", "start", "end" (a 4th column, "name", can specify the name of the resulting subsequence; by default, it is \code{seq:start-end})}
 
-\item{out.fa}{path to the output fasta file (can be gzipped)}
+\item{out.fa}{path to the output fasta file (can be gzipped); if NULL, the subset of sequences isn't written to a file but simply returned}
 
 \item{split.names}{if not NULL, specify the character at which the sequence names in \code{in.fa} will be split to only keep the first element}
 
 \item{verbose}{verbosity level (0/1)}
 }
 \value{
-invisible subset of sequence(s)
+subset of sequences (invisible if \code{out.fa} isn't NULL)
 }
 \description{
 Extract a subset of (possibly several) sequences present in fasta file.

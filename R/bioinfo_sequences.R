@@ -102,10 +102,10 @@ summaryFasta <- function(fa.file, letters=c("A","T","G","C","N"), algo=NULL,
 ##' Extract a subset of (possibly several) sequences present in fasta file.
 ##' @param in.fa path to the input fasta file (can be gzipped)
 ##' @param sub.info information on the subset to extract, as a data.frame with 3 columns, "seq", "start", "end" (a 4th column, "name", can specify the name of the resulting subsequence; by default, it is \code{seq:start-end})
-##' @param out.fa path to the output fasta file (can be gzipped)
+##' @param out.fa path to the output fasta file (can be gzipped); if NULL, the subset of sequences isn't written to a file but simply returned
 ##' @param split.names if not NULL, specify the character at which the sequence names in \code{in.fa} will be split to only keep the first element
 ##' @param verbose verbosity level (0/1)
-##' @return invisible subset of sequence(s)
+##' @return subset of sequences (invisible if \code{out.fa} isn't NULL)
 ##' @author Timothee Flutre
 ##' @export
 extractFasta <- function(in.fa, sub.info, out.fa, split.names=" ", verbose=1){
@@ -114,8 +114,9 @@ extractFasta <- function(in.fa, sub.info, out.fa, split.names=" ", verbose=1){
   stopifnot(file.exists(in.fa),
             is.data.frame(sub.info),
             ncol(sub.info) >= 3,
-            all(c("seq", "start", "end") %in% colnames(sub.info)),
-            ! file.exists(out.fa))
+            all(c("seq", "start", "end") %in% colnames(sub.info)))
+  if(! is.null(out.fa))
+    stopifnot(! file.exists(out.fa))
   if(is.factor(sub.info$seq))
     sub.info$seq <- as.character(sub.info$seq)
   if(! is.numeric(sub.info$start))
@@ -209,15 +210,17 @@ extractFasta <- function(in.fa, sub.info, out.fa, split.names=" ", verbose=1){
       sub.records <- c(sub.records, sub.rec)
     }
 
-    if(verbose > 0){
-      msg <- paste0("write '", out.fa, "' ...")
-      write(msg, stdout())
-    }
-    comp <- ifelse(tail(strsplit(out.fa, "\\.")[[1]], 1) == "gz", TRUE, FALSE)
-    Biostrings::writeXStringSet(x=sub.records, filepath=out.fa,
-                                compress=comp)
-
-    invisible(sub.records)
+    if(! is.null(out.fa)){
+      if(verbose > 0){
+        msg <- paste0("write '", out.fa, "' ...")
+        write(msg, stdout())
+      }
+      comp <- ifelse(tail(strsplit(out.fa, "\\.")[[1]], 1) == "gz", TRUE, FALSE)
+      Biostrings::writeXStringSet(x=sub.records, filepath=out.fa,
+                                  compress=comp)
+      invisible(sub.records)
+    } else
+      return(sub.records)
   }
 }
 
