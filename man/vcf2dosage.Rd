@@ -4,7 +4,7 @@
 \alias{vcf2dosage}
 \title{Convert VCF to dose}
 \usage{
-vcf2dosage(vcf.file, genome, gdose.file, amap.file, yieldSize = NA_integer_,
+vcf2dosage(vcf.file, genome, gdose.file, ca.file, yieldSize = NA_integer_,
   dict.file = NULL, seq.id = NULL, seq.start = NULL, seq.end = NULL,
   uncertain = FALSE, verbose = 1)
 }
@@ -15,7 +15,7 @@ vcf2dosage(vcf.file, genome, gdose.file, amap.file, yieldSize = NA_integer_,
 
 \item{gdose.file}{path to the output file to record genotypes as allele doses (will be gzipped)}
 
-\item{amap.file}{path to the output file to record SNP positions and alleles (will be gzipped)}
+\item{ca.file}{path to the output file to record SNP coordinates and alleles (will be gzipped)}
 
 \item{yieldSize}{number of records to yield each time the file is read from (see ?TabixFile) if seq.id is NULL}
 

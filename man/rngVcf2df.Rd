@@ -4,13 +4,17 @@
 \alias{rngVcf2df}
 \title{Convert ranges to data.frame}
 \usage{
-rngVcf2df(vcf)
+rngVcf2df(vcf, with.coords = TRUE, with.alleles = TRUE)
 }
 \arguments{
 \item{vcf}{CollapsedVCF (see pkg VariantAnnotation)}
+
+\item{with.coords}{if TRUE, the output will contain variant coordinates}
+
+\item{with.alleles}{if TRUE, the output will contain variant alleles}
 }
 \value{
-data.frame
+data.frame with variants in rows
 }
 \description{
 Non-bi-allelic variants are discarded.

@@ -1565,21 +1565,40 @@ gtVcf2dose <- function(vcf){
 ##'
 ##' Non-bi-allelic variants are discarded.
 ##' @param vcf CollapsedVCF (see pkg VariantAnnotation)
-##' @return data.frame
+##' @param with.coords if TRUE, the output will contain variant coordinates
+##' @param with.alleles if TRUE, the output will contain variant alleles
+##' @return data.frame with variants in rows
 ##' @author Timothee Flutre
 ##' @export
-rngVcf2df <- function(vcf){
+rngVcf2df <- function(vcf, with.coords=TRUE, with.alleles=TRUE){
   requireNamespaces(c("VariantAnnotation", "GenomeInfoDb",
                       "BiocGenerics", "SummarizedExperiment"))
+  stopifnot(all(is.logical(with.coords), is.logical(with.alleles)),
+            any(with.coords, with.alleles))
+
   vcf <- getVcfOnlySingleElem(vcf)
+
   tmp <- SummarizedExperiment::rowRanges(vcf)
-  out <- data.frame(chrom=as.character(GenomeInfoDb::seqnames(tmp)),
-                    start=BiocGenerics::start(tmp) - 1,
-                    end=BiocGenerics::end(tmp),
-                    name=names(tmp),
-                    allele1=as.character(tmp$REF),
-                    allele2=as.character(BiocGenerics::unlist(tmp$ALT)),
-                    stringsAsFactors=FALSE)
+
+  if(all(with.coords, with.alleles)){
+    out <- data.frame(chr=as.character(GenomeInfoDb::seqnames(tmp)),
+                      pos=BiocGenerics::end(tmp),
+                      allele.ref=as.character(tmp$REF),
+                      allele.alt=as.character(BiocGenerics::unlist(tmp$ALT)),
+                      row.names=names(tmp),
+                      stringsAsFactors=FALSE)
+  } else if(all(with.coords, ! with.alleles)){
+    out <- data.frame(chr=as.character(GenomeInfoDb::seqnames(tmp)),
+                      pos=BiocGenerics::end(tmp),
+                      row.names=names(tmp),
+                      stringsAsFactors=FALSE)
+  } else if(all(! with.coords, with.alleles)){
+    out <- data.frame(allele.ref=as.character(tmp$REF),
+                      allele.alt=as.character(BiocGenerics::unlist(tmp$ALT)),
+                      row.names=names(tmp),
+                      stringsAsFactors=FALSE)
+  }
+
   return(out)
 }
 
@@ -1589,7 +1608,7 @@ rngVcf2df <- function(vcf){
 ##' @param vcf.file path to the VCF file (bgzip index should exist in same directory; should only contain SNPs and be already filtered for QD, FS, MQ, etc)
 ##' @param genome genome identifier (e.g. "VITVI_12x2")
 ##' @param gdose.file path to the output file to record genotypes as allele doses (will be gzipped)
-##' @param amap.file path to the output file to record SNP positions and alleles (will be gzipped)
+##' @param ca.file path to the output file to record SNP coordinates and alleles (will be gzipped)
 ##' @param yieldSize number of records to yield each time the file is read from (see ?TabixFile) if seq.id is NULL
 ##' @param dict.file path to the SAM dict file (see \url{https://broadinstitute.github.io/picard/command-line-overview.html#CreateSequenceDictionary}) if seq.id is specified with no start/end
 ##' @param seq.id sequence identifier to work on (e.g. "chr2")
@@ -1600,7 +1619,7 @@ rngVcf2df <- function(vcf){
 ##' @return an invisible list with both output file paths
 ##' @author Timothee Flutre
 ##' @export
-vcf2dosage <- function(vcf.file, genome, gdose.file, amap.file,
+vcf2dosage <- function(vcf.file, genome, gdose.file, ca.file,
                        yieldSize=NA_integer_, dict.file=NULL,
                        seq.id=NULL, seq.start=NULL, seq.end=NULL,
                        uncertain=FALSE, verbose=1){
@@ -1612,14 +1631,14 @@ vcf2dosage <- function(vcf.file, genome, gdose.file, amap.file,
     stopifnot(! is.null(dict),
               file.exists(dict.file))
 
-  for(out.file in c(gdose.file, amap.file))
+  for(out.file in c(gdose.file, ca.file))
     if(file.exists(out.file))
       file.remove(out.file)
   gdose.file <- sub("\\.gz$", "", gdose.file)
-  amap.file <- sub("\\.gz$", "", amap.file)
+  ca.file <- sub("\\.gz$", "", ca.file)
   gdose.con <- file(gdose.file, open="a")
-  amap.con <- file(amap.file, open="a")
-  cat("chrom\tstart\tend\tname\tallele1\tallele2\n", file=amap.con, append=TRUE)
+  ca.con <- file(ca.file, open="a")
+  cat("chr\tpos\tallele.ref\tallele.alt\n", file=ca.con, append=TRUE)
 
   tabix.file <- Rsamtools::TabixFile(file=vcf.file,
                                      yieldSize=yieldSize)
@@ -1643,24 +1662,24 @@ vcf2dosage <- function(vcf.file, genome, gdose.file, amap.file,
     vcf <- VariantAnnotation::readVcf(file=tabix.file, genome=genome,
                                       param=vcf.params)
     nb.variants <- nrow(vcf)
-    gtmp <- gtVcf2dose(vcf)
-    atmp <- rngVcf2df(vcf)
+    gtmp <- gtVcf2dose(vcf=vcf)
+    catmp <- rngVcf2df(vcf=vcf, with.coords=TRUE, with.alleles=TRUE)
     cat(paste(colnames(gtmp), collapse="\t"), file=gdose.con,
         append=TRUE, sep="\n")
     utils::write.table(x=gtmp,
                        file=gdose.con, append=TRUE,
                        quote=FALSE, sep="\t", row.names=TRUE,
                        col.names=FALSE)
-    utils::write.table(x=atmp, file=amap.con, append=TRUE,
-                       quote=FALSE, sep="\t", row.names=FALSE,
+    utils::write.table(x=catmp, file=ca.con, append=TRUE,
+                       quote=FALSE, sep="\t", row.names=TRUE,
                        col.names=FALSE)
   } else{
     open(tabix.file)
     nb.variants <- 0
     while(nrow(vcf <- VariantAnnotation::readVcf(file=tabix.file,
                                                  genome=genome))){
-      gtmp <- gtVcf2dose(vcf)
-      atmp <- rngVcf2df(vcf)
+      gtmp <- gtVcf2dose(vcf=vcf)
+      catmp <- rngVcf2df(vcf=vcf, with.coords=TRUE, with.alleles=TRUE)
       if(nb.variants == 0)
         cat(paste(colnames(gtmp), collapse="\t"), file=gdose.con,
             append=TRUE, sep="\n")
@@ -1668,8 +1687,8 @@ vcf2dosage <- function(vcf.file, genome, gdose.file, amap.file,
       utils::write.table(x=gtmp, file=gdose.con, append=TRUE,
                          quote=FALSE, sep="\t", row.names=TRUE,
                          col.names=FALSE)
-      utils::write.table(x=atmp, file=amap.con, append=TRUE,
-                         quote=FALSE, sep="\t", row.names=FALSE,
+      utils::write.table(x=catmp, file=ca.con, append=TRUE,
+                         quote=FALSE, sep="\t", row.names=TRUE,
                          col.names=FALSE)
     }
     close(tabix.file)
@@ -1681,15 +1700,15 @@ vcf2dosage <- function(vcf.file, genome, gdose.file, amap.file,
   }
 
   close(gdose.con)
-  close(amap.con)
-  for(gz.out.file in c(paste0(gdose.file, ".gz"), paste0(amap.file, ".gz")))
+  close(ca.con)
+  for(gz.out.file in c(paste0(gdose.file, ".gz"), paste0(ca.file, ".gz")))
     if(file.exists(gz.out.file))
       file.remove(gz.out.file)
   system(command=paste("gzip", gdose.file))
-  system(command=paste("gzip", amap.file))
+  system(command=paste("gzip", ca.file))
 
   invisible(list(gdose.file=paste0(gdose.file, ".gz"),
-                 amap.file=paste0(amap.file, ".gz")))
+                 ca.file=paste0(ca.file, ".gz")))
 }
 
 
@@ -1734,6 +1753,7 @@ gtVcf2genoClasses <- function(vcf, na.string="NN"){
 ##' @param vcf.file path to the VCF file (bgzip index should exist in same directory; should only contain SNPs and be already filtered for QD, FS, MQ, etc)
 ##' @param genome genome identifier (e.g. "VITVI_12x2")
 ##' @param gclasses.file path to the output file to record genotypes into genotypic classes (will be gzipped)
+##' @param coords.file path to the output file to record SNP coordinates (will be gzipped)
 ##' @param yieldSize number of records to yield each time the file is read from (see \code{?TabixFile}) if seq.id is NULL
 ##' @param dict.file path to the SAM dict file (see \url{https://broadinstitute.github.io/picard/command-line-overview.html#CreateSequenceDictionary}) if seq.id is specified with no start/end
 ##' @param seq.id sequence identifier to work on (e.g. "chr2")
@@ -1744,7 +1764,7 @@ gtVcf2genoClasses <- function(vcf, na.string="NN"){
 ##' @return invisible vector with the path to the output file
 ##' @author Gautier Sarah, Timothee Flutre
 ##' @export
-vcf2genoClasses <- function(vcf.file, genome, gclasses.file,
+vcf2genoClasses <- function(vcf.file, genome, gclasses.file, coords.file,
                             yieldSize=NA_integer_, dict.file=NULL,
                             seq.id=NULL, seq.start=NULL, seq.end=NULL,
                             na.string="--", verbose=1){
@@ -1756,11 +1776,14 @@ vcf2genoClasses <- function(vcf.file, genome, gclasses.file,
     stopifnot(! is.null(dict),
               file.exists(dict.file))
 
-  if(file.exists(gclasses.file))
-    file.remove(gclasses.file)
-
+  for(out.file in c(gclasses.file, coords.file))
+    if(file.exists(out.file))
+      file.remove(out.file)
   gclasses.file <- sub("\\.gz$", "", gclasses.file)
+  coords.file <- sub("\\.gz$", "", coords.file)
   gclasses.con <- file(gclasses.file, open="a")
+  coords.con <- file(coords.file, open="a")
+  cat("chr\tpos\n", file=coords.con, append=TRUE)
 
   tabix.file <- Rsamtools::TabixFile(file=vcf.file,
                                      yieldSize=yieldSize)
@@ -1784,11 +1807,15 @@ vcf2genoClasses <- function(vcf.file, genome, gclasses.file,
     vcf <- VariantAnnotation::readVcf(file=tabix.file, genome=genome,
                                       param=vcf.params)
     nb.variants <- nrow(vcf)
-    gtmp <- gtVcf2genoClasses(vcf, na.string)
+    gtmp <- gtVcf2genoClasses(vcf=vcf, na.string=na.string)
+    ctmp <- rngVcf2df(vcf=vcf, with.coords=TRUE, with.alleles=FALSE)
     cat(paste(colnames(gtmp), collapse="\t"), file=gclasses.con,
         append=TRUE, sep="\n")
     utils::write.table(x=gtmp,
                        file=gclasses.con, append=TRUE,
+                       quote=FALSE, sep="\t", row.names=TRUE,
+                       col.names=FALSE)
+    utils::write.table(x=ctmp, file=coords.con, append=TRUE,
                        quote=FALSE, sep="\t", row.names=TRUE,
                        col.names=FALSE)
   } else{
@@ -1797,11 +1824,15 @@ vcf2genoClasses <- function(vcf.file, genome, gclasses.file,
     while(nrow(vcf <- VariantAnnotation::readVcf(file=tabix.file,
                                                  genome=genome))){
       gtmp <- gtVcf2genoClasses(vcf, na.string)
+      ctmp <- rngVcf2df(vcf=vcf, with.coords=TRUE, with.alleles=FALSE)
       if(nb.variants == 0)
         cat(paste(colnames(gtmp), collapse="\t"), file=gclasses.con,
             append=TRUE, sep="\n")
       nb.variants <- nb.variants + nrow(vcf)
       utils::write.table(x=gtmp, file=gclasses.con, append=TRUE,
+                         quote=FALSE, sep="\t", row.names=TRUE,
+                         col.names=FALSE)
+      utils::write.table(x=ctmp, file=coords.con, append=TRUE,
                          quote=FALSE, sep="\t", row.names=TRUE,
                          col.names=FALSE)
     }
@@ -1814,13 +1845,16 @@ vcf2genoClasses <- function(vcf.file, genome, gclasses.file,
   }
 
   close(gclasses.con)
-  gz.out.file <- paste0(gclasses.file, ".gz")
-  if(file.exists(gz.out.file))
-    file.remove(gz.out.file)
-
+  close(coords.con)
+  for(gz.out.file in c(paste0(gclasses.file, ".gz"),
+                       paste0(coords.file, ".gz")))
+    if(file.exists(gz.out.file))
+      file.remove(gz.out.file)
   system(command=paste("gzip", gclasses.file))
+  system(command=paste("gzip", coords.file))
 
-  invisible(gz.out.file)
+  invisible(list(gclasses.file=paste0(gclasses.file, ".gz"),
+                 coords.file=paste0(coords.file, ".gz")))
 }
 
 ##' BLAST
