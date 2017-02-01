@@ -6,7 +6,7 @@
 \usage{
 vcf2genoClasses(vcf.file, genome, gclasses.file, coords.file,
   yieldSize = NA_integer_, dict.file = NULL, seq.id = NULL,
-  seq.start = NULL, seq.end = NULL, na.string = "--", verbose = 1)
+  seq.start = NULL, seq.end = NULL, na.string = NA, verbose = 1)
 }
 \arguments{
 \item{vcf.file}{path to the VCF file (bgzip index should exist in same directory; should only contain SNPs and be already filtered for QD, FS, MQ, etc)}
@@ -27,7 +27,7 @@ vcf2genoClasses(vcf.file, genome, gclasses.file, coords.file,
 
 \item{seq.end}{end of the sequence to work on (if NULL, end of the whole sequence)}
 
-\item{na.string}{a symbol to indicate missing genotypes (e.g. "NN" or NA)}
+\item{na.string}{a symbol to indicate missing genotypes (e.g. NA, "NN", "--", etc)}
 
 \item{verbose}{verbosity level (0/1)}
 }

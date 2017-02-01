@@ -4,7 +4,7 @@
 \alias{setGt2Na}
 \title{Set GT to NA}
 \usage{
-setGt2Na(vcf.file, genome, out.file, yieldSize = NA_integer_,
+setGt2Na(vcf.file, genome = "", out.file, yieldSize = NA_integer_,
   dict.file = NULL, seq.id = NULL, seq.start = NULL, seq.end = NULL,
   min.gq = 90, verbose = 1)
 }

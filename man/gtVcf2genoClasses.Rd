@@ -4,12 +4,12 @@
 \alias{gtVcf2genoClasses}
 \title{Convert GT to genotypic classes}
 \usage{
-gtVcf2genoClasses(vcf, na.string = "NN")
+gtVcf2genoClasses(vcf, na.string = NA)
 }
 \arguments{
 \item{vcf}{CollapsedVCF (see pkg VariantAnnotation)}
 
-\item{na.string}{a symbol to indicate missing genotypes (e.g. "NN" or NA)}
+\item{na.string}{a symbol to indicate missing genotypes (e.g. NA, "NN", "--", etc)}
 }
 \value{
 matrix with variants in rows and samples in columns

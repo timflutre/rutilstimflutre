@@ -897,9 +897,38 @@ readSamDict <- function(file){
   return(out)
 }
 
+##' Load VCF
+##'
+##' Load a subset of a VCF file
+##' @param vcf.file path to the VCF file (bgzip index should exist in same directory)
+##' @param genome genome identifier (e.g. "VITVI_12x2")
+##' @param seq.id sequence identifier to work on (e.g. "chr2")
+##' @param seq.start start of the sequence to work on
+##' @param seq.end end of the sequence to work on
+##' @return CollapsedVCF (see pkg VariantAnnotation)
+##' @author Timothee Flutre
+##' @export
+loadVcfSubset <- function(vcf.file, genome="", seq.id, seq.start, seq.end){
+  requireNamespaces(c("IRanges", "GenomicRanges", "VariantAnnotation",
+                      "Rsamtools", "S4Vectors"))
+  stopifnot(file.exists(vcf.file))
+
+  tabix.file <- Rsamtools::TabixFile(file=vcf.file,
+                                     yieldSize=NA_integer_)
+  rngs <- GenomicRanges::GRanges(seqnames=c(seq.id),
+                                 ranges=IRanges::IRanges(start=c(seq.start),
+                                                         end=c(seq.end)))
+  names(rngs) <- c(seq.id)
+  vcf.params <- VariantAnnotation::ScanVcfParam(which=rngs)
+  vcf <- VariantAnnotation::readVcf(file=tabix.file, genome=genome,
+                                    param=vcf.params)
+  return(vcf)
+}
+
 ##' Information on variant-level calls
 ##'
-##' Return some information to help in hard-filtering variant-level calls. See GATK's Best Practices tutorial (\url{https://www.broadinstitute.org/gatk/guide/topic?name=tutorials#tutorials2806}).
+##' Return some information to help in hard-filtering variant-level calls.
+##' See GATK's Best Practices tutorial (\url{https://www.broadinstitute.org/gatk/guide/topic?name=tutorials#tutorials2806}).
 ##' @param x data.frame, e.g. from "bcftools query --format '\%CHROM\\t\%POS\\t\%TYPE\\t...'"
 ##' @param type variant type
 ##' @param thresh.qual exclude variant if QUAL < threshold
@@ -1177,7 +1206,7 @@ confidenceGenoOneVar <- function(x, plot.it=FALSE){
 ##' @return the destination file path as an invisible character(1)
 ##' @author Timothee Flutre
 ##' @export
-setGt2Na <- function(vcf.file, genome, out.file,
+setGt2Na <- function(vcf.file, genome="", out.file,
                      yieldSize=NA_integer_, dict.file=NULL,
                      seq.id=NULL, seq.start=NULL, seq.end=NULL,
                      min.gq=90, verbose=1){
@@ -1274,7 +1303,7 @@ setGt2Na <- function(vcf.file, genome, out.file,
 ##' @return the destination file path as a character(1)
 ##' @author Timothee Flutre
 ##' @export
-filterVariantCalls <- function(vcf.file, genome, out.file,
+filterVariantCalls <- function(vcf.file, genome="", out.file,
                                yieldSize=NA_integer_, dict.file=NULL,
                                seq.id=NULL, seq.start=NULL, seq.end=NULL,
                                is.snv=NULL, is.biall=NULL,
@@ -1458,62 +1487,90 @@ filterVariantCalls <- function(vcf.file, genome, out.file,
 ##' Summary per variant
 ##'
 ##' Compute the mean, sd, min, Q1, med, mean, Q3, max of the genotype qualities per variant, also reporting the number of samples and the number of missing data.
+##' @param vcf CollapsedVCF (see pkg VariantAnnotation)
+##' @param field genotype field of the VCF to parse (GQ/DP)
+##' @return matrix with one row per variant
+##' @author Timothee Flutre
+##' @export
+varqual2summary <- function(vcf, field="GQ"){
+  requireNamespace("VariantAnnotation")
+
+  output <- c()
+
+  mat <- VariantAnnotation::geno(vcf)[[field]]
+
+  output <- cbind(n=rep(ncol(mat), nrow(mat)),
+                  na=rowSums(t(apply(mat, 1, is.na))),
+                  mean=suppressWarnings(apply(mat, 1, mean, na.rm=TRUE)),
+                  sd=suppressWarnings(apply(mat, 1, stats::sd, na.rm=TRUE)),
+                  min=suppressWarnings(apply(mat, 1, min, na.rm=TRUE)),
+                  q1=suppressWarnings(apply(mat, 1, stats::quantile,
+                                            probs=0.25, na.rm=TRUE)),
+                  med=suppressWarnings(apply(mat, 1, stats::median, na.rm=TRUE)),
+                  q3=suppressWarnings(apply(mat, 1, stats::quantile,
+                                            probs=0.75, na.rm=TRUE)),
+                  max=suppressWarnings(apply(mat, 1, max, na.rm=TRUE)))
+  rownames(output) <- rownames(mat)
+
+  return(output)
+}
+
+##' Summary per variant
+##'
+##' Compute the mean, sd, min, Q1, med, mean, Q3, max of the genotype qualities per variant, also reporting the number of samples and the number of missing data.
 ##' @param vcf.file path to the VCF file
 ##' @param genome genome identifier (e.g. "VITVI_12x2")
-##' @param yieldSize number of records to yield each time the file is read from (see ?TabixFile)
+##' @param yieldSize number of records to yield each time the file is read from (see ?TabixFile) if seq.id is NULL
+##' @param seq.id sequence identifier to work on (e.g. "chr2")
+##' @param seq.start start of the sequence to work on
+##' @param seq.end end of the sequence to work on
 ##' @param field genotype field of the VCF to parse (GQ/DP)
 ##' @param verbose verbosity level (0/1)
 ##' @return matrix with one row per variant and 9 columns (n, na, mean, sd, min, q1, med, q3, max)
 ##' @author Timothee Flutre
 ##' @export
-summaryVariant <- function(vcf.file, genome, yieldSize=10^4, field="GQ",
-                           verbose=1){
+summaryVariant <- function(vcf.file, genome, yieldSize=NA_integer_,
+                           seq.id=NULL, seq.start=NULL, seq.end=NULL,
+                           field="GQ", verbose=1){
+  requireNamespaces(c("IRanges", "GenomicRanges", "VariantAnnotation",
+                      "Rsamtools"))
   stopifnot(file.exists(vcf.file),
             field %in% c("GQ", "DP"))
+  if(! is.null(seq.id))
+    stopifnot(all(! is.null(seq.start), ! is.null(seq.end)))
 
-  all.smry <- list(n=c(), na=c(), mean=c(), sd=c(),
-                   min=c(), q1=c(), med=c(), q3=c(), max=c())
-  var.names <- c()
+  output <- NULL
 
   tabix.file <- Rsamtools::TabixFile(file=vcf.file,
                                      yieldSize=yieldSize)
-  open(tabix.file)
-  while(nrow(vcf <- VariantAnnotation::readVcf(file=tabix.file,
-                                               genome=genome))){
-    mat <- VariantAnnotation::geno(vcf)[[field]]
-    all.smry$n <- append(all.smry$n, rep(ncol(mat), nrow(mat)))
-    all.smry$na <- append(all.smry$na, rowSums(t(apply(mat, 1, is.na))))
-    all.smry$mean <- append(all.smry$mean,
-                            suppressWarnings(apply(mat, 1, mean, na.rm=TRUE)))
-    all.smry$sd <- append(all.smry$sd,
-                          suppressWarnings(apply(mat, 1, stats::sd, na.rm=TRUE)))
-    all.smry$min <- append(all.smry$min,
-                           suppressWarnings(apply(mat, 1, min, na.rm=TRUE)))
-    all.smry$q1 <- append(all.smry$q1,
-                          suppressWarnings(apply(mat, 1, stats::quantile,
-                                                 probs=0.25, na.rm=TRUE)))
-    all.smry$med <- append(all.smry$med,
-                           suppressWarnings(apply(mat, 1, stats::median, na.rm=TRUE)))
-    all.smry$q3 <- append(all.smry$q3,
-                          suppressWarnings(apply(mat, 1, stats::quantile,
-                                                 probs=0.75, na.rm=TRUE)))
-    all.smry$max <- append(all.smry$max,
-                           suppressWarnings(apply(mat, 1, max, na.rm=TRUE)))
-    var.names <- append(var.names, rownames(mat))
+  if(! is.null(seq.id)){
+    rngs <- GenomicRanges::GRanges(seqnames=c(seq.id),
+                                   ranges=IRanges::IRanges(start=c(seq.start),
+                                                           end=c(seq.end)))
+    names(rngs) <- c(seq.id)
+    vcf.params <- VariantAnnotation::ScanVcfParam(which=rngs)
+    vcf <- VariantAnnotation::readVcf(file=tabix.file, genome=genome,
+                                      param=vcf.params)
+    nb.variants <- nrow(vcf)
+    output <- varqual2summary(vcf, field)
+  } else{
+    open(tabix.file)
+    while(nrow(vcf <- VariantAnnotation::readVcf(file=tabix.file,
+                                                 genome=genome))){
+      if(is.null(output)){
+        output <- varqual2summary(vcf, field)
+      } else
+        output <- rbind(output, varqual2summary(vcf, field))
+    }
+    close(tabix.file)
   }
-  close(tabix.file)
 
   if(verbose > 0){
-    msg <- paste0("nb of variants: ", length(var.names))
+    msg <- paste0("nb of variants: ", nrow(output))
     write(msg, stdout())
   }
 
-  all.smry <- matrix(data=do.call(cbind, all.smry),
-                     nrow=length(var.names),
-                     ncol=length(all.smry),
-                     dimnames=list(var.names,
-                                   names(all.smry)))
-  return(all.smry)
+  return(output)
 }
 
 
@@ -1720,11 +1777,11 @@ vcf2dosage <- function(vcf.file, genome, gdose.file, ca.file,
 ##' Non-bi-allelic variants are discarded.
 ##' From Martin Morgan (see http://grokbase.com/t/r/bioconductor/135b460s2b/bioc-how-to-convert-genotype-snp-matrix-to-nucleotide-genotypes).
 ##' @param vcf CollapsedVCF (see pkg VariantAnnotation)
-##' @param na.string a symbol to indicate missing genotypes (e.g. "NN" or NA)
+##' @param na.string a symbol to indicate missing genotypes (e.g. NA, "NN", "--", etc)
 ##' @return matrix with variants in rows and samples in columns
 ##' @author Gautier Sarah
 ##' @export
-gtVcf2genoClasses <- function(vcf, na.string="NN"){
+gtVcf2genoClasses <- function(vcf, na.string=NA){
   requireNamespaces(c("VariantAnnotation", "GenomicRanges"))
 
   vcf <- getVcfOnlySingleElem(vcf)
@@ -1762,7 +1819,7 @@ gtVcf2genoClasses <- function(vcf, na.string="NN"){
 ##' @param seq.id sequence identifier to work on (e.g. "chr2")
 ##' @param seq.start start of the sequence to work on (if NULL, will be 1)
 ##' @param seq.end end of the sequence to work on (if NULL, end of the whole sequence)
-##' @param na.string a symbol to indicate missing genotypes (e.g. "NN" or NA)
+##' @param na.string a symbol to indicate missing genotypes (e.g. NA, "NN", "--", etc)
 ##' @param verbose verbosity level (0/1)
 ##' @return invisible vector with the path to the output file
 ##' @author Gautier Sarah, Timothee Flutre
@@ -1770,7 +1827,7 @@ gtVcf2genoClasses <- function(vcf, na.string="NN"){
 vcf2genoClasses <- function(vcf.file, genome, gclasses.file, coords.file,
                             yieldSize=NA_integer_, dict.file=NULL,
                             seq.id=NULL, seq.start=NULL, seq.end=NULL,
-                            na.string="--", verbose=1){
+                            na.string=NA, verbose=1){
   requireNamespaces(c("IRanges", "GenomicRanges", "VariantAnnotation",
                       "Rsamtools"))
   stopifnot(file.exists(vcf.file),

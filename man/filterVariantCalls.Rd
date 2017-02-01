@@ -4,7 +4,7 @@
 \alias{filterVariantCalls}
 \title{Filter variant calls}
 \usage{
-filterVariantCalls(vcf.file, genome, out.file, yieldSize = NA_integer_,
+filterVariantCalls(vcf.file, genome = "", out.file, yieldSize = NA_integer_,
   dict.file = NULL, seq.id = NULL, seq.start = NULL, seq.end = NULL,
   is.snv = NULL, is.biall = NULL, min.var.dp = NULL, max.var.dp = NULL,
   min.alt.af = NULL, max.alt.af = NULL, min.spl.dp = NULL,

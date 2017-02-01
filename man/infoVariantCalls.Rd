@@ -54,7 +54,8 @@ infoVariantCalls(x, type = "SNP", thresh.qual = 20, thresh.qd = 2,
 list
 }
 \description{
-Return some information to help in hard-filtering variant-level calls. See GATK's Best Practices tutorial (\url{https://www.broadinstitute.org/gatk/guide/topic?name=tutorials#tutorials2806}).
+Return some information to help in hard-filtering variant-level calls.
+See GATK's Best Practices tutorial (\url{https://www.broadinstitute.org/gatk/guide/topic?name=tutorials#tutorials2806}).
 }
 \author{
 Timothee Flutre

@@ -4,15 +4,21 @@
 \alias{summaryVariant}
 \title{Summary per variant}
 \usage{
-summaryVariant(vcf.file, genome, yieldSize = 10^4, field = "GQ",
-  verbose = 1)
+summaryVariant(vcf.file, genome, yieldSize = NA_integer_, seq.id = NULL,
+  seq.start = NULL, seq.end = NULL, field = "GQ", verbose = 1)
 }
 \arguments{
 \item{vcf.file}{path to the VCF file}
 
 \item{genome}{genome identifier (e.g. "VITVI_12x2")}
 
-\item{yieldSize}{number of records to yield each time the file is read from (see ?TabixFile)}
+\item{yieldSize}{number of records to yield each time the file is read from (see ?TabixFile) if seq.id is NULL}
+
+\item{seq.id}{sequence identifier to work on (e.g. "chr2")}
+
+\item{seq.start}{start of the sequence to work on}
+
+\item{seq.end}{end of the sequence to work on}
 
 \item{field}{genotype field of the VCF to parse (GQ/DP)}
 
