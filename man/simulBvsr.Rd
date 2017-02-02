@@ -58,78 +58,91 @@ D <- estimGenRel(X=X, relationships="dominant", method="vitezica")
 Q <- 3
 modelA <- simulBvsr(Q=Q, X=X, pi=0.01, pve=0.7, sigma.a2=1)
 
-if(require(lme4)){
-  dat <- data.frame(response=modelA$Y[,1],
-                    year=factor(rep(2010:(2010+Q-1), each=I)),
-                    geno=factor(rep(rownames(X), Q)))
-  fit1 <- lmer(formula=response ~ year + (1|geno), data=dat)
-  cbind(modelA$c, blues <- fixef(fit1))
-  blups <- ranef(fit1, drop=TRUE)$geno[rownames(X)]
-  cor(modelA$g.A, blups, method="pearson")
-  cor(modelA$g.A, blups, method="spearman")
-  vc1 <- as.data.frame(VarCorr(fit1))
-  (pve1.hat <- vc1$vcov[1] / (vc1$vcov[1] + vc1$vcov[2]))
+library(lme4)
+dat <- data.frame(response=modelA$Y[,1],
+                  year=factor(rep(2010:(2010+Q-1), each=I)),
+                  geno=factor(rep(rownames(X), Q)))
+fit1 <- lmer(formula=response ~ year + (1|geno), data=dat)
+cbind(modelA$c, blues <- fixef(fit1))
+blups <- ranef(fit1, drop=TRUE)$geno[rownames(X)]
+cor(modelA$g.A, blups, method="pearson")
+cor(modelA$g.A, blups, method="spearman")
+vc1 <- as.data.frame(VarCorr(fit1))
+(pve1.hat <- vc1$vcov[1] / (vc1$vcov[1] + vc1$vcov[2]))
 
-  fit1A <- lmerAM(formula=response ~ year + (1|geno), data=dat,
-                  relmat=list(geno=A))
-  cbind(modelA$c, blues <- fixef(fit1A$merMod))
-  blupsA <- ranef(fit1A$merMod, drop=TRUE)$geno[rownames(X)]
-  cor(modelA$g.A, blupsA, method="pearson")
-  cor(modelA$g.A, blupsA, method="spearman")
-  vc1A <- as.data.frame(VarCorr(fit1A$merMod))
-  (pve1A.hat <- vc1A$vcov[1] / (vc1A$vcov[1] + vc1A$vcov[2]))
+fit1A <- lmerAM(formula=response ~ year + (1|geno), data=dat,
+                relmat=list(geno=A))
+cbind(modelA$c, blues <- fixef(fit1A$merMod))
+blupsA <- ranef(fit1A$merMod, drop=TRUE)$geno[rownames(X)]
+cor(modelA$g.A, blupsA, method="pearson")
+cor(modelA$g.A, blupsA, method="spearman")
+vc1A <- as.data.frame(VarCorr(fit1A$merMod))
+(pve1A.hat <- vc1A$vcov[1] / (vc1A$vcov[1] + vc1A$vcov[2]))
 
-  plot(x=modelA$g.A, y=blups, col="blue", asp=1)
-  points(x=modelA$g.A, y=blupsA, col="red")
-  segments(x0=modelA$g.A, y0=blups, x1=modelA$g.A, y1=blupsA)
-  abline(h=0, v=0, a=0, b=1, lty=2)
-}
+plot(x=modelA$g.A, y=blups, col="blue", asp=1)
+points(x=modelA$g.A, y=blupsA, col="red")
+segments(x0=modelA$g.A, y0=blups, x1=modelA$g.A, y1=blupsA)
+abline(h=0, v=0, a=0, b=1, lty=2)
 
-if(require(varbvs)){
-  fit2 <- varbvs(X=modelA$X.A, Z=NULL, y=blups, verbose=FALSE)
-  print(fit2s <- summary(fit2))
-  names(sort(modelA$a[modelA$gamma == 1], decreasing=TRUE))
+library(varbvs)
+fit2 <- varbvs(X=modelA$X.A, Z=NULL, y=blups, verbose=FALSE)
+print(fit2s <- summary(fit2))
+names(sort(modelA$a[modelA$gamma == 1], decreasing=TRUE))
 
-  (pi.hat <- 10^(fit2s$logodds$x0) / (1 + 10^(fit2s$logodds$x0)))
-  (pi.hat.low <- 10^(fit2s$logodds$a) / (1 + 10^(fit2s$logodds$a)))
-  (pi.hat.high <- 10^(fit2s$logodds$b) / (1 + 10^(fit2s$logodds$b)))
+(pi.hat <- 10^(fit2s$logodds$x0) / (1 + 10^(fit2s$logodds$x0)))
+(pi.hat.low <- 10^(fit2s$logodds$a) / (1 + 10^(fit2s$logodds$a)))
+(pi.hat.high <- 10^(fit2s$logodds$b) / (1 + 10^(fit2s$logodds$b)))
 
-  w <- c(normalizelogweights(fit2$logw))
-  pips <- c(fit2$alpha \%*\% w)
-  cols <- rep("black", P)
-  cols[modelA$gamma != 0] <- "red"
-  plot(x=1:P, y=pips, col=cols, las=1, xlab="SNPs", ylab="PIP",
-       main="Posterior inclusion probabilities")
+w <- c(normalizelogweights(fit2$logw))
+pips <- c(fit2$alpha \%*\% w)
+cols <- rep("black", P)
+cols[modelA$gamma != 0] <- "red"
+plot(x=1:P, y=pips, col=cols, las=1, xlab="SNPs", ylab="PIP",
+     main="Posterior inclusion probabilities")
 
-  y.pred <- predict(fit2, X=modelA$X.A, Z=NULL)
-  cor(blups, y.pred)
-}
+y.pred <- predict(fit2, X=modelA$X.A, Z=NULL)
+cor(blups, y.pred)
 
 ## dominant sparse genetic architecture
 Q <- 3
 modelAD <- simulBvsr(Q=Q, X=X, pi=0.01, pve=0.7, sigma.a2=0, sigma.d2=1)
 
-if(require(lme4)){
-  dat <- data.frame(response=modelAD$Y[,1],
-                    year=factor(rep(2010:(2010+Q-1), each=I)),
-                    geno.add=factor(rep(rownames(X), Q)))
-  dat$geno.dom <- dat$geno.add
-  fit3A <- lmerAM(formula=response ~ year + (1|geno.add), data=dat,
-                  relmat=list(geno.add=A))
-  vc3A <- as.data.frame(VarCorr(fit3A$merMod))
-  (pve3A.hat <- vc3A$vcov[1] / (vc3A$vcov[1] + vc3A$vcov[2]))
+library(lme4)
+dat <- data.frame(response=modelAD$Y[,1],
+                  year=factor(rep(2010:(2010+Q-1), each=I)),
+                  geno.add=factor(rep(rownames(X), Q)))
+dat$geno.dom <- dat$geno.add
+fit3A <- lmerAM(formula=response ~ year + (1|geno.add), data=dat,
+                relmat=list(geno.add=A))
+vc3A <- as.data.frame(VarCorr(fit3A$merMod))
+(pve3A.hat <- vc3A$vcov[1] / (vc3A$vcov[1] + vc3A$vcov[2]))
 
-  fit3D <- lmerAM(formula=response ~ year + (1|geno.dom), data=dat,
-                  relmat=list(geno.dom=D))
-  vc3D <- as.data.frame(VarCorr(fit3D$merMod))
-  (pve3D.hat <- vc3D$vcov[1] / (vc3D$vcov[1] + vc3D$vcov[2]))
+fit3D <- lmerAM(formula=response ~ year + (1|geno.dom), data=dat,
+                relmat=list(geno.dom=D))
+vc3D <- as.data.frame(VarCorr(fit3D$merMod))
+(pve3D.hat <- vc3D$vcov[1] / (vc3D$vcov[1] + vc3D$vcov[2]))
 
-  fit3AD <- lmerAM(formula=response ~ year + (1|geno.add) + (1|geno.dom),
-                   data=dat, relmat=list(geno.add=A, geno.dom=D))
-  vc3AD <- as.data.frame(VarCorr(fit3AD$merMod))
-  (pve3AD.hat <- (vc3AD$vcov[1] + vc3AD$vcov[2]) /
-                   (vc3AD$vcov[1] + vc3AD$vcov[2] + vc3AD$vcov[3]))
-}
+fit3AD <- lmerAM(formula=response ~ year + (1|geno.add) + (1|geno.dom),
+                 data=dat, relmat=list(geno.add=A, geno.dom=D))
+vc3AD <- as.data.frame(VarCorr(fit3AD$merMod))
+(pve3AD.hat <- (vc3AD$vcov[1] + vc3AD$vcov[2]) /
+                 (vc3AD$vcov[1] + vc3AD$vcov[2] + vc3AD$vcov[3]))
+
+## additive infinitesimal genetic architecture
+Q <- 3
+modelA <- simulBvsr(Q=Q, X=X, pi=1, pve=0.7, sigma.a2=1)
+modelA$sigma2
+
+library(rrBLUP)
+fit.RR <- mixed.solve(y=modelA$Y[,1], Z=modelA$Z \%*\% modelA$X.A,
+                      K=NULL, X=modelA$W)
+fit.RR$Ve
+fit.RR$Vu
+fit.AM <- mixed.solve(y=modelA$Y[,1], Z=modelA$Z, K=A, X=modelA$W)
+fit.AM$Ve
+fit.AM$Vu
+afs <- estimSnpAf(X=X)
+fit.AM$Vu / (2 * sum(afs * (1 - afs)))
 }
 }
 \author{
