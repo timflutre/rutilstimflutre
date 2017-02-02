@@ -3,11 +3,15 @@
 ##' Summary
 ##'
 ##' Format the output of \code{\link{summary}} in a single line, as well as the total number of observations and the number of missing data.
-##' @param x vector of numbers
+##' @param x vector (or 1-column matrix) of numbers
 ##' @return vector
 ##' @author Timothee Flutre
 ##' @export
 betterSummary <- function(x){
+  if(is.matrix(x)){
+    stopifnot(ncol(x) == 1)
+    x <- as.vector(x[,1])
+  }
   stopifnot(is.vector(x),
             is.numeric(x))
 

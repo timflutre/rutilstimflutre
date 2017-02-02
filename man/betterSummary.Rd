@@ -7,7 +7,7 @@
 betterSummary(x)
 }
 \arguments{
-\item{x}{vector of numbers}
+\item{x}{vector (or 1-column matrix) of numbers}
 }
 \value{
 vector
