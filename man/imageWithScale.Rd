@@ -7,7 +7,7 @@ scale on the right side, and optionally using its dimension names for
 rows and columns}
 \usage{
 imageWithScale(z, main = NULL, idx.rownames = NULL, idx.colnames = NULL,
-  breaks = NULL, left.text.at = NULL)
+  breaks = NULL, nb.breaks = 20, left.text.at = NULL)
 }
 \arguments{
 \item{z}{matrix to be plotted}
@@ -18,7 +18,9 @@ imageWithScale(z, main = NULL, idx.rownames = NULL, idx.colnames = NULL,
 
 \item{idx.colnames}{vector giving the indices of the column names of z to be added on top of the plot}
 
-\item{breaks}{vector (default=seq(min(z), max(z), length.out=100))}
+\item{breaks}{vector of breaks (if NULL, will be \code{seq(min(z), max(z), length.out=nb.breaks)})}
+
+\item{nb.breaks}{number of breaks}
 
 \item{left.text.at}{vector which names and values will be used to label the left side of the plot; if not NULL, takes precedence over idx.rownames}
 }

@@ -263,7 +263,8 @@ plotWithScale <- function(z, zlim, col = grDevices::heat.colors(12),
 ##' @param main title to appear above the heatmap
 ##' @param idx.rownames vector giving the indices of the row names of z to be added on the left side of the plot
 ##' @param idx.colnames vector giving the indices of the column names of z to be added on top of the plot
-##' @param breaks vector (default=seq(min(z), max(z), length.out=100))
+##' @param breaks vector of breaks (if NULL, will be \code{seq(min(z), max(z), length.out=nb.breaks)})
+##' @param nb.breaks number of breaks
 ##' @param left.text.at vector which names and values will be used to label the left side of the plot; if not NULL, takes precedence over idx.rownames
 ##' @author Timothee Flutre
 ##' @examples
@@ -276,7 +277,7 @@ plotWithScale <- function(z, zlim, col = grDevices::heat.colors(12),
 ##' }
 ##' @export
 imageWithScale <- function(z, main=NULL, idx.rownames=NULL, idx.colnames=NULL,
-                           breaks=NULL, left.text.at=NULL){
+                           breaks=NULL, nb.breaks=20, left.text.at=NULL){
   stopifnot(is.matrix(z))
   if(! is.null(left.text.at))
     stopifnot(is.null(idx.rownames))
@@ -285,7 +286,7 @@ imageWithScale <- function(z, main=NULL, idx.rownames=NULL, idx.colnames=NULL,
   if(! is.null(idx.colnames) & is.null(colnames(z)))
     stop("non-null idx.colnames requires z to have column names")
   if(is.null(breaks))
-    breaks <- seq(min(z), max(z), length.out=100)
+    breaks <- seq(min(z), max(z), length.out=nb.breaks)
 
   graphics::layout(matrix(c(1,2), nrow=1, ncol=2), widths=c(7,1))
   ## layout.show(2) # for debugging purposes
