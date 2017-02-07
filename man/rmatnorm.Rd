@@ -4,7 +4,7 @@
 \alias{rmatnorm}
 \title{Matrix-variate Normal distribution}
 \usage{
-rmatnorm(n = 1, M, U, V, pivot = c(U = FALSE, V = FALSE))
+rmatnorm(n = 1, M, U, V, pivot = c(U = "auto", V = "auto"))
 }
 \arguments{
 \item{n}{number of observations}

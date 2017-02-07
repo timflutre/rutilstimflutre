@@ -358,8 +358,7 @@ isSingular <- function(x){
 ##' }))
 ##' summary(tmp) # corresponds well to Sigma
 ##' @export
-rmatnorm <- function(n=1, M, U, V,
-                     pivot=c(U=FALSE, V=FALSE)){
+rmatnorm <- function(n=1, M, U, V, pivot=c(U="auto", V="auto")){
   stopifnot(is.matrix(M),
             is.matrix(U),
             is.matrix(V),
@@ -372,12 +371,14 @@ rmatnorm <- function(n=1, M, U, V,
             all(pivot %in% c(TRUE, FALSE, "auto")))
 
   ## chol() returns upper triangular factor of Cholesky decomp
-  if(pivot["U"] == "auto")
-    pivot["U"] <- isSingular(U)
-  chol.tU <- chol(t(U), pivot=pivot["U"]) # A
-  if(pivot["V"] == "auto")
-    pivot["V"] <- isSingular(V)
-  chol.V <- chol(V, pivot=pivot["V"]) # B
+  if(pivot["U"] == "auto"){
+    chol.tU <- chol(t(U), pivot=isSingular(U)) # A
+  } else
+    chol.tU <- chol(t(U), pivot=pivot["U"]) # A
+  if(pivot["V"] == "auto"){
+    chol.V <- chol(V, pivot=isSingular(V)) # B
+  } else
+    chol.V <- chol(V, pivot=pivot["V"]) # B
 
   ## for X ~ MN(M, AA', B'B): draw Z ~ MN(0, I, I), then X = M + A Z B
   tmp <- lapply(1:n, function(i){

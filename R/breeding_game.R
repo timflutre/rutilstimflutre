@@ -1,20 +1,24 @@
-## Contains functions useful for the "breeding contest" workshop
+## Contains functions useful for the "breeding game"
 
 ##' Set up
 ##'
-##' Set up the directories and names for the breeding contest.
+##' Set up the directories and names for the breeding game.
+##' Already-existing directories are not re-created.
 ##' @param root.dir path to the root directory
 ##' @param shared.dir path to the shared directory (e.g. via Dropbox; root.dir if NULL)
-##' @param nb.breeders number of breeders (will be named "breeder<i>"; a "test" will also be created)
+##' @param nb.breeders number of breeders (in EN, will be named "breeder<i>"; in FR, will be named "selectionneur<i>"; a "test" will also be created)
 ##' @param lang language to be used (default=fr/en)
-##' @return  of paths
+##' @return list
 ##' @author Timothee Flutre
 ##' @export
-setUpBreedingContest <- function(root.dir, shared.dir=NULL, nb.breeders=3,
-                                 lang="fr"){
-  stopifnot(dir.exists(root.dir))
+setUpBreedingGame <- function(root.dir, shared.dir=NULL, nb.breeders=3,
+                              lang="fr"){
+  stopifnot(is.character(root.dir),
+            dir.exists(root.dir),
+            lang %in% c("fr", "en"))
   if(! is.null(shared.dir))
-    stopifnot(dir.exists(shared.dir))
+    stopifnot(is.character(shared.dir),
+              dir.exists(shared.dir))
 
   out <- list(root.dir=root.dir)
 
@@ -51,10 +55,77 @@ setUpBreedingContest <- function(root.dir, shared.dir=NULL, nb.breeders=3,
   out$breeders <- breeders
   out$breeder.dirs <- breeder.dirs
 
+  dbname <- paste0(shared.dir, "/breeding-game.sqlite")
+  out$dbname <- dbname
+
   return(out)
 }
 
-##' Example for breeding contest
+##' Check
+##'
+##' Check if the given breeder is part of the game.
+##' @param breeder name of the breeder (e.g. "breeder3" or "selectionneur2", depending on the language)
+##' @param root.dir path to the root directory
+##' @param lang language to be used (default=fr/en)
+##' @return logical
+##' @author Timothee Flutre
+##' @export
+doesBreederExist <- function(breeder, root.dir, lang="fr"){
+  stopifnot(is.character(breeder),
+            is.character(root.dir),
+            dir.exists(root.dir),
+            is.character(lang),
+            lang %in% c("fr", "en"))
+
+  path.to.dir <- root.dir
+  if(lang == "fr"){
+    path.to.dir <- paste0(path.to.dir, "/partage")
+  } else if(lang == "en"){
+    path.to.dir <- paste0(path.to.dir, "/shared")
+  }
+  path.to.dir <- paste0(path.to.dir, "/", breeder)
+
+  return(dir.exists(path.to.dir))
+}
+
+##' Set up
+##'
+##' Retrieve the paths to the directories used for the breeding game.
+##' @param root.dir path to the root directory
+##' @return list
+##' @author Timothee Flutre
+##' @export
+getBreedingDirs <- function(root.dir){
+  stopifnot(is.character(root.dir),
+            dir.exists(root.dir))
+
+  out <- list(root.dir=root.dir)
+
+  if(dir.exists(paste0(root.dir, "/verite"))){
+    lang <- "fr"
+    out$truth.dir <- paste0(root.dir, "/verite")
+    out$shared.dir <- paste0(root.dir, "/partage")
+    out$init.dir <- paste0(out$shared.dir, "/donnees_initiales")
+    nb.breeders <- length(Sys.glob(paste0(root.dir, "/selectionneur")))
+    out$breeders <- paste0("selectionneur", 1:nb.breeders)
+    out$breeder.dirs <- paste0(out$shared.dir, "/selectionneur", 1:nb.breeders)
+
+  } else if(dir.exists(paste0(root.dir, "/truth"))){
+    lang <- "en"
+    out$truth.dir <- paste0(root.dir, "/truth")
+    out$shared.dir <- paste0(root.dir, "/shared")
+    out$init.dir <- paste0(out$shared.dir, "/initial_data")
+    nb.breeders <- length(Sys.glob(paste0(root.dir, "/breeder")))
+    out$breeders <- paste0("breeder", 1:nb.breeders)
+    out$breeder.dirs <- paste0(out$shared.dir, "/breeder", 1:nb.breeders)
+
+  } else
+    stop("can't determine the langage used for the breeding game")
+
+  return(out)
+}
+
+##' Example for breeding game
 ##'
 ##' Make a file with examples of plant material to request (autofecundation, allofecundation, haplodiploidization)
 ##' @param out.dir path to the directory in which the file will be saved
@@ -97,7 +168,7 @@ makeExamplePlantFile <- function(out.dir){
   invisible(plants)
 }
 
-##' Example for breeding contest
+##' Example for breeding game
 ##'
 ##' Make a file with examples of data to request (phenotypes, genotypes).
 ##' @param out.dir path to the directory in which the file will be saved
@@ -140,7 +211,7 @@ makeExampleDataFile <- function(out.dir){
   invisible(dat)
 }
 
-##' Read for breeding contest
+##' Read for breeding game
 ##'
 ##' Read and check a file supposed to contain requests about plant material.
 ##' @param f path to the input file
@@ -172,7 +243,7 @@ readCheckBreedPlantFile <- function(f=NULL, df=NULL, max.nb.hd=1000){
   invisible(df)
 }
 
-##' Read for breeding contest
+##' Read for breeding game
 ##'
 ##' Read and check a file supposed to contain requests about pheno/geno data.
 ##' @param f path to the input file

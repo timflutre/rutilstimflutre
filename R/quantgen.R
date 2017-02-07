@@ -3028,6 +3028,7 @@ simulAnimalModel <- function(T=1,
     genos[years == year] <- levels.genos[1:sum(years == year)]
   genos <- as.factor(genos)
   Z <- stats::model.matrix(~ genos - 1)
+  colnames(Z) <- levels.genos
   dat$geno <- genos
 
   ## additive genetic component
