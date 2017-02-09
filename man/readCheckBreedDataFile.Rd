@@ -8,7 +8,7 @@ readCheckBreedDataFile(f = NULL, df = NULL, max.nb.plots, subset.snps,
   max.nb.inds = 1000)
 }
 \arguments{
-\item{f}{path to the input file}
+\item{f}{path to the input file (columns should be separated by a tabulation)}
 
 \item{df}{data.frame (if the file was already read)}
 
@@ -23,8 +23,12 @@ invisible data.frame
 }
 \description{
 Read and check a file supposed to contain requests about pheno/geno data.
+It should have 3 columns named \code{ind}, \code{task} and \code{details}.
 }
 \author{
 Timothee Flutre
+}
+\seealso{
+\code{\link{makeExampleDataFile}}
 }
 

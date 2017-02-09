@@ -2,7 +2,7 @@
 % Please edit documentation in R/breeding_game.R
 \name{doesBreederExist}
 \alias{doesBreederExist}
-\title{Check}
+\title{Check breeding game}
 \usage{
 doesBreederExist(breeder, root.dir, lang = "fr")
 }
@@ -11,7 +11,7 @@ doesBreederExist(breeder, root.dir, lang = "fr")
 
 \item{root.dir}{path to the root directory}
 
-\item{lang}{language to be used (default=fr/en)}
+\item{lang}{language to be used (fr/en)}
 }
 \value{
 logical

@@ -7,7 +7,7 @@
 readCheckBreedPlantFile(f = NULL, df = NULL, max.nb.hd = 1000)
 }
 \arguments{
-\item{f}{path to the input file}
+\item{f}{path to the input file (columns should be separated by a tabulation)}
 
 \item{df}{data.frame (if the file was already read)}
 
@@ -18,8 +18,12 @@ invisible data.frame
 }
 \description{
 Read and check a file supposed to contain requests about plant material.
+It should have 3 columns named \code{parent1}, \code{parent2} and \code{child}.
 }
 \author{
 Timothee Flutre
+}
+\seealso{
+\code{\link{makeExamplePlantFile}}
 }
 

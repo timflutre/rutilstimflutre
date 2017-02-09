@@ -2,7 +2,7 @@
 % Please edit documentation in R/breeding_game.R
 \name{setUpBreedingGame}
 \alias{setUpBreedingGame}
-\title{Set up}
+\title{Set up breeding game}
 \usage{
 setUpBreedingGame(root.dir, shared.dir = NULL, nb.breeders = 3,
   lang = "fr")
@@ -12,9 +12,9 @@ setUpBreedingGame(root.dir, shared.dir = NULL, nb.breeders = 3,
 
 \item{shared.dir}{path to the shared directory (e.g. via Dropbox; root.dir if NULL)}
 
-\item{nb.breeders}{number of breeders (in EN, will be named "breeder<i>"; in FR, will be named "selectionneur<i>"; a "test" will also be created)}
+\item{nb.breeders}{number of breeders (an additional "test" breeder will be created)}
 
-\item{lang}{language to be used (default=fr/en)}
+\item{lang}{language to be used (fr/en)}
 }
 \value{
 list

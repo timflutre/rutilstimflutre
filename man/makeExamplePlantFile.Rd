@@ -4,10 +4,12 @@
 \alias{makeExamplePlantFile}
 \title{Example for breeding game}
 \usage{
-makeExamplePlantFile(out.dir)
+makeExamplePlantFile(out.dir, lang = "fr")
 }
 \arguments{
 \item{out.dir}{path to the directory in which the file will be saved}
+
+\item{lang}{language to be used (fr/en)}
 }
 \value{
 invisible data.frame
@@ -17,5 +19,8 @@ Make a file with examples of plant material to request (autofecundation, allofec
 }
 \author{
 Timothee Flutre
+}
+\seealso{
+\code{\link{readCheckBreedPlantFile}}
 }
 
