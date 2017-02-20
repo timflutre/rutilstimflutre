@@ -163,11 +163,12 @@ hinton <- function(m, main="", max.sqrt.m=NULL){
     ylab <- names(dimnames(m))[1]
   }
 
-  opar <- graphics::par(mar=c(ifelse(xlab == "", 1, 3),
-                    ifelse(ylab == "", 1, 3), 5, 1) + 0.1)
+  def.par <- graphics::par(mar=c(ifelse(xlab == "", 1, 3),
+                                 ifelse(ylab == "", 1, 3), 5, 1) + 0.1,
+                           no.readonly=TRUE)
 
   graphics::plot(0, xlim=c(0.25,cols+0.75), ylim=c(-rows-0.75, -0.25),
-       type="n", xaxt="n", yaxt="n", xlab="", ylab="")
+                 type="n", xaxt="n", yaxt="n", xlab="", ylab="")
 
   graphics::rect(left, bottom, right, top, col=box.colors)
 
@@ -176,7 +177,8 @@ hinton <- function(m, main="", max.sqrt.m=NULL){
 
   if(! is.null(colnames(m))){
     graphics::axis(side=3, at=1:cols, labels=FALSE)
-    graphics::text(x=1:cols, y=graphics::par("usr")[4] + 0.25, labels=colnames(m), adj=0, srt=45, xpd=TRUE)
+    graphics::text(x=1:cols, y=graphics::par("usr")[4] + 0.25,
+                   labels=colnames(m), adj=0, srt=45, xpd=TRUE)
   } else
     graphics::axis(side=3, at=1:cols, labels=1:cols)
 
@@ -190,7 +192,7 @@ hinton <- function(m, main="", max.sqrt.m=NULL){
   if(ylab != "")
     graphics::mtext(ylab, side=2, line=2)
 
-  on.exit(graphics::par(opar))
+  on.exit(graphics::par(def.par))
 }
 
 ##' Plot a scale, e.g. to add on the side of image()
@@ -288,6 +290,8 @@ imageWithScale <- function(z, main=NULL, idx.rownames=NULL, idx.colnames=NULL,
   if(is.null(breaks))
     breaks <- seq(min(z), max(z), length.out=nb.breaks)
 
+  def.par <- graphics::par(no.readonly=TRUE)
+
   graphics::layout(matrix(c(1,2), nrow=1, ncol=2), widths=c(7,1))
   ## layout.show(2) # for debugging purposes
 
@@ -299,7 +303,7 @@ imageWithScale <- function(z, main=NULL, idx.rownames=NULL, idx.colnames=NULL,
       custom.mar[2] <- 1
   if(is.null(idx.colnames))
       custom.mar[3] <- 3
-  opar <- graphics::par(mar=custom.mar)
+  graphics::par(mar=custom.mar, no.readonly=TRUE)
   graphics::image(t(z)[,nrow(z):1], axes=FALSE, col=col.pal(length(breaks)-1))
   if(! is.null(main))
     graphics::mtext(text=main, side=3, line=ifelse(is.null(idx.colnames), 1, 4),
@@ -314,16 +318,16 @@ imageWithScale <- function(z, main=NULL, idx.rownames=NULL, idx.colnames=NULL,
   if(! is.null(left.text.at))
     graphics::mtext(text=names(left.text.at), side=2, line=1,
                     at=left.text.at, las=2)
-  on.exit(graphics::par(opar))
 
   ## plot the scale
-  opar <- graphics::par(mar=c(1,0,6,3))
+  graphics::par(mar=c(1,0,6,3), no.readonly=TRUE)
   plotWithScale(z, col=col.pal(length(breaks)-1), breaks=breaks, horiz=FALSE,
                 yaxt="n")
   graphics::axis(4, at=format(breaks[seq.int(1, length(breaks), length.out=5)],
                               digits=2),
        las=2, lwd=0, lwd.ticks=1)
-  on.exit(graphics::par(opar))
+
+  on.exit(graphics::par(def.par))
 }
 
 ##' Principal component analysis
