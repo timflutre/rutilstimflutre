@@ -1168,7 +1168,7 @@ haplosList2Matrix <- function(haplos){
 ##' @param seg.sites list of haplotypes returned by \code{scrm::scrm}, each component of which corresponds to a matrix with haplotypes in rows and SNP in columns
 ##' @param ind.ids vector with the identifiers of the genotypes
 ##' @param snp.ids vector with the identifiers of the SNPs (if NULL, the SNP identifiers from seg.sites will be used if they aren't NULL, too)
-##' @param rnd.choice.ref.all if TRUE, the reference alleles are randomly chosen
+##' @param rnd.choice.ref.all if TRUE, the reference alleles are randomly chosen when converting haplotypes into genotypes encoded as allele dose
 ##' @param seed seed for the pseudo-random number generator
 ##' @return matrix with diploid genotypes in rows and SNPs in columns
 ##' @author Timothee Flutre
@@ -1187,6 +1187,9 @@ segSites2allDoses <- function(seg.sites, ind.ids=NULL, snp.ids=NULL,
     stopifnot(is.vector(snp.ids),
               is.character(snp.ids),
               length(snp.ids) == sum(sapply(seg.sites, ncol)))
+  if(! is.null(seed))
+    stopifnot(is.numeric(seed),
+              length(seed) == 1)
 
   nb.inds <- nrow(seg.sites[[1]]) / 2 # nb of diploid genotypes
   nb.snps <- sum(sapply(seg.sites, ncol)) # nb of SNPs
@@ -1313,6 +1316,7 @@ simulGenosDose <- function(nb.genos, nb.snps, geno.ids=NULL, snp.ids=NULL, mafs=
 ##' @param get.trees get gene genealogies in the Newick format
 ##' @param get.tmrca get time to most recent common ancestor and local tree lengths
 ##' @param get.alleles get fake alleles sampled in {A,T,G,C}
+##' @param rnd.choice.ref.all if TRUE, the reference alleles are randomly chosen when converting haplotypes into genotypes encoded as allele dose
 ##' @param verbose verbosity level (0/1/2)
 ##' @return list with haplotypes (list), genotypes as allele doses (matrix) and SNP coordinates (data.frame)
 ##' @author Timothee Flutre
@@ -1342,9 +1346,11 @@ simulCoalescent <- function(nb.inds=100,
                             get.trees=FALSE,
                             get.tmrca=FALSE,
                             get.alleles=FALSE,
+                            rnd.choice.ref.all=TRUE,
                             verbose=1){
   requireNamespace("scrm")
-  stopifnot(nb.inds > nb.pops)
+  stopifnot(nb.inds > nb.pops,
+            is.logical(rnd.choice.ref.all))
   if(! is.null(other))
     stopifnot(is.character(other),
               length(other) == 1)
@@ -1419,7 +1425,9 @@ simulCoalescent <- function(nb.inds=100,
   names(out$haplos) <- names(sum.stats$seg_sites)
 
   ## make a matrix with genotypes encoded as allele dose
-  X <- segSites2allDoses(out$haplos, ind.ids, snp.ids)
+  X <- segSites2allDoses(seg.sites=out$haplos, ind.ids=ind.ids,
+                         snp.ids=snp.ids,
+                         rnd.choice.ref.all=rnd.choice.ref.all)
   if(verbose > 0){
     msg <- paste0("nb of SNPs: ", nb.snps)
     write(msg, stdout())
@@ -2806,7 +2814,8 @@ haplosAlleles2num <- function(haplos, alleles, nb.cores=1){
 ##'                      alleles=alleles, nb.starts=3, clean=TRUE)
 ##' X.imp <- segSites2allDoses(seg.sites=list(haplosAlleles2num(haplos=out.imp$haplos,
 ##'                                                             alleles=alleles)),
-##'                            ind.ids=rownames(genomes$genos))
+##'                            ind.ids=rownames(genomes$genos),
+##'                            rnd.choice.ref.all=FALSE)
 ##'
 ##' ## assess imputation accuracy
 ##' sum(X.imp != genomes$genos)

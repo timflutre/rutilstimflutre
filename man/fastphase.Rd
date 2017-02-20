@@ -77,7 +77,8 @@ out.imp <- fastphase(X=X.na, snp.coords=genomes$snp.coords,
                      alleles=alleles, nb.starts=3, clean=TRUE)
 X.imp <- segSites2allDoses(seg.sites=list(haplosAlleles2num(haplos=out.imp$haplos,
                                                             alleles=alleles)),
-                           ind.ids=rownames(genomes$genos))
+                           ind.ids=rownames(genomes$genos),
+                           rnd.choice.ref.all=FALSE)
 
 ## assess imputation accuracy
 sum(X.imp != genomes$genos)
