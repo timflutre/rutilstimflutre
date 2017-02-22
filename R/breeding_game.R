@@ -1,4 +1,5 @@
 ## Contains functions useful for the "breeding game"
+## https://github.com/timflutre/atelier-prediction-genomique
 
 ##' Set up breeding game
 ##'
@@ -146,91 +147,404 @@ getBreedingGameSetup <- function(root.dir){
 
 ##' Simul breeding game
 ##'
-##' Simulate the random part of traits 1 and 2 jointly.
-##' @param h2 narrow-sense heritability of both traits
-##' @param sigma.beta2 variance of the SNP effects for both traits
+##' Make the structure of the data.frame that will be given to the players at the beginning of the game.
+##' @param nb.lines.per.year number of lines phenotyped each year
+##' @param nb.years number of years of phenotyping
+##' @param nb.plots.per.line.per.year number of plots per line per year
+##' @param first.year numeric of the year of the first phenotyping
+##' @param line.ids vector of line identifiers
+##' @return data.frame
+##' @author Timothee Flutre
+##' @seealso \code{\link{makeDfPhenos}}
+##' @export
+makeDfInitPhenos <- function(nb.lines.per.year=150, nb.years=10,
+                             nb.plots.per.line.per.year=2,
+                             first.year=2005, line.ids){
+  stopifnot(is.numeric(nb.lines.per.year),
+            is.numeric(nb.years),
+            is.numeric(nb.plots.per.line.per.year),
+            is.numeric(first.year),
+            is.character(line.ids))
+
+  nb.plots <- nb.lines.per.year * nb.plots.per.line.per.year
+  latest.year <- first.year + nb.years - 1
+  nb.new.lines.per.year <- nb.lines.per.year / nb.plots.per.line.per.year
+  stopifnot(length(line.ids) == nb.lines.per.year + nb.new.lines.per.year *
+            (nb.years - 1))
+
+  df <- data.frame(ind=NA,
+                   year=as.factor(rep(first.year:latest.year, each=nb.plots)),
+                   plot=as.factor(rep(1:nb.plots, times=nb.years)),
+                   pathogen=NA,
+                   trait1.raw=NA,
+                   trait1=NA,
+                   trait2=NA,
+                   trait3=NA)
+
+  ## fill the identifiers column
+  df$ind[df$year == levels(df$year)[1]] <-
+    rep(line.ids[1:nb.new.lines.per.year], each=nb.plots.per.line.per.year)
+  for(j in 1:nb.years){
+    year <- levels(df$year)[j]
+    idx <- (1 + (j-1) * nb.new.lines.per.year) :
+      ((j-1) * nb.new.lines.per.year + nb.lines.per.year)
+    df$ind[df$year == year] <- rep(line.ids[idx],
+                                   each=nb.plots.per.line.per.year)
+  }
+  df$ind <- as.factor(df$ind)
+
+  return(df)
+}
+
+##' Simul breeding game
+##'
+##' Make the structure of the data.frame that will be given to the players when they request phenotyping during the game.
+##' @param ind.ids vector of genotype identifiers
+##' @param nb.plots.per.ind vector with the number of plots at which each genotype should be phenotype
+##' @param year numeric of the year at which phenotyping occurs
+##' @param pathogen if TRUE, the pathogen will be present the given year
+##' @return data.frame
+##' @author Timothee Flutre
+##' @seealso \code{\link{makeDfInitPhenos}}
+##' @export
+makeDfPhenos <- function(ind.ids, nb.plots.per.ind, year, pathogen){
+  stopifnot(is.character(ind.ids),
+            is.numeric(nb.plots.per.ind),
+            length(nb.plots.per.ind) == length(ind.ids),
+            is.numeric(year),
+            is.logical(pathogen))
+
+  df <- data.frame(ind=rep(ind.ids, nb.plots.per.ind),
+                   year=as.factor(rep(year, sum(nb.plots.per.ind))),
+                   plot=as.factor(1:sum(nb.plots.per.ind)),
+                   pathogen=pathogen,
+                   trait1.raw=NA,
+                   trait1=NA,
+                   trait2=NA,
+                   trait3=NA)
+
+  return(df)
+}
+
+##' Simul breeding game
+##'
+##' Simulate the additive SNP effects of traits 1 and 2 jointly, with some degree of pleiotropy.
+##' @param snp.ids vector of SNP identifiers for which effects should be simulated
+##' @param sigma.beta2 vector of variances of additive SNP effects for both traits
 ##' @param prop.pleio proportion of SNPs having an effect on both traits
 ##' @param cor.pleio genotypic correlation at these SNPs
-##' @param X matrix of SNP genotypes encoded in allele dose in {0,1,2}; will be encoded in {-1,0,1} afterwards
-##' @param center.genos if TRUE, the genotypes will be centered per SNP (but for the breeding game, it should be set to FALSE as the SNP effects won't change from generation to generation)
-##' @param plot if TRUE, the first-trait genotypic values will be plotted against the second-trait
 ##' @param verbose verbosity level (0/1)
-##' @return matrix of genotypic values with noise
+##' @return list with a matrix of SNP effects and a vector identifying which SNPs are pleiotropic
 ##' @author Timothee Flutre
+##' @examples
+##' \dontrun{set.seed(1859)
+##' X <- simulGenosDose(nb.genos=825, nb.snps=2000)
+##' snp.effects <- simulSnpEffectsTraits12(snp.ids=colnames(X))
+##' sum(snp.effects$is.pleiotropic)
+##' regplot(snp.effects$Beta[,1], snp.effects$Beta[,2])
+##' }
 ##' @export
-simulTraits12Rnd <- function(h2=c(0.3, 0.4), sigma.beta2=c(10^(-5), 10^(-5)),
-                             prop.pleio=0.4, cor.pleio=-0.7,
-                             X, center.genos=FALSE,
-                             plot=TRUE, verbose=1){
-  stopifnot(length(h2) == 2,
-            all(h2 >= 0, h2 <= 1),
+simulSnpEffectsTraits12 <- function(snp.ids,
+                                    sigma.beta2=c(trait1=10^(-5),
+                                                  trait2=10^(-5)),
+                                    prop.pleio=0.4,
+                                    cor.pleio=-0.7,
+                                    verbose=1){
+  requireNamespace("MASS")
+  stopifnot(is.character(snp.ids),
+            length(snp.ids) > 0,
+            ! anyDuplicated(snp.ids),
+            is.vector(sigma.beta2),
+            is.numeric(sigma.beta2),
+            length(sigma.beta2) == 2,
+            ! is.null(names(sigma.beta2)),
             all(sigma.beta2 >= 0),
+            is.numeric(prop.pleio),
+            length(prop.pleio) == 1,
             all(prop.pleio >= 0, prop.pleio <= 1),
-            all(cor.pleio >= -1, cor.pleio <= 1),
-            is.logical(center.genos),
-            is.logical(plot))
-  stopIfNotValidGenosDose(X)
+            is.numeric(cor.pleio),
+            length(cor.pleio) == 1,
+            all(cor.pleio >= -1, cor.pleio <= 1))
 
-  I <- nrow(X)
-  P <- ncol(X)
+  nb.snps <- length(snp.ids)
+  traits <- names(sigma.beta2)
 
   Sigma.beta.nopleio <- matrix(c(sigma.beta2[1], 0, 0, sigma.beta2[2]),
-                               nrow=2, ncol=2)
-  Beta <- MASS::mvrnorm(n=P, mu=c(0,0), Sigma=Sigma.beta.nopleio)
-  if(verbose > 0)
-    message(paste0("cor(Beta[,1], Beta[,2]) = ",
-                   format(stats::cor(Beta[,1], Beta[,2]), digits=3)))
+                               nrow=2, ncol=2,
+                               dimnames=list(traits, traits))
+  Beta <- MASS::mvrnorm(n=nb.snps, mu=c(0,0), Sigma=Sigma.beta.nopleio)
+  rownames(Beta) <- snp.ids
+  colnames(Beta) <- traits
+  if(verbose > 0){
+    msg <- paste0("cor(Beta[,1], Beta[,2]) = ",
+                  format(stats::cor(Beta[,1], Beta[,2]), digits=3))
+    write(msg, stdout())
+  }
 
   cov.pleio <- cor.pleio * sqrt(sigma.beta2[1] * sigma.beta2[2])
   Sigma.beta.pleio <- matrix(c(sigma.beta2[1], cov.pleio, cov.pleio,
-                               sigma.beta2[2]), nrow=2, ncol=2)
-  length(idx.pleio <- sample.int(n=P, size=floor(prop.pleio * P)))
+                               sigma.beta2[2]),
+                             nrow=2, ncol=2,
+                             dimnames=list(traits, traits))
+  length(idx.pleio <- sample.int(n=nb.snps,
+                                 size=floor(prop.pleio * nb.snps)))
   Beta[idx.pleio,] <- MASS::mvrnorm(n=length(idx.pleio), mu=c(0,0),
                                     Sigma=Sigma.beta.pleio)
+  is.pleiotropic <- stats::setNames(rep(FALSE, nb.snps), snp.ids)
+  is.pleiotropic[idx.pleio] <- TRUE
 
   if(verbose > 0){
-    message(paste0("cor(Beta[idx.pleio,1], Beta[idx.pleio,2]) = ",
-                   format(stats::cor(Beta[idx.pleio,1], Beta[idx.pleio,2]),
-                          digits=3)))
-    message(paste0("cor(Beta[,1], Beta[,2]) = ",
-                   format(stats::cor(Beta[,1], Beta[,2]), digits=3)))
+    msg <- paste0("cor(Beta[idx.pleio,1], Beta[idx.pleio,2]) = ",
+                  format(stats::cor(Beta[idx.pleio,1], Beta[idx.pleio,2]),
+                         digits=3))
+    msg <- paste0(msg, "\ncor(Beta[,1], Beta[,2]) = ",
+                  format(stats::cor(Beta[,1], Beta[,2]), digits=3))
+    write(msg, stdout())
   }
 
-  X.tmp <- scale(x=X - 1, center=center.genos, scale=FALSE)
-  G.A <- X.tmp %*% Beta
+  return(list(sigma.beta2=sigma.beta2, prop.pleio=prop.pleio,
+              cor.pleio=cor.pleio, is.pleiotropic=is.pleiotropic, Beta=Beta))
+}
+
+##' Simul breeding game
+##'
+##' Simulate phenotypes of traits 1 and 2 jointly: Y = Z.J * Alpha + Z.I * G.A + E.
+##' @param dat data.frame specifying the structure of the initial data set of phenotypes
+##' @param mu vector of global means, for each trait
+##' @param sigma.alpha2 vector of variance for the "year" effects, for each trait (ignored if \code{Alpha} is not NULL)
+##' @param Alpha matrix of "year" effects, for each trait (if NULL, will be simulated using \code{sigma.alpha2})
+##' @param X matrix of bi-allelic SNP genotypes encoded in allele dose in {0,1,2}
+##' @param Beta matrix of additive SNP effects, for each trait
+##' @param h2 vector of heritabilities, for each trait
+##' @param verbose verbosity level (0/1)
+##' @return list
+##' @author Timothee Flutre
+##' @seealso \code{\link{simulSnpEffectsTraits12}}, \code{\link{makeDfInitPhenos}}
+##' @examples
+##' \dontrun{set.seed(1859)
+##' X <- simulGenosDose(nb.genos=825, nb.snps=2000)
+##' snp.effects12 <- simulSnpEffectsTraits12(snp.ids=colnames(X))
+##' dat <- makeDfInitPhenos(line.ids=rownames(X))
+##' phenos <- simulTraits12(dat, X=X, Beta=snp.effects12$Beta)
+##' regplot(phenos$G.A[,1], phenos$G.A[,2])
+##' }
+##' @export
+simulTraits12 <- function(dat,
+                          mu=c(trait1=40, trait2=14),
+                          sigma.alpha2=c(trait1=6, trait2=3),
+                          Alpha=NULL,
+                          X,
+                          Beta,
+                          h2=c(trait1=0.3, trait2=0.4),
+                          verbose=1){
+  stopIfNotValidGenosDose(X)
+  stopifnot(is.data.frame(dat),
+            ncol(dat) >= 4,
+            ! is.null(colnames(dat)),
+            is.vector(mu),
+            is.numeric(mu),
+            all(mu >= 0),
+            ! is.null(names(mu)),
+            length(mu) == 2,
+            all(c("ind","year","plot",names(mu)) %in% colnames(dat)),
+            is.factor(dat$year),
+            is.factor(dat$ind),
+            any(! is.null(sigma.alpha2), ! is.null(Alpha)),
+            is.matrix(Beta),
+            ncol(Beta) == length(mu),
+            ! is.null(colnames(Beta)),
+            nrow(Beta) == ncol(X),
+            all(rownames(Beta) == colnames(X)),
+            is.vector(h2),
+            is.numeric(h2),
+            all(h2 >= 0, h2 <= 1),
+            ! is.null(names(h2)),
+            length(h2) == length(mu),
+            names(h2) == names(mu))
+  if(is.null(Alpha))
+    stopifnot(is.vector(sigma.alpha2),
+              is.numeric(sigma.alpha2),
+              all(sigma.alpha2 > 0),
+              length(sigma.alpha2) == length(mu),
+              ! is.null(names(sigma.alpha2)),
+              all(names(sigma.alpha2) == names(mu)))
+
+  out <- list()
+
+  ## get dimensions
+  N <- nrow(dat)          # number of phenotypic observations
+  I <- nlevels(dat$ind)   # number of individuals (genotypes)
+  J <- nlevels(dat$year)  # number of years
+  K <- nlevels(dat$plot)  # number of plots
+  T <- length(mu)         # number of traits
+  inds <- levels(dat$ind)
+  years <- levels(dat$year)
+  traits <- names(mu)
+
+  ## create phenotypic matrix
+  Y <- matrix(data=NA, nrow=N, ncol=T)
+  colnames(Y) <- traits
+
+  ## make the predictors
+  Z.mu <- matrix(1, nrow=N, ncol=1)
+
+  if(J == 1){
+    Z.J <- matrix(1, N)
+  } else
+    Z.J <- stats::model.matrix(~ dat$year - 1)
+  if(is.null(Alpha)){
+    Alpha <- matrix(c(stats::rnorm(n=J, mean=0, sd=sqrt(sigma.alpha2[1])),
+                      stats::rnorm(n=J, mean=0, sd=sqrt(sigma.alpha2[2]))),
+                    nrow=J, ncol=T,
+                    dimnames=list(years, traits))
+    if(verbose > 0){
+      msg <- paste0("'year' effects: ")
+      write(msg, stdout())
+      print(Alpha)
+    }
+  }
+
+  Z.I <- stats::model.matrix(~ dat$ind - 1)
+  G.A <- X %*% Beta
+  afs <- estimSnpAf(X=X)
+  sigma.a2 <- c(stats::var(Beta[,1]) * 2 * sum(afs * (1 - afs)),
+                stats::var(Beta[,2]) * 2 * sum(afs * (1 - afs)))
+  names(sigma.a2) <- traits
   if(verbose > 0){
-    message(paste0("cor(G.A[,1], G.A[,2]) = ",
-                   format(stats::cor(G.A[,1], G.A[,2]), digits=3)))
-    message(paste0("mean(G.A[,1]) = ", format(mean(G.A[,1]), digits=3)))
-    message(paste0("mean(G.A[,2]) = ", format(mean(G.A[,2]), digits=3)))
-    message(paste0("var(G.A[,1]) = ", format(stats::var(G.A[,1]), digits=3)))
-    message(paste0("var(G.A[,2]) = ", format(stats::var(G.A[,2]), digits=3)))
-  }
-  if(plot){
-    regplot(G.A[,1], G.A[,2], xlab="G.A[,1]", ylab="G.A[,2]")
-    graphics::abline(h=0, v=0, lty=2)
+    msg <- paste0("cor(G.A[,1], G.A[,2]) = ",
+                  format(stats::cor(G.A[,1], G.A[,2]), digits=3))
+    msg <- paste0(msg, "\nmean(G.A[,1]) = ", format(mean(G.A[,1]), digits=3))
+    msg <- paste0(msg, "\nmean(G.A[,2]) = ", format(mean(G.A[,2]), digits=3))
+    msg <- paste0(msg, "\nvar(G.A[,1]) = ", format(stats::var(G.A[,1]),
+                                                   digits=3))
+    msg <- paste0(msg, "\nvar(G.A[,2]) = ", format(stats::var(G.A[,2]),
+                                                   digits=3))
+    msg <- paste0(msg, "\nsigma.a2[1] = ", format(sigma.a2[1], digits=3))
+    msg <- paste0(msg, "\nsigma.a2[2] = ", format(sigma.a2[2], digits=3))
+    write(msg, stdout())
   }
 
+  M <- Z.mu %*% t(as.matrix(mu)) + Z.J %*% Alpha + Z.I %*% G.A
+
+  ## make the errors
   sigma2 <- c(((1 - h2[1]) / h2[1]) * stats::var(G.A[,1]),
               ((1 - h2[2]) / h2[2]) * stats::var(G.A[,2]))
   if(verbose > 0){
-    message(paste0("sigma2[1] = ", format(sigma2[1], digits=3)))
-    message(paste0("sigma2[2] = ", format(sigma2[2], digits=3)))
+    msg <- paste0("sigma2[1] = ", format(sigma2[1], digits=3))
+    msg <- paste0(msg, "\nsigma2[2] = ", format(sigma2[2], digits=3))
+    write(msg, stdout())
   }
-  Sigma <- matrix(c(sigma2[1], 0, 0, sigma2[2]), nrow=2, ncol=2)
-  Epsilon <- MASS::mvrnorm(n=I, mu=c(0,0), Sigma=Sigma)
-
-  Y <- G.A + Epsilon
+  Sigma <- matrix(c(sigma2[1], 0, 0, sigma2[2]),
+                  nrow=2, ncol=2,
+                  dimnames=list(traits, traits))
+  E <- MASS::mvrnorm(n=N, mu=c(0,0), Sigma=Sigma)
   if(verbose > 0){
-    message(paste0("var(G.A[,1]) / var(Y[,1]) = ",
-                   format(stats::var(G.A[,1]) / stats::var(Y[,1]), digits=3)))
-    message(paste0("var(G.A[,2]) / var(Y[,2]) = ",
-                   format(stats::var(G.A[,2]) / stats::var(Y[,2]), digits=3)))
+    msg <- paste0("h2(trait1) = ", format(stats::var(G.A[,1]) /
+                                          stats::var(Z.I %*% G.A[,1] + E[,1]),
+                                          digits=3))
+    msg <- paste0(msg, "\nh2(trait2) = ", format(stats::var(G.A[,2]) /
+                                                 stats::var(Z.I %*% G.A[,2] + E[,2]),
+                                                 digits=3))
+    write(msg, stdout())
   }
 
-  return(list(h2=h2, sigma.beta2=sigma.beta2, prop.pleio=prop.pleio,
-              cor.pleio=cor.pleio, X=X, Beta=Beta, G.A=G.A,
-              sigma2=sigma2, Y=Y))
+  ## make the phenotypes
+  Y <- M + E
+
+  ## fill the output
+  out$N <- N
+  out$I <- I
+  out$J <- J
+  out$mu <- mu
+  out$Z.J <- Z.J
+  out$sigma.alpha2 <- sigma.alpha2
+  out$Alpha <- Alpha
+  out$Z.I <- Z.I
+  out$X <- X
+  out$afs <- afs
+  out$Beta <- Beta
+  out$G.A <- G.A
+  out$sigma.a2 <- sigma.a2
+  out$h2 <- h2
+  out$sigma2 <- sigma2
+  out$Y <- Y
+
+  return(out)
+}
+
+##' Simul breeding game
+##'
+##' Simulate phenotypes of trait 3.
+##' @param dat data.frame specifying the structure of the initial data set of phenotypes
+##' @param X matrix of bi-allelic SNP genotypes encoded in allele dose in {0,1,2}
+##' @param afs vector of allele frequencies (ignored if \code{qtn.id} is not NULL)
+##' @param subset.snps vector of SNP identifiers to which the QTN should belong (ignored if \code{qtn.id} is not NULL)
+##' @param qtn.id identifier of the causal SNP (QTN)
+##' @param resist.genos vector of genotypes in allele dose at the causal SNP providing the resistance (ignored if \code{qtn.id} is NULL)
+##' @param prob.resist.no.qtl probability for a genotype without the QTL to be resistant a year with the pathogen
+##' @param verbose verbosity level (0/1)
+##' @return list
+##' @author Timothee Flutre
+##' @seealso \code{\link{makeDfInitPhenos}}
+##' @export
+simulTrait3 <- function(dat, X, afs=NULL, subset.snps=NULL,
+                        qtn.id=NULL, resist.genos=NULL,
+                        prob.resist.no.qtl=0.02, verbose=1){
+  stopifnot(is.data.frame(dat),
+            ncol(dat) >= 4,
+            ! is.null(colnames(dat)),
+            c("ind", "pathogen") %in% colnames(dat))
+  stopIfNotValidGenosDose(X)
+  stopifnot(is.numeric(prob.resist.no.qtl),
+            all(prob.resist.no.qtl >= 0, prob.resist.no.qtl <= 1))
+  if(is.null(qtn.id)){
+    stopifnot(! is.null(afs),
+              ! is.null(subset.snps))
+  } else
+    stopifnot(! is.null(resist.genos))
+
+  out <- list()
+
+  ## choose the causal SNP (QTN)
+  if(is.null(qtn.id)){
+    mafs <- estimSnpMaf(afs=afs)
+    qtn.id <- names(sample(x=which(mafs >= 0.14 & mafs <= 0.16 &
+                                   names(mafs) %in% subset.snps),
+                           size=1))
+    if(verbose > 0){
+      msg <- paste0("QTN of trait3: ", qtn.id)
+      write(msg, stdout())
+      print(table(X[, qtn.id]))
+    }
+    is.minor.counted <- afs[qtn.id] < 0.5
+    if(is.minor.counted){
+      resist.genos <- c(1, 2)
+    } else{
+      resist.genos <- c(0, 1)
+    }
+  }
+
+  ## identify resistant individuals based on their genotypes at the QTN
+  inds.resist <- rownames(X)[X[, qtn.id] %in% resist.genos]
+
+  ## make the phenotypes
+  ## 1. no pathogen -> no symptom
+  ## 2. pathogen + QTL -> no symptom
+  ## 3. pathogen + no QTL -> symptoms (but not always)
+  y <- rep(NA, nrow(dat))
+  y[! dat$pathogen] <- 0
+  idx <- which(dat$pathogen & (dat$ind %in% inds.resist))
+  y[idx] <- 0
+  idx <- which(dat$pathogen & (! dat$ind %in% inds.resist))
+  y[idx] <- stats::rbinom(n=length(idx), size=1, prob=1 - prob.resist.no.qtl)
+
+  ## fill the output
+  out$prob.resist.no.qtl <- prob.resist.no.qtl
+  out$qtn.id <- qtn.id
+  out$resist.genos <- resist.genos
+  out$y <- y
+
+  return(out)
 }
 
 ##' Example for breeding game
@@ -255,11 +569,11 @@ makeExamplePlantFile <- function(out.dir, lang="fr"){
                stringsAsFactors=FALSE)
 
   if(lang == "fr"){
-    f <- paste0(out.dir, "/exemple_requete_croisements.txt")
+    f <- paste0(out.dir, "/exemple_requete_materiel_vegetal.txt")
   } else if(lang == "en")
-    f <- paste0(out.dir, "/example_request_crosses.txt")
+    f <- paste0(out.dir, "/example_request_plant_material.txt")
 
-  cat("# the table (below) contains the crosses to be made\n",
+  cat("# the table (below) contains the requested plant material\n",
       file=f, append=FALSE)
   cat("# only columns 'parent1', 'parent2' and 'child' are compulsory\n",
       file=f, append=TRUE)
@@ -271,13 +585,13 @@ makeExamplePlantFile <- function(out.dir, lang="fr"){
       file=f, append=TRUE)
   cat("# individual names should only use [a-z], [A-Z], [0-9], [_-] (no space, comma, etc)\n",
       file=f, append=TRUE)
-  cat("# use write.table(x=crosses, file=\"<breeder>_crosses.txt\", quote=FALSE, sep=\"\\t\", na=\"\", row.names=FALSE, col.names=TRUE)\n",
+  cat("# use write.table(x=plants, file=\"<breeder>_<year>_plant_material.txt\", quote=FALSE, sep=\"\\t\", na=\"\", row.names=FALSE, col.names=TRUE)\n",
       file=f, append=TRUE)
   cat("# lines starting with '#' will be ignored\n",
       file=f, append=TRUE)
-  suppressWarnings(utils::write.table(x=plants, file=f, append=TRUE, quote=FALSE,
-                               sep="\t", na="", row.names=FALSE,
-                               col.names=TRUE))
+  suppressWarnings(utils::write.table(x=plants, file=f, append=TRUE,
+                                      quote=FALSE, sep="\t", na="",
+                                      row.names=FALSE, col.names=TRUE))
 
   invisible(plants)
 }
@@ -342,7 +656,7 @@ makeExampleDataFile <- function(out.dir, lang="fr"){
 ##' @author Timothee Flutre
 ##' @seealso \code{\link{makeExamplePlantFile}}
 ##' @export
-readCheckBreedPlantFile <- function(f=NULL, df=NULL, max.nb.hd=1000){
+readCheckBreedPlantFile <- function(f=NULL, df=NULL, max.nb.hd=800){
   stopifnot(! is.null(f) || ! is.null(df),
             is.numeric(max.nb.hd),
             length(max.nb.hd) == 1,
@@ -357,10 +671,14 @@ readCheckBreedPlantFile <- function(f=NULL, df=NULL, max.nb.hd=1000){
             ncol(df) >= 3,
             all(c("parent1", "parent2", "child") %in% colnames(df)),
             all(! is.na(df$parent1)),
+            ! any(df$parent1 == ""),
             all(! is.na(df$child)),
+            ! any(df$child == ""),
             anyDuplicated(df$child) == 0,
             all(! grepl("[^[:alnum:]._-]", df$child)),
             sum(is.na(df$parent2)) <= max.nb.hd)
+
+  df$parent2[df$parent2 == ""] <- NA
 
   invisible(df)
 }
@@ -378,8 +696,8 @@ readCheckBreedPlantFile <- function(f=NULL, df=NULL, max.nb.hd=1000){
 ##' @author Timothee Flutre
 ##' @seealso \code{\link{makeExampleDataFile}}
 ##' @export
-readCheckBreedDataFile <- function(f=NULL, df=NULL, max.nb.plots, subset.snps,
-                                   max.nb.inds=1000){
+readCheckBreedDataFile <- function(f=NULL, df=NULL, max.nb.plots=300,
+                                   subset.snps, max.nb.inds=1000){
   stopifnot(! is.null(f) || ! is.null(df),
             is.numeric(max.nb.plots),
             length(max.nb.plots) == 1,
@@ -425,7 +743,7 @@ readCheckBreedDataFile <- function(f=NULL, df=NULL, max.nb.plots, subset.snps,
 ##' Count types
 ##'
 ##' Count the types of breeding requests.
-##' @param df data.frame from readCheckBreedPlantFile or readCheckBreedDataFile
+##' @param df data.frame from \code{\link{readCheckBreedPlantFile}} or \code{\link{readCheckBreedDataFile}}
 ##' @return named vector
 ##' @author Timothee Flutre
 ##' @export

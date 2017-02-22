@@ -4,7 +4,7 @@
 \alias{readCheckBreedPlantFile}
 \title{Read for breeding game}
 \usage{
-readCheckBreedPlantFile(f = NULL, df = NULL, max.nb.hd = 1000)
+readCheckBreedPlantFile(f = NULL, df = NULL, max.nb.hd = 800)
 }
 \arguments{
 \item{f}{path to the input file (columns should be separated by a tabulation)}

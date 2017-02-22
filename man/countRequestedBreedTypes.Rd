@@ -7,7 +7,7 @@
 countRequestedBreedTypes(df)
 }
 \arguments{
-\item{df}{data.frame from readCheckBreedPlantFile or readCheckBreedDataFile}
+\item{df}{data.frame from \code{\link{readCheckBreedPlantFile}} or \code{\link{readCheckBreedDataFile}}}
 }
 \value{
 named vector
