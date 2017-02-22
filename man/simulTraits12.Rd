@@ -6,7 +6,7 @@
 \usage{
 simulTraits12(dat, mu = c(trait1 = 40, trait2 = 14), sigma.alpha2 = c(trait1
   = 6, trait2 = 3), Alpha = NULL, X, Beta, h2 = c(trait1 = 0.3, trait2 =
-  0.4), verbose = 1)
+  0.4), cor.E.inter.trait = 0, verbose = 1)
 }
 \arguments{
 \item{dat}{data.frame specifying the structure of the initial data set of phenotypes}
@@ -22,6 +22,8 @@ simulTraits12(dat, mu = c(trait1 = 40, trait2 = 14), sigma.alpha2 = c(trait1
 \item{Beta}{matrix of additive SNP effects, for each trait}
 
 \item{h2}{vector of heritabilities, for each trait}
+
+\item{cor.E.inter.trait}{correlation of errors between both traits}
 
 \item{verbose}{verbosity level (0/1)}
 }

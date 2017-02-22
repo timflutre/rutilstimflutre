@@ -316,6 +316,7 @@ simulSnpEffectsTraits12 <- function(snp.ids,
 ##' @param X matrix of bi-allelic SNP genotypes encoded in allele dose in {0,1,2}
 ##' @param Beta matrix of additive SNP effects, for each trait
 ##' @param h2 vector of heritabilities, for each trait
+##' @param cor.E.inter.trait correlation of errors between both traits
 ##' @param verbose verbosity level (0/1)
 ##' @return list
 ##' @author Timothee Flutre
@@ -336,7 +337,9 @@ simulTraits12 <- function(dat,
                           X,
                           Beta,
                           h2=c(trait1=0.3, trait2=0.4),
+                          cor.E.inter.trait=0,
                           verbose=1){
+  requireNamespace("MASS")
   stopIfNotValidGenosDose(X)
   stopifnot(is.data.frame(dat),
             ncol(dat) >= 4,
@@ -360,7 +363,9 @@ simulTraits12 <- function(dat,
             all(h2 >= 0, h2 <= 1),
             ! is.null(names(h2)),
             length(h2) == length(mu),
-            names(h2) == names(mu))
+            names(h2) == names(mu),
+            is.numeric(cor.E.inter.trait),
+            all(cor.E.inter.trait >= -1, cor.E.inter.trait <= 1))
   if(is.null(Alpha))
     stopifnot(is.vector(sigma.alpha2),
               is.numeric(sigma.alpha2),
@@ -434,7 +439,9 @@ simulTraits12 <- function(dat,
     msg <- paste0(msg, "\nsigma2[2] = ", format(sigma2[2], digits=3))
     write(msg, stdout())
   }
-  Sigma <- matrix(c(sigma2[1], 0, 0, sigma2[2]),
+  cov.E.inter.trait <- cor.E.inter.trait * sqrt(sigma2[1] * sigma2[2])
+  Sigma <- matrix(c(sigma2[1], cov.E.inter.trait,
+                    cov.E.inter.trait, sigma2[2]),
                   nrow=2, ncol=2,
                   dimnames=list(traits, traits))
   E <- MASS::mvrnorm(n=N, mu=c(0,0), Sigma=Sigma)
