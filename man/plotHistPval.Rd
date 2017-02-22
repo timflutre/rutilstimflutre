@@ -35,7 +35,7 @@ In the density scale, the area of a given bin is equal to its density times the 
 Assuming all null hypotheses are true, the "density" histogram represents the density of the discrete version of the Uniform distribution, where the height of each bin is 1, so that the whole histogram area remains equal to 1.
 }
 \examples{
-set.seed(1859)
+\dontrun{set.seed(1859)
 P <- 1000; P1 <- 100; thresh <- 0.05
 pvalues.0 <- setNames(runif(n=P-P1, min=0, max=1),
                       paste0("null",1:(P-P1)))
@@ -51,6 +51,7 @@ sum(pval.bh <= thresh, na.rm=TRUE) # 104
 if(require(qvalue)){
   qv <- qvalue(p=pvalues, fdr.level=thresh, pfdr=TRUE)
   summary(qv)
+}
 }
 }
 \author{

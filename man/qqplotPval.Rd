@@ -47,7 +47,7 @@ Therefore, the 95\% confidence interval for the j-th quantile of the set of p va
 See also the \href{https://cran.r-project.org/package=qqman}{qqman} package.
 }
 \examples{
-set.seed(1859)
+\dontrun{set.seed(1859)
 P <- 1000; P1 <- 100; thresh <- 0.05
 pvalues.0 <- setNames(runif(n=P-P1, min=0, max=1),
                       paste0("null",1:(P-P1)))
@@ -61,6 +61,7 @@ out <- qqplotPval(pvalues, ctl.fwer.bonf=TRUE, ctl.fdr.bh=TRUE, plot.signif=TRUE
 pvalues <- out$pvalues # NA omitted
 names(out$pvalues)[out$pv.bonf <= thresh]
 names(out$pvalues)[out$pv.bh <= thresh]
+}
 }
 \author{
 Timothee Flutre (inspired by an anonymous comment at http://gettinggeneticsdone.blogspot.fr/2009/11/qq-plots-of-p-values-in-r-using-ggplot2.html)

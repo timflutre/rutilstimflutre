@@ -88,6 +88,33 @@ msd <- function(error){
   mean(error)
 }
 
+##' Beta distribution
+##'
+##' Return the value of both parameters for the \href{https://en.wikipedia.org/wiki/Beta_distribution}{Beta distribution} given its mean and variance.
+##' @param m mean of the Beta distribution
+##' @param v variance of the Beta distribution
+##' @return vector
+##' @author Timothee Flutre
+##' @examples
+##' \dontrun{set.seed(1859)
+##' (beta.params <- getParamsBetaDist(m=0.5, v=0.1))
+##' x <- rbeta(n=10^3, shape1=beta.params[1], shape2=beta.params[2])
+##' mean(x)
+##' var(x)
+##' }
+##' @export
+getParamsBetaDist <- function(m, v){
+  stopifnot(all(is.numeric(m), is.numeric(v)),
+            all(m >= 0, m <= 1),
+            v > 0)
+
+  alpha <- ((1 - m) / v - 1 / m) * m ^ 2
+
+  beta <- alpha * (1 / m - 1)
+
+  return(c(alpha=alpha, beta=beta))
+}
+
 ##' Hypothesis testing
 ##'
 ##' Return the number of true positives, false positives, true negatives,
@@ -349,6 +376,7 @@ isSingular <- function(x){
 ##' @return array
 ##' @author Timothee Flutre
 ##' @examples
+##' \dontrun{set.seed(1859)
 ##' Sigma <- matrix(c(3,2,2,4), nrow=2, ncol=2)
 ##' rho <- Sigma[2,1] / prod(sqrt(diag(Sigma)))
 ##' samples <- rmatnorm(n=100, M=matrix(0, nrow=10^3, ncol=2),
@@ -357,6 +385,7 @@ isSingular <- function(x){
 ##'   c(var(mat[,1]), var(mat[,2]), cor(mat[,1], mat[,2]))
 ##' }))
 ##' summary(tmp) # corresponds well to Sigma
+##' }
 ##' @export
 rmatnorm <- function(n=1, M, U, V, pivot=c(U="auto", V="auto")){
   stopifnot(is.matrix(M),
@@ -484,7 +513,7 @@ precMatAR1 <- function(n, rho, sigma2){
 ##' @seealso \code{\link{qqplotPval}}
 ##' @author Timothee Flutre
 ##' @examples
-##' set.seed(1859)
+##' \dontrun{set.seed(1859)
 ##' P <- 1000; P1 <- 100; thresh <- 0.05
 ##' pvalues.0 <- setNames(runif(n=P-P1, min=0, max=1),
 ##'                       paste0("null",1:(P-P1)))
@@ -500,6 +529,7 @@ precMatAR1 <- function(n, rho, sigma2){
 ##' if(require(qvalue)){
 ##'   qv <- qvalue(p=pvalues, fdr.level=thresh, pfdr=TRUE)
 ##'   summary(qv)
+##' }
 ##' }
 ##' @export
 plotHistPval <- function(pvalues, breaks=seq(0, 1, 0.05), freq=FALSE,
@@ -580,7 +610,7 @@ plotHistPval <- function(pvalues, breaks=seq(0, 1, 0.05), freq=FALSE,
 ##' @seealso \code{\link{plotHistPval}}
 ##' @author Timothee Flutre (inspired by an anonymous comment at http://gettinggeneticsdone.blogspot.fr/2009/11/qq-plots-of-p-values-in-r-using-ggplot2.html)
 ##' @examples
-##' set.seed(1859)
+##' \dontrun{set.seed(1859)
 ##' P <- 1000; P1 <- 100; thresh <- 0.05
 ##' pvalues.0 <- setNames(runif(n=P-P1, min=0, max=1),
 ##'                       paste0("null",1:(P-P1)))
@@ -594,6 +624,7 @@ plotHistPval <- function(pvalues, breaks=seq(0, 1, 0.05), freq=FALSE,
 ##' pvalues <- out$pvalues # NA omitted
 ##' names(out$pvalues)[out$pv.bonf <= thresh]
 ##' names(out$pvalues)[out$pv.bh <= thresh]
+##' }
 ##' @export
 qqplotPval <- function(pvalues, plot.conf.int=TRUE,
                        xlab=expression(Expected~~-log[10](italic(p)~values)),
@@ -888,10 +919,11 @@ estimatePi0WithQbf <- function(log10.bfs, gamma=0.5, verbose=1){
 ##' @seealso \code{\link{estimatePi0WithEbf}}, \code{\link{estimatePi0WithQbf}}
 ##' @author Timothee Flutre
 ##' @examples
-##' set.seed(1859)
+##' \dontrun{set.seed(1859)
 ##' log10.bfs <- rgamma(n=1000, shape=0.5, rate=1) - 0.5 # fake but looks realistic
 ##' pi0 <- estimatePi0WithEbf(log10.bfs)
 ##' signif <- controlBayesFdr(log10.bfs, pi0)
+##' }
 ##' @export
 controlBayesFdr <- function(log10.bfs, pi0, fdr.level=0.05, verbose=1){
   stopifnot(is.numeric(log10.bfs),

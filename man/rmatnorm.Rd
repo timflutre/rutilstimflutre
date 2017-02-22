@@ -25,6 +25,7 @@ Random generation for the matrix-variate Normal distribution.
 See \url{https://en.wikipedia.org/wiki/Matrix_normal_distribution}.
 }
 \examples{
+\dontrun{set.seed(1859)
 Sigma <- matrix(c(3,2,2,4), nrow=2, ncol=2)
 rho <- Sigma[2,1] / prod(sqrt(diag(Sigma)))
 samples <- rmatnorm(n=100, M=matrix(0, nrow=10^3, ncol=2),
@@ -33,6 +34,7 @@ tmp <- t(apply(samples, 3, function(mat){
   c(var(mat[,1]), var(mat[,2]), cor(mat[,1], mat[,2]))
 }))
 summary(tmp) # corresponds well to Sigma
+}
 }
 \author{
 Timothee Flutre
