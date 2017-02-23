@@ -2766,7 +2766,7 @@ haplosAlleles2num <- function(haplos, alleles, nb.cores=1){
 ##' Impute SNP genotypes via fastPHASE (Scheet and Stephens, 2006).
 ##' @param X matrix of bi-allelic SNP genotypes encoded in number of copies of the 2nd allele, i.e. as allele doses in {0,1,2}, with genotypes in rows and SNPs in columns
 ##' @param snp.coords data.frame with SNP identifiers as row names, and two columns, "chr" and "coord" or "pos"
-##' @param alleles data.frame with SNPs in rows (names as row names) and alleles in columns (named "minor" and "major")
+##' @param alleles data.frame with SNPs in rows (names as row names) and alleles in columns, named "minor" and "major", in whatever order as long as the second column corresponds to the allele which number of copies is counted at each SNP in \code{X}
 ##' @param out.dir directory in which the output files will be saved
 ##' @param task.id identifier of the task (used in temporary and output file names)
 ##' @param nb.starts number of random starts of the EM algorithm
@@ -2790,7 +2790,8 @@ haplosAlleles2num <- function(haplos, alleles, nb.cores=1){
 ##' genomes <- simulCoalescent(nb.inds=nb.inds,
 ##'                            pop.mut.rate=4 * Ne * mu * chrom.len,
 ##'                            pop.recomb.rate=4 * Ne * c * chrom.len,
-##'                            chrom.len=chrom.len)
+##'                            chrom.len=chrom.len,
+##'                            rnd.choice.ref.all=FALSE)
 ##' nb.snps <- nrow(genomes$snp.coords)
 ##' plotHaplosMatrix(genomes$haplos[[1]]) # quick view of the amount of LD
 ##'
@@ -2809,7 +2810,7 @@ haplosAlleles2num <- function(haplos, alleles, nb.cores=1){
 ##' ## perform imputation
 ##' alleles <- as.data.frame(matrix(cbind(rep("A", nb.snps), rep("T", nb.snps)),
 ##'                                 ncol=2, dimnames=list(snp.names,
-##'                                                       c("minor", "major"))))
+##'                                                       c("major", "minor"))))
 ##' out.imp <- fastphase(X=X.na, snp.coords=genomes$snp.coords,
 ##'                      alleles=alleles, nb.starts=3, clean=TRUE)
 ##' X.imp <- segSites2allDoses(seg.sites=list(haplosAlleles2num(haplos=out.imp$haplos,
@@ -2818,7 +2819,15 @@ haplosAlleles2num <- function(haplos, alleles, nb.cores=1){
 ##'                            rnd.choice.ref.all=FALSE)
 ##'
 ##' ## assess imputation accuracy
+##' genomes$haplos[[1]][1:4, 1:6]
+##' genomes$genos[1:2, 1:6]
+##' X.na[1:2, 1:6]
+##' head(alleles)
+##' out.imp$genos[1:4, 1:6]
+##' out.imp$haplos[1:4, 1:6]
+##' X.imp[1:2, 1:6]
 ##' sum(X.imp != genomes$genos)
+##' 100 * sum(X.imp != genomes$genos) / sum(is.na(X.na))
 ##' }
 ##' @export
 fastphase <- function(X, snp.coords, alleles, out.dir=getwd(),
