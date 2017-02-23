@@ -14,7 +14,7 @@ fastphase(X, snp.coords, alleles, out.dir = getwd(), task.id = "fastphase",
 
 \item{snp.coords}{data.frame with SNP identifiers as row names, and two columns, "chr" and "coord" or "pos"}
 
-\item{alleles}{data.frame with SNPs in rows (names as row names) and alleles in columns (named "minor" and "major")}
+\item{alleles}{data.frame with SNPs in rows (names as row names) and alleles in columns, named "minor" and "major", in whatever order as long as the second column corresponds to the allele which number of copies is counted at each SNP in \code{X}}
 
 \item{out.dir}{directory in which the output files will be saved}
 
@@ -53,7 +53,8 @@ c <- 10^(-7)
 genomes <- simulCoalescent(nb.inds=nb.inds,
                            pop.mut.rate=4 * Ne * mu * chrom.len,
                            pop.recomb.rate=4 * Ne * c * chrom.len,
-                           chrom.len=chrom.len)
+                           chrom.len=chrom.len,
+                           rnd.choice.ref.all=FALSE)
 nb.snps <- nrow(genomes$snp.coords)
 plotHaplosMatrix(genomes$haplos[[1]]) # quick view of the amount of LD
 
@@ -72,7 +73,7 @@ plotGridMissGenos(X=X.na)
 ## perform imputation
 alleles <- as.data.frame(matrix(cbind(rep("A", nb.snps), rep("T", nb.snps)),
                                 ncol=2, dimnames=list(snp.names,
-                                                      c("minor", "major"))))
+                                                      c("major", "minor"))))
 out.imp <- fastphase(X=X.na, snp.coords=genomes$snp.coords,
                      alleles=alleles, nb.starts=3, clean=TRUE)
 X.imp <- segSites2allDoses(seg.sites=list(haplosAlleles2num(haplos=out.imp$haplos,
@@ -81,7 +82,15 @@ X.imp <- segSites2allDoses(seg.sites=list(haplosAlleles2num(haplos=out.imp$haplo
                            rnd.choice.ref.all=FALSE)
 
 ## assess imputation accuracy
+genomes$haplos[[1]][1:4, 1:6]
+genomes$genos[1:2, 1:6]
+X.na[1:2, 1:6]
+head(alleles)
+out.imp$genos[1:4, 1:6]
+out.imp$haplos[1:4, 1:6]
+X.imp[1:2, 1:6]
 sum(X.imp != genomes$genos)
+100 * sum(X.imp != genomes$genos) / sum(is.na(X.na))
 }
 }
 \author{
