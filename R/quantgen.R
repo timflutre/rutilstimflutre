@@ -9,7 +9,7 @@
 ##' @param verbose verbosity level (0/1)
 ##' @return matrix with SNPs in rows and genotypes in columns
 ##' @author Eric Duchene [aut], Timothee Flutre [ctb]
-##' @seealso \code{link{genoClasses2genoDoses}}
+##' @seealso \code{link{genoClasses2genoDoses}}, \code{\link{genoClasses2JoinMap}}
 ##' @export
 reformatGenoClasses <- function(file=NULL, x=NULL, na.string="--", verbose=1){
   stopifnot(xor(! is.null(file), ! is.null(x)))
@@ -427,7 +427,7 @@ filterSegreg <- function(x, return.counts=FALSE, verbose=1){
   idx <- 1:ncol(output)
   if(! return.counts)
     idx <- -(1:(grep("chi2", colnames(output)) - 1))
-  return(as.matrix(output[, idx]))
+  return(output[, idx])
 }
 
 ##' JoinMap/MapQTL to R/qtl

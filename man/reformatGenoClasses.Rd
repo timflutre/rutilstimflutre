@@ -26,6 +26,6 @@ Reformat bi-allelic SNP genotypes encoded in genotypic classes to ease subsequen
 Eric Duchene [aut], Timothee Flutre [ctb]
 }
 \seealso{
-\code{link{genoClasses2genoDoses}}
+\code{link{genoClasses2genoDoses}}, \code{\link{genoClasses2JoinMap}}
 }
 
