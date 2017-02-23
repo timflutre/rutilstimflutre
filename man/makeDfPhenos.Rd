@@ -7,9 +7,9 @@
 makeDfPhenos(ind.ids, nb.plots.per.ind, year, pathogen)
 }
 \arguments{
-\item{ind.ids}{vector of genotype identifiers}
+\item{ind.ids}{vector of genotype identifiers (will be sorted using \code{\link{sort}}))}
 
-\item{nb.plots.per.ind}{vector with the number of plots at which each genotype should be phenotype}
+\item{nb.plots.per.ind}{vector with the number of plots at which each genotype should be phenotype (will be sorted in the same order as \code{ind.ids})}
 
 \item{year}{numeric of the year at which phenotyping occurs}
 

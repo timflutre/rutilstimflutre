@@ -152,7 +152,7 @@ getBreedingGameSetup <- function(root.dir){
 ##' @param nb.years number of years of phenotyping
 ##' @param nb.plots.per.line.per.year number of plots per line per year
 ##' @param first.year numeric of the year of the first phenotyping
-##' @param line.ids vector of line identifiers
+##' @param line.ids vector of line identifiers (should be sorted)
 ##' @return data.frame
 ##' @author Timothee Flutre
 ##' @seealso \code{\link{makeDfPhenos}}
@@ -164,7 +164,8 @@ makeDfInitPhenos <- function(nb.lines.per.year=150, nb.years=10,
             is.numeric(nb.years),
             is.numeric(nb.plots.per.line.per.year),
             is.numeric(first.year),
-            is.character(line.ids))
+            is.character(line.ids),
+            ! is.unsorted(order(line.ids)))
 
   nb.plots <- nb.lines.per.year * nb.plots.per.line.per.year
   latest.year <- first.year + nb.years - 1
@@ -199,8 +200,8 @@ makeDfInitPhenos <- function(nb.lines.per.year=150, nb.years=10,
 ##' Simul breeding game
 ##'
 ##' Make the structure of the data.frame that will be given to the players when they request phenotyping during the game.
-##' @param ind.ids vector of genotype identifiers
-##' @param nb.plots.per.ind vector with the number of plots at which each genotype should be phenotype
+##' @param ind.ids vector of genotype identifiers (will be sorted using \code{\link{sort}}))
+##' @param nb.plots.per.ind vector with the number of plots at which each genotype should be phenotype (will be sorted in the same order as \code{ind.ids})
 ##' @param year numeric of the year at which phenotyping occurs
 ##' @param pathogen if TRUE, the pathogen will be present the given year
 ##' @return data.frame
@@ -214,9 +215,13 @@ makeDfPhenos <- function(ind.ids, nb.plots.per.ind, year, pathogen){
             is.numeric(year),
             is.logical(pathogen))
 
-  df <- data.frame(ind=rep(ind.ids, nb.plots.per.ind),
-                   year=as.factor(rep(year, sum(nb.plots.per.ind))),
-                   plot=as.factor(1:sum(nb.plots.per.ind)),
+  tmp <- data.frame(ind.id=ind.ids, nb.plots=nb.plots.per.ind,
+                    stringsAsFactors=FALSE)
+  tmp <- tmp[order(tmp$ind.id),]
+
+  df <- data.frame(ind=rep(tmp$ind.id, tmp$nb.plots),
+                   year=as.factor(rep(year, sum(tmp$nb.plots))),
+                   plot=as.factor(1:sum(tmp$nb.plots)),
                    pathogen=pathogen,
                    trait1.raw=NA,
                    trait1=NA,
@@ -309,13 +314,14 @@ simulSnpEffectsTraits12 <- function(snp.ids,
 ##' Simul breeding game
 ##'
 ##' Simulate phenotypes of traits 1 and 2 jointly: Y = Z.J * Alpha + Z.I * G.A + E.
-##' @param dat data.frame specifying the structure of the initial data set of phenotypes
+##' @param dat data.frame specifying the structure of the initial data set of phenotypes, with columns "ind", "year", etc
 ##' @param mu vector of global means, for each trait
 ##' @param sigma.alpha2 vector of variance for the "year" effects, for each trait (ignored if \code{Alpha} is not NULL)
-##' @param Alpha matrix of "year" effects, for each trait (if NULL, will be simulated using \code{sigma.alpha2})
-##' @param X matrix of bi-allelic SNP genotypes encoded in allele dose in {0,1,2}
+##' @param Alpha matrix of "year" effects, for each trait, the years corresponding to those indicated in \code{dat} (if NULL, will be simulated using \code{sigma.alpha2})
+##' @param X matrix of bi-allelic SNP genotypes encoded in allele dose in {0,1,2}, with individuals in rows in the same order as the levels of \code{dat$ind}
 ##' @param Beta matrix of additive SNP effects, for each trait
-##' @param h2 vector of heritabilities, for each trait
+##' @param h2 vector of heritabilities, for each trait (if NULL, \code{sigma2} will be used)
+##' @param sigma2 vector of error variances, for each trait (ignored if \code{h2} is not NULL)
 ##' @param cor.E.inter.trait correlation of errors between both traits
 ##' @param verbose verbosity level (0/1)
 ##' @return list
@@ -337,6 +343,7 @@ simulTraits12 <- function(dat,
                           X,
                           Beta,
                           h2=c(trait1=0.3, trait2=0.4),
+                          sigma2=NULL,
                           cor.E.inter.trait=0,
                           verbose=1){
   requireNamespace("MASS")
@@ -352,27 +359,46 @@ simulTraits12 <- function(dat,
             all(c("ind","year","plot",names(mu)) %in% colnames(dat)),
             is.factor(dat$year),
             is.factor(dat$ind),
+            ! is.unsorted(order(dat$year)),
             any(! is.null(sigma.alpha2), ! is.null(Alpha)),
+            rownames(X) == levels(dat$ind),
             is.matrix(Beta),
             ncol(Beta) == length(mu),
             ! is.null(colnames(Beta)),
             nrow(Beta) == ncol(X),
             all(rownames(Beta) == colnames(X)),
-            is.vector(h2),
-            is.numeric(h2),
-            all(h2 >= 0, h2 <= 1),
-            ! is.null(names(h2)),
-            length(h2) == length(mu),
-            names(h2) == names(mu),
             is.numeric(cor.E.inter.trait),
             all(cor.E.inter.trait >= -1, cor.E.inter.trait <= 1))
-  if(is.null(Alpha))
+  if(is.null(Alpha)){
     stopifnot(is.vector(sigma.alpha2),
               is.numeric(sigma.alpha2),
               all(sigma.alpha2 > 0),
               length(sigma.alpha2) == length(mu),
               ! is.null(names(sigma.alpha2)),
               all(names(sigma.alpha2) == names(mu)))
+  } else
+    stopifnot(is.matrix(Alpha),
+              ncol(Alpha) == length(mu),
+              nrow(Alpha) == nlevels(dat$year),
+              ! is.null(colnames(Alpha)),
+              colnames(Alpha) == names(mu),
+              ! is.null(rownames(Alpha)),
+              rownames(Alpha) == levels(dat$year))
+  if(is.null(h2)){
+    stopifnot(! is.null(sigma2),
+              is.vector(sigma2),
+              is.numeric(sigma2),
+              all(sigma2 >=0),
+              length(sigma2) == length(mu),
+              ! is.null(names(sigma2)),
+              names(sigma2) == names(mu))
+  } else
+    stopifnot(is.vector(h2),
+              is.numeric(h2),
+              all(h2 >= 0, h2 <= 1),
+              length(h2) == length(mu),
+              ! is.null(names(h2)),
+              names(h2) == names(mu))
 
   out <- list()
 
@@ -394,22 +420,24 @@ simulTraits12 <- function(dat,
   Z.mu <- matrix(1, nrow=N, ncol=1)
 
   if(J == 1){
-    Z.J <- matrix(1, N)
+    Z.J <- matrix(data=1, nrow=N, ncol=1)
   } else
-    Z.J <- stats::model.matrix(~ dat$year - 1)
+    Z.J <- stats::model.matrix(~ year - 1, data=dat)
+  colnames(Z.J) <- years
   if(is.null(Alpha)){
     Alpha <- matrix(c(stats::rnorm(n=J, mean=0, sd=sqrt(sigma.alpha2[1])),
                       stats::rnorm(n=J, mean=0, sd=sqrt(sigma.alpha2[2]))),
                     nrow=J, ncol=T,
                     dimnames=list(years, traits))
-    if(verbose > 0){
-      msg <- paste0("'year' effects: ")
-      write(msg, stdout())
-      print(Alpha)
-    }
+  }
+  if(verbose > 0){
+    msg <- paste0("'year' effects: ")
+    write(msg, stdout())
+    print(Alpha)
   }
 
-  Z.I <- stats::model.matrix(~ dat$ind - 1)
+  Z.I <- stats::model.matrix(~ ind - 1, data=dat)
+  colnames(Z.I) <- inds
   G.A <- X %*% Beta
   afs <- estimSnpAf(X=X)
   sigma.a2 <- c(stats::var(Beta[,1]) * 2 * sum(afs * (1 - afs)),
@@ -432,12 +460,15 @@ simulTraits12 <- function(dat,
   M <- Z.mu %*% t(as.matrix(mu)) + Z.J %*% Alpha + Z.I %*% G.A
 
   ## make the errors
-  sigma2 <- c(((1 - h2[1]) / h2[1]) * stats::var(G.A[,1]),
-              ((1 - h2[2]) / h2[2]) * stats::var(G.A[,2]))
-  if(verbose > 0){
-    msg <- paste0("sigma2[1] = ", format(sigma2[1], digits=3))
-    msg <- paste0(msg, "\nsigma2[2] = ", format(sigma2[2], digits=3))
-    write(msg, stdout())
+  if(is.null(sigma2)){
+    sigma2 <- c(((1 - h2[1]) / h2[1]) * stats::var(G.A[,1]),
+                ((1 - h2[2]) / h2[2]) * stats::var(G.A[,2]))
+    names(sigma2) <- traits
+    if(verbose > 0){
+      msg <- paste0("sigma2[1] = ", format(sigma2[1], digits=3))
+      msg <- paste0(msg, "\nsigma2[2] = ", format(sigma2[2], digits=3))
+      write(msg, stdout())
+    }
   }
   cov.E.inter.trait <- cor.E.inter.trait * sqrt(sigma2[1] * sigma2[2])
   Sigma <- matrix(c(sigma2[1], cov.E.inter.trait,
@@ -474,6 +505,7 @@ simulTraits12 <- function(dat,
   out$sigma.a2 <- sigma.a2
   out$h2 <- h2
   out$sigma2 <- sigma2
+  out$cor.E.inter.trait <- cor.E.inter.trait
   out$Y <- Y
 
   return(out)
