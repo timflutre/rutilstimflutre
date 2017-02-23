@@ -15,7 +15,7 @@ vcf2dosage(vcf.file, genome, gdose.file, ca.file, yieldSize = NA_integer_,
 
 \item{gdose.file}{path to the output file to record genotypes as allele doses (will be gzipped)}
 
-\item{ca.file}{path to the output file to record SNP coordinates and alleles (will be gzipped)}
+\item{ca.file}{path to the output file to record SNP 1-based coordinates and alleles (will be gzipped)}
 
 \item{yieldSize}{number of records to yield each time the file is read from (see ?TabixFile) if seq.id is NULL}
 

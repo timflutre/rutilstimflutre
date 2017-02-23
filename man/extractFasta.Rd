@@ -9,7 +9,7 @@ extractFasta(in.fa, sub.info, out.fa, split.names = " ", verbose = 1)
 \arguments{
 \item{in.fa}{path to the input fasta file (can be gzipped)}
 
-\item{sub.info}{information on the subset to extract, as a data.frame with 3 columns, "seq", "start", "end" (a 4th column, "name", can specify the name of the resulting subsequence; by default, it is \code{seq:start-end})}
+\item{sub.info}{information on the subset to extract, as a data.frame with 3 columns, "seq", "start", "end", where the coordinates are 1-based (a 4th column, "name", can specify the names of the resulting subsequences; by default, these are \code{seq:start-end})}
 
 \item{out.fa}{path to the output fasta file (can be gzipped); if NULL, the subset of sequences isn't written to a file but simply returned}
 

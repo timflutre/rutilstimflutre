@@ -325,8 +325,10 @@ test_that("vcf2dosage", {
                ca.file=ca.file,
                verbose=0)
     observed <- list(genos=as.matrix(read.table(file=gdose.file,
+                                                header=TRUE, sep="\t",
                                                 row.names=1)),
-                     ca=read.table(file=ca.file, header=TRUE,
+                     ca=read.table(file=ca.file,
+                                   header=TRUE, sep="\t",
                                    stringsAsFactors=FALSE))
 
     expect_equal(observed, expected)
@@ -357,28 +359,30 @@ test_that("vcf2genoClasses", {
                                   byrow=TRUE, nrow=2, ncol=3,
                                   dimnames=list(c("snp1", "snp2"),
                                                 c("ind1", "ind2", "ind3"))),
-                     coords=data.frame(chr=c("chr1", "chr1"),
-                                       pos=c(3L, 7L),
-                                       row.names=c("snp1", "snp2"),
-                                       stringsAsFactors=FALSE))
+                     ca=data.frame(chr=c("chr1", "chr1"),
+                                   pos=c(3L, 7L),
+                                   allele.ref=c("A", "A"),
+                                   allele.alt=c("C", "C"),
+                                   row.names=c("snp1", "snp2"),
+                                   stringsAsFactors=FALSE))
 
     prefix.obs <- tempfile()
     gclasses.file <- paste0(prefix.obs, "_geno-classes.txt.gz")
-    coords.file <- paste0(prefix.obs, "_coords.txt.gz")
-    all.files <- c(all.files, gclasses.file, coords.file)
+    ca.file <- paste0(prefix.obs, "_coords-alleles.txt.gz")
+    all.files <- c(all.files, gclasses.file, ca.file)
     vcf2genoClasses(vcf.file=vcf.init.file.bgz,
                     genome=genome,
                     yieldSize=yieldSize,
                     gclasses.file=gclasses.file,
-                    coords.file=coords.file,
+                    ca.file=ca.file,
                     na.string="NN",
                     verbose=0)
     observed <- list(genos=as.matrix(read.table(file=gclasses.file,
                                                 header=TRUE, sep="\t",
                                                 row.names=1)),
-                     coords=read.table(file=coords.file,
-                                       header=TRUE, sep="\t",
-                                       stringsAsFactors=FALSE))
+                     ca=read.table(file=ca.file,
+                                   header=TRUE, sep="\t",
+                                   stringsAsFactors=FALSE))
 
     expect_equal(observed, expected)
 

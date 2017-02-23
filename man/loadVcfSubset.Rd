@@ -13,9 +13,9 @@ loadVcfSubset(vcf.file, genome = "", seq.id, seq.start, seq.end)
 
 \item{seq.id}{sequence identifier to work on (e.g. "chr2")}
 
-\item{seq.start}{start of the sequence to work on}
+\item{seq.start}{start of the sequence to work on (1-based coordinate)}
 
-\item{seq.end}{end of the sequence to work on}
+\item{seq.end}{end of the sequence to work on (1-based coordinate)}
 }
 \value{
 CollapsedVCF (see pkg VariantAnnotation)
