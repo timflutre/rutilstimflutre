@@ -6,22 +6,24 @@
 \usage{
 simulTraits12(dat, mu = c(trait1 = 40, trait2 = 14), sigma.alpha2 = c(trait1
   = 6, trait2 = 3), Alpha = NULL, X, Beta, h2 = c(trait1 = 0.3, trait2 =
-  0.4), cor.E.inter.trait = 0, verbose = 1)
+  0.4), sigma2 = NULL, cor.E.inter.trait = 0, verbose = 1)
 }
 \arguments{
-\item{dat}{data.frame specifying the structure of the initial data set of phenotypes}
+\item{dat}{data.frame specifying the structure of the initial data set of phenotypes, with columns "ind", "year", etc}
 
 \item{mu}{vector of global means, for each trait}
 
 \item{sigma.alpha2}{vector of variance for the "year" effects, for each trait (ignored if \code{Alpha} is not NULL)}
 
-\item{Alpha}{matrix of "year" effects, for each trait (if NULL, will be simulated using \code{sigma.alpha2})}
+\item{Alpha}{matrix of "year" effects, for each trait, the years corresponding to those indicated in \code{dat} (if NULL, will be simulated using \code{sigma.alpha2})}
 
-\item{X}{matrix of bi-allelic SNP genotypes encoded in allele dose in {0,1,2}}
+\item{X}{matrix of bi-allelic SNP genotypes encoded in allele dose in {0,1,2}, with individuals in rows in the same order as the levels of \code{dat$ind}}
 
 \item{Beta}{matrix of additive SNP effects, for each trait}
 
-\item{h2}{vector of heritabilities, for each trait}
+\item{h2}{vector of heritabilities, for each trait (if NULL, \code{sigma2} will be used)}
+
+\item{sigma2}{vector of error variances, for each trait (ignored if \code{h2} is not NULL)}
 
 \item{cor.E.inter.trait}{correlation of errors between both traits}
 

@@ -16,7 +16,7 @@ makeDfInitPhenos(nb.lines.per.year = 150, nb.years = 10,
 
 \item{first.year}{numeric of the year of the first phenotyping}
 
-\item{line.ids}{vector of line identifiers}
+\item{line.ids}{vector of line identifiers (should be sorted)}
 }
 \value{
 data.frame
