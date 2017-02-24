@@ -94,6 +94,9 @@ test_that("genoClasses2JoinMap", {
                          p1.B=c("A", "G", "G", "T", NA),
                          p2.C=c("A", "C", "G", "A", "A"),
                          p2.D=c("T", "G", "G", "T", "T"),
+                         seg.pars=c("<nnxnp>", "<hkxhk>", "<lmxll>", "<hkxhk>", NA),
+                         seg.offs=c("<lmxll>_<nnxnp>", NA, "<lmxll>_<nnxnp>",
+                                    "<hkxhk>", "<hkxhk>"),
                          seg=c("<nnxnp>", NA, "<lmxll>", "<hkxhk>", NA),
                          off1=c("nn", "GG", "lm", "hh", "AA"),
                          off2=c("np", "GG", "lm", "hk", "AT"),
@@ -146,7 +149,7 @@ test_that("filterSegreg", {
   tmp$pvalue <- pchisq(q=tmp$chi2, df=tmp$nb.classes - 1, lower.tail=FALSE)
   tmp$pvalue.bonf <- stats::p.adjust(p=tmp$pvalue, method="bonferroni")
   tmp$pvalue.bh <- stats::p.adjust(p=tmp$pvalue, method="BH")
-  expected <- as.matrix(tmp[, c("chi2", "pvalue", "pvalue.bonf", "pvalue.bh")])
+  expected <- tmp[, c("chi2", "pvalue", "pvalue.bonf", "pvalue.bh")]
 
   observed <- filterSegreg(x=x, verbose=0)
 
