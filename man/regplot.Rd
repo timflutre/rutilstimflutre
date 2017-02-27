@@ -6,7 +6,7 @@
 \usage{
 regplot(x, y, reg = "lm", col = c(lm = "red"), show.cor = TRUE,
   ci.int = TRUE, pred.int = TRUE, legend.x = "right", legend.y = NULL,
-  ...)
+  las = 1, ...)
 }
 \arguments{
 \item{x}{vector or 1-column matrix (missing data coded as NA will be automatically discarded)}
@@ -26,6 +26,8 @@ regplot(x, y, reg = "lm", col = c(lm = "red"), show.cor = TRUE,
 \item{legend.x}{the x co-ordinate to be used to position the legend (see \code{\link[graphics]{legend}})}
 
 \item{legend.y}{the y co-ordinate to be used to position the legend (see \code{\link[graphics]{legend}})}
+
+\item{las}{see \code{\link[graphics]{par}}}
 
 \item{...}{arguments to be passed to \code{\link[graphics]{plot}}}
 }

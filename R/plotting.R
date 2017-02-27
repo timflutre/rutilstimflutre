@@ -12,6 +12,7 @@
 ##' @param pred.int if \code{reg="lm"}, add lines corresponding to prediction intervals
 ##' @param legend.x the x co-ordinate to be used to position the legend (see \code{\link[graphics]{legend}})
 ##' @param legend.y the y co-ordinate to be used to position the legend (see \code{\link[graphics]{legend}})
+##' @param las see \code{\link[graphics]{par}}
 ##' @param ... arguments to be passed to \code{\link[graphics]{plot}}
 ##' @return list of object(s) returned by the function(s) specified via \code{reg}
 ##' @author Timothee Flutre
@@ -32,7 +33,7 @@
 regplot <- function(x, y, reg="lm", col=c(lm="red"), show.cor=TRUE,
                     ci.int=TRUE, pred.int=TRUE,
                     legend.x="right", legend.y=NULL,
-                    ...){
+                    las=1, ...){
   stopifnot(is.numeric(x) || is.vector(x) || (is.matrix(x) && ncol(x) == 1),
             is.numeric(y) || is.vector(y) || (is.matrix(y) && ncol(y) == 1),
             is.character(reg),
@@ -53,7 +54,7 @@ regplot <- function(x, y, reg="lm", col=c(lm="red"), show.cor=TRUE,
   tmp <- data.frame(x=x, y=y)
   tmp <- tmp[stats::complete.cases(tmp),]
 
-  graphics::plot(formula=y ~ x, data=tmp, ...)
+  graphics::plot(formula=y ~ x, data=tmp, las=las, ...)
   legd <- c()
   col.order <- c()
 
