@@ -1581,6 +1581,45 @@ summaryVariant <- function(vcf.file, genome, yieldSize=NA_integer_,
   return(output)
 }
 
+##' Make GRanges
+##'
+##' Return a \code{GRanges} object from sequence identifiers, starts and ends.
+##' @param seq.id sequence identifier(s) to work on (e.g. \code{"chr2"} or \code{c("chr2","chr7")})
+##' @param seq.start start(s) of the sequence(s) to work on (if NULL, whole seq; see \code{dict.file})
+##' @param seq.end end(s) of the sequence(s) to work on (if NULL, whole seq; see \code{dict.file})
+##' @param dict.file path to the SAM dict file (see \url{https://broadinstitute.github.io/picard/command-line-overview.html#CreateSequenceDictionary}) if seq.id is specified with no start/end
+##' @return \code{GRanges} object from the \code{GenomicRanges} package
+##' @author Timothee Flutre
+##' @seealso \code{\link{vcf2dosage}}, \code{\link{vcf2genoClasses}}
+##' @export
+seqIdStartEnd2GRanges <- function(seq.id, seq.start=NULL, seq.end=NULL,
+                                  dict.file=NULL){
+  requireNamespace("GenomicRanges")
+  if(is.null(seq.start) & is.null(seq.end))
+    stopifnot(! is.null(dict.file),
+              file.exists(dict.file))
+
+  for(i in seq_along(seq.id)){
+    if(any(is.null(seq.start), is.null(seq.end))){
+      dict <- readSamDict(file=dict.file)
+      if(! seq.id[i] %in% rownames(dict)){
+        msg <- paste0("seq '", seq.id[i], "' not in '", dict.file, "'")
+        stop(msg)
+      }
+      if(is.null(seq.start))
+        seq.start <- c(seq.start, 1)
+      if(is.null(seq.end))
+        seq.end <- c(seq.end, dict$LN[rownames(dict) == seq.id])
+    }
+  }
+
+  rngs <- GenomicRanges::GRanges(seqnames=c(seq.id),
+                                 ranges=IRanges::IRanges(start=c(seq.start),
+                                                         end=c(seq.end)))
+  names(rngs) <- c(seq.id)
+
+  return(rngs)
+}
 
 ##' Keep single-element VCF records
 ##'
@@ -1679,9 +1718,9 @@ rngVcf2df <- function(vcf, with.coords=TRUE, with.alleles=TRUE){
 ##' @param ca.file path to the output file to record SNP 1-based coordinates and alleles (will be gzipped)
 ##' @param yieldSize number of records to yield each time the file is read from (see ?TabixFile) if seq.id is NULL
 ##' @param dict.file path to the SAM dict file (see \url{https://broadinstitute.github.io/picard/command-line-overview.html#CreateSequenceDictionary}) if seq.id is specified with no start/end
-##' @param seq.id sequence identifier to work on (e.g. "chr2")
-##' @param seq.start start of the sequence to work on (if NULL, whole seq)
-##' @param seq.end end of the sequence to work on (if NULL, whole seq)
+##' @param seq.id see \code{\link{seqIdStartEnd2GRanges}}
+##' @param seq.start see \code{\link{seqIdStartEnd2GRanges}}
+##' @param seq.end see \code{\link{seqIdStartEnd2GRanges}}
 ##' @param uncertain logical indicating whether the genotypes to convert should come from the "GT" field (uncertain=FALSE) or the "GP" or "GL" field (uncertain=TRUE)
 ##' @param verbose verbosity level (0/1)
 ##' @return an invisible list with both output file paths
@@ -1696,7 +1735,7 @@ vcf2dosage <- function(vcf.file, genome, gdose.file, ca.file,
   stopifnot(file.exists(vcf.file),
             xor(is.na(yieldSize), is.null(seq.id)))
   if(! is.null(seq.id) & is.null(seq.start) & is.null(seq.end))
-    stopifnot(! is.null(dict),
+    stopifnot(! is.null(dict.file),
               file.exists(dict.file))
 
   for(out.file in c(gdose.file, ca.file))
@@ -1711,21 +1750,8 @@ vcf2dosage <- function(vcf.file, genome, gdose.file, ca.file,
   tabix.file <- Rsamtools::TabixFile(file=vcf.file,
                                      yieldSize=yieldSize)
   if(! is.null(seq.id)){
-    if(any(is.null(seq.start), is.null(seq.end))){
-      dict <- readSamDict(file=dict.file)
-      if(! seq.id %in% rownames(dict)){
-        msg <- paste0("seq '", seq.id, "' not in '", dict.file, "'")
-        stop(msg)
-      }
-      if(is.null(seq.start))
-        seq.start <- 1
-      if(is.null(seq.end))
-        seq.end <- dict$LN[rownames(dict) == seq.id]
-    }
-    rngs <- GenomicRanges::GRanges(seqnames=c(seq.id),
-                                   ranges=IRanges::IRanges(start=c(seq.start),
-                                                           end=c(seq.end)))
-    names(rngs) <- c(seq.id)
+    rngs <- seqIdStartEnd2GRanges(seq.id=seq.id, seq.start=seq.start,
+                                  seq.end=seq.end, dict.file=dict.file)
     vcf.params <- VariantAnnotation::ScanVcfParam(which=rngs)
     vcf <- VariantAnnotation::readVcf(file=tabix.file, genome=genome,
                                       param=vcf.params)
@@ -1824,9 +1850,9 @@ gtVcf2genoClasses <- function(vcf, na.string=NA){
 ##' @param ca.file path to the output file to record SNP 1-based coordinates and alleles (will be gzipped)
 ##' @param yieldSize number of records to yield each time the file is read from (see \code{?TabixFile}) if seq.id is NULL
 ##' @param dict.file path to the SAM dict file (see \url{https://broadinstitute.github.io/picard/command-line-overview.html#CreateSequenceDictionary}) if seq.id is specified with no start/end
-##' @param seq.id sequence identifier to work on (e.g. "chr2")
-##' @param seq.start start of the sequence to work on (if NULL, will be 1)
-##' @param seq.end end of the sequence to work on (if NULL, end of the whole sequence)
+##' @param seq.id see \code{\link{seqIdStartEnd2GRanges}}
+##' @param seq.start see \code{\link{seqIdStartEnd2GRanges}}
+##' @param seq.end see \code{\link{seqIdStartEnd2GRanges}}
 ##' @param na.string a symbol to indicate missing genotypes (e.g. NA, "NN", "--", etc)
 ##' @param verbose verbosity level (0/1)
 ##' @return invisible vector with the path to the output file
@@ -1841,7 +1867,7 @@ vcf2genoClasses <- function(vcf.file, genome, gclasses.file, ca.file,
   stopifnot(file.exists(vcf.file),
             xor(is.na(yieldSize), is.null(seq.id)))
   if(! is.null(seq.id) & is.null(seq.start) & is.null(seq.end))
-    stopifnot(! is.null(dict),
+    stopifnot(! is.null(dict.file),
               file.exists(dict.file))
 
   for(out.file in c(gclasses.file, ca.file))
@@ -1856,21 +1882,8 @@ vcf2genoClasses <- function(vcf.file, genome, gclasses.file, ca.file,
   tabix.file <- Rsamtools::TabixFile(file=vcf.file,
                                      yieldSize=yieldSize)
   if(! is.null(seq.id)){
-    if(any(is.null(seq.start), is.null(seq.end))){
-      dict <- readSamDict(file=dict.file)
-      if(! seq.id %in% rownames(dict)){
-        msg <- paste0("seq '", seq.id, "' not in '", dict.file, "'")
-        stop(msg)
-      }
-      if(is.null(seq.start))
-        seq.start <- 1
-      if(is.null(seq.end))
-        seq.end <- dict$LN[rownames(dict) == seq.id]
-    }
-    rngs <- GenomicRanges::GRanges(seqnames=c(seq.id),
-                                   ranges=IRanges::IRanges(start=c(seq.start),
-                                                           end=c(seq.end)))
-    names(rngs) <- c(seq.id)
+    rngs <- seqIdStartEnd2GRanges(seq.id=seq.id, seq.start=seq.start,
+                                  seq.end=seq.end, dict.file=dict.file)
     vcf.params <- VariantAnnotation::ScanVcfParam(which=rngs)
     vcf <- VariantAnnotation::readVcf(file=tabix.file, genome=genome,
                                       param=vcf.params)

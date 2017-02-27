@@ -21,11 +21,11 @@ vcf2genoClasses(vcf.file, genome, gclasses.file, ca.file,
 
 \item{dict.file}{path to the SAM dict file (see \url{https://broadinstitute.github.io/picard/command-line-overview.html#CreateSequenceDictionary}) if seq.id is specified with no start/end}
 
-\item{seq.id}{sequence identifier to work on (e.g. "chr2")}
+\item{seq.id}{see \code{\link{seqIdStartEnd2GRanges}}}
 
-\item{seq.start}{start of the sequence to work on (if NULL, will be 1)}
+\item{seq.start}{see \code{\link{seqIdStartEnd2GRanges}}}
 
-\item{seq.end}{end of the sequence to work on (if NULL, end of the whole sequence)}
+\item{seq.end}{see \code{\link{seqIdStartEnd2GRanges}}}
 
 \item{na.string}{a symbol to indicate missing genotypes (e.g. NA, "NN", "--", etc)}
 

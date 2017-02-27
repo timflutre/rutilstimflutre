@@ -21,11 +21,11 @@ vcf2dosage(vcf.file, genome, gdose.file, ca.file, yieldSize = NA_integer_,
 
 \item{dict.file}{path to the SAM dict file (see \url{https://broadinstitute.github.io/picard/command-line-overview.html#CreateSequenceDictionary}) if seq.id is specified with no start/end}
 
-\item{seq.id}{sequence identifier to work on (e.g. "chr2")}
+\item{seq.id}{see \code{\link{seqIdStartEnd2GRanges}}}
 
-\item{seq.start}{start of the sequence to work on (if NULL, whole seq)}
+\item{seq.start}{see \code{\link{seqIdStartEnd2GRanges}}}
 
-\item{seq.end}{end of the sequence to work on (if NULL, whole seq)}
+\item{seq.end}{see \code{\link{seqIdStartEnd2GRanges}}}
 
 \item{uncertain}{logical indicating whether the genotypes to convert should come from the "GT" field (uncertain=FALSE) or the "GP" or "GL" field (uncertain=TRUE)}
 
