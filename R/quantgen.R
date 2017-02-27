@@ -245,18 +245,41 @@ updateJoinMap <- function(x, verbose=1){
 
 ##' Convert genotypes
 ##'
-##' Convert SNP genotypes of a bi-parental cross from genotypic classes into the JoinMap format.
+##' Convert SNP genotypes of a bi-parental cross from genotypic classes into the \href{https://www.kyazma.nl/index.php/JoinMap/}{JoinMap} format.
 ##' For the moment, missing genotypes in parents result in the SNP being ignored, but we could imagine using genotypes in offsprings to impute such cases.
 ##' @param x data.frame of bi-allelic SNP genotypes, with SNPs in rows and genotypes in columns; row names should contain SNP identifiers, the first column should contain the SNP genotypes of the first parent (traditionnaly the mother), the second column should contain the SNP genotypes of the second parent (traditionnaly the father), and the remaining columns should contain the SNP genotypes of the offsprings (full siblings)
 ##' @param reformat.input if TRUE, the function \code{\link{reformatGenoClasses}} will be used
 ##' @param na.string a character to be interpreted as NA values by \code{\link{reformatGenoClasses}}
+##' @param thresh.counts threshold (per SNP) on the number of offsprings having a particular genotypic class, below which counts are converted into \code{NA}
+##' @param thresh.na threshold (per SNP) on the number of offsprings having \code{NA} (applied after \code{thresh.counts})
 ##' @param verbose verbosity level (0/1)
 ##' @return data.frame
 ##' @author Timothee Flutre
 ##' @seealso \code{link{reformatGenoClasses}}
+##' @examples
+##' \dontrun{
+##' nb.snps <- 6
+##' x <- data.frame(par1=c("AA", "GC", "CG", "AT", NA, "AA"),
+##'                 par2=c("AT", "GC", "GG", "AT", "AT", "AT"),
+##'                 off1=c("AA", "GG", "CG", "AA", "AA", "AT"),
+##'                 off2=c("AT", "GG", "CG", "AT", "AT", "AA"),
+##'                 off3=c("AT", "GG", "GG", "TT", "TT", NA),
+##'                 off4=c(NA, NA, NA, NA, NA, NA),
+##'                 row.names=paste0("snp", 1:nb.snps),
+##'                 stringsAsFactors=FALSE)
+##' genoClasses2JoinMap(x=x, reformat.input=TRUE, thresh.na=2, verbose=1)
+##' }
 ##' @export
-genoClasses2JoinMap <- function(x, reformat.input=TRUE, na.string="--", verbose=1){
+genoClasses2JoinMap <- function(x, reformat.input=TRUE, na.string="--",
+                                thresh.counts=NULL, thresh.na=NULL,
+                                verbose=1){
   stopifnot(is.logical(reformat.input))
+  if(! is.null(thresh.counts))
+    stopifnot(is.numeric(thresh.counts),
+              thresh.counts < ncol(x) - 2)
+  if(! is.null(thresh.na))
+    stopifnot(is.numeric(thresh.na),
+              thresh.na < ncol(x) - 2)
   if(reformat.input){
     x <- as.data.frame(reformatGenoClasses(x=x, na.string=na.string,
                                            verbose=verbose))
@@ -289,7 +312,7 @@ genoClasses2JoinMap <- function(x, reformat.input=TRUE, na.string="--", verbose=
   output[, c("p1.A","p1.B")] <- do.call(rbind, strsplit(x[,1], ""))
   output[, c("p2.C","p2.D")] <- do.call(rbind, strsplit(x[,2], ""))
 
-  ## identify proper segregation per SNP based parents
+  ## identify proper segregation per SNP based on parents
   par1.hom <- output[,"p1.A"] == output[,"p1.B"]
   par2.hom <- output[,"p2.C"] == output[,"p2.D"]
   is.na.pars <- apply(x[, 1:2], 1, function(in.row){any(is.na(in.row))})
@@ -309,8 +332,25 @@ genoClasses2JoinMap <- function(x, reformat.input=TRUE, na.string="--", verbose=
     nb.gclasses.offs[[colnames(tmp)]] <- tmp[,1]
   } else
     nb.gclasses.offs <- apply(x[, 3:ncol(x)], 1, table, useNA="always")
+  if(! is.null(thresh.counts)){
+    below.thresh <- sapply(nb.gclasses.offs, function(nb.gc){
+      any(nb.gc < thresh.counts)
+    })
+    if(any(below.thresh))
+      nb.gclasses.offs <- lapply(nb.gclasses.offs, function(nb.gc){
+        to.rmv <- ! is.na(names(nb.gc)) & nb.gc < thresh.counts
+        nb.gc[is.na(names(nb.gc))] <- nb.gc[is.na(names(nb.gc))] +
+          sum(nb.gc[to.rmv])
+        nb.gc[! to.rmv]
+      })
+  }
+  pass.na <- rep(TRUE, length(nb.gclasses.offs))
+  if(! is.null(thresh.na))
+    pass.na <- sapply(nb.gclasses.offs, function(nb.gc){
+      nb.gc[is.na(names(nb.gc))] < thresh.na
+    })
   proper.seg.offs <- sapply(nb.gclasses.offs, length) >= 3 &
-    sapply(nb.gclasses.offs, length) <= 4
+    sapply(nb.gclasses.offs, length) <= 4 & pass.na
 
   ## among proper segregations, determine type per SNP based on parents
   pars.hkhk <- proper.seg.pars & x[,1] == x[,2] & (! par1.hom)
@@ -328,11 +368,6 @@ genoClasses2JoinMap <- function(x, reformat.input=TRUE, na.string="--", verbose=
 
   ## identify segregations per SNP coherent for parents and offsprings
   proper.seg <- proper.seg.offs & proper.seg.pars
-  ## if(verbose > 0){
-  ##   msg <- paste0("proper segregations: ", sum(proper.seg, na.rm=TRUE),
-  ##                 " / ", length(proper.seg))
-  ##   write(msg, stdout())
-  ## }
 
   ## determine coherent segregations among parents and offsprings
   is.hkhk <- (proper.seg.pars & pars.hkhk) &

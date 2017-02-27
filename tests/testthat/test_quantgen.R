@@ -78,34 +78,36 @@ test_that("updateJoinMap", {
 test_that("genoClasses2JoinMap", {
   nb.offs <- 4 # offsprings
   N <- 2 + nb.offs
-  P <- 5 # SNPs
-  x <- data.frame(par1=c("AA", "GC", "CG", "AT", NA),
-                  par2=c("AT", "GC", "GG", "AT", "AT"),
-                  off1=c("AA", "GG", "CG", "AA", "AA"),
-                  off2=c("AT", "GG", "CG", "AT", "AT"),
-                  off3=c("AT", "GG", "GG", "TT", "TT"),
-                  off4=c(NA, NA, NA, NA, NA),
+  P <- 6 # SNPs
+  x <- data.frame(par1=c("AA", "GC", "CG", "AT", NA, "AA"),
+                  par2=c("AT", "GC", "GG", "AT", "AT", "AT"),
+                  off1=c("AA", "GG", "CG", "AA", "AA", "AT"),
+                  off2=c("AT", "GG", "CG", "AT", "AT", "AA"),
+                  off3=c("AT", "GG", "GG", "TT", "TT", NA),
+                  off4=c(NA, NA, NA, NA, NA, NA),
                   row.names=paste0("snp", 1:P),
                   stringsAsFactors=FALSE)
 
-  expected <- data.frame(par1=c("nn", "CG", "lm", "hk", NA),
-                         par2=c("np", "CG", "ll", "hk", "AT"),
-                         p1.A=c("A", "C", "C", "A", NA),
-                         p1.B=c("A", "G", "G", "T", NA),
-                         p2.C=c("A", "C", "G", "A", "A"),
-                         p2.D=c("T", "G", "G", "T", "T"),
-                         seg.pars=c("<nnxnp>", "<hkxhk>", "<lmxll>", "<hkxhk>", NA),
+  expected <- data.frame(par1=c("nn", "CG", "lm", "hk", NA, "AA"),
+                         par2=c("np", "CG", "ll", "hk", "AT", "AT"),
+                         p1.A=c("A", "C", "C", "A", NA, "A"),
+                         p1.B=c("A", "G", "G", "T", NA, "A"),
+                         p2.C=c("A", "C", "G", "A", "A", "A"),
+                         p2.D=c("T", "G", "G", "T", "T", "T"),
+                         seg.pars=c("<nnxnp>", "<hkxhk>", "<lmxll>", "<hkxhk>",
+                                    NA, "<nnxnp>"),
                          seg.offs=c("<lmxll>_<nnxnp>", NA, "<lmxll>_<nnxnp>",
-                                    "<hkxhk>", "<hkxhk>"),
-                         seg=c("<nnxnp>", NA, "<lmxll>", "<hkxhk>", NA),
-                         off1=c("nn", "GG", "lm", "hh", "AA"),
-                         off2=c("np", "GG", "lm", "hk", "AT"),
-                         off3=c("np", "GG", "ll", "kk", "TT"),
-                         off4=as.character(c(NA, NA, NA, NA, NA)),
+                                    "<hkxhk>", "<hkxhk>", NA),
+                         seg=c("<nnxnp>", NA, "<lmxll>", "<hkxhk>", NA, NA),
+                         off1=c("nn", "GG", "lm", "hh", "AA", "AT"),
+                         off2=c("np", "GG", "lm", "hk", "AT", "AA"),
+                         off3=c("np", "GG", "ll", "kk", "TT", NA),
+                         off4=as.character(c(NA, NA, NA, NA, NA, NA)),
                          row.names=rownames(x),
                          stringsAsFactors=FALSE)
 
-  observed <- genoClasses2JoinMap(x=x, reformat.input=TRUE, verbose=0)
+  observed <- genoClasses2JoinMap(x=x, reformat.input=TRUE, thresh.na=2,
+                                  verbose=0)
 
   expect_equal(observed, expected)
 })
