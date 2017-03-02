@@ -160,8 +160,12 @@ test_that("coverageBams", {
 test_that("tableVcfAlt", {
   vcf.file <- system.file("extdata", "example.vcf",
                           package="rutilstimflutre")
-  expected <- table(c(1, 1, 1))
+
+  expected <- Biostrings::DNAStringSetList(c("C"), c("C"), c("T"))
+  names(expected) <- c("snp1", "snp2", "indel1")
+
   observed <- tableVcfAlt(vcf.file=vcf.file, verbose=0)
+
   expect_equal(observed, expected)
 })
 

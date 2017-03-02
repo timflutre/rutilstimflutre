@@ -935,11 +935,11 @@ readVcfSubset <- function(vcf.file, genome="", seq.id, seq.start, seq.end){
 
 ##' Read VCF
 ##'
-##' Reads a VCF file and returns the number of alternate alleles over all records (via \code{\link[base]{table}}).
+##' Read a VCF file and print the number of alternate alleles over all records (via \code{\link[base]{table}}).
 ##' @param vcf.file path to the VCF file
 ##' @param genome genome identifier (e.g. "VITVI_12x2")
 ##' @param verbose verbosity level (0/1)
-##' @return table
+##' @return invisible \code{DNAStringSetList} (from pkg Biostrings)
 ##' @author Timothee Flutre
 ##' @export
 tableVcfAlt <- function(vcf.file, genome="", verbose=1){
@@ -957,7 +957,12 @@ tableVcfAlt <- function(vcf.file, genome="", verbose=1){
     write(msg, stdout())
   }
 
-  return(table(S4Vectors::elementNROWS(VariantAnnotation::alt(vcf))))
+  alts <- VariantAnnotation::alt(vcf)
+  names(alts) <- names(vcf)
+
+  print(table(S4Vectors::elementNROWS(alts)))
+
+  invisible(alts)
 }
 
 ##' Information on variant-level calls

@@ -14,10 +14,10 @@ tableVcfAlt(vcf.file, genome = "", verbose = 1)
 \item{verbose}{verbosity level (0/1)}
 }
 \value{
-table
+invisible \code{DNAStringSetList} (from pkg Biostrings)
 }
 \description{
-Reads a VCF file and returns the number of alternate alleles over all records (via \code{\link[base]{table}}).
+Read a VCF file and print the number of alternate alleles over all records (via \code{\link[base]{table}}).
 }
 \author{
 Timothee Flutre
