@@ -905,9 +905,9 @@ readSamDict <- function(file){
   return(out)
 }
 
-##' Load VCF
+##' Read VCF
 ##'
-##' Load a subset of a VCF file
+##' Read a subset of a VCF file
 ##' @param vcf.file path to the VCF file (bgzip index should exist in same directory)
 ##' @param genome genome identifier (e.g. "VITVI_12x2")
 ##' @param seq.id sequence identifier to work on (e.g. "chr2")
@@ -916,7 +916,7 @@ readSamDict <- function(file){
 ##' @return CollapsedVCF (see pkg VariantAnnotation)
 ##' @author Timothee Flutre
 ##' @export
-loadVcfSubset <- function(vcf.file, genome="", seq.id, seq.start, seq.end){
+readVcfSubset <- function(vcf.file, genome="", seq.id, seq.start, seq.end){
   requireNamespaces(c("IRanges", "GenomicRanges", "VariantAnnotation",
                       "Rsamtools", "S4Vectors"))
   stopifnot(file.exists(vcf.file))
@@ -931,6 +931,33 @@ loadVcfSubset <- function(vcf.file, genome="", seq.id, seq.start, seq.end){
   vcf <- VariantAnnotation::readVcf(file=tabix.file, genome=genome,
                                     param=vcf.params)
   return(vcf)
+}
+
+##' Read VCF
+##'
+##' Reads a VCF file and returns the number of alternate alleles over all records (via \code{\link[base]{table}}).
+##' @param vcf.file path to the VCF file
+##' @param genome genome identifier (e.g. "VITVI_12x2")
+##' @param verbose verbosity level (0/1)
+##' @return table
+##' @author Timothee Flutre
+##' @export
+tableVcfAlt <- function(vcf.file, genome="", verbose=1){
+  requireNamespaces(c("VariantAnnotation", "S4Vectors"))
+  stopifnot(file.exists(vcf.file))
+
+  if(verbose > 0){
+    msg <- "read VCF..."
+    write(msg, stdout())
+  }
+  svp <- VariantAnnotation::ScanVcfParam(fixed="ALT", info=NA, geno=NA)
+  vcf <- VariantAnnotation::readVcf(file=vcf.file, genome=genome, param=svp)
+  if(verbose > 0){
+    msg <- paste0("nb of records: ", nrow(vcf))
+    write(msg, stdout())
+  }
+
+  return(table(S4Vectors::elementNROWS(VariantAnnotation::alt(vcf))))
 }
 
 ##' Information on variant-level calls
