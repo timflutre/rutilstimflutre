@@ -4,10 +4,12 @@
 \alias{filterSegreg}
 \title{Filter for segregation}
 \usage{
-filterSegreg(x, return.counts = FALSE, verbose = 1)
+filterSegreg(x, thresh.pval = 0.05, return.counts = FALSE, verbose = 1)
 }
 \arguments{
 \item{x}{data.frame similar to the output from \code{\link{genoClasses2JoinMap}}, with locus in rows and where the first columns corresponding to parents are discarded, i.e. the first column should be named "seg" and the following should correspond to offsprings}
+
+\item{thresh.pval}{significance threshold at which to control the FWER (Bonferroni-adjusted p values) and the FDR (Benjamini-Hochberg-adjusted p values); the number of non-rejected null hypotheses will be shown only if \code{verbose} is non-zero}
 
 \item{return.counts}{if TRUE, counts used to calculate the chi2 statistic are returned}
 

@@ -25,4 +25,7 @@ Return a \code{GRanges} object from sequence identifiers, starts and ends.
 \author{
 Timothee Flutre
 }
+\seealso{
+\code{\link{vcf2dosage}}, \code{\link{vcf2genoClasses}}
+}
 

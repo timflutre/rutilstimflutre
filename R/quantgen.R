@@ -513,17 +513,21 @@ genoClasses2JoinMap <- function(x, reformat.input=TRUE, na.string="--",
 ##'
 ##' Filter genotypes based on the chi2 statistic to test for segregation distortion.
 ##' @param x data.frame similar to the output from \code{\link{genoClasses2JoinMap}}, with locus in rows and where the first columns corresponding to parents are discarded, i.e. the first column should be named "seg" and the following should correspond to offsprings
+##' @param thresh.pval significance threshold at which to control the FWER (Bonferroni-adjusted p values) and the FDR (Benjamini-Hochberg-adjusted p values); the number of non-rejected null hypotheses will be shown only if \code{verbose} is non-zero
 ##' @param return.counts if TRUE, counts used to calculate the chi2 statistic are returned
 ##' @param verbose verbosity level (0/1)
 ##' @return data.frame with one row per locus and several columns (chi2, p value, Bonferroni-adjusted p value, Benjamini-Hochberg-adjusted p value), as well as counts (if \code{return.counts=TRUE})
 ##' @author Timothee Flutre
 ##' @seealso \code{\link{genoClasses2JoinMap}}, \code{\link{updateJoinMap}}, \code{\link{plotHistPval}}, \code{\link{qqplotPval}}
 ##' @export
-filterSegreg <- function(x, return.counts=FALSE, verbose=1){
+filterSegreg <- function(x, thresh.pval=0.05, return.counts=FALSE, verbose=1){
   stopifnot(is.data.frame(x),
             colnames(x)[1] == "seg",
             all(x$seg %in% c("<nnxnp>", "<lmxll>", "<hkxhk>", "<efxeg>",
-                             "<abxcd>", "NA", NA)))
+                             "<abxcd>", "NA", NA)),
+            is.numeric(thresh.pval),
+            length(thresh.pval) == 1,
+            all(thresh.pval >= 0, thresh.pval <= 1))
 
   output <- data.frame(nb.classes=rep(NA, nrow(x)),
                        row.names=rownames(x))
@@ -586,6 +590,19 @@ filterSegreg <- function(x, return.counts=FALSE, verbose=1){
   ## adjust p values
   output$pvalue.bonf <- stats::p.adjust(p=output$pvalue, method="bonferroni")
   output$pvalue.bh <- stats::p.adjust(p=output$pvalue, method="BH")
+
+  if(verbose > 0){
+    idx <- ! is.na(x$seg)
+    msg <- paste0("nb of non-rejected H0 at ",
+                  format(100*thresh.pval, digits=2), "%",
+                  " (Bonferroni): ", sum(output$pvalue.bonf[idx] >
+                                         thresh.pval))
+    msg <- paste0(msg, "\nnb of non-rejected H0 at ",
+                  format(100*thresh.pval, digits=2), "%",
+                  " (BH): ", sum(output$pvalue.bh[idx] >
+                                 thresh.pval))
+    write(msg, stdout())
+  }
 
   idx <- 1:ncol(output)
   if(! return.counts)
