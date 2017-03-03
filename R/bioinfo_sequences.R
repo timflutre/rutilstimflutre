@@ -67,7 +67,7 @@ summaryFasta <- function(fa.file, letters=c("A","T","G","C","N"), algo=NULL,
   out <- list()
 
   if(verbose > 0)
-    write(paste0("load ", fa.file, " ..."), stdout()); flush(stdout())
+    write(paste0("read ", fa.file, " ..."), stdout()); flush(stdout())
   records <- Biostrings::readDNAStringSet(filepath=fa.file, format="fasta")
   out$nb.records <- length(records)
   out$rec.lengths <- stats::setNames(BiocGenerics::width(records),
@@ -947,9 +947,10 @@ tableVcfAlt <- function(vcf.file, genome="", verbose=1){
   stopifnot(file.exists(vcf.file))
 
   if(verbose > 0){
-    msg <- "read VCF..."
-    write(msg, stdout())
+    msg <- "read VCF to count alternate alleles ..."
+    write(msg, stdout()); flush(stdout())
   }
+
   svp <- VariantAnnotation::ScanVcfParam(fixed="ALT", info=NA, geno=NA)
   vcf <- VariantAnnotation::readVcf(file=vcf.file, genome=genome, param=svp)
   if(verbose > 0){
@@ -1262,6 +1263,11 @@ setGt2Na <- function(vcf.file, genome="", out.file,
 
   dest <- NULL
 
+  if(verbose > 0){
+    msg <- paste0("read VCF to set GT to NA if GQ < ", min.gq, " ...")
+    write(msg, stdout()); flush(stdout())
+  }
+
   tabix.file <- Rsamtools::TabixFile(file=vcf.file,
                                      yieldSize=yieldSize)
   if(! is.null(seq.id)){
@@ -1373,6 +1379,11 @@ filterVariantCalls <- function(vcf.file, genome="", out.file,
     stopifnot(max.var.perc.gt.na >= 0, max.var.perc.gt.na <= 100)
 
   dest <- NULL
+
+  if(verbose > 0){
+    msg <- "read VCF to filter variants ..."
+    write(msg, stdout()); flush(stdout())
+  }
 
   out.file <- sub("\\.gz$", "", out.file)
   out.file <- sub("\\.bgz$", "", out.file)
@@ -1581,6 +1592,11 @@ summaryVariant <- function(vcf.file, genome, yieldSize=NA_integer_,
 
   output <- NULL
 
+  if(verbose > 0){
+    msg <- paste0("read VCF to summarize ", field, " from variants ...")
+    write(msg, stdout()); flush(stdout())
+  }
+
   tabix.file <- Rsamtools::TabixFile(file=vcf.file,
                                      yieldSize=yieldSize)
   if(! is.null(seq.id)){
@@ -1770,6 +1786,11 @@ vcf2dosage <- function(vcf.file, genome, gdose.file, ca.file,
     stopifnot(! is.null(dict.file),
               file.exists(dict.file))
 
+  if(verbose > 0){
+    msg <- "read VCF to convert genotypes into allele doses ..."
+    write(msg, stdout()); flush(stdout())
+  }
+
   for(out.file in c(gdose.file, ca.file))
     if(file.exists(out.file))
       file.remove(out.file)
@@ -1901,6 +1922,11 @@ vcf2genoClasses <- function(vcf.file, genome, gclasses.file, ca.file,
   if(! is.null(seq.id) & is.null(seq.start) & is.null(seq.end))
     stopifnot(! is.null(dict.file),
               file.exists(dict.file))
+
+  if(verbose > 0){
+    msg <- "read VCF to convert genotypes into genotypic classes ..."
+    write(msg, stdout()); flush(stdout())
+  }
 
   for(out.file in c(gclasses.file, ca.file))
     if(file.exists(out.file))
