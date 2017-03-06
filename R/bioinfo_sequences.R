@@ -1233,7 +1233,7 @@ confidenceGenoOneVar <- function(x, plot.it=FALSE){
 
 ##' Set GT to NA
 ##'
-##' Set genotypes (GT field) to missing (".") if the genotype quality (GQ field) isn't high enough.
+##' Set genotypes (GT field) to missing if the genotype quality (GQ field) isn't high enough.
 ##' @param vcf.file path to the VCF file (bgzip index should exist in same directory; should be already filtered for INFO tags such as QD, FS, MQ, etc)
 ##' @param genome genome identifier (e.g. "VITVI_12x2")
 ##' @param out.file path to the output VCF file (a bgzip index will be created in the same directory)
@@ -1242,7 +1242,7 @@ confidenceGenoOneVar <- function(x, plot.it=FALSE){
 ##' @param seq.id sequence identifier to work on (e.g. "chr2")
 ##' @param seq.start start of the sequence to work on (if NULL, whole seq)
 ##' @param seq.end end of the sequence to work on (if NULL, whole seq)
-##' @param min.gq minimum GQ below which GT is set to "."
+##' @param min.gq minimum GQ below which GT is set to missing
 ##' @param verbose verbosity level (0/1)
 ##' @return the destination file path as an invisible character(1)
 ##' @author Timothee Flutre
@@ -1291,7 +1291,7 @@ setGt2Na <- function(vcf.file, genome="", out.file,
     nb.variants <- nrow(vcf)
 
     idx <- (VariantAnnotation::geno(vcf)[["GQ"]] < min.gq)
-    VariantAnnotation::geno(vcf)[["GT"]][idx] <- "."
+    VariantAnnotation::geno(vcf)[["GT"]][idx] <- "./."
 
     dest <- VariantAnnotation::writeVcf(obj=vcf, filename=out.file, index=TRUE)
   } else{
@@ -1304,7 +1304,7 @@ setGt2Na <- function(vcf.file, genome="", out.file,
                                                  genome=genome))){
       nb.variants <- nb.variants + nrow(vcf)
       idx <- (VariantAnnotation::geno(vcf)[["GQ"]] < min.gq)
-      VariantAnnotation::geno(vcf)[["GT"]][idx] <- "."
+      VariantAnnotation::geno(vcf)[["GT"]][idx] <- "./."
       VariantAnnotation::writeVcf(obj=vcf, filename=con)
     }
     close(con)
@@ -1450,7 +1450,8 @@ filterVariantCalls <- function(vcf.file, genome="", out.file,
       logical(0)
     } else{
       gt <- VariantAnnotation::geno(x)$GT
-      (rowSums(gt == ".") <= max.nb.gt.na)
+      is.missing <- matrix(gt %in% c(".","./."), nrow(gt), ncol(gt))
+      (rowSums(is.missing) <= max.nb.gt.na)
     }
   }
 
@@ -1460,7 +1461,8 @@ filterVariantCalls <- function(vcf.file, genome="", out.file,
       logical(0)
     } else{
       gt <- VariantAnnotation::geno(x)$GT
-      (100 * rowSums(gt == ".") / ncol(gt) <= max.perc.gt.na)
+      is.missing <- matrix(gt %in% c(".","./."), nrow(gt), ncol(gt))
+      (100 * rowSums(is.missing) / ncol(gt) <= max.perc.gt.na)
     }
   }
 
@@ -1532,7 +1534,7 @@ filterVariantCalls <- function(vcf.file, genome="", out.file,
     }
   }
 
-  invisible(dest)
+  invisible(sub(".tbi", "", dest))
 }
 
 ##' Summary per variant
@@ -1669,29 +1671,47 @@ seqIdStartEnd2GRanges <- function(seq.id, seq.start=NULL, seq.end=NULL,
   return(rngs)
 }
 
-##' Keep single-element VCF records
+##' Parse VCF
 ##'
-##' Returns a vcf object in which all multi-element 'ref' or 'alt' records and indels were discarded.
+##' Returns a VCF object subsetted for allelicity.
 ##' @param vcf CollapsedVCF (see pkg VariantAnnotation)
+##' @param single.ref if TRUE, only records with a single 'ref' are kept
+##' @param single.alt if TRUE, only records with a single 'alt' are kept
 ##' @return CollapsedVCF
 ##' @author Gautier Sarah, Timothee Flutre
 ##' @export
-getVcfOnlySingleElem <- function(vcf){
-  requireNamespaces(c("S4Vectors", "VariantAnnotation", "BiocInstaller"))
+subsetVcfOnAllelicity <- function(vcf, single.ref=TRUE, single.alt=TRUE){
+  stopifnot(all(is.logical(single.ref), is.logical(single.alt)))
 
-  if(utils::compareVersion(as.character(BiocInstaller::biocVersion()),
-                           "3.4") < 0){
-    idxRef <- S4Vectors::elementLengths(VariantAnnotation::ref(vcf)) == 1L
-    idxAlt <- S4Vectors::elementLengths(VariantAnnotation::alt(vcf)) == 1L
+  idx <- 1:nrow(vcf)
 
-  } else{
-    idxRef <- S4Vectors::elementNROWS(VariantAnnotation::ref(vcf)) == 1L
-    idxAlt <- S4Vectors::elementNROWS(VariantAnnotation::alt(vcf)) == 1L
+  if(any(single.ref, single.alt)){
+    requireNamespaces(c("S4Vectors", "VariantAnnotation", "BiocInstaller"))
+
+    if(utils::compareVersion(as.character(BiocInstaller::biocVersion()),
+                             "3.4") < 0){
+      idxRef <- S4Vectors::elementLengths(VariantAnnotation::ref(vcf)) == 1L
+      idxAlt <- S4Vectors::elementLengths(VariantAnnotation::alt(vcf)) == 1L
+
+    } else{
+      idxRef <- S4Vectors::elementNROWS(VariantAnnotation::ref(vcf)) == 1L
+      idxAlt <- S4Vectors::elementNROWS(VariantAnnotation::alt(vcf)) == 1L
+    }
+
+    if(single.ref){
+      idx <- idxRef
+      if(single.alt){
+        idx <- idx & idxAlt
+        if(! all(idx))
+          warning("keep records with single 'ref' and single 'alt'")
+      } else if(! all(idx))
+        warning("keep records with single 'ref' and possibly multiple 'alt'")
+    } else if(single.alt){
+      idx <- idxAlt
+      if(! all(idx))
+        warning("keep records with single 'alt' and possibly multiple 'ref'")
+    }
   }
-
-  idx <- idxRef & idxAlt
-  if(! all(idx))
-    warning("only coercing single-element records")
 
   return(vcf[idx])
 }
@@ -1703,16 +1723,20 @@ getVcfOnlySingleElem <- function(vcf){
 ##' @param vcf CollapsedVCF (see pkg VariantAnnotation)
 ##' @return matrix with variants in rows and samples in columns
 ##' @author Timothee Flutre
+##' @seealso \code{\link{vcf2dosage}}, \code{\link{gtVcf2genoClasses}}
 ##' @export
 gtVcf2dose <- function(vcf){
   requireNamespace("VariantAnnotation")
-  vcf <- getVcfOnlySingleElem(vcf)
+
+  vcf <- subsetVcfOnAllelicity(vcf=vcf, single.ref=TRUE, single.alt=TRUE)
+
   gt <- sub("\\|", "/", VariantAnnotation::geno(vcf)$GT) # ignore phasing
   gt[which(gt == "0/0")] <- 0
   gt[which(gt == "0/1")] <- 1
   gt[which(gt == "1/1")] <- 2
-  gt[which(gt == ".")] <- NA
+  gt[which(gt %in% c(".","./."))] <- NA
   mode(gt) <- "integer"
+
   return(gt)
 }
 
@@ -1722,16 +1746,21 @@ gtVcf2dose <- function(vcf){
 ##' @param vcf CollapsedVCF (see pkg VariantAnnotation)
 ##' @param with.coords if TRUE, the output will contain variant coordinates
 ##' @param with.alleles if TRUE, the output will contain variant alleles
+##' @param single.ref if TRUE, only records with a single 'ref' are kept
+##' @param single.alt if TRUE, only records with a single 'alt' are kept
 ##' @return data.frame with variants in rows
 ##' @author Timothee Flutre
+##' @seealso \code{\link{subsetVcfOnAllelicity}}
 ##' @export
-rngVcf2df <- function(vcf, with.coords=TRUE, with.alleles=TRUE){
+rngVcf2df <- function(vcf, with.coords=TRUE, with.alleles=TRUE,
+                      single.ref=FALSE, single.alt=FALSE){
   requireNamespaces(c("VariantAnnotation", "GenomeInfoDb",
                       "BiocGenerics", "SummarizedExperiment"))
   stopifnot(all(is.logical(with.coords), is.logical(with.alleles)),
             any(with.coords, with.alleles))
 
-  vcf <- getVcfOnlySingleElem(vcf)
+  vcf <- subsetVcfOnAllelicity(vcf=vcf, single.ref=single.ref,
+                               single.alt=single.alt)
 
   tmp <- SummarizedExperiment::rowRanges(vcf)
 
@@ -1773,6 +1802,7 @@ rngVcf2df <- function(vcf, with.coords=TRUE, with.alleles=TRUE){
 ##' @param verbose verbosity level (0/1)
 ##' @return an invisible list with both output file paths
 ##' @author Timothee Flutre
+##' @seealso \code{\link{gtVcf2dose}}
 ##' @export
 vcf2dosage <- function(vcf.file, genome, gdose.file, ca.file,
                        yieldSize=NA_integer_, dict.file=NULL,
@@ -1810,7 +1840,8 @@ vcf2dosage <- function(vcf.file, genome, gdose.file, ca.file,
                                       param=vcf.params)
     nb.variants <- nrow(vcf)
     gtmp <- gtVcf2dose(vcf=vcf)
-    catmp <- rngVcf2df(vcf=vcf, with.coords=TRUE, with.alleles=TRUE)
+    catmp <- rngVcf2df(vcf=vcf, with.coords=TRUE, with.alleles=TRUE,
+                       single.ref=TRUE, single.alt=TRUE)
     cat(paste(colnames(gtmp), collapse="\t"), file=gdose.con,
         append=TRUE, sep="\n")
     utils::write.table(x=gtmp,
@@ -1826,7 +1857,8 @@ vcf2dosage <- function(vcf.file, genome, gdose.file, ca.file,
     while(nrow(vcf <- VariantAnnotation::readVcf(file=tabix.file,
                                                  genome=genome))){
       gtmp <- gtVcf2dose(vcf=vcf)
-      catmp <- rngVcf2df(vcf=vcf, with.coords=TRUE, with.alleles=TRUE)
+      catmp <- rngVcf2df(vcf=vcf, with.coords=TRUE, with.alleles=TRUE,
+                         single.ref=TRUE, single.alt=TRUE)
       if(nb.variants == 0)
         cat(paste(colnames(gtmp), collapse="\t"), file=gdose.con,
             append=TRUE, sep="\n")
@@ -1859,45 +1891,73 @@ vcf2dosage <- function(vcf.file, genome, gdose.file, ca.file,
 }
 
 
-##' Convert GT to genotypic classes
+##' Parse VCF
 ##'
-##' Non-bi-allelic variants are discarded.
-##' From Martin Morgan (see http://grokbase.com/t/r/bioconductor/135b460s2b/bioc-how-to-convert-genotype-snp-matrix-to-nucleotide-genotypes).
+##' Return a matrix of genotypes for SNPs (with possibly multiple alternative alleles).
+##' Phasing information is ignored.
+##' With \href{http://grokbase.com/t/r/bioconductor/135b460s2b/bioc-how-to-convert-genotype-snp-matrix-to-nucleotide-genotypes}{help} from Martin Morgan.
 ##' @param vcf CollapsedVCF (see pkg VariantAnnotation)
 ##' @param na.string a symbol to indicate missing genotypes (e.g. NA, "NN", "--", etc)
+##' @param single.alt if TRUE, only records with a single 'alt' are kept
 ##' @return matrix with variants in rows and samples in columns
-##' @author Gautier Sarah
+##' @author Gautier Sarah, Timothee Flutre
+##' @seealso \code{\link{vcf2genoClasses}}, \code{\link{gtVcf2dose}}
 ##' @export
-gtVcf2genoClasses <- function(vcf, na.string=NA){
+gtVcf2genoClasses <- function(vcf, na.string=NA, single.alt=TRUE){
   requireNamespaces(c("VariantAnnotation", "GenomicRanges"))
+  stopifnot(is.logical(single.alt))
 
-  vcf <- getVcfOnlySingleElem(vcf)
-  alt <- VariantAnnotation::alt(vcf)
+  if(single.alt)
+    vcf <- subsetVcfOnAllelicity(vcf=vcf, single.ref=TRUE,
+                                 single.alt=TRUE)
+
   ref <- VariantAnnotation::ref(vcf)
-
+  ref <- as.character(ref)
+  alt <- VariantAnnotation::alt(vcf)
+  alt <- GenomicRanges::as.data.frame(alt)
   gt <- sub("\\|", "/", VariantAnnotation::geno(vcf)$GT) # ignore phasing
 
-  rowId <- (which(gt == "0/0")-1)  %% nrow(gt) + 1
-  gt[which(gt == "0/0")] <- paste0(as.character(ref[rowId]),
-                                   as.character(ref[rowId]))
+  idx.var <- (which(gt == "0/0")-1) %% nrow(gt) + 1
+  gt[which(gt == "0/0")] <- paste0(ref[idx.var], ref[idx.var])
 
-  rowId <- (which(gt == "0/1")-1)  %% nrow(gt) + 1
-  gt[which(gt == "0/1")] <- paste0(as.character(ref[rowId]),
-                                   GenomicRanges::as.data.frame(alt)[rowId,3])
+  idx.var <- (which(gt == "0/1")-1) %% nrow(gt) + 1
+  gt[which(gt == "0/1")] <- paste0(ref[idx.var], alt[idx.var, 3])
 
-  rowId <- (which(gt == "1/1")-1)  %% nrow(gt) + 1
-  gt[which(gt == "1/1")] <- paste0(GenomicRanges::as.data.frame(alt)[rowId,3],
-                                   GenomicRanges::as.data.frame(alt)[rowId,3])
+  idx.var <- (which(gt == "1/1")-1) %% nrow(gt) + 1
+  gt[which(gt == "1/1")] <- paste0(alt[idx.var, 3], alt[idx.var, 3])
 
-  gt[which(gt == ".")] <- na.string
+  gt[which(gt %in% c(".","./."))] <- na.string
+
+  if(! single.alt){
+    gclasses <- names(table(gt))
+    gclasses <- gclasses[grepl("/", gclasses)] # keep only the unmodified
+    gclasses <- gclasses[! grepl("\\.", gclasses)] # discard the missing
+    nb.alts <- tapply(alt$group, factor(alt$group), length)
+    tmp <- data.frame(record=rep(NA, sum(nb.alts + 1)),
+                      allele=NA,
+                      stringsAsFactors=FALSE)
+    tmp$record <- rep(as.integer(names(nb.alts)), nb.alts + 1)
+    is.dupl <- duplicated(tmp$record)
+    tmp$allele[! is.dupl] <- ref
+    tmp$allele[is.dupl] <- alt$value
+    for(gclass in gclasses){
+      message(gclass)
+      idx.geno <- which(gt == gclass)
+      idx.rec <- (idx.geno - 1) %% nrow(gt) + 1
+      gt[idx.geno] <- sapply(1:length(idx.geno), function(i){
+        idx.alleles <- as.numeric(strsplit(gt[idx.geno[i]], "/")[[1]])
+        paste0(tmp$allele[tmp$record == idx.rec[i]][idx.alleles + 1], collapse="")
+      })
+    }
+  }
 
   return(gt)
 }
 
 ##' Convert VCF to genotypic classes
 ##'
-##'Convert genotypes at bi-allelic SNPs from a VCF file into genotypic classes.
-##' @param vcf.file path to the VCF file (bgzip index should exist in same directory; should only contain SNPs and be already filtered for QD, FS, MQ, etc)
+##' Convert genotypes at SNPs from a VCF file into genotypic classes.
+##' @param vcf.file path to the VCF file (bgzip index should exist in same directory; should only contain SNPs and be already filtered for QD, FS, MQ, etc, e.g. via \code{\link{filterVariantCalls}})
 ##' @param genome genome identifier (e.g. "VITVI_12x2")
 ##' @param gclasses.file path to the output file to record genotypes into genotypic classes (will be gzipped)
 ##' @param ca.file path to the output file to record SNP 1-based coordinates and alleles (will be gzipped)
@@ -1907,14 +1967,16 @@ gtVcf2genoClasses <- function(vcf, na.string=NA){
 ##' @param seq.start see \code{\link{seqIdStartEnd2GRanges}}
 ##' @param seq.end see \code{\link{seqIdStartEnd2GRanges}}
 ##' @param na.string a symbol to indicate missing genotypes (e.g. NA, "NN", "--", etc)
+##' @param single.alt if TRUE, only records with a single 'alt' are kept
 ##' @param verbose verbosity level (0/1)
 ##' @return invisible vector with the path to the output file
 ##' @author Gautier Sarah, Timothee Flutre
+##' @seealso \code{\link{gtVcf2genoClasses}}
 ##' @export
 vcf2genoClasses <- function(vcf.file, genome, gclasses.file, ca.file,
                             yieldSize=NA_integer_, dict.file=NULL,
                             seq.id=NULL, seq.start=NULL, seq.end=NULL,
-                            na.string=NA, verbose=1){
+                            na.string=NA, single.alt=TRUE, verbose=1){
   requireNamespaces(c("IRanges", "GenomicRanges", "VariantAnnotation",
                       "Rsamtools"))
   stopifnot(file.exists(vcf.file),
@@ -1946,15 +2008,17 @@ vcf2genoClasses <- function(vcf.file, genome, gclasses.file, ca.file,
     vcf <- VariantAnnotation::readVcf(file=tabix.file, genome=genome,
                                       param=vcf.params)
     nb.variants <- nrow(vcf)
-    gtmp <- gtVcf2genoClasses(vcf=vcf, na.string=na.string)
-    ctmp <- rngVcf2df(vcf=vcf, with.coords=TRUE, with.alleles=TRUE)
+    gtmp <- gtVcf2genoClasses(vcf=vcf, na.string=na.string,
+                              single.alt=single.alt)
+    catmp <- rngVcf2df(vcf=vcf, with.coords=TRUE, with.alleles=TRUE,
+                       single.ref=TRUE, single.alt=single.alt)
     cat(paste(colnames(gtmp), collapse="\t"), file=gclasses.con,
         append=TRUE, sep="\n")
     utils::write.table(x=gtmp,
                        file=gclasses.con, append=TRUE,
                        quote=FALSE, sep="\t", row.names=TRUE,
                        col.names=FALSE)
-    utils::write.table(x=ctmp, file=ca.con, append=TRUE,
+    utils::write.table(x=catmp, file=ca.con, append=TRUE,
                        quote=FALSE, sep="\t", row.names=TRUE,
                        col.names=FALSE)
   } else{
@@ -1962,8 +2026,10 @@ vcf2genoClasses <- function(vcf.file, genome, gclasses.file, ca.file,
     nb.variants <- 0
     while(nrow(vcf <- VariantAnnotation::readVcf(file=tabix.file,
                                                  genome=genome))){
-      gtmp <- gtVcf2genoClasses(vcf, na.string)
-      ctmp <- rngVcf2df(vcf=vcf, with.coords=TRUE, with.alleles=TRUE)
+      gtmp <- gtVcf2genoClasses(vcf=vcf, na.string=na.string,
+                                single.alt=single.alt)
+      catmp <- rngVcf2df(vcf=vcf, with.coords=TRUE, with.alleles=TRUE,
+                         single.ref=TRUE, single.alt=single.alt)
       if(nb.variants == 0)
         cat(paste(colnames(gtmp), collapse="\t"), file=gclasses.con,
             append=TRUE, sep="\n")
@@ -1971,7 +2037,7 @@ vcf2genoClasses <- function(vcf.file, genome, gclasses.file, ca.file,
       utils::write.table(x=gtmp, file=gclasses.con, append=TRUE,
                          quote=FALSE, sep="\t", row.names=TRUE,
                          col.names=FALSE)
-      utils::write.table(x=ctmp, file=ca.con, append=TRUE,
+      utils::write.table(x=catmp, file=ca.con, append=TRUE,
                          quote=FALSE, sep="\t", row.names=TRUE,
                          col.names=FALSE)
     }

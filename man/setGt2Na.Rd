@@ -25,7 +25,7 @@ setGt2Na(vcf.file, genome = "", out.file, yieldSize = NA_integer_,
 
 \item{seq.end}{end of the sequence to work on (if NULL, whole seq)}
 
-\item{min.gq}{minimum GQ below which GT is set to "."}
+\item{min.gq}{minimum GQ below which GT is set to missing}
 
 \item{verbose}{verbosity level (0/1)}
 }
@@ -33,7 +33,7 @@ setGt2Na(vcf.file, genome = "", out.file, yieldSize = NA_integer_,
 the destination file path as an invisible character(1)
 }
 \description{
-Set genotypes (GT field) to missing (".") if the genotype quality (GQ field) isn't high enough.
+Set genotypes (GT field) to missing if the genotype quality (GQ field) isn't high enough.
 }
 \author{
 Timothee Flutre

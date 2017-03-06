@@ -50,20 +50,6 @@ test_that("extractFasta", {
   }
 })
 
-.expect_equal_VCFfile <- function(observed, expected){
-  ## see https://support.bioconductor.org/p/74013/
-  expect_equal(VariantAnnotation::info(observed),
-               VariantAnnotation::info(expected))
-  expect_equal(as.character(VariantAnnotation::ref(observed)),
-               as.character(VariantAnnotation::ref(expected)))
-  expect_equal(VariantAnnotation::alt(observed),
-               VariantAnnotation::alt(expected))
-  expect_equal(VariantAnnotation::samples(VariantAnnotation::header(observed)),
-               VariantAnnotation::samples(VariantAnnotation::header(expected)))
-  expect_equal(VariantAnnotation::geno(observed)$GT,
-               VariantAnnotation::geno(expected)$GT)
-}
-
 test_that("coverageBams", {
   if(all(file.exists(Sys.which("bwa")),
          file.exists(Sys.which("samtools")))){
@@ -103,6 +89,7 @@ test_that("coverageBams", {
     cmd <- paste0("bwa mem -R \'@RG\tID:ind1' -M ", tmpd, "/",
                   strsplit(basename(faFile), "\\.")[[1]][1],
                   " ", fqFile,
+                  " 2> /dev/null",
                   " | samtools fixmate -O bam - - ",
                   " | samtools sort -o ", bamFile, " -O bam -")
     system(cmd, ignore.stdout=TRUE, ignore.stderr=TRUE)
@@ -147,7 +134,7 @@ test_that("coverageBams", {
                              expected[[1]][,"mapped.bases"])
 
     ## observed
-    observed <- coverageBams(bamFiles=bamFile)
+    observed <- coverageBams(bamFiles=bamFile, verbose=0)
 
     expect_equal(observed, expected)
 
@@ -156,6 +143,51 @@ test_that("coverageBams", {
         file.remove(f)
   }
 })
+
+.expect_equal_VCFfile <- function(observed, expected){
+  ## see https://support.bioconductor.org/p/74013/
+  expect_equal(VariantAnnotation::info(observed),
+               VariantAnnotation::info(expected))
+  expect_equal(as.character(VariantAnnotation::ref(observed)),
+               as.character(VariantAnnotation::ref(expected)))
+  expect_equal(VariantAnnotation::alt(observed),
+               VariantAnnotation::alt(expected))
+  expect_equal(VariantAnnotation::samples(VariantAnnotation::header(observed)),
+               VariantAnnotation::samples(VariantAnnotation::header(expected)))
+  expect_equal(VariantAnnotation::geno(observed)$GT,
+               VariantAnnotation::geno(expected)$GT)
+}
+
+.makeDummyVcf <- function(){
+  gr <- GenomicRanges::GRanges("chr1",
+                               IRanges::IRanges(1:3*3, width=c(1, 2, 1)))
+  nb.variants <- length(gr)
+  names(gr) <- paste0("var", 1:nb.variants)
+  nb.samples <- 5
+  Df <- S4Vectors::DataFrame(Samples=1:nb.samples,
+                             row.names=paste0("ind", 1:nb.samples))
+  vcf <- VariantAnnotation::VCF(rowRanges=gr, colData=Df)
+  VariantAnnotation::header(vcf) <-
+    VariantAnnotation::VCFHeader(samples=paste0("ind", 1:nb.samples))
+  VariantAnnotation::geno(VariantAnnotation::header(vcf)) <-
+    S4Vectors::DataFrame(Number="1", Type="String",
+                         Description="Genotype",
+                         row.names="GT")
+  VariantAnnotation::ref(vcf) <- Biostrings::DNAStringSet(c("G", c("AA"), "T"))
+  VariantAnnotation::alt(vcf) <- Biostrings::DNAStringSetList("A", c("TT"), c("G", "A"))
+  VariantAnnotation::fixed(vcf)[c("REF", "ALT")]
+  VariantAnnotation::geno(vcf) <-
+    S4Vectors::SimpleList(
+                   GT=matrix(c("0/0","0/0","0/0",  # 1st sample
+                               "0/1","0/1","./.",  # 2nd sample
+                               "./.","0/0","1/1",  # ...
+                               "1/1","1/1","1/2",
+                               "1/1","./.","0/2"),
+                             nrow=nb.variants, ncol=nb.samples,
+                             dimnames=list(names(gr),
+                                           rownames(Df))))
+  return(vcf)
+}
 
 test_that("tableVcfAlt", {
   vcf.file <- system.file("extdata", "example.vcf",
@@ -222,8 +254,10 @@ test_that("filterVariantCalls", {
                                  package="rutilstimflutre")
     vcf.init.file.bgz <- Rsamtools::bgzip(file=vcf.init.file,
                                           overwrite=TRUE)
+    all.files <- c(all.files, vcf.init.file.bgz)
     vcf.init.file.bgz.idx <- Rsamtools::indexTabix(file=vcf.init.file.bgz,
                                                    format="vcf")
+    all.files <- c(all.files, vcf.init.file.bgz.idx)
     vcf.init <- VariantAnnotation::readVcf(file=vcf.init.file.bgz,
                                            genome=genome)
     expected <- vcf.init[-c(2,3)] # remove indel 1 and snp2
@@ -254,13 +288,16 @@ test_that("summaryVariant", {
          requireNamespace("VariantAnnotation"))){
     genome <- "fakeGenomeV0"
     yieldSize <- 100
+    all.files <- c()
 
     vcf.init.file <- system.file("extdata", "example.vcf",
                                  package="rutilstimflutre")
     vcf.init.file.bgz <- Rsamtools::bgzip(file=vcf.init.file,
                                           overwrite=TRUE)
+    all.files <- c(all.files, vcf.init.file.bgz)
     vcf.init.file.bgz.idx <- Rsamtools::indexTabix(file=vcf.init.file.bgz,
                                                    format="vcf")
+    all.files <- c(all.files, vcf.init.file.bgz.idx)
     vcf.init <- VariantAnnotation::readVcf(file=vcf.init.file.bgz,
                                            genome=genome)
     expected <- matrix(data=NA,
@@ -288,6 +325,10 @@ test_that("summaryVariant", {
                                verbose=0)
 
     expect_equal(observed, expected)
+
+    for(f in all.files)
+      if(file.exists(f))
+        file.remove(f)
   }
 })
 
@@ -305,8 +346,10 @@ test_that("vcf2dosage", {
                                  package="rutilstimflutre")
     vcf.init.file.bgz <- Rsamtools::bgzip(file=vcf.init.file,
                                           overwrite=TRUE)
+    all.files <- c(all.files, vcf.init.file.bgz)
     vcf.init.file.bgz.idx <- Rsamtools::indexTabix(file=vcf.init.file.bgz,
                                                    format="vcf")
+    all.files <- c(all.files, vcf.init.file.bgz.idx)
     vcf.init <- VariantAnnotation::readVcf(file=vcf.init.file.bgz,
                                            genome=genome)
     if(utils::compareVersion(as.character(BiocInstaller::biocVersion()),
@@ -351,6 +394,41 @@ test_that("vcf2dosage", {
   }
 })
 
+test_that("gtVcf2genoClasses", {
+  if(all(requireNamespace("VariantAnnotation"),
+         requireNamespace("GenomicRanges"),
+         requireNamespace("IRanges"),
+         requireNamespace("S4Vectors"),
+         requireNamespace("Biostrings"))){
+    vcf.init <- .makeDummyVcf()
+    sample.names <- VariantAnnotation::samples(VariantAnnotation::header(vcf.init))
+    vcf.init <- vcf.init[VariantAnnotation::isSNV(vcf.init, singleAltOnly=FALSE),]
+
+    ## case: SNV with 2 alleles
+    expected <- matrix(c("GG",  # 1st sample
+                         "GA",  # 2nd sample
+                         NA,    # ...
+                         "AA",
+                         "AA"),
+                       nrow=1, ncol=ncol(vcf.init),
+                       dimnames=list(names(vcf.init)[1], sample.names))
+    observed <- gtVcf2genoClasses(vcf=vcf.init, na.string=NA, single.alt=TRUE)
+    expect_equal(observed, expected)
+
+    ## case: SNV with 2 alleles or more
+    expected <- matrix(c("GG","TT",  # 1st sample
+                         "GA",NA,    # 2nd sample
+                         NA,"GG",    # ...
+                         "AA","GA",
+                         "AA","TA"),
+                       nrow=2, ncol=ncol(vcf.init),
+                       dimnames=list(names(vcf.init),
+                                     sample.names))
+    observed <- gtVcf2genoClasses(vcf=vcf.init, na.string=NA, single.alt=FALSE)
+    expect_equal(observed, expected)
+  }
+})
+
 test_that("vcf2genoClasses", {
   if(all(requireNamespace("Rsamtools"),
          requireNamespace("VariantAnnotation"),
@@ -364,8 +442,10 @@ test_that("vcf2genoClasses", {
                                  package="rutilstimflutre")
     vcf.init.file.bgz <- Rsamtools::bgzip(file=vcf.init.file,
                                           overwrite=TRUE)
+    all.files <- c(all.files, vcf.init.file.bgz)
     vcf.init.file.bgz.idx <- Rsamtools::indexTabix(file=vcf.init.file.bgz,
                                                    format="vcf")
+    all.files <- c(all.files, vcf.init.file.bgz.idx)
     expected <- list(genos=matrix(c("AA", "AC", "CC",
                                     "AC", "NN", "NN"),
                                   byrow=TRUE, nrow=2, ncol=3,
@@ -388,6 +468,7 @@ test_that("vcf2genoClasses", {
                     gclasses.file=gclasses.file,
                     ca.file=ca.file,
                     na.string="NN",
+                    single.alt=TRUE,
                     verbose=0)
     observed <- list(genos=as.matrix(read.table(file=gclasses.file,
                                                 header=TRUE, sep="\t",

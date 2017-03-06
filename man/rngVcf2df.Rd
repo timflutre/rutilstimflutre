@@ -4,7 +4,8 @@
 \alias{rngVcf2df}
 \title{Convert ranges to data.frame}
 \usage{
-rngVcf2df(vcf, with.coords = TRUE, with.alleles = TRUE)
+rngVcf2df(vcf, with.coords = TRUE, with.alleles = TRUE,
+  single.ref = FALSE, single.alt = FALSE)
 }
 \arguments{
 \item{vcf}{CollapsedVCF (see pkg VariantAnnotation)}
@@ -12,6 +13,10 @@ rngVcf2df(vcf, with.coords = TRUE, with.alleles = TRUE)
 \item{with.coords}{if TRUE, the output will contain variant coordinates}
 
 \item{with.alleles}{if TRUE, the output will contain variant alleles}
+
+\item{single.ref}{if TRUE, only records with a single 'ref' are kept}
+
+\item{single.alt}{if TRUE, only records with a single 'alt' are kept}
 }
 \value{
 data.frame with variants in rows
@@ -21,5 +26,8 @@ Non-bi-allelic variants are discarded.
 }
 \author{
 Timothee Flutre
+}
+\seealso{
+\code{\link{subsetVcfOnAllelicity}}
 }
 

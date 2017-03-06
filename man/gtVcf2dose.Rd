@@ -19,4 +19,7 @@ From Martin Morgan (see http://grokbase.com/t/r/bioconductor/135b460s2b/bioc-how
 \author{
 Timothee Flutre
 }
+\seealso{
+\code{\link{vcf2dosage}}, \code{\link{gtVcf2genoClasses}}
+}
 

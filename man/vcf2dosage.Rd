@@ -40,4 +40,7 @@ Convert genotypes at bi-allelic variants from a VCF file into allele doses.
 \author{
 Timothee Flutre
 }
+\seealso{
+\code{\link{gtVcf2dose}}
+}
 

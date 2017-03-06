@@ -6,10 +6,11 @@
 \usage{
 vcf2genoClasses(vcf.file, genome, gclasses.file, ca.file,
   yieldSize = NA_integer_, dict.file = NULL, seq.id = NULL,
-  seq.start = NULL, seq.end = NULL, na.string = NA, verbose = 1)
+  seq.start = NULL, seq.end = NULL, na.string = NA, single.alt = TRUE,
+  verbose = 1)
 }
 \arguments{
-\item{vcf.file}{path to the VCF file (bgzip index should exist in same directory; should only contain SNPs and be already filtered for QD, FS, MQ, etc)}
+\item{vcf.file}{path to the VCF file (bgzip index should exist in same directory; should only contain SNPs and be already filtered for QD, FS, MQ, etc, e.g. via \code{\link{filterVariantCalls}})}
 
 \item{genome}{genome identifier (e.g. "VITVI_12x2")}
 
@@ -29,15 +30,20 @@ vcf2genoClasses(vcf.file, genome, gclasses.file, ca.file,
 
 \item{na.string}{a symbol to indicate missing genotypes (e.g. NA, "NN", "--", etc)}
 
+\item{single.alt}{if TRUE, only records with a single 'alt' are kept}
+
 \item{verbose}{verbosity level (0/1)}
 }
 \value{
 invisible vector with the path to the output file
 }
 \description{
-Convert genotypes at bi-allelic SNPs from a VCF file into genotypic classes.
+Convert genotypes at SNPs from a VCF file into genotypic classes.
 }
 \author{
 Gautier Sarah, Timothee Flutre
+}
+\seealso{
+\code{\link{gtVcf2genoClasses}}
 }
 
