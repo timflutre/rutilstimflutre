@@ -19,7 +19,8 @@ Remove the last extension in a file name.
 }
 \examples{
 f <- "data.txt.gz"
-removeFileExtension(file=f, fileext="gz")
+removeFileExtension(file=f, fileext=".gz")
+removeFileExtension(file=f, fileext=".txt.gz")
 }
 \author{
 Timothee Flutre

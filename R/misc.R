@@ -36,17 +36,13 @@ requireNamespaces <- function(packages){
 ##' @author Timothee Flutre
 ##' @examples
 ##' f <- "data.txt.gz"
-##' removeFileExtension(file=f, fileext="gz")
+##' removeFileExtension(file=f, fileext=".gz")
+##' removeFileExtension(file=f, fileext=".txt.gz")
 ##' @export
 removeFileExtension <- function(file, fileext){
-  stopifnot(is.character(file))
-
-  out <- file
-
-  tmp <- strsplit(file, "\\.")[[1]]
-  if(tmp[length(tmp)] == fileext)
-    out <- paste0(tmp[1:(length(tmp)-1)], collapse=".")
-
+  stopifnot(is.character(file),
+            strsplit(fileext, "")[[1]][1] == ".")
+  out <- strsplit(file, fileext)[[1]][1]
   return(out)
 }
 
