@@ -11,7 +11,7 @@ discardSnpsLowMaf(X, mafs = NULL, thresh = 0.01, verbose = 1)
 
 \item{mafs}{vector of minor allele frequencies; if NULL, will be estimated with \code{\link{estimSnpMaf}}}
 
-\item{thresh}{threshold on minor allele frequencies below which SNPs are ignored}
+\item{thresh}{threshold on minor allele frequencies strictly below which SNPs are ignored}
 
 \item{verbose}{verbosity level (0/1)}
 }

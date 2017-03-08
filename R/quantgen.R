@@ -857,7 +857,11 @@ discardMarkersMissGenos <- function(X, verbose=1){
   stopIfNotValidGenosDose(X, check.hasColNames=FALSE, check.hasRowNames=FALSE,
                           check.noNA=FALSE, check.isDose=FALSE)
 
-  ## for each marker, test if it has any missing genotype
+  if(verbose > 0){
+    msg <- "discard markers with missing data ..."
+    write(msg, stdout())
+  }
+
   tokeep <- apply(X, 2, function(x){
     sum(is.na(x)) == 0
   })
@@ -1173,7 +1177,7 @@ plotHistMinAllelFreq <- function(X=NULL, mafs=NULL, main=NULL, xlim=c(0,0.5),
 ##' Discard the SNPs with a minor allele frequency below the given threshold.
 ##' @param X matrix of bi-allelic SNP genotypes encoded in allele doses in [0,2], with genotypes in rows and SNPs in columns; missing values should be encoded as NA
 ##' @param mafs vector of minor allele frequencies; if NULL, will be estimated with \code{\link{estimSnpMaf}}
-##' @param thresh threshold on minor allele frequencies below which SNPs are ignored
+##' @param thresh threshold on minor allele frequencies strictly below which SNPs are ignored
 ##' @param verbose verbosity level (0/1)
 ##' @return matrix similar to X but possibly with less columns
 ##' @author Timothee Flutre
@@ -1197,7 +1201,7 @@ discardSnpsLowMaf <- function(X, mafs=NULL, thresh=0.01, verbose=1){
   snps.low <- mafs < thresh
   if(any(snps.low)){
     if(verbose > 0){
-      msg <- paste0("discard ", sum(snps.low), " SNPs with MAF below ", thresh)
+      msg <- paste0("discard ", sum(snps.low), " SNPs with MAF < ", thresh)
       write(msg, stdout())
     }
     idx.rm <- which(snps.low)
@@ -2186,11 +2190,15 @@ recodeIntoDominant <- function(X, simplify.imputed=FALSE){
 ##'
 ##' Estimate genetic relationships between genotypes from their SNP genotypes.
 ##' Note that "relationships" are estimated, and not "coancestries", which are equal to 2 times "relationhips".
+##' See also \href{http://dx.doi.org/10.1186/1297-9686-43-27}{Toro et al (2011)}.
 ##' @param X matrix of bi-allelic SNP genotypes encoded in allele doses in {0,1,2}, with genotypes in rows and SNPs in columns; missing values should be encoded as NA
 ##' @param afs vector of allele frequencies, corresponding to the alleles whose copies are counted in \code{X} (if NULL, will be calculated with \code{\link{estimSnpAf}})
 ##' @param thresh threshold on minor allele frequencies below which SNPs are ignored (e.g. 0.01; NULL to skip this step)
-##' @param relationships relationship to estimate (additive/dominant/gaussian) where "gaussian" corresponds to the Gaussian kernel from Endelman (2011)
-##' @param method if additive relationships, can be "vanraden1" (first method in VanRaden, 2008), "habier" (similar to 'vanraden1' without giving more importance to rare alleles; from Habier et al, 2007), "astle-balding" (two times equation 2.2 in Astle & Balding, 2009), "yang" (similar to 'astle-balding' but without ignoring sampling error per SNP; from Yang et al, 2010), "zhou" (centering the genotypes and not assuming that rare variants have larger effects; from Zhou et al, 2013) or "center-std"; if dominant relationships, can be "vitezica" (classical/statistical parametrization from Vitezica et al, 2013) or "su" (from Su et al, PLoS One, 2012)
+##' @param relationships relationship to estimate (additive/dominant/gaussian) where "gaussian" corresponds to the Gaussian kernel from \href{http://dx.doi.org/10.3835/plantgenome2011.08.0024}{Endelman (2011)}
+##' @param method \itemize{
+##' \item if additive relationships, can be "vanraden1" (first method in \href{http://dx.doi.org/10.3168/jds.2007-0980}{VanRaden, 2008}), "habier" (similar to "vanraden1" but without centering; from \href{http://dx.doi.org/10.1534/genetics.107.081190}{Habier et al, 2007}), "astle-balding" (two times equation 2.2 in \href{http://dx.doi.org/10.1214/09-sts307}{Astle & Balding, 2009}), "yang" (similar to 'astle-balding' but without ignoring sampling error per SNP; from \href{http://dx.doi.org/10.1038/ng.608}{Yang et al, 2010}), "zhou" (centering the genotypes with \code{\link{scale}} and not assuming that rare variants have larger effects; from \href{http://dx.doi.org/10.1371/journal.pgen.1003264}{Zhou et al, 2013}) or "center-std";
+##' \item if dominant relationships, can be "vitezica" (classical/statistical parametrization from \href{http://dx.doi.org/10.1534/genetics.113.155176}{Vitezica et al, 2013}) or "su" (from \href{http://dx.doi.org/10.1371/journal.pone.0045293}{Su et al, 2012})
+##' }
 ##' @param theta smoothing parameter for "gauss"
 ##' @param verbose verbosity level (0/1)
 ##' @return matrix
@@ -2249,7 +2257,6 @@ estimGenRel <- function(X, afs=NULL, thresh=NULL, relationships="additive",
   N <- nrow(X) # nb of genotypes
   P <- ncol(X) # nb of SNPs
 
-  ## discard SNPs with missing data
   if(any(is.na(X))){
     X <- discardMarkersMissGenos(X=X, verbose=verbose)
     P <- ncol(X)
@@ -2257,11 +2264,14 @@ estimGenRel <- function(X, afs=NULL, thresh=NULL, relationships="additive",
       afs <- afs[colnames(X)]
   }
 
-  ## estimate AFs
-  if(is.null(afs))
+  if(is.null(afs)){
+    if(verbose > 0){
+      msg <- "estimate allele frequencies ..."
+      write(msg, stdout())
+    }
     afs <- estimSnpAf(X=X)
+  }
 
-  ## discard SNPs with low MAFs
   if(all(relationships == "additive", method == "center-std",
          is.null(thresh))){
     if(any(afs == 0, afs == 1)){
@@ -2280,9 +2290,8 @@ estimGenRel <- function(X, afs=NULL, thresh=NULL, relationships="additive",
     }
   }
 
-  ## estimate relationships (not coancestries)
   if(verbose > 0){
-    msg <- paste0("use ", ncol(X), " SNPs")
+    msg <- paste0("estimate relationships with ", ncol(X), " SNPs ...")
     write(msg, stdout())
   }
   if(relationships == "additive"){

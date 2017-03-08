@@ -433,6 +433,7 @@ test_that("estimGenRel_vanraden1", {
 
   afs <- setNames(c(0.383, 0.244, 0.567, 0.067), colnames(X))
 
+  ## as in VanRaden (2008)
   tmp <- matrix(rep(2*(afs-0.5), N), nrow=N, ncol=P, byrow=TRUE)
   Z <- X - 1 - tmp
   denom <- 0
@@ -440,6 +441,24 @@ test_that("estimGenRel_vanraden1", {
     denom <- denom + afs[p] * (1 - afs[p])
   denom <- 2 * denom
   expected <- (Z %*% t(Z)) / denom
+
+  ## as in Toro et al (2011), equation 14
+  if(FALSE){ # for debugging purposes
+    expected <- matrix(data=NA, nrow=N, ncol=N,
+                       dimnames=list(rownames(X), rownames(X)))
+    for(i in 1:N){
+      for(j in i:N){
+        numerator <- 0
+        denominator <- 0
+        for(k in 1:P){
+          numerator <- numerator + (X[i,k]/2 - afs[k]) * (X[j,k]/2 - afs[k])
+          denominator <- denominator + afs[k] * (1 - afs[k])
+        }
+        expected[i,j] <- 2 * numerator / denominator
+      }
+    }
+    expected[lower.tri(expected)] <- expected[upper.tri(expected)]
+  }
 
   observed <- estimGenRel(X=X, afs=afs, thresh=0, relationships="additive",
                           method="vanraden1", verbose=0)
