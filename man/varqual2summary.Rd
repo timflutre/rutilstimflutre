@@ -4,20 +4,23 @@
 \alias{varqual2summary}
 \title{Summary per variant}
 \usage{
-varqual2summary(vcf, field = "GQ")
+varqual2summary(vcf, fields = "GQ")
 }
 \arguments{
 \item{vcf}{CollapsedVCF (see pkg VariantAnnotation)}
 
-\item{field}{genotype field of the VCF to parse (GQ/DP)}
+\item{fields}{genotype field(s) of the VCF to parse (\code{"DP"}/\code{"GQ"}/\code{c("DP","GQ")})}
 }
 \value{
-matrix with one row per variant
+list of matrices (one per field) with one row per variant and 9 columns (n, na, mean, sd, min, q1, med, q3, max)
 }
 \description{
 Compute the mean, sd, min, Q1, med, mean, Q3, max of the genotype qualities per variant, also reporting the number of samples and the number of missing data.
 }
 \author{
 Timothee Flutre
+}
+\seealso{
+\code{\link{summaryVariant}}
 }
 

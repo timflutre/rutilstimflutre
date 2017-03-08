@@ -4,7 +4,7 @@
 \alias{vcf2genoClasses}
 \title{Convert VCF to genotypic classes}
 \usage{
-vcf2genoClasses(vcf.file, genome, gclasses.file, ca.file,
+vcf2genoClasses(vcf.file, genome = "", gclasses.file, ca.file,
   yieldSize = NA_integer_, dict.file = NULL, seq.id = NULL,
   seq.start = NULL, seq.end = NULL, na.string = NA, single.alt = TRUE,
   verbose = 1)

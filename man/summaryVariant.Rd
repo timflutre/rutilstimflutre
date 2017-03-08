@@ -4,8 +4,9 @@
 \alias{summaryVariant}
 \title{Summary per variant}
 \usage{
-summaryVariant(vcf.file, genome, yieldSize = NA_integer_, seq.id = NULL,
-  seq.start = NULL, seq.end = NULL, field = "GQ", verbose = 1)
+summaryVariant(vcf.file, genome = "", yieldSize = NA_integer_,
+  dict.file = NULL, seq.id = NULL, seq.start = NULL, seq.end = NULL,
+  fields = "GQ", verbose = 1)
 }
 \arguments{
 \item{vcf.file}{path to the VCF file}
@@ -14,23 +15,28 @@ summaryVariant(vcf.file, genome, yieldSize = NA_integer_, seq.id = NULL,
 
 \item{yieldSize}{number of records to yield each time the file is read from (see ?TabixFile) if seq.id is NULL}
 
+\item{dict.file}{path to the SAM dict file (see \url{https://broadinstitute.github.io/picard/command-line-overview.html#CreateSequenceDictionary}) if seq.id is specified with no start/end}
+
 \item{seq.id}{sequence identifier to work on (e.g. "chr2")}
 
 \item{seq.start}{start of the sequence to work on}
 
 \item{seq.end}{end of the sequence to work on}
 
-\item{field}{genotype field of the VCF to parse (GQ/DP)}
+\item{fields}{genotype field(s) of the VCF to parse (\code{"DP"}/\code{"GQ"}/\code{c("DP","GQ")})}
 
 \item{verbose}{verbosity level (0/1)}
 }
 \value{
-matrix with one row per variant and 9 columns (n, na, mean, sd, min, q1, med, q3, max)
+list of matrices (one per field) with one row per variant and 9 columns (n, na, mean, sd, min, q1, med, q3, max)
 }
 \description{
 Compute the mean, sd, min, Q1, med, mean, Q3, max of the genotype qualities per variant, also reporting the number of samples and the number of missing data.
 }
 \author{
 Timothee Flutre
+}
+\seealso{
+\code{\link{varqual2summary}}
 }
 

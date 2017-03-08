@@ -300,28 +300,29 @@ test_that("summaryVariant", {
     all.files <- c(all.files, vcf.init.file.bgz.idx)
     vcf.init <- VariantAnnotation::readVcf(file=vcf.init.file.bgz,
                                            genome=genome)
-    expected <- matrix(data=NA,
-                       nrow=nrow(vcf.init),
-                       ncol=9,
-                       dimnames=list(rownames(vcf.init),
-                                     c("n","na","mean","sd","min","q1","med",
-                                       "q3","max")))
+    expected <-
+      list(GQ=matrix(data=NA,
+                     nrow=nrow(vcf.init),
+                     ncol=9,
+                     dimnames=list(rownames(vcf.init),
+                                   c("n","na","mean","sd","min","q1","med",
+                                     "q3","max"))))
     gq <- VariantAnnotation::geno(vcf.init)[["GQ"]]
     for(i in 1:nrow(vcf.init))
-      expected[i,] <- c(ncol(gq),
-                        sum(is.na(gq[i,])),
-                        mean(gq[i,]),
-                        sd(gq[i,]),
-                        min(gq[i,]),
-                        quantile(gq[i,], 0.25),
-                        median(gq[i,]),
-                        quantile(gq[i,], 0.75),
-                        max(gq[i,]))
+      expected$GQ[i,] <- c(ncol(gq),
+                           sum(is.na(gq[i,])),
+                           mean(gq[i,]),
+                           sd(gq[i,]),
+                           min(gq[i,]),
+                           quantile(gq[i,], 0.25),
+                           median(gq[i,]),
+                           quantile(gq[i,], 0.75),
+                           max(gq[i,]))
 
     observed <- summaryVariant(vcf.file=vcf.init.file.bgz,
                                genome=genome,
                                yieldSize=yieldSize,
-                               field="GQ",
+                               fields="GQ",
                                verbose=0)
 
     expect_equal(observed, expected)

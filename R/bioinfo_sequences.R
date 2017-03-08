@@ -1256,7 +1256,7 @@ setGt2Na <- function(vcf.file, genome="", out.file,
   stopifnot(file.exists(vcf.file),
             xor(is.na(yieldSize), is.null(seq.id)))
   if(! is.null(seq.id) & is.null(seq.start) & is.null(seq.end))
-    stopifnot(! is.null(dict),
+    stopifnot(! is.null(dict.file),
               file.exists(dict.file))
   out.file <- sub("\\.gz$", "", out.file)
   out.file <- sub("\\.bgz$", "", out.file)
@@ -1271,28 +1271,14 @@ setGt2Na <- function(vcf.file, genome="", out.file,
   tabix.file <- Rsamtools::TabixFile(file=vcf.file,
                                      yieldSize=yieldSize)
   if(! is.null(seq.id)){
-    if(is.null(seq.start) & is.null(seq.end)){
-      dict <- readSamDict(file=dict.file)
-      if(! seq.id %in% rownames(dict)){
-        msg <- paste0("seq '", seq.id, "' not in '", dict.file, "'")
-        stop(msg)
-      }
-      rngs <- GenomicRanges::GRanges(seqnames=c(seq.id),
-                                     ranges=IRanges::IRanges(start=c(1),
-                                         end=c(dict$LN[rownames(dict) == seq.id])))
-    } else
-      rngs <- GenomicRanges::GRanges(seqnames=c(seq.id),
-                                     ranges=IRanges::IRanges(start=c(seq.start),
-                                         end=c(seq.end)))
-    names(rngs) <- c(seq.id)
+    rngs <- seqIdStartEnd2GRanges(seq.id=seq.id, seq.start=seq.start,
+                                  seq.end=seq.end, dict.file=dict.file)
     vcf.params <- VariantAnnotation::ScanVcfParam(which=rngs)
     vcf <- VariantAnnotation::readVcf(file=tabix.file, genome=genome,
                                       param=vcf.params)
     nb.variants <- nrow(vcf)
-
     idx <- (VariantAnnotation::geno(vcf)[["GQ"]] < min.gq)
     VariantAnnotation::geno(vcf)[["GT"]][idx] <- "./."
-
     dest <- VariantAnnotation::writeVcf(obj=vcf, filename=out.file, index=TRUE)
   } else{
     open(tabix.file)
@@ -1363,7 +1349,7 @@ filterVariantCalls <- function(vcf.file, genome="", out.file,
                       "Rsamtools", "S4Vectors", "BiocInstaller"))
   stopifnot(file.exists(vcf.file))
   if(! is.null(seq.id) & is.null(seq.start) & is.null(seq.end))
-    stopifnot(! is.null(dict),
+    stopifnot(! is.null(dict.file),
               file.exists(dict.file))
   if(! is.null(is.snv))
     stopifnot(is.logical(is.snv))
@@ -1504,22 +1490,8 @@ filterVariantCalls <- function(vcf.file, genome="", out.file,
     tabix.file <- Rsamtools::TabixFile(file=vcf.file,
                                        yieldSize=yieldSize)
     if(! is.null(seq.id)){
-      if(is.null(seq.start) & is.null(seq.end)){
-        dict <- readSamDict(file=dict.file)
-        if(! seq.id %in% rownames(dict)){
-          msg <- paste0("seq '", seq.id, "' not in '", dict.file, "'")
-          stop(msg)
-        }
-        rngs <- GenomicRanges::GRanges(
-            seqnames=c(seq.id),
-            ranges=IRanges::IRanges(start=c(1),
-                                    end=c(dict$LN[rownames(dict) == seq.id])))
-      } else
-        rngs <- GenomicRanges::GRanges(
-            seqnames=c(seq.id),
-            ranges=IRanges::IRanges(start=c(seq.start),
-                                    end=c(seq.end)))
-      names(rngs) <- c(seq.id)
+      rngs <- seqIdStartEnd2GRanges(seq.id=seq.id, seq.start=seq.start,
+                                    seq.end=seq.end, dict.file=dict.file)
       vcf.params <- VariantAnnotation::ScanVcfParam(which=rngs)
       dest <- VariantAnnotation::filterVcf(file=tabix.file, genome=genome,
                                            destination=out.file, index=TRUE,
@@ -1541,29 +1513,37 @@ filterVariantCalls <- function(vcf.file, genome="", out.file,
 ##'
 ##' Compute the mean, sd, min, Q1, med, mean, Q3, max of the genotype qualities per variant, also reporting the number of samples and the number of missing data.
 ##' @param vcf CollapsedVCF (see pkg VariantAnnotation)
-##' @param field genotype field of the VCF to parse (GQ/DP)
-##' @return matrix with one row per variant
+##' @param fields genotype field(s) of the VCF to parse (\code{"DP"}/\code{"GQ"}/\code{c("DP","GQ")})
+##' @return list of matrices (one per field) with one row per variant and 9 columns (n, na, mean, sd, min, q1, med, q3, max)
 ##' @author Timothee Flutre
+##' @seealso \code{\link{summaryVariant}}
 ##' @export
-varqual2summary <- function(vcf, field="GQ"){
+varqual2summary <- function(vcf, fields="GQ"){
   requireNamespace("VariantAnnotation")
+  stopifnot(is.character(fields))
 
-  output <- c()
+  output <- list()
 
-  mat <- VariantAnnotation::geno(vcf)[[field]]
-
-  output <- cbind(n=rep(ncol(mat), nrow(mat)),
-                  na=rowSums(t(apply(mat, 1, is.na))),
-                  mean=suppressWarnings(apply(mat, 1, mean, na.rm=TRUE)),
-                  sd=suppressWarnings(apply(mat, 1, stats::sd, na.rm=TRUE)),
-                  min=suppressWarnings(apply(mat, 1, min, na.rm=TRUE)),
-                  q1=suppressWarnings(apply(mat, 1, stats::quantile,
-                                            probs=0.25, na.rm=TRUE)),
-                  med=suppressWarnings(apply(mat, 1, stats::median, na.rm=TRUE)),
-                  q3=suppressWarnings(apply(mat, 1, stats::quantile,
-                                            probs=0.75, na.rm=TRUE)),
-                  max=suppressWarnings(apply(mat, 1, max, na.rm=TRUE)))
-  rownames(output) <- rownames(mat)
+  for(field in fields){
+    mat <- VariantAnnotation::geno(vcf)[[field]]
+    if(class(mat[1,1]) != "list"){ # DP, GQ
+      output[[field]] <-
+        cbind(n=rep(ncol(mat), nrow(mat)),
+              na=rowSums(t(apply(mat, 1, is.na))),
+              mean=suppressWarnings(apply(mat, 1, mean, na.rm=TRUE)),
+              sd=suppressWarnings(apply(mat, 1, stats::sd, na.rm=TRUE)),
+              min=suppressWarnings(apply(mat, 1, min, na.rm=TRUE)),
+              q1=suppressWarnings(apply(mat, 1, stats::quantile,
+                                        probs=0.25, na.rm=TRUE)),
+              med=suppressWarnings(apply(mat, 1, stats::median, na.rm=TRUE)),
+              q3=suppressWarnings(apply(mat, 1, stats::quantile,
+                                        probs=0.75, na.rm=TRUE)),
+              max=suppressWarnings(apply(mat, 1, max, na.rm=TRUE)))
+    } else{ # AD
+      ## TODO
+    }
+    rownames(output[[field]]) <- rownames(mat)
+  }
 
   return(output)
 }
@@ -1574,57 +1554,63 @@ varqual2summary <- function(vcf, field="GQ"){
 ##' @param vcf.file path to the VCF file
 ##' @param genome genome identifier (e.g. "VITVI_12x2")
 ##' @param yieldSize number of records to yield each time the file is read from (see ?TabixFile) if seq.id is NULL
+##' @param dict.file path to the SAM dict file (see \url{https://broadinstitute.github.io/picard/command-line-overview.html#CreateSequenceDictionary}) if seq.id is specified with no start/end
 ##' @param seq.id sequence identifier to work on (e.g. "chr2")
 ##' @param seq.start start of the sequence to work on
 ##' @param seq.end end of the sequence to work on
-##' @param field genotype field of the VCF to parse (GQ/DP)
+##' @param fields genotype field(s) of the VCF to parse (\code{"DP"}/\code{"GQ"}/\code{c("DP","GQ")})
 ##' @param verbose verbosity level (0/1)
-##' @return matrix with one row per variant and 9 columns (n, na, mean, sd, min, q1, med, q3, max)
+##' @return list of matrices (one per field) with one row per variant and 9 columns (n, na, mean, sd, min, q1, med, q3, max)
 ##' @author Timothee Flutre
+##' @seealso \code{\link{varqual2summary}}
 ##' @export
-summaryVariant <- function(vcf.file, genome, yieldSize=NA_integer_,
-                           seq.id=NULL, seq.start=NULL, seq.end=NULL,
-                           field="GQ", verbose=1){
+summaryVariant <- function(vcf.file, genome="", yieldSize=NA_integer_,
+                           dict.file=NULL, seq.id=NULL, seq.start=NULL,
+                           seq.end=NULL, fields="GQ", verbose=1){
   requireNamespaces(c("IRanges", "GenomicRanges", "VariantAnnotation",
                       "Rsamtools"))
   stopifnot(file.exists(vcf.file),
-            field %in% c("GQ", "DP"))
-  if(! is.null(seq.id))
-    stopifnot(all(! is.null(seq.start), ! is.null(seq.end)))
+            xor(is.na(yieldSize), is.null(seq.id)),
+            is.character(fields),
+            all(fields %in% c("GQ", "DP")))
+  if(! is.null(seq.id) & is.null(seq.start) & is.null(seq.end))
+    stopifnot(! is.null(dict.file),
+              file.exists(dict.file))
 
   output <- NULL
 
   if(verbose > 0){
-    msg <- paste0("read VCF to summarize ", field, " from variants ...")
+    msg <- paste0("read VCF to summarize ", paste(fields, collapse="-"),
+                  " from variants ...")
     write(msg, stdout()); flush(stdout())
   }
 
   tabix.file <- Rsamtools::TabixFile(file=vcf.file,
                                      yieldSize=yieldSize)
   if(! is.null(seq.id)){
-    rngs <- GenomicRanges::GRanges(seqnames=c(seq.id),
-                                   ranges=IRanges::IRanges(start=c(seq.start),
-                                                           end=c(seq.end)))
-    names(rngs) <- c(seq.id)
+    rngs <- seqIdStartEnd2GRanges(seq.id=seq.id, seq.start=seq.start,
+                                  seq.end=seq.end, dict.file=dict.file)
     vcf.params <- VariantAnnotation::ScanVcfParam(which=rngs)
     vcf <- VariantAnnotation::readVcf(file=tabix.file, genome=genome,
                                       param=vcf.params)
-    nb.variants <- nrow(vcf)
-    output <- varqual2summary(vcf, field)
+    output <- varqual2summary(vcf, fields)
   } else{
     open(tabix.file)
     while(nrow(vcf <- VariantAnnotation::readVcf(file=tabix.file,
                                                  genome=genome))){
       if(is.null(output)){
-        output <- varqual2summary(vcf, field)
-      } else
-        output <- rbind(output, varqual2summary(vcf, field))
+        output <- varqual2summary(vcf, fields)
+      } else{
+        tmp <- varqual2summary(vcf, fields)
+        for(field in fields)
+          output[[field]] <- rbind(output[[field]], tmp[[field]])
+      }
     }
     close(tabix.file)
   }
 
   if(verbose > 0){
-    msg <- paste0("nb of variants: ", nrow(output))
+    msg <- paste0("nb of variants: ", nrow(output[[1]]))
     write(msg, stdout())
   }
 
@@ -1804,7 +1790,7 @@ rngVcf2df <- function(vcf, with.coords=TRUE, with.alleles=TRUE,
 ##' @author Timothee Flutre
 ##' @seealso \code{\link{gtVcf2dose}}
 ##' @export
-vcf2dosage <- function(vcf.file, genome, gdose.file, ca.file,
+vcf2dosage <- function(vcf.file, genome="", gdose.file, ca.file,
                        yieldSize=NA_integer_, dict.file=NULL,
                        seq.id=NULL, seq.start=NULL, seq.end=NULL,
                        uncertain=FALSE, verbose=1){
@@ -1973,7 +1959,7 @@ gtVcf2genoClasses <- function(vcf, na.string=NA, single.alt=TRUE){
 ##' @author Gautier Sarah, Timothee Flutre
 ##' @seealso \code{\link{gtVcf2genoClasses}}
 ##' @export
-vcf2genoClasses <- function(vcf.file, genome, gclasses.file, ca.file,
+vcf2genoClasses <- function(vcf.file, genome="", gclasses.file, ca.file,
                             yieldSize=NA_integer_, dict.file=NULL,
                             seq.id=NULL, seq.start=NULL, seq.end=NULL,
                             na.string=NA, single.alt=TRUE, verbose=1){
