@@ -1125,6 +1125,74 @@ chiSqSnpGenos <- function(X, mafs=NULL, c=0.5, thresh.c=0.01, calc.with.D=TRUE,
   return(out)
 }
 
+##' Allele frequencies
+##'
+##' Plot the histogram of the allele frequency per SNP.
+##' @param X matrix of bi-allelic SNP genotypes encoded, for each SNP, in number of copies of its minor allele, i.e. as allele doses in [0,2], with genotypes in rows and SNPs in columns; if X is not NULL, minor allele frequencies will be estimated via \code{\link{estimSnpAf}}
+##' @param afs vector of allele frequencies (not used if X is not NULL)
+##' @param main string for the main title
+##' @param xlim limits of the x-axis
+##' @param col color for the bars
+##' @param border color for the border of the bars
+##' @param las see ?par
+##' @param breaks see ?hist
+##' @param add.ml.beta if TRUE, add a curve corresponding to a Beta distribution with parameters inferred by maximum likelihood
+##' @param verbose verbosity level (0/1)
+##' @param ... arguments to be passed to hist()
+##' @return invisible list with the output of \code{hist} and \code{optim} (if \code{add.ml.beta=TRUE})
+##' @author Timothee Flutre
+##' @export
+plotHistAllelFreq <- function(X=NULL, afs=NULL, main=NULL, xlim=c(0,1),
+                              col="grey", border="white", las=1,
+                              breaks="FD", add.ml.beta=FALSE,
+                              verbose=1, ...){
+  stopifnot(xor(! is.null(X), ! is.null(afs)),
+            is.logical(add.ml.beta))
+
+  if(! is.null(X)){
+    stopIfNotValidGenosDose(X, check.hasColNames=FALSE,
+                            check.hasRowNames=FALSE,
+                            check.noNA=FALSE)
+    N <- nrow(X)
+    P <- ncol(X)
+    if(verbose > 0){
+      msg <- paste0(P, " SNPs and ", N, " genotypes")
+      write(msg, stdout())
+    }
+    afs <- estimSnpAf(X)
+  } else # is.null(X)
+    stopifnot(is.vector(afs),
+              is.numeric(afs),
+              all(afs >= 0, afs <= 1))
+
+  if(is.null(main))
+    main <- paste0("AFs of ", length(afs), " markers")
+
+  tmp <- graphics::hist(x=afs, xlab="Allele frequency",
+                        ylab="Number of markers",
+                        main=main, xlim=xlim, col=col, border=border,
+                        las=las, breaks=breaks, ...)
+
+  if(add.ml.beta){
+    fn.beta <- function(theta, x){
+      sum(-stats::dbeta(x, theta[1], theta[2], log=TRUE))
+    }
+    fit <- stats::optim(par=c(0.3,0.3), fn=fn.beta, x=afs, method="L-BFGS-B",
+                 lower=c(0.0001,0.0001), upper=c(1,1))
+    ## http://stackoverflow.com/a/20078645/597069
+    x <- seq(min(afs), max(afs), length=100)
+    y <- stats::dbeta(x, fit$par[1], fit$par[2])
+    y <- y * diff(tmp$mids[1:2]) * length(afs)
+    graphics::lines(x, y, col="red")
+    graphics::legend("topright", legend=paste0("Beta(", format(fit$par[1], digits=2),
+                                     ", ", format(fit$par[2], digits=2),
+                                     ") fitted via\nmaximum likelihood"),
+           col="red", lty=1, bty="n")
+  }
+
+  invisible(list(out.hist=tmp, out.optim=fit))
+}
+
 ##' Minor allele frequencies
 ##'
 ##' Plot the histogram of the minor allele frequency per SNP.
@@ -1139,7 +1207,7 @@ chiSqSnpGenos <- function(X, mafs=NULL, c=0.5, thresh.c=0.01, calc.with.D=TRUE,
 ##' @param add.ml.beta if TRUE, add a curve corresponding to a Beta distribution with parameters inferred by maximum likelihood
 ##' @param verbose verbosity level (0/1)
 ##' @param ... arguments to be passed to hist()
-##' @return nothing
+##' @return invisible list with the output of \code{hist} and \code{optim} (if \code{add.ml.beta=TRUE})
 ##' @author Timothee Flutre
 ##' @export
 plotHistMinAllelFreq <- function(X=NULL, mafs=NULL, main=NULL, xlim=c(0,0.5),
@@ -1195,6 +1263,8 @@ plotHistMinAllelFreq <- function(X=NULL, mafs=NULL, main=NULL, xlim=c(0,0.5),
                                      ") fitted via\nmaximum likelihood"),
            col="red", lty=1, bty="n")
   }
+
+  invisible(list(out.hist=tmp, out.optim=fit))
 }
 
 ##' Minor allele frequencies

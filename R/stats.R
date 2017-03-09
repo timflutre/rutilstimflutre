@@ -115,6 +115,25 @@ getParamsBetaDist <- function(m, v){
   return(c(alpha=alpha, beta=beta))
 }
 
+##' Beta distribution
+##'
+##' Return the values of the mean and variance for the \href{https://en.wikipedia.org/wiki/Beta_distribution}{Beta distribution} given its parameters.
+##' @param alpha first parameter
+##' @param beta second parameter
+##' @return vector
+##' @author Timothee Flutre
+##' @export
+getMeanVarBetaDist <- function(alpha, beta){
+  stopifnot(all(is.numeric(alpha), is.numeric(beta)),
+            all(alpha > 0, beta > 0))
+
+  m <- alpha / (alpha + beta)
+
+  v <- (alpha * beta) / ((alpha + beta)^2 * (alpha + beta + 1))
+
+  return(c(mean=m, var=v))
+}
+
 ##' Hypothesis testing
 ##'
 ##' Return the number of true positives, false positives, true negatives,
