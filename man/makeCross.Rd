@@ -29,4 +29,7 @@ Make a cross. If two different genotypes are given, then a fecundation is made w
 \author{
 Timothee Flutre
 }
+\seealso{
+\code{\link{makeCrosses}}, \code{\link{drawLocCrossovers}}, \code{\link{makeGameteSingleInd}}, \code{\link{fecundation}}
+}
 

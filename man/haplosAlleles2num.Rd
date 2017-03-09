@@ -22,4 +22,7 @@ Reformat haplotypes from alleles as string into numeric.
 \author{
 Timothee Flutre
 }
+\seealso{
+\code{\link{segSites2allDoses}}
+}
 

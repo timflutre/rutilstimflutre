@@ -24,6 +24,59 @@ list of matrices (one per chromosome) with child haplotypes in rows and SNPs in 
 \description{
 Make crosses (fecundation, autofecondation, haplodiploidization).
 }
+\examples{
+\dontrun{set.seed(1859)
+if(require(scrm)){
+  ## simulate haplotypes
+  nb.genos <- 2*10^2
+  nb.chroms <- 10
+  Ne <- 10^5
+  chrom.len <- 10^5
+  mu <- 10^(-8)
+  c.rec <- 10^(-8)
+  genomes <- simulCoalescent(nb.inds=nb.genos,
+                             nb.reps=nb.chroms,
+                             pop.mut.rate=4 * Ne * mu * chrom.len,
+                             pop.recomb.rate=4 * Ne * c.rec * chrom.len,
+                             chrom.len=chrom.len,
+                             get.alleles=TRUE,
+                             permute.alleles=TRUE)
+
+  ## pick 2 individuals at random as parents
+  (idx.parents <- sample.int(n=nb.genos, size=2))
+  genos.parents <- genomes$genos[idx.parents,]
+  names.parents <- rownames(genos.parents)
+  haplos.parents <- getHaplosInds(haplos=genomes$haplos,
+                                 ind.names=names.parents)
+
+  ## cross them several times to make offsprings
+  nb.offs <- 100
+  names.offs <- paste0(names.parents[1], "-", names.parents[2], "-",
+                       sprintf(fmt=paste0("\%0", floor(log10(nb.offs))+1, "i"),
+                               1:nb.offs))
+  crosses <- data.frame(parent1=rep(names.parents[1], nb.offs),
+                        parent2=rep(names.parents[2], nb.offs),
+                        child=names.offs,
+                        stringsAsFactors=FALSE)
+  loc.crossovers <- drawLocCrossovers(crosses=crosses,
+                                      nb.snps=sapply(haplos.parents, ncol))
+  haplos.offs <- makeCrosses(haplos=haplos.parents, crosses=crosses,
+                             loc.crossovers=loc.crossovers)
+  genos.offs <- segSites2allDoses(seg.sites=haplos.offs,
+                                  ind.ids=getIndNamesFromHaplos(haplos.offs),
+                                  snp.ids=rownames(genomes$snp.coords))
+
+  ## look at the first crossing-over in the first offspring
+  (snps.co <- colnames(haplos.parents$chr1)[loc.crossovers[[1]][[1]]$chr1])
+  tmp <- subsetDiffHaplosWithinParent(haplos.chr=haplos.parents$chr1[1:2,],
+                                      snps.tokeep=snps.co)
+  (idx1 <- which(colnames(tmp) == snps.co[1]))
+  (snps.tokeep <- colnames(tmp)[(idx1-2):(idx1+2)])
+  tmp[, snps.tokeep]
+  haplos.offs$chr1[1:2, snps.tokeep]
+}
+}
+}
 \author{
 Timothee Flutre
 }

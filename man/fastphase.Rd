@@ -53,8 +53,7 @@ c <- 10^(-7)
 genomes <- simulCoalescent(nb.inds=nb.inds,
                            pop.mut.rate=4 * Ne * mu * chrom.len,
                            pop.recomb.rate=4 * Ne * c * chrom.len,
-                           chrom.len=chrom.len,
-                           rnd.choice.ref.all=FALSE)
+                           chrom.len=chrom.len)
 nb.snps <- nrow(genomes$snp.coords)
 plotHaplosMatrix(genomes$haplos[[1]]) # quick view of the amount of LD
 
@@ -78,8 +77,7 @@ out.imp <- fastphase(X=X.na, snp.coords=genomes$snp.coords,
                      alleles=alleles, nb.starts=3, clean=TRUE)
 X.imp <- segSites2allDoses(seg.sites=list(haplosAlleles2num(haplos=out.imp$haplos,
                                                             alleles=alleles)),
-                           ind.ids=rownames(genomes$genos),
-                           rnd.choice.ref.all=FALSE)
+                           ind.ids=rownames(genomes$genos))
 
 ## assess imputation accuracy
 genomes$haplos[[1]][1:4, 1:6]

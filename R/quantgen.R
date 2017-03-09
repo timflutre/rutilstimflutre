@@ -683,6 +683,31 @@ segregJoinMap2Qtl <- function(){
   return(out)
 }
 
+##' Haplotypes
+##'
+##' Check that the input is a valid list of matrices of bi-allelic marker haplotypes.
+##' @param haplos input list
+##' @param check.hasColNames logical
+##' @param check.noNA logical
+##' @author Timothee Flutre
+##' @export
+stopIfNotValidHaplos <- function(haplos, check.hasColNames=FALSE,
+                                 check.noNA=TRUE){
+  stopifnot(! missing(haplos),
+            ! is.null(haplos),
+            is.list(haplos),
+            all(sapply(haplos, is.matrix)),
+            all(sapply(haplos, is.numeric)),
+            length(unique(sapply(haplos, nrow))) == 1,
+            ifelse(check.hasColNames,
+                   ! any(sapply(haplos, function(x){is.null(colnames(x))})),
+                   TRUE),
+            ifelse(check.noNA,
+                   ! any(sapply(haplos, function(x){any(is.na(x))})),
+                   TRUE),
+            all(sapply(haplos, function(x){all(x %in% c(0,1))})))
+}
+
 ##' Genotypes
 ##'
 ##' Check that the input is a valid matrix of bi-allelic SNP genotypes coded in allele doses.
@@ -1346,23 +1371,91 @@ haplosList2Matrix <- function(haplos){
   return(H)
 }
 
+##' Haplotypes
+##'
+##' Permute alleles in haplotypes.
+##' In the \href{https://cran.r-project.org/package=scrm}{scrm} package, haplotypes are made of 0's and 1's, the former indicating ancestral alleles and the latter derived alleles.
+##' However, when one wants to simulate realistic data, one often converts haplotypes into genotypes encoded as allele dose.
+##' At this step, one may not want to always count the number of copies of the derived allele.
+##' It hence is useful to permute alleles beforehand.
+##' @param haplos list of haplotypes returned by \code{scrm}, each component of which corresponds to a matrix with haplotypes in rows and SNP in columns
+##' @param snps.toperm vector of SNP identifiers corresponding to the SNPs to which allele permutation will be performed (column names of \code{haplos})
+##' @param verbose verbosity level (0/1)
+##' @return list of haplotypes
+##' @author Timothee Flutre
+##' @seealso \code{\link{simulCoalescent}}, \code{\link{segSites2allDoses}}, \code{link{haplosAlleles2num}}
+##' @export
+permuteAllelesInHaplosNum <- function(haplos, snps.toperm, verbose=0){
+  stopIfNotValidHaplos(haplos=haplos, check.hasColNames=FALSE, check.noNA=TRUE)
+  stopifnot(is.vector(snps.toperm),
+            all(snps.toperm %in% do.call(c, lapply(haplos, colnames))))
+
+  if(verbose > 0){
+    msg <- "permute alleles in haplotypes ..."
+    write(msg, stdout())
+  }
+
+  out <- lapply(haplos, function(mat){
+    if(any(colnames(mat) %in% snps.toperm)){
+      col.idx <- which(colnames(mat) %in% snps.toperm)
+      row.idx.ancestral <- which(mat[, col.idx] == 0)
+      row.idx.derived <- which(mat[, col.idx] == 1)
+      mat[, col.idx][row.idx.ancestral] <- 1
+      mat[, col.idx][row.idx.derived] <- 0
+    }
+    return(mat)
+  })
+
+  return(out)
+}
+
+##' Genotypes
+##'
+##' Permute alleles in genotypes once alleles have been permuted in the corresponding haplotypes.
+##' @param X matrix of bi-allelic SNP genotypes encoded, for each SNP, in number of copies of its second allele, i.e. as allele doses in {0,1,2}, with genotypes in rows and SNPs in columns; the "second" allele is arbitrary, it can be the minor or the major allele
+##' @param snps.toperm vector of SNP identifiers corresponding to the SNPs to which allele permutation will be performed (column names of \code{X})
+##' @param verbose verbosity level (0/1)
+##' @return matrix of genotypes
+##' @author Timothee Flutre
+##' @seealso \code{\link{permuteAllelesInHaplosNum}}
+##' @export
+permuteAllelesInGenosDose <- function(X, snps.toperm, verbose=0){
+  stopIfNotValidGenosDose(X=X, check.hasColNames=TRUE, check.noNA=FALSE)
+  stopifnot(is.vector(snps.toperm),
+            all(snps.toperm %in% colnames(X)))
+
+  if(verbose > 0){
+    msg <- "permute alleles in genotypes ..."
+    write(msg, stdout())
+  }
+
+  out <- X
+
+  if(any(colnames(X) %in% snps.toperm)){
+    col.idx <- which(colnames(X) %in% snps.toperm)
+    row.idx.0 <- which(X[, col.idx] == 0)
+    row.idx.2 <- which(X[, col.idx] == 2)
+    out[, col.idx][row.idx.0] <- 2
+    out[, col.idx][row.idx.2] <- 0
+  }
+
+  return(out)
+}
+
 ##' Site frequency spectrum
 ##'
 ##' Convert the SFS of independent replicates into a matrix of allele doses.
 ##' @param seg.sites list of haplotypes returned by \code{scrm::scrm}, each component of which corresponds to a matrix with haplotypes in rows and SNP in columns
 ##' @param ind.ids vector with the identifiers of the genotypes
 ##' @param snp.ids vector with the identifiers of the SNPs (if NULL, the SNP identifiers from seg.sites will be used if they aren't NULL, too)
-##' @param rnd.choice.ref.all if TRUE, the reference alleles are randomly chosen when converting haplotypes into genotypes encoded as allele dose
-##' @param seed seed for the pseudo-random number generator
+##' @param verbose verbosity level (0/1)
 ##' @return matrix with diploid genotypes in rows and SNPs in columns
 ##' @author Timothee Flutre
 ##' @export
 segSites2allDoses <- function(seg.sites, ind.ids=NULL, snp.ids=NULL,
-                              rnd.choice.ref.all=TRUE, seed=NULL){
-  stopifnot(is.list(seg.sites),
-            all(sapply(seg.sites, class) == "matrix"),
-            length(unique(sapply(seg.sites, nrow))) == 1,
-            is.logical(rnd.choice.ref.all))
+                              verbose=0){
+  stopIfNotValidHaplos(haplos=seg.sites, check.hasColNames=FALSE,
+                       check.noNA=TRUE)
   if(! is.null(ind.ids))
     stopifnot(is.vector(ind.ids),
               is.character(ind.ids),
@@ -1371,9 +1464,11 @@ segSites2allDoses <- function(seg.sites, ind.ids=NULL, snp.ids=NULL,
     stopifnot(is.vector(snp.ids),
               is.character(snp.ids),
               length(snp.ids) == sum(sapply(seg.sites, ncol)))
-  if(! is.null(seed))
-    stopifnot(is.numeric(seed),
-              length(seed) == 1)
+
+  if(verbose > 0){
+    msg <- "convert haplotypes into genotypes encoded as allele dose ..."
+    write(msg, stdout())
+  }
 
   nb.inds <- nrow(seg.sites[[1]]) / 2 # nb of diploid genotypes
   nb.snps <- sum(sapply(seg.sites, ncol)) # nb of SNPs
@@ -1397,17 +1492,6 @@ segSites2allDoses <- function(seg.sites, ind.ids=NULL, snp.ids=NULL,
     j <- j + ncol(seg.sites[[x]])
   }
 
-  ## permute the reference allele of a random half of SNPs
-  if(rnd.choice.ref.all){
-    if(! is.null(seed))
-      set.seed(seed)
-    col.idx <- sample.int(n=ncol(X), size=floor(0.5*ncol(X)))
-    row.idx.0 <- which(X[,col.idx] == 0)
-    row.idx.2 <- which(X[,col.idx] == 2)
-    X[,col.idx][row.idx.0] <- 2
-    X[,col.idx][row.idx.2] <- 0
-  }
-
   return(X)
 }
 
@@ -1418,13 +1502,19 @@ segSites2allDoses <- function(seg.sites, ind.ids=NULL, snp.ids=NULL,
 ##' @param snp.ids vector of identifiers (one per SNP)
 ##' @param chrom.len chromosome length (same for all)
 ##' @param prefix character string
+##' @param verbose verbosity level (0/1)
 ##' @return data.frame with SNPs in rows and 2 columns (chr, pos)
 ##' @author Timothee Flutre
 ##' @export
-segSites2snpCoords <- function(seg.sites, snp.ids, chrom.len, prefix="chr"){
-  stopifnot(is.list(seg.sites),
-            all(sapply(seg.sites, class) == "matrix"),
-            length(unique(sapply(seg.sites, nrow))) == 1)
+segSites2snpCoords <- function(seg.sites, snp.ids, chrom.len, prefix="chr",
+                               verbose=0){
+  stopIfNotValidHaplos(haplos=seg.sites, check.hasColNames=TRUE,
+                       check.noNA=FALSE)
+
+  if(verbose > 0){
+    msg <- "make a data.frame with SNP coordinates ..."
+    write(msg, stdout())
+  }
 
   nb.chrs <- length(seg.sites)
   nb.snps.per.chr <- sapply(seg.sites, ncol)
@@ -1500,11 +1590,11 @@ simulGenosDose <- function(nb.genos, nb.snps, geno.ids=NULL, snp.ids=NULL, mafs=
 ##' @param get.trees get gene genealogies in the Newick format
 ##' @param get.tmrca get time to most recent common ancestor and local tree lengths
 ##' @param get.alleles get fake alleles sampled in {A,T,G,C}
-##' @param rnd.choice.ref.all if TRUE, the reference alleles are randomly chosen when converting haplotypes into genotypes encoded as allele dose
+##' @param permute.alleles if TRUE, the reference alleles are randomly chosen between ancestral and derived alleles
 ##' @param verbose verbosity level (0/1/2)
 ##' @return list with haplotypes (list), genotypes as allele doses (matrix) and SNP coordinates (data.frame)
 ##' @author Timothee Flutre
-##' @seealso \code{\link{makeCrosses}}
+##' @seealso \code{\link{segSites2snpCoords}}, \code{\link{permuteAllelesInHaplosNum}}, \code{\link{segSites2allDoses}}, \code{\link{makeCrosses}}
 ##' @examples
 ##' \dontrun{## simulate haplotypes and genotypes in a single population
 ##' nb.genos <- 200
@@ -1530,11 +1620,11 @@ simulCoalescent <- function(nb.inds=100,
                             get.trees=FALSE,
                             get.tmrca=FALSE,
                             get.alleles=FALSE,
-                            rnd.choice.ref.all=TRUE,
+                            permute.alleles=TRUE,
                             verbose=1){
   requireNamespace("scrm")
   stopifnot(nb.inds > nb.pops,
-            is.logical(rnd.choice.ref.all))
+            is.logical(permute.alleles))
   if(! is.null(other))
     stopifnot(is.character(other),
               length(other) == 1)
@@ -1545,7 +1635,10 @@ simulCoalescent <- function(nb.inds=100,
     ind.ids <- sprintf(fmt=paste0("ind%0", floor(log10(nb.inds))+1, "i"),
                        1:nb.inds)
 
-  ## simulate according to the SCRM
+  if(verbose > 0){
+    msg <- "simulate according to the SCRM ..."
+    write(msg, stdout())
+  }
   nb.samples <- nb.inds * 2 # e.g. 2 chr1 in ind1, 2 chr1 in ind2, etc
   cmd <- paste0(nb.samples, " ", nb.reps)
   cmd <- paste0(cmd, " -t ", pop.mut.rate)
@@ -1578,7 +1671,6 @@ simulCoalescent <- function(nb.inds=100,
   prefix <- "chr"
   names(sum.stats$seg_sites) <- paste0(prefix, 1:nb.reps)
 
-  ## make a data.frame with SNP coordinates
   nb.snps.per.chr <- sapply(sum.stats$seg_sites, ncol)
   nb.snps <- sum(nb.snps.per.chr)
   snp.ids <- sprintf(fmt=paste0("snp%0", floor(log10(nb.snps))+1, "i"),
@@ -1586,8 +1678,16 @@ simulCoalescent <- function(nb.inds=100,
   snp.coords <- segSites2snpCoords(sum.stats$seg_sites, snp.ids, chrom.len,
                                    prefix)
   out[["snp.coords"]] <- snp.coords
+  if(verbose > 0){
+    msg <- paste0("nb of SNPs: ", nb.snps)
+    write(msg, stdout())
+    print(sapply(sum.stats$seg_sites, ncol))
+  }
 
-  ## randomize haplotypes to make diploid genotypes, and set names
+  if(verbose > 0){
+    msg <- "randomize haplotypes to make diploid genotypes ..."
+    write(msg, stdout())
+  }
   out[["haplos"]] <- list()
   idx <- sample.int(nb.samples)
   if(nb.pops > 1){
@@ -1608,30 +1708,40 @@ simulCoalescent <- function(nb.inds=100,
   }
   names(out$haplos) <- names(sum.stats$seg_sites)
 
-  ## make a matrix with genotypes encoded as allele dose
   X <- segSites2allDoses(seg.sites=out$haplos, ind.ids=ind.ids,
-                         snp.ids=snp.ids,
-                         rnd.choice.ref.all=rnd.choice.ref.all)
-  if(verbose > 0){
-    msg <- paste0("nb of SNPs: ", nb.snps)
-    write(msg, stdout())
-    print(sapply(sum.stats$seg_sites, ncol))
-  }
+                         snp.ids=snp.ids, verbose=verbose)
   out[["genos"]] <- X
+
+  if(permute.alleles){
+    mafs <- estimSnpMaf(X=out$genos)
+    snps.toperm <- names(mafs)[sample.int(n=nb.snps, size=floor(0.5*nb.snps),
+                                          replace=FALSE, prob=1 - mafs)]
+    out$haplos <- permuteAllelesInHaplosNum(haplos=out$haplos,
+                                            snps.toperm=snps.toperm,
+                                            verbose=verbose)
+    out$genos <- permuteAllelesInGenosDose(X=out$genos,
+                                           snps.toperm=snps.toperm,
+                                           verbose=verbose)
+  }
+
+  if(get.alleles){
+    if(verbose > 0){
+      msg <- "make a data.frame of alleles ..."
+      write(msg, stdout())
+    }
+    tmp <- replicate(nb.snps, sample(x=c("A","T","G","C"), size=2,
+                                     replace=FALSE))
+    alleles <- as.data.frame(t(tmp), row.names=snp.ids,
+                             stringsAsFactors=FALSE)
+    colnames(alleles) <- c("first","second")
+    stopifnot(all(alleles[,1] != alleles[,2]))
+    out[["alleles"]] <- alleles
+  }
 
   if(get.trees)
     out[["trees"]] <- sum.stats$trees
   if(get.tmrca)
     out[["tmrca"]] <- sum.stats$tmrca
-
-  ## make a data.frame of alleles
-  if(get.alleles){
-    alleles <- data.frame(major=sample(x=c("A","G"), size=nb.snps, replace=TRUE),
-                          row.names=snp.ids, stringsAsFactors=FALSE)
-    alleles$minor <- gsub(pattern="A", replacement="T", x=alleles$major)
-    alleles$minor <- gsub(pattern="G", replacement="C", x=alleles$minor)
-    out[["alleles"]] <- alleles
-  }
 
   return(out)
 }
@@ -1818,6 +1928,7 @@ getHaplosInds <- function(haplos, ind.names){
 ##' @param loc.crossovers positions of the crossing overs (the coordinate of the first nucleotide is assumed to be 1, and crossing-overs are assumed to occur right after the given localization)
 ##' @return vector
 ##' @author Timothee Flutre
+##' @seealso \code{\link{makeGameteSingleInd}}, \code{\link{drawLocCrossovers}}
 ##' @export
 makeGameteSingleIndSingleChrom <- function(haplos.par.chr, loc.crossovers){
   stopifnot(is.matrix(haplos.par.chr),
@@ -1860,6 +1971,7 @@ makeGameteSingleIndSingleChrom <- function(haplos.par.chr, loc.crossovers){
 ##' @param loc.crossovers list of vectors with positions of the crossing overs (the coordinate of the first nucleotide is assumed to be 1, and crossing-overs are assumed to occur right after the given localization)
 ##' @return list of vectors (one per chromosome)
 ##' @author Timothee Flutre
+##' @seealso \code{\link{makeCross}}, \code{\link{fecundation}}, \code{\link{makeGameteSingleIndSingleChrom}}
 ##' @export
 makeGameteSingleInd <- function(haplos.par, loc.crossovers){
   stopifnot(is.list(haplos.par),
@@ -1907,6 +2019,7 @@ fecundation <- function(gam1, gam2, child.name){
 ##' @param verbose verbosity level (0/1)
 ##' @return list of matrices (one per chromosome) for the child
 ##' @author Timothee Flutre
+##' @seealso \code{\link{makeCrosses}}, \code{\link{drawLocCrossovers}}, \code{\link{makeGameteSingleInd}}, \code{\link{fecundation}}
 ##' @export
 makeCross <- function(haplos.par1,
                       loc.crossovers.par1,
@@ -1977,6 +2090,30 @@ makeCross <- function(haplos.par1,
 ##' @param lambda mean number of crossing-overs (parameter of a Poisson)
 ##' @return list of lists (one per cross, then one per parent, then one per chromosome) whose names are crosses$child, in the same order
 ##' @author Timothee Flutre
+##' @seealso \code{\link{makeGameteSingleIndSingleChrom}}
+##' @examples
+##' \dontrun{## make inputs
+##' nb.offs <- 100
+##' names.offs <- paste0("par1-par2-",
+##'                      sprintf(fmt=paste0("%0", floor(log10(nb.offs))+1, "i"),
+##'                              1:nb.offs))
+##' crosses <- data.frame(parent1=rep("par1", nb.offs),
+##'                       parent2=rep("par2", nb.offs),
+##'                       child=names.offs,
+##'                       stringsAsFactors=FALSE)
+##'
+##' ## draw locations of crossing-overs
+##' loc.crossovers <- drawLocCrossovers(crosses=crosses,
+##'                                     nb.snps=setNames(c(2739, 2811),
+##'                                                      c("chr1", "chr2")))
+##'
+##' ## quick check at their distributions per chr
+##' table(do.call(c, lapply(loc.crossovers, function(lc.off){
+##'   do.call(c, lapply(lc.off, function(lc.par){
+##'     sapply(lc.par, length)
+##'   }))
+##' })))
+##' }
 ##' @export
 drawLocCrossovers <- function(crosses, nb.snps, lambda=2){
   stopifnot(is.data.frame(crosses),
@@ -2038,6 +2175,58 @@ drawLocCrossovers <- function(crosses, nb.snps, lambda=2){
 ##' @return list of matrices (one per chromosome) with child haplotypes in rows and SNPs in columns
 ##' @author Timothee Flutre
 ##' @seealso \code{\link{makeCross}}, \code{\link{simulCoalescent}}, \code{\link{getHaplosInds}}, \code{\link{drawLocCrossovers}}
+##' @examples
+##' \dontrun{set.seed(1859)
+##' if(require(scrm)){
+##'   ## simulate haplotypes
+##'   nb.genos <- 2*10^2
+##'   nb.chroms <- 10
+##'   Ne <- 10^5
+##'   chrom.len <- 10^5
+##'   mu <- 10^(-8)
+##'   c.rec <- 10^(-8)
+##'   genomes <- simulCoalescent(nb.inds=nb.genos,
+##'                              nb.reps=nb.chroms,
+##'                              pop.mut.rate=4 * Ne * mu * chrom.len,
+##'                              pop.recomb.rate=4 * Ne * c.rec * chrom.len,
+##'                              chrom.len=chrom.len,
+##'                              get.alleles=TRUE,
+##'                              permute.alleles=TRUE)
+##'
+##'   ## pick 2 individuals at random as parents
+##'   (idx.parents <- sample.int(n=nb.genos, size=2))
+##'   genos.parents <- genomes$genos[idx.parents,]
+##'   names.parents <- rownames(genos.parents)
+##'   haplos.parents <- getHaplosInds(haplos=genomes$haplos,
+##'                                  ind.names=names.parents)
+##'
+##'   ## cross them several times to make offsprings
+##'   nb.offs <- 100
+##'   names.offs <- paste0(names.parents[1], "-", names.parents[2], "-",
+##'                        sprintf(fmt=paste0("%0", floor(log10(nb.offs))+1, "i"),
+##'                                1:nb.offs))
+##'   crosses <- data.frame(parent1=rep(names.parents[1], nb.offs),
+##'                         parent2=rep(names.parents[2], nb.offs),
+##'                         child=names.offs,
+##'                         stringsAsFactors=FALSE)
+##'   loc.crossovers <- drawLocCrossovers(crosses=crosses,
+##'                                       nb.snps=sapply(haplos.parents, ncol))
+##'   haplos.offs <- makeCrosses(haplos=haplos.parents, crosses=crosses,
+##'                              loc.crossovers=loc.crossovers)
+##'   genos.offs <- segSites2allDoses(seg.sites=haplos.offs,
+##'                                   ind.ids=getIndNamesFromHaplos(haplos.offs),
+##'                                   snp.ids=rownames(genomes$snp.coords))
+##'
+##'   ## look at the first crossing-over in the first offspring
+##'   (snps.co <- colnames(haplos.parents$chr1)[loc.crossovers[[1]][[1]]$chr1])
+##'   tmp <- subsetDiffHaplosWithinParent(haplos.chr=haplos.parents$chr1[1:2,],
+##'                                       snps.tokeep=snps.co)
+##'   (idx1 <- which(colnames(tmp) == snps.co[1]))
+##'   (snps.tokeep <- colnames(tmp)[(idx1-2):(idx1+2)])
+##'   tmp[, snps.tokeep]
+##'   haplos.offs$chr1[1:2, snps.tokeep]
+##' }
+##' }
 ##' @export
 makeCrosses <- function(haplos, crosses, loc.crossovers=NULL,
                         nb.cores=1, verbose=1){
@@ -2106,6 +2295,35 @@ makeCrosses <- function(haplos, crosses, loc.crossovers=NULL,
   names(haplos.children) <- chrom.names
 
   return(haplos.children)
+}
+
+##' Haplotypes
+##'
+##' Return a subset of SNPs for both haplotypes within a given parent in order to easily visualize a given crossing-over.
+##' @param haplos.chr matrix containing both haplotypes of a given parent, with haplotypes in rows and SNPs in columns
+##' @param snps.tokeep vector of SNPs to keep in the subset (typically the ones at which the crossing-overs occurred)
+##' @return matrix with both haplotypes in rows and a subset of SNPs in columns
+##' @author Timothee Flutre
+##' @export
+subsetDiffHaplosWithinParent <- function(haplos.chr, snps.tokeep){
+  stopifnot(is.matrix(haplos.chr),
+            nrow(haplos.chr) == 2,
+            all(haplos.chr %in% c(0,1)),
+            ! is.null(colnames(haplos.chr)))
+  if(! is.null(snps.tokeep))
+    stopifnot(is.vector(snps.tokeep),
+              all(snps.tokeep %in% colnames(haplos.chr)))
+
+  nb.snps <- ncol(haplos.chr)
+  out <- haplos.chr
+  idx <- apply(haplos.chr, 2, function(x){
+    any(x[1] != x[2])
+  })
+  if(! is.null(snps.tokeep))
+    idx[snps.tokeep] <- TRUE
+  out <- out[, idx]
+
+  return(out)
 }
 
 .isValidSnpCoords <- function(snp.coords){
@@ -2923,6 +3141,7 @@ readHaplosFastPhase <- function(file, snp.ids){
 ##' @param nb.cores the number of cores to use, i.e. at most how many child processes will be run simultaneously (not on Windows)
 ##' @return matrix with 0 for major alleles and 1 for minor alleles
 ##' @author Timothee Flutre
+##' @seealso \code{\link{segSites2allDoses}}
 ##' @export
 haplosAlleles2num <- function(haplos, alleles, nb.cores=1){
   stopifnot(is.matrix(haplos),
@@ -2979,8 +3198,7 @@ haplosAlleles2num <- function(haplos, alleles, nb.cores=1){
 ##' genomes <- simulCoalescent(nb.inds=nb.inds,
 ##'                            pop.mut.rate=4 * Ne * mu * chrom.len,
 ##'                            pop.recomb.rate=4 * Ne * c * chrom.len,
-##'                            chrom.len=chrom.len,
-##'                            rnd.choice.ref.all=FALSE)
+##'                            chrom.len=chrom.len)
 ##' nb.snps <- nrow(genomes$snp.coords)
 ##' plotHaplosMatrix(genomes$haplos[[1]]) # quick view of the amount of LD
 ##'
@@ -3004,8 +3222,7 @@ haplosAlleles2num <- function(haplos, alleles, nb.cores=1){
 ##'                      alleles=alleles, nb.starts=3, clean=TRUE)
 ##' X.imp <- segSites2allDoses(seg.sites=list(haplosAlleles2num(haplos=out.imp$haplos,
 ##'                                                             alleles=alleles)),
-##'                            ind.ids=rownames(genomes$genos),
-##'                            rnd.choice.ref.all=FALSE)
+##'                            ind.ids=rownames(genomes$genos))
 ##'
 ##' ## assess imputation accuracy
 ##' genomes$haplos[[1]][1:4, 1:6]

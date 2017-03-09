@@ -4,7 +4,8 @@
 \alias{segSites2snpCoords}
 \title{Site frequency spectrum}
 \usage{
-segSites2snpCoords(seg.sites, snp.ids, chrom.len, prefix = "chr")
+segSites2snpCoords(seg.sites, snp.ids, chrom.len, prefix = "chr",
+  verbose = 0)
 }
 \arguments{
 \item{seg.sites}{list of haplotypes returned by \code{scrm}, each component of which corresponds to a matrix with haplotypes in rows and SNP in columns}
@@ -14,6 +15,8 @@ segSites2snpCoords(seg.sites, snp.ids, chrom.len, prefix = "chr")
 \item{chrom.len}{chromosome length (same for all)}
 
 \item{prefix}{character string}
+
+\item{verbose}{verbosity level (0/1)}
 }
 \value{
 data.frame with SNPs in rows and 2 columns (chr, pos)

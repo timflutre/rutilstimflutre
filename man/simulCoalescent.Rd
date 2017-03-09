@@ -7,7 +7,7 @@
 simulCoalescent(nb.inds = 100, ind.ids = NULL, nb.reps = 10,
   pop.mut.rate = 40, pop.recomb.rate = 40, chrom.len = 10^4,
   other = NULL, nb.pops = 1, mig.rate = 5, get.trees = FALSE,
-  get.tmrca = FALSE, get.alleles = FALSE, rnd.choice.ref.all = TRUE,
+  get.tmrca = FALSE, get.alleles = FALSE, permute.alleles = TRUE,
   verbose = 1)
 }
 \arguments{
@@ -35,7 +35,7 @@ simulCoalescent(nb.inds = 100, ind.ids = NULL, nb.reps = 10,
 
 \item{get.alleles}{get fake alleles sampled in {A,T,G,C}}
 
-\item{rnd.choice.ref.all}{if TRUE, the reference alleles are randomly chosen when converting haplotypes into genotypes encoded as allele dose}
+\item{permute.alleles}{if TRUE, the reference alleles are randomly chosen between ancestral and derived alleles}
 
 \item{verbose}{verbosity level (0/1/2)}
 }
@@ -62,6 +62,6 @@ genomes <- simulCoalescent(nb.inds=nb.genos,
 Timothee Flutre
 }
 \seealso{
-\code{\link{makeCrosses}}
+\code{\link{segSites2snpCoords}}, \code{\link{permuteAllelesInHaplosNum}}, \code{\link{segSites2allDoses}}, \code{\link{makeCrosses}}
 }
 

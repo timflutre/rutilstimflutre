@@ -179,6 +179,26 @@ test_that("genoDoses2genoClasses", {
   expect_equal(observed, expected)
 })
 
+test_that("segSites2allDoses", {
+  nb.inds <- 2
+  nb.chrs <- 2
+  nb.snps <- c(3, 2)
+  ind.ids <- paste0("ind", 1:nb.inds)
+  snp.ids <- paste0("snp", 1:sum(nb.snps))
+  haplos <- list(chr1=matrix(c(0,0,0,0, 0,1,1,0, 1,1,0,1),
+                             nrow=2 * nb.inds, ncol=nb.snps[1]),
+                 chr2=matrix(c(1,0,0,1, 0,0,1,1), nrow=2 * nb.inds, ncol=nb.snps[2]))
+
+  expected <- matrix(c(0,0, 1,1, 2,1, 1,1, 0,2),
+                     nrow=nb.inds, ncol=sum(nb.snps),
+                     dimnames=list(ind.ids, snp.ids))
+
+  observed <- segSites2allDoses(seg.sites=haplos, ind.ids=ind.ids,
+                                snp.ids=snp.ids)
+
+  expect_equal(observed, expected)
+})
+
 test_that("haplosAlleles2num", {
   nb.inds <- 2
   nb.snps <- 3
@@ -196,6 +216,52 @@ test_that("haplosAlleles2num", {
                      dimnames=dimnames(haplos))
 
   observed <- haplosAlleles2num(haplos=haplos, alleles=alleles)
+
+  expect_equal(observed, expected)
+})
+
+test_that("permuteAllelesInHaplosNum", {
+  nb.inds <- 2
+  nb.snps <- c(3, 2)
+  ind.ids <- c("ind1_h1","ind1_h2","ind2_h1","ind2_h2")
+  snp.ids <- list(paste0("snp", 1:nb.snps[1]),
+                  paste0("snp", (nb.snps[1]+1):sum(nb.snps)))
+  haplos <- list(chr1=matrix(data=c(0,0,0,0, 0,1,0,1, 1,0,1,1),
+                             nrow=2*nb.inds, ncol=nb.snps[1],
+                             dimnames=list(ind.ids, snp.ids[[1]])),
+                 chr2=matrix(data=c(1,0,0,0, 0,1,0,1),
+                             nrow=2*nb.inds, ncol=nb.snps[2],
+                             dimnames=list(ind.ids, snp.ids[[2]])))
+
+  snps.toperm <- c("snp2", "snp4")
+  expected <- list(chr1=matrix(data=c(0,0,0,0, 1,0,1,0, 1,0,1,1),
+                               nrow=2*nb.inds, ncol=nb.snps[1],
+                               dimnames=dimnames(haplos[[1]])),
+                   chr2=matrix(data=c(0,1,1,1, 0,1,0,1),
+                               nrow=2*nb.inds, ncol=nb.snps[2],
+                               dimnames=dimnames(haplos[[2]])))
+
+  observed <- permuteAllelesInHaplosNum(haplos=haplos,
+                                        snps.toperm=snps.toperm,
+                                        verbose=0)
+
+  expect_equal(observed, expected)
+})
+
+test_that("permuteAllelesInGenosDose", {
+  nb.inds <- 2
+  nb.snps <- 5
+  ind.ids <- paste0("ind", 1:nb.inds)
+  snp.ids <- paste0("snp", 1:nb.snps)
+  X <- matrix(c(0,0, 1,1, 1,2, 1,0, 1,1), nrow=nb.inds, ncol=nb.snps,
+              dimnames=list(ind.ids, snp.ids))
+
+  snps.toperm <- c("snp3", "snp4")
+  expected <- matrix(c(0,0, 1,1, 1,0, 1,2, 1,1), nrow=nb.inds, ncol=nb.snps,
+                     dimnames=dimnames(X))
+
+  observed <- permuteAllelesInGenosDose(X=X, snps.toperm=snps.toperm,
+                                        verbose=0)
 
   expect_equal(observed, expected)
 })
@@ -778,13 +844,13 @@ test_that("splitGenomesTrainTest", {
 })
 
 test_that("makeGameteSingleIndSingleChrom", {
-  P <- 4 # SNPs
-  haplos.par.chr <- matrix(data=c(1,0, 0,1, 1,0, 1,0), nrow=2, ncol=P,
+  P <- 5 # SNPs
+  haplos.par.chr <- matrix(data=c(1,0, 0,1, 1,0, 1,0, 1,0), nrow=2, ncol=P,
                            dimnames=list(c("ind2_h1", "ind2_h2"),
                                          paste0("snp", 1:P)))
-  loc.crossovers <- c(2)
+  loc.crossovers <- c(2, 4)
 
-  expected <- matrix(c(1,0, 0,0), nrow=1,
+  expected <- matrix(c(1, 0, 0, 0, 1), nrow=1,
                      dimnames=list("ind2", paste0("snp", 1:P)))
 
   observed <- makeGameteSingleIndSingleChrom(haplos.par.chr, loc.crossovers)
@@ -926,6 +992,23 @@ test_that("makeCrosses", {
                                              paste0("snp", (P/2+1):P))))
 
   observed <- makeCrosses(haplos, crosses, loc.crossovers, verbose=0)
+
+  expect_equal(observed, expected)
+})
+
+test_that("subsetDiffHaplosWithinParent", {
+  P <- 10 # SNPs
+  haplos.chr.par1 <- matrix(data=c(1,1, 0,1, 1,1, 0,0, 1,0,
+                                   0,1, 0,1, 1,0, 0,0, 1,1),
+                            nrow=2, ncol=P,
+                            dimnames=list(c("ind2_h1", "ind2_h2"),
+                                          paste0("snp", 1:P)))
+
+  snps.co <- c("snp3", "snp7")
+  expected <- haplos.chr.par1[, c(2,3,5,6,7,8)]
+
+  observed <- subsetDiffHaplosWithinParent(haplos.chr=haplos.chr.par1,
+                                           snps.tokeep=snps.co)
 
   expect_equal(observed, expected)
 })

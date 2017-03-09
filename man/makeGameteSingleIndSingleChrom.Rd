@@ -20,4 +20,7 @@ Make a gamete for a given chromosome by recombining two parental haplotypes (alw
 \author{
 Timothee Flutre
 }
+\seealso{
+\code{\link{makeGameteSingleInd}}, \code{\link{drawLocCrossovers}}
+}
 

@@ -19,7 +19,34 @@ list of lists (one per cross, then one per parent, then one per chromosome) whos
 \description{
 Draw the number and location of crossing-overs per gamete.
 }
+\examples{
+\dontrun{## make inputs
+nb.offs <- 100
+names.offs <- paste0("par1-par2-",
+                     sprintf(fmt=paste0("\%0", floor(log10(nb.offs))+1, "i"),
+                             1:nb.offs))
+crosses <- data.frame(parent1=rep("par1", nb.offs),
+                      parent2=rep("par2", nb.offs),
+                      child=names.offs,
+                      stringsAsFactors=FALSE)
+
+## draw locations of crossing-overs
+loc.crossovers <- drawLocCrossovers(crosses=crosses,
+                                    nb.snps=setNames(c(2739, 2811),
+                                                     c("chr1", "chr2")))
+
+## quick check at their distributions per chr
+table(do.call(c, lapply(loc.crossovers, function(lc.off){
+  do.call(c, lapply(lc.off, function(lc.par){
+    sapply(lc.par, length)
+  }))
+})))
+}
+}
 \author{
 Timothee Flutre
+}
+\seealso{
+\code{\link{makeGameteSingleIndSingleChrom}}
 }
 
