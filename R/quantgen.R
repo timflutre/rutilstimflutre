@@ -1173,6 +1173,7 @@ plotHistAllelFreq <- function(X=NULL, afs=NULL, main=NULL, xlim=c(0,1),
                         main=main, xlim=xlim, col=col, border=border,
                         las=las, breaks=breaks, ...)
 
+  fit <- NULL
   if(add.ml.beta){
     fn.beta <- function(theta, x){
       sum(-stats::dbeta(x, theta[1], theta[2], log=TRUE))
@@ -1247,6 +1248,7 @@ plotHistMinAllelFreq <- function(X=NULL, mafs=NULL, main=NULL, xlim=c(0,0.5),
                         main=main, xlim=xlim, col=col, border=border,
                         las=las, breaks=breaks, ...)
 
+  fit <- NULL
   if(add.ml.beta){
     fn.beta <- function(theta, x){
       sum(-stats::dbeta(x, theta[1], theta[2], log=TRUE))
