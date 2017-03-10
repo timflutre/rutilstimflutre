@@ -2486,7 +2486,7 @@ recodeIntoDominant <- function(X, simplify.imputed=FALSE){
 ##' @param thresh threshold on minor allele frequencies below which SNPs are ignored (e.g. 0.01; NULL to skip this step)
 ##' @param relationships relationship to estimate (additive/dominant/gaussian) where "gaussian" corresponds to the Gaussian kernel from \href{http://dx.doi.org/10.3835/plantgenome2011.08.0024}{Endelman (2011)}
 ##' @param method \itemize{
-##' \item if additive relationships, can be "vanraden1" (first method in \href{http://dx.doi.org/10.3168/jds.2007-0980}{VanRaden, 2008}), "habier" (similar to "vanraden1" but without centering; from \href{http://dx.doi.org/10.1534/genetics.107.081190}{Habier et al, 2007}), "astle-balding" (two times equation 2.2 in \href{http://dx.doi.org/10.1214/09-sts307}{Astle & Balding, 2009}), "yang" (similar to 'astle-balding' but without ignoring sampling error per SNP; from \href{http://dx.doi.org/10.1038/ng.608}{Yang et al, 2010}), "zhou" (centering the genotypes with \code{\link{scale}} and not assuming that rare variants have larger effects; from \href{http://dx.doi.org/10.1371/journal.pgen.1003264}{Zhou et al, 2013}) or "center-std";
+##' \item if additive relationships, can be "vanraden1" (first method in \href{http://dx.doi.org/10.3168/jds.2007-0980}{VanRaden, 2008}), "toro2011_eq10" (equation 10 using molecular covariance from \href{http://dx.doi.org/10.1186/1297-9686-43-27}{Toro et al, 2011}), "habier" (similar to "vanraden1" but without centering; from \href{http://dx.doi.org/10.1534/genetics.107.081190}{Habier et al, 2007}), "astle-balding" (two times equation 2.2 in \href{http://dx.doi.org/10.1214/09-sts307}{Astle & Balding, 2009}), "yang" (similar to 'astle-balding' but without ignoring sampling error per SNP; from \href{http://dx.doi.org/10.1038/ng.608}{Yang et al, 2010}), "zhou" (centering the genotypes with \code{\link{scale}} and not assuming that rare variants have larger effects; from \href{http://dx.doi.org/10.1371/journal.pgen.1003264}{Zhou et al, 2013}) or "center-std";
 ##' \item if dominant relationships, can be "vitezica" (classical/statistical parametrization from \href{http://dx.doi.org/10.1534/genetics.113.155176}{Vitezica et al, 2013}) or "su" (from \href{http://dx.doi.org/10.1371/journal.pone.0045293}{Su et al, 2012})
 ##' }
 ##' @param theta smoothing parameter for "gauss"
@@ -2520,7 +2520,8 @@ estimGenRel <- function(X, afs=NULL, thresh=NULL, relationships="additive",
   stopIfNotValidGenosDose(X, check.noNA=FALSE)
   stopifnot(relationships %in% c("additive", "dominant", "gaussian"))
   if(relationships == "additive")
-    stopifnot(method %in% c("vanraden1", "habier", "astle-balding", "yang",
+    stopifnot(method %in% c("vanraden1", "toro2011_eq10", "habier",
+                            "astle-balding", "yang",
                             "zhou", "center-std"))
   if(relationships == "dominant")
     stopifnot(method %in% c("vitezica", "su"))
@@ -2596,6 +2597,10 @@ estimGenRel <- function(X, afs=NULL, thresh=NULL, relationships="additive",
       Z <- X - tmp
 
       gen.rel <- tcrossprod(Z, Z) / (2 * sum(afs * (1 - afs)))
+    } else if(method == "toro2011_eq10"){
+      var.afs <- stats::var(afs)
+      gen.rel <- 2 * (stats::cov(t(X) / 2) - var.afs) /
+        (mean(afs) * mean(1 - afs) - var.afs)
     } else if(method == "habier"){
       gen.rel <- tcrossprod(X, X) / (2 * sum(afs * (1 - afs)))
     } else if(method == "astle-balding"){

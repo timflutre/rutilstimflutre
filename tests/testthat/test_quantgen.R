@@ -584,6 +584,41 @@ test_that("estimGenRel_vanraden1_wMAF", {
   expect_equal(observed, expected)
 })
 
+test_that("estimGenRel_toro2011_eq10", {
+  N <- 3 # individuals
+  P <- 4 # SNPs
+  X <- matrix(c(0,0,2, 1,1,0, 0,1,0, 1,0,0), nrow=N, ncol=P,
+              dimnames=list(paste0("ind", 1:N), paste0("snp", 1:P)))
+
+  afs <- setNames(c(0.383, 0.244, 0.567, 0.067), colnames(X))
+
+  expected <- matrix(data=NA, nrow=N, ncol=N,
+                     dimnames=list(rownames(X), rownames(X)))
+  Cov_M <- matrix(data=0, nrow=N, ncol=N,
+                  dimnames=list(rownames(X), rownames(X)))
+  p.bar <- mean(afs)
+  q.bar <- mean(1 - afs)
+  var.p <- var(afs)
+  for(i in 1:N){
+    for(j in i:N){
+      g.bar.i <- (1 / P) * sum(X[i,] / 2)
+      g.bar.j <- (1 / P) * sum(X[j,] / 2)
+      for(k in 1:P)
+        Cov_M[i,j] <- Cov_M[i,j] + (X[i,k]/2 - g.bar.i) * (X[j,k]/2 - g.bar.j)
+      Cov_M[i,j] <- Cov_M[i,j] / (P - 1) # use P-1 instead of P
+      expected[i,j] <- (1 / (p.bar * q.bar - var.p)) * Cov_M[i,j] -
+        var.p / (p.bar * q.bar - var.p) # coancestry
+      expected[i,j] <- 2 * expected[i,j] # relationship
+    }
+  }
+  expected[lower.tri(expected)] <- expected[upper.tri(expected)]
+
+  observed <- estimGenRel(X=X, afs=afs, relationships="additive",
+                          method="toro2011_eq10", verbose=0)
+
+  expect_equal(observed, expected)
+})
+
 test_that("estimGenRel_astle-balding", {
   N <- 2 # individuals
   P <- 4 # SNPs
