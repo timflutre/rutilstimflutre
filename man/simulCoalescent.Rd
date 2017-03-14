@@ -62,6 +62,6 @@ genomes <- simulCoalescent(nb.inds=nb.genos,
 Timothee Flutre
 }
 \seealso{
-\code{\link{segSites2snpCoords}}, \code{\link{permuteAllelesInHaplosNum}}, \code{\link{segSites2allDoses}}, \code{\link{makeCrosses}}
+\code{\link{segSites2snpCoords}}, \code{\link{permuteAllelesInHaplosNum}}, \code{\link{segSites2allDoses}}, \code{\link{simulRefAltSnpAlleles}}, \code{\link{makeCrosses}}
 }
 

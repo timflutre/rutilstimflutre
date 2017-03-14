@@ -179,6 +179,24 @@ test_that("genoDoses2genoClasses", {
   expect_equal(observed, expected)
 })
 
+test_that("simulRefAltSnpAlleles", {
+  nb.snps <- 4
+  snp.ids <- paste0("snp", 1:nb.snps)
+
+  expected <- data.frame(first=rep(NA, nb.snps),
+                         second=NA,
+                         stringsAsFactors=FALSE,
+                         row.names=snp.ids)
+
+  observed <- simulRefAltSnpAlleles(snp.ids=snp.ids,
+                                    colnames=colnames(expected),
+                                    verbose=0)
+
+  expect_equal(is.data.frame(observed), is.data.frame(expected))
+  expect_equal(dim(observed), dim(expected))
+  expect_equal(dimnames(observed), dimnames(expected))
+})
+
 test_that("segSites2allDoses", {
   nb.inds <- 2
   nb.chrs <- 2
