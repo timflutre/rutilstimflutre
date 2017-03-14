@@ -243,6 +243,7 @@ mpInv <- function(x){
 ##' @param plot if not NULL, use "points" to show a plot with \code{\link[graphics]{points}} of PC1 versus PC2, and "text" to use \code{\link[graphics]{text}} with row names of \code{X} as labels
 ##' @param main main title of the plot
 ##' @param cols N-vector of colors
+##' @param pchs N-vector of point symbols (used if \code{plot="points"})
 ##' @return list with the rotated matrix (= X V) which rows correspond to the original rows after translation towards the sample mean (if center=TRUE) and rotation onto the "principal components" (eigenvectors of the sample covariance matrix), and with the proportion of variance explained per PC
 ##' @author Timothee Flutre
 ##' @seealso \code{\link{plotPca}}
@@ -265,7 +266,7 @@ mpInv <- function(x){
 ##' }
 ##' @export
 pca <- function(X, ct=TRUE, sc=FALSE, plot=NULL, main="PCA",
-                cols=rep("black", nrow(X))){
+                cols=rep("black", nrow(X)), pchs=rep(20, nrow(X))){
   stopifnot(is.matrix(X),
             is.logical(ct),
             is.logical(sc))
@@ -287,7 +288,7 @@ pca <- function(X, ct=TRUE, sc=FALSE, plot=NULL, main="PCA",
 
   if(! is.null(plot))
     plotPca(rotation=rotation, prop.vars=prop.vars, plot=plot, main=main,
-            cols=cols)
+            cols=cols, pchs=pchs)
 
   return(list(rotation=rotation,
               prop.vars=prop.vars))

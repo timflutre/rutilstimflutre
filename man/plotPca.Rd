@@ -5,10 +5,10 @@
 \title{Principal component analysis}
 \usage{
 plotPca(rotation, prop.vars, plot = "points", main = "PCA",
-  cols = rep("black", nrow(rotation)))
+  cols = rep("black", nrow(rotation)), pchs = rep(20, nrow(rotation)))
 }
 \arguments{
-\item{rotation}{rotated matrix which columns corresponds to "principal components"}
+\item{rotation}{rotated matrix which columns corresponds to "principal components" (the first column will be plotted along the x-axis against the second column along the y-axis)}
 
 \item{prop.vars}{vector with the proportion of variance explained per PC}
 
@@ -17,6 +17,8 @@ plotPca(rotation, prop.vars, plot = "points", main = "PCA",
 \item{main}{main title of the plot}
 
 \item{cols}{N-vector of colors}
+
+\item{pchs}{N-vector of point symbols (used if \code{plot="points"})}
 }
 \value{
 nothing

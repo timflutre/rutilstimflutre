@@ -5,7 +5,7 @@
 \title{Principal component analysis}
 \usage{
 pca(X, ct = TRUE, sc = FALSE, plot = NULL, main = "PCA",
-  cols = rep("black", nrow(X)))
+  cols = rep("black", nrow(X)), pchs = rep(20, nrow(X)))
 }
 \arguments{
 \item{X}{data matrix with N rows and P columns}
@@ -19,6 +19,8 @@ pca(X, ct = TRUE, sc = FALSE, plot = NULL, main = "PCA",
 \item{main}{main title of the plot}
 
 \item{cols}{N-vector of colors}
+
+\item{pchs}{N-vector of point symbols (used if \code{plot="points"})}
 }
 \value{
 list with the rotated matrix (= X V) which rows correspond to the original rows after translation towards the sample mean (if center=TRUE) and rotation onto the "principal components" (eigenvectors of the sample covariance matrix), and with the proportion of variance explained per PC

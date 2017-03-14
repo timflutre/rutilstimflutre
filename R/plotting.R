@@ -334,17 +334,19 @@ imageWithScale <- function(z, main=NULL, idx.rownames=NULL, idx.colnames=NULL,
 ##' Principal component analysis
 ##'
 ##' Plot the two first principal components from a PCA.
-##' @param rotation rotated matrix which columns corresponds to "principal components"
+##' @param rotation rotated matrix which columns corresponds to "principal components" (the first column will be plotted along the x-axis against the second column along the y-axis)
 ##' @param prop.vars vector with the proportion of variance explained per PC
 ##' @param plot use "points" to show a plot with \code{\link[graphics]{points}} of PC1 versus PC2, and "text" to use \code{\link[graphics]{text}} with row names of \code{rotation} as labels
 ##' @param main main title of the plot
 ##' @param cols N-vector of colors
+##' @param pchs N-vector of point symbols (used if \code{plot="points"})
 ##' @return nothing
 ##' @author Timothee Flutre
 ##' @seealso \code{\link{pca}}
 ##' @export
 plotPca <- function(rotation, prop.vars, plot="points", main="PCA",
-                    cols=rep("black", nrow(rotation))){
+                    cols=rep("black", nrow(rotation)),
+                    pchs=rep(20, nrow(rotation))){
   stopifnot(is.matrix(rotation),
             is.vector(prop.vars),
             is.numeric(prop.vars),
@@ -352,7 +354,9 @@ plotPca <- function(rotation, prop.vars, plot="points", main="PCA",
             all(prop.vars <= 1),
             plot %in% c("points", "text"),
             is.vector(cols),
-            length(cols) == nrow(rotation))
+            length(cols) == nrow(rotation),
+            is.vector(pchs),
+            length(pchs) == nrow(rotation))
 
   graphics::plot(x=rotation[,1], y=rotation[,2], las=1,
                  xlab=paste0("PC1 (", format(100 * prop.vars[1], digits=3), "%)"),
@@ -362,8 +366,8 @@ plotPca <- function(rotation, prop.vars, plot="points", main="PCA",
   graphics::abline(v=0, lty=2)
 
   if(plot == "points"){
-    graphics::points(x=rotation[,1], y=rotation[,2], col=cols, pch=20)
+    graphics::points(x=rotation[,1], y=rotation[,2], col=cols, pch=pchs)
   } else if(plot == "text")
     graphics::text(x=rotation[,1], y=rotation[,2], labels=rownames(rotation),
-                   col=cols, pch=20)
+                   col=cols)
 }
