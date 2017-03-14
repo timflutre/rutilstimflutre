@@ -7,7 +7,7 @@
 gtVcf2dose(vcf)
 }
 \arguments{
-\item{vcf}{CollapsedVCF (see pkg VariantAnnotation)}
+\item{vcf}{CollapsedVCF (see pkg \href{http://bioconductor.org/packages/VariantAnnotation/}{VariantAnnotation})}
 }
 \value{
 matrix with variants in rows and samples in columns

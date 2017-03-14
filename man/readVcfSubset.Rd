@@ -18,7 +18,7 @@ readVcfSubset(vcf.file, genome = "", seq.id, seq.start, seq.end)
 \item{seq.end}{end of the sequence to work on (1-based coordinate)}
 }
 \value{
-CollapsedVCF (see pkg VariantAnnotation)
+CollapsedVCF (see pkg \href{http://bioconductor.org/packages/VariantAnnotation/}{VariantAnnotation})
 }
 \description{
 Read a subset of a VCF file

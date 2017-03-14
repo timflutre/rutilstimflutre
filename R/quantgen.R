@@ -816,6 +816,70 @@ genoDoses2genoClasses <- function(X=NULL, tX=NULL, alleles, na.string="--", verb
   return(out)
 }
 
+##' Convert genotypes
+##'
+##' Convert SNP genotypes from "allele doses" into the \href{http://samtools.github.io/hts-specs/}{VCF} format.
+##' @param X matrix of bi-allelic SNP genotypes encoded, for each SNP, in number of copies of its second allele, i.e. as allele doses in {0,1,2}, with genotypes in rows and SNPs in columns; the "second" allele corresponds to the second column of \code{alleles} and will be interpreted as 'alt'
+##' @param snp.coords data.frame with SNP identifiers as row names, and two columns, "chr" and "pos"
+##' @param alleles data.frame with SNPs in rows (names as row names) and alleles in columns (exactly 2 columns are required); the first column will be interpreted as 'ref' and the second column, which should correspond to the allele which number of copies is counted at each SNP in \code{X}, will be interpretd as 'alt'
+##' @param verbose verbosity level (0/1)
+##' @return CollapsedVCF (see pkg \href{http://bioconductor.org/packages/VariantAnnotation/}{VariantAnnotation})
+##' @author Timothee Flutre
+##' @export
+genoDoses2Vcf <- function(X, snp.coords, alleles, verbose=1){
+  requireNamespaces(c("S4Vectors", "Biostrings", "VariantAnnotation"))
+  stopIfNotValidGenosDose(X=X, check.noNA=FALSE)
+  stopifnot(.isValidSnpCoords(snp.coords),
+            all(colnames(X) %in% rownames(snp.coords)),
+            is.data.frame(alleles),
+            ncol(alleles) == 2,
+            ! is.null(row.names(alleles)),
+            all(colnames(X) %in% rownames(alleles)))
+
+  ind.ids <- rownames(X)
+  nb.inds <- length(ind.ids)
+  snp.ids <- colnames(X)
+  nb.snps <- length(snp.ids)
+  snp.coords <- snp.coords[snp.ids,]
+  alleles <- alleles[snp.ids,]
+  if(verbose > 0){
+    msg <- paste0("convert SNP genotypes of ", nb.inds, " genotypes at ",
+                  nb.snps, " SNPs into VCF ...")
+    write(msg, stdout())
+  }
+
+  gr <- seqIdStartEnd2GRanges(seq.id=snp.coords$chr,
+                              seq.start=snp.coords$pos,
+                              seq.end=snp.coords$pos,
+                              subseq.name=snp.ids)
+  Df <- S4Vectors::DataFrame(Samples=1:nb.inds,
+                             row.names=ind.ids)
+  vcf <- VariantAnnotation::VCF(rowRanges=gr, colData=Df)
+
+  VariantAnnotation::header(vcf) <-
+    VariantAnnotation::VCFHeader(samples=ind.ids)
+  VariantAnnotation::geno(VariantAnnotation::header(vcf)) <-
+    S4Vectors::DataFrame(Number="1", Type="String",
+                         Description="Genotype",
+                         row.names="GT")
+  VariantAnnotation::ref(vcf) <- Biostrings::DNAStringSet(alleles[,1])
+  VariantAnnotation::alt(vcf) <- Biostrings::DNAStringSetList(
+                                                 as.list(alleles[,2]))
+  VariantAnnotation::fixed(vcf)[c("REF", "ALT")]
+
+  boundaries <- seq(from=0, to=2, length.out=4)
+  is.0 <- (X <= boundaries[2]) # homozygotes for the first allele (ref)
+  is.1 <- (X > boundaries[2] & X <= boundaries[3]) # heterozygotes
+  is.2 <- (X > boundaries[3]) # homozygotes for the second allele (alt)
+  X[is.0] <- "0/0"
+  X[is.1] <- "0/1"
+  X[is.2] <- "1/1"
+  X[is.na(X)] <- "./."
+  VariantAnnotation::geno(vcf) <- S4Vectors::SimpleList(GT=t(X))
+
+  return(vcf)
+}
+
 ##' Missing genotypes
 ##'
 ##' Calculate the frequency of missing genotypes for each marker.

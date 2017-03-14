@@ -7,7 +7,7 @@
 gtVcf2genoClasses(vcf, na.string = NA, single.alt = TRUE)
 }
 \arguments{
-\item{vcf}{CollapsedVCF (see pkg VariantAnnotation)}
+\item{vcf}{CollapsedVCF (see pkg \href{http://bioconductor.org/packages/VariantAnnotation/}{VariantAnnotation})}
 
 \item{na.string}{a symbol to indicate missing genotypes (e.g. NA, "NN", "--", etc)}
 

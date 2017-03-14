@@ -913,7 +913,7 @@ readSamDict <- function(file){
 ##' @param seq.id sequence identifier to work on (e.g. "chr2")
 ##' @param seq.start start of the sequence to work on (1-based coordinate)
 ##' @param seq.end end of the sequence to work on (1-based coordinate)
-##' @return CollapsedVCF (see pkg VariantAnnotation)
+##' @return CollapsedVCF (see pkg \href{http://bioconductor.org/packages/VariantAnnotation/}{VariantAnnotation})
 ##' @author Timothee Flutre
 ##' @export
 readVcfSubset <- function(vcf.file, genome="", seq.id, seq.start, seq.end){
@@ -1195,7 +1195,7 @@ infoVariantCalls <- function(x, type="SNP", thresh.qual=20, thresh.qd=2,
 ##' Confidence in one variant's genotypes
 ##'
 ##' Provide measure of confidence in the genotypes at a given variant.
-##' @param x CollapsedVCF corresponding to a SNV (see pkg VariantAnnotation)
+##' @param x CollapsedVCF corresponding to a SNV (see pkg \href{http://bioconductor.org/packages/VariantAnnotation/}{VariantAnnotation})
 ##' @param plot.it plot GQ=f(DP) if TRUE
 ##' @return invisible data.frame
 ##' @author Timothee Flutre
@@ -1512,7 +1512,7 @@ filterVariantCalls <- function(vcf.file, genome="", out.file,
 ##' Summary per variant
 ##'
 ##' Compute the mean, sd, min, Q1, med, mean, Q3, max of the genotype qualities per variant, also reporting the number of samples and the number of missing data.
-##' @param vcf CollapsedVCF (see pkg VariantAnnotation)
+##' @param vcf CollapsedVCF (see pkg \href{http://bioconductor.org/packages/VariantAnnotation/}{VariantAnnotation})
 ##' @param fields genotype field(s) of the VCF to parse (\code{"DP"}/\code{"GQ"}/\code{c("DP","GQ")})
 ##' @return list of matrices (one per field) with one row per variant and 9 columns (n, na, mean, sd, min, q1, med, q3, max)
 ##' @author Timothee Flutre
@@ -1668,7 +1668,7 @@ seqIdStartEnd2GRanges <- function(seq.id, seq.start=NULL, seq.end=NULL,
 ##' Parse VCF
 ##'
 ##' Returns a VCF object subsetted for allelicity.
-##' @param vcf CollapsedVCF (see pkg VariantAnnotation)
+##' @param vcf CollapsedVCF (see pkg \href{http://bioconductor.org/packages/VariantAnnotation/}{VariantAnnotation})
 ##' @param single.ref if TRUE, only records with a single 'ref' are kept
 ##' @param single.alt if TRUE, only records with a single 'alt' are kept
 ##' @return CollapsedVCF
@@ -1714,7 +1714,7 @@ subsetVcfOnAllelicity <- function(vcf, single.ref=TRUE, single.alt=TRUE){
 ##'
 ##' Non-bi-allelic variants are discarded.
 ##' From Martin Morgan (see http://grokbase.com/t/r/bioconductor/135b460s2b/bioc-how-to-convert-genotype-snp-matrix-to-nucleotide-genotypes).
-##' @param vcf CollapsedVCF (see pkg VariantAnnotation)
+##' @param vcf CollapsedVCF (see pkg \href{http://bioconductor.org/packages/VariantAnnotation/}{VariantAnnotation})
 ##' @return matrix with variants in rows and samples in columns
 ##' @author Timothee Flutre
 ##' @seealso \code{\link{vcf2dosage}}, \code{\link{gtVcf2genoClasses}}
@@ -1737,7 +1737,7 @@ gtVcf2dose <- function(vcf){
 ##' Convert ranges to data.frame
 ##'
 ##' Non-bi-allelic variants are discarded.
-##' @param vcf CollapsedVCF (see pkg VariantAnnotation)
+##' @param vcf CollapsedVCF (see pkg \href{http://bioconductor.org/packages/VariantAnnotation/}{VariantAnnotation})
 ##' @param with.coords if TRUE, the output will contain variant coordinates
 ##' @param with.alleles if TRUE, the output will contain variant alleles
 ##' @param single.ref if TRUE, only records with a single 'ref' are kept
@@ -1890,7 +1890,7 @@ vcf2dosage <- function(vcf.file, genome="", gdose.file, ca.file,
 ##' Return a matrix of genotypes for SNPs (with possibly multiple alternative alleles).
 ##' Phasing information is ignored.
 ##' With \href{http://grokbase.com/t/r/bioconductor/135b460s2b/bioc-how-to-convert-genotype-snp-matrix-to-nucleotide-genotypes}{help} from Martin Morgan.
-##' @param vcf CollapsedVCF (see pkg VariantAnnotation)
+##' @param vcf CollapsedVCF (see pkg \href{http://bioconductor.org/packages/VariantAnnotation/}{VariantAnnotation})
 ##' @param na.string a symbol to indicate missing genotypes (e.g. NA, "NN", "--", etc)
 ##' @param single.alt if TRUE, only records with a single 'alt' are kept
 ##' @return matrix with variants in rows and samples in columns

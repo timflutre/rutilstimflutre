@@ -179,6 +179,69 @@ test_that("genoDoses2genoClasses", {
   expect_equal(observed, expected)
 })
 
+.expect_equal_VCFfile <- function(observed, expected){
+  ## see https://support.bioconductor.org/p/74013/
+  expect_equal(VariantAnnotation::info(observed),
+               VariantAnnotation::info(expected))
+  expect_equal(as.character(VariantAnnotation::ref(observed)),
+               as.character(VariantAnnotation::ref(expected)))
+  expect_equal(VariantAnnotation::alt(observed),
+               VariantAnnotation::alt(expected))
+  expect_equal(VariantAnnotation::samples(VariantAnnotation::header(observed)),
+               VariantAnnotation::samples(VariantAnnotation::header(expected)))
+  expect_equal(VariantAnnotation::geno(observed)$GT,
+               VariantAnnotation::geno(expected)$GT)
+}
+
+test_that("genoDoses2vcf", {
+  if(all(requireNamespace("Biostrings"),
+         requireNamespace("VariantAnnotation"),
+         requireNamespace("S4Vectors"))){
+    nb.snps <- 4
+    snp.ids <- paste0("snp", 1:nb.snps)
+    snp.coords <- data.frame(chr=c(rep("chr1", 2), rep("chr2", 2)),
+                             pos=c(3, 7, 635, 789),
+                             row.names=snp.ids,
+                             stringsAsFactors=FALSE)
+    alleles <- simulRefAltSnpAlleles(snp.ids=snp.ids, verbose=0)
+    nb.inds <- 3
+    ind.ids <- paste0("ind", 1:nb.inds)
+    X <- matrix(c(0,0,1, 1,2,0, NA,0,1, 1,2,NA),
+                nrow=nb.inds, ncol=nb.snps,
+                dimnames=list(ind.ids, snp.ids))
+
+    gr <- seqIdStartEnd2GRanges(seq.id=snp.coords$chr,
+                                seq.start=snp.coords$pos,
+                                seq.end=snp.coords$pos,
+                                subseq.name=snp.ids)
+    Df <- S4Vectors::DataFrame(Samples=1:nb.inds,
+                               row.names=ind.ids)
+    expected <- VariantAnnotation::VCF(rowRanges=gr, colData=Df)
+    VariantAnnotation::header(expected) <-
+      VariantAnnotation::VCFHeader(samples=ind.ids)
+    VariantAnnotation::geno(VariantAnnotation::header(expected)) <-
+      S4Vectors::DataFrame(Number="1", Type="String",
+                           Description="Genotype",
+                           row.names="GT")
+    VariantAnnotation::ref(expected) <- Biostrings::DNAStringSet(alleles$ref)
+    VariantAnnotation::alt(expected) <- Biostrings::DNAStringSetList(
+                                                        as.list(alleles$alt))
+    VariantAnnotation::fixed(expected)[c("REF", "ALT")]
+    VariantAnnotation::geno(expected) <-
+      S4Vectors::SimpleList(
+                     GT=matrix(c("0/0","0/1","./.","0/1",  # 1st ind
+                                 "0/0","1/1","0/0","1/1",  # 2nd ind
+                                 "0/1","0/0","0/1","./."), # ...
+                               nrow=nb.snps, ncol=nb.inds,
+                               dimnames=list(snp.ids, ind.ids)))
+
+    observed <- genoDoses2Vcf(X=X, snp.coords=snp.coords, alleles=alleles,
+                              verbose=0)
+
+    .expect_equal_VCFfile(observed, expected)
+  }
+})
+
 test_that("simulRefAltSnpAlleles", {
   nb.snps <- 4
   snp.ids <- paste0("snp", 1:nb.snps)

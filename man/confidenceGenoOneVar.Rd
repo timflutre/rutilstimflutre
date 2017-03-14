@@ -7,7 +7,7 @@
 confidenceGenoOneVar(x, plot.it = FALSE)
 }
 \arguments{
-\item{x}{CollapsedVCF corresponding to a SNV (see pkg VariantAnnotation)}
+\item{x}{CollapsedVCF corresponding to a SNV (see pkg \href{http://bioconductor.org/packages/VariantAnnotation/}{VariantAnnotation})}
 
 \item{plot.it}{plot GQ=f(DP) if TRUE}
 }

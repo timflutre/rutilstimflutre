@@ -7,7 +7,7 @@
 subsetVcfOnAllelicity(vcf, single.ref = TRUE, single.alt = TRUE)
 }
 \arguments{
-\item{vcf}{CollapsedVCF (see pkg VariantAnnotation)}
+\item{vcf}{CollapsedVCF (see pkg \href{http://bioconductor.org/packages/VariantAnnotation/}{VariantAnnotation})}
 
 \item{single.ref}{if TRUE, only records with a single 'ref' are kept}
 

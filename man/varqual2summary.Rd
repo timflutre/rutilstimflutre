@@ -7,7 +7,7 @@
 varqual2summary(vcf, fields = "GQ")
 }
 \arguments{
-\item{vcf}{CollapsedVCF (see pkg VariantAnnotation)}
+\item{vcf}{CollapsedVCF (see pkg \href{http://bioconductor.org/packages/VariantAnnotation/}{VariantAnnotation})}
 
 \item{fields}{genotype field(s) of the VCF to parse (\code{"DP"}/\code{"GQ"}/\code{c("DP","GQ")})}
 }

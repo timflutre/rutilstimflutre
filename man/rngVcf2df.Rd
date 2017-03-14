@@ -8,7 +8,7 @@ rngVcf2df(vcf, with.coords = TRUE, with.alleles = TRUE,
   single.ref = FALSE, single.alt = FALSE)
 }
 \arguments{
-\item{vcf}{CollapsedVCF (see pkg VariantAnnotation)}
+\item{vcf}{CollapsedVCF (see pkg \href{http://bioconductor.org/packages/VariantAnnotation/}{VariantAnnotation})}
 
 \item{with.coords}{if TRUE, the output will contain variant coordinates}
 
