@@ -144,6 +144,24 @@ test_that("coverageBams", {
   }
 })
 
+test_that("seqIdStartEnd2GRanges", {
+  if(all(requireNamespace("IRanges"),
+         requireNamespace("GenomicRanges"))){
+    ir <- IRanges::IRanges(start=c(13, 875),
+                           end=c(13, 1000))
+    expected <- GenomicRanges::GRanges(seqnames=c("chr1", "chr2"),
+                                       ranges=ir)
+    names(expected) <- c("snp099", "gene13")
+
+    observed <- seqIdStartEnd2GRanges(seq.id=c("chr1", "chr2"),
+                                      seq.start=c(13, 875),
+                                      seq.end=c(13, 1000),
+                                      subseq.name=c("snp099", "gene13"))
+
+    expect_equal(observed, expected)
+  }
+})
+
 .expect_equal_VCFfile <- function(observed, expected){
   ## see https://support.bioconductor.org/p/74013/
   expect_equal(VariantAnnotation::info(observed),
@@ -190,15 +208,19 @@ test_that("coverageBams", {
 }
 
 test_that("tableVcfAlt", {
-  vcf.file <- system.file("extdata", "example.vcf",
-                          package="rutilstimflutre")
+  if(all(requireNamespace("Biostrings"),
+         requireNamespace("VariantAnnotation"),
+         requireNamespace("S4Vectors"))){
+    vcf.file <- system.file("extdata", "example.vcf",
+                            package="rutilstimflutre")
 
-  expected <- Biostrings::DNAStringSetList(c("C"), c("C"), c("T"))
-  names(expected) <- c("snp1", "snp2", "indel1")
+    expected <- Biostrings::DNAStringSetList(c("C"), c("C"), c("T"))
+    names(expected) <- c("snp1", "snp2", "indel1")
 
-  observed <- tableVcfAlt(vcf.file=vcf.file, verbose=0)
+    observed <- tableVcfAlt(vcf.file=vcf.file, verbose=0)
 
-  expect_equal(observed, expected)
+    expect_equal(observed, expected)
+  }
 })
 
 test_that("setGt2Na", {

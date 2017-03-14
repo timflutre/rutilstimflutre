@@ -1623,17 +1623,24 @@ summaryVariant <- function(vcf.file, genome="", yieldSize=NA_integer_,
 ##' @param seq.id sequence identifier(s) to work on (e.g. \code{"chr2"} or \code{c("chr2","chr7")})
 ##' @param seq.start start(s) of the sequence(s) to work on (if NULL, whole seq; see \code{dict.file})
 ##' @param seq.end end(s) of the sequence(s) to work on (if NULL, whole seq; see \code{dict.file})
-##' @param dict.file path to the SAM dict file (see \url{https://broadinstitute.github.io/picard/command-line-overview.html#CreateSequenceDictionary}) if seq.id is specified with no start/end
+##' @param dict.file path to the SAM dict file (see \url{https://broadinstitute.github.io/picard/command-line-overview.html#CreateSequenceDictionary}) if \code{seq.id} is specified with no start/end
+##' @param subseq.name names of the subsequence(s) (optional; e.g. \code{"gene34"} or \code{"snp005"})
 ##' @return \code{GRanges} object from the \code{GenomicRanges} package
 ##' @author Timothee Flutre
 ##' @seealso \code{\link{vcf2dosage}}, \code{\link{vcf2genoClasses}}
 ##' @export
 seqIdStartEnd2GRanges <- function(seq.id, seq.start=NULL, seq.end=NULL,
-                                  dict.file=NULL){
-  requireNamespace("GenomicRanges")
-  if(is.null(seq.start) & is.null(seq.end))
+                                  dict.file=NULL, subseq.name=NULL){
+  requireNamespaces(c("IRanges", "GenomicRanges"))
+  if(all(is.null(seq.start), is.null(seq.end)))
     stopifnot(! is.null(dict.file),
               file.exists(dict.file))
+  if(all(! is.null(seq.start), ! is.null(seq.end)))
+    stopifnot(all(length(seq.start) == length(seq.id),
+                  length(seq.end) == length(seq.id)))
+  if(! is.null(subseq.name))
+    stopifnot(is.character(subseq.name),
+              length(subseq.name) == length(seq.id))
 
   for(i in seq_along(seq.id)){
     if(any(is.null(seq.start), is.null(seq.end))){
@@ -1652,7 +1659,8 @@ seqIdStartEnd2GRanges <- function(seq.id, seq.start=NULL, seq.end=NULL,
   rngs <- GenomicRanges::GRanges(seqnames=c(seq.id),
                                  ranges=IRanges::IRanges(start=c(seq.start),
                                                          end=c(seq.end)))
-  names(rngs) <- c(seq.id)
+  if(! is.null(subseq.name))
+    names(rngs) <- subseq.name
 
   return(rngs)
 }
