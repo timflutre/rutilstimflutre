@@ -964,13 +964,33 @@ test_that("makeGameteSingleIndSingleChrom", {
   haplos.par.chr <- matrix(data=c(1,0, 0,1, 1,0, 1,0, 1,0), nrow=2, ncol=P,
                            dimnames=list(c("ind2_h1", "ind2_h2"),
                                          paste0("snp", 1:P)))
-  loc.crossovers <- c(2, 4)
 
+  loc.crossovers <- c(2, 4)
   expected <- matrix(c(1, 0, 0, 0, 1), nrow=1,
                      dimnames=list("ind2", paste0("snp", 1:P)))
+  observed <- makeGameteSingleIndSingleChrom(haplos.par.chr, loc.crossovers,
+                                             start.haplo=1)
+  expect_equal(observed, expected)
 
-  observed <- makeGameteSingleIndSingleChrom(haplos.par.chr, loc.crossovers)
+  loc.crossovers <- c(1)
+  expected <- matrix(c(1, 1, 0, 0, 0), nrow=1,
+                     dimnames=list("ind2", paste0("snp", 1:P)))
+  observed <- makeGameteSingleIndSingleChrom(haplos.par.chr, loc.crossovers,
+                                             start.haplo=1)
+  expect_equal(observed, expected)
 
+  loc.crossovers <- c(2, 4)
+  expected <- matrix(c(0, 1, 1, 1, 0), nrow=1,
+                     dimnames=list("ind2", paste0("snp", 1:P)))
+  observed <- makeGameteSingleIndSingleChrom(haplos.par.chr, loc.crossovers,
+                                             start.haplo=2)
+  expect_equal(observed, expected)
+
+  loc.crossovers <- c(1)
+  expected <- matrix(c(0, 0, 1, 1, 1), nrow=1,
+                     dimnames=list("ind2", paste0("snp", 1:P)))
+  observed <- makeGameteSingleIndSingleChrom(haplos.par.chr, loc.crossovers,
+                                             start.haplo=2)
   expect_equal(observed, expected)
 })
 
@@ -988,9 +1008,18 @@ test_that("makeGameteSingleInd", {
                                dimnames=list("ind2", paste0("snp", 1:(P/2)))),
                    chr2=matrix(c(1,0,1,0), nrow=1,
                                dimnames=list("ind2", paste0("snp", (P/2+1):P))))
+  observed <- makeGameteSingleInd(haplos.par=haplos.par,
+                                  loc.crossovers=loc.crossovers)
+  expect_equal(observed, expected)
 
-  observed <- makeGameteSingleInd(haplos.par, loc.crossovers)
-
+  start.haplos <- as.list(c(1, 2))
+  expected <- list(chr1=matrix(c(1,0, 0,0), nrow=1,
+                               dimnames=list("ind2", paste0("snp", 1:(P/2)))),
+                   chr2=matrix(c(0,1,0,1), nrow=1,
+                               dimnames=list("ind2", paste0("snp", (P/2+1):P))))
+  observed <- makeGameteSingleInd(haplos.par=haplos.par,
+                                  loc.crossovers=loc.crossovers,
+                                  start.haplos=start.haplos)
   expect_equal(observed, expected)
 })
 
@@ -1070,7 +1099,7 @@ test_that("makeCrosses_dh", {
                                dimnames=list(c("ind2-hd_h1", "ind2-hd_h2"),
                                              paste0("snp", (P/2+1):P))))
 
-  observed <- makeCrosses(haplos, crosses, loc.crossovers, verbose=0)
+  observed <- makeCrosses(haplos, crosses, loc.crossovers, 1, verbose=0)
 
   expect_equal(observed, expected)
 })
@@ -1107,7 +1136,7 @@ test_that("makeCrosses", {
                                dimnames=list(c("ind3_h1", "ind3_h2"),
                                              paste0("snp", (P/2+1):P))))
 
-  observed <- makeCrosses(haplos, crosses, loc.crossovers, verbose=0)
+  observed <- makeCrosses(haplos, crosses, loc.crossovers, 1, verbose=0)
 
   expect_equal(observed, expected)
 })

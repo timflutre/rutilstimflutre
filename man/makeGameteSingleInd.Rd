@@ -4,12 +4,15 @@
 \alias{makeGameteSingleInd}
 \title{Gamete}
 \usage{
-makeGameteSingleInd(haplos.par, loc.crossovers)
+makeGameteSingleInd(haplos.par, loc.crossovers, start.haplos = as.list(rep(1,
+  length(haplos.par))))
 }
 \arguments{
 \item{haplos.par}{list of matrices containing both haplotypes of a parent for each chromosome}
 
-\item{loc.crossovers}{list of vectors with positions of the crossing overs (the coordinate of the first nucleotide is assumed to be 1, and crossing-overs are assumed to occur right after the given localization)}
+\item{loc.crossovers}{list of vectors with positions of the crossing overs (the coordinate of the first nucleotide is assumed to be 1, and crossing-overs are assumed to occur right after the given positions)}
+
+\item{start.haplos}{list of identifiers (1/2) of the haplotype with which to start the gamete for each chromosome (if NULL, will be sampled)}
 }
 \value{
 list of vectors (one per chromosome)

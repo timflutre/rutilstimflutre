@@ -4,12 +4,15 @@
 \alias{makeGameteSingleIndSingleChrom}
 \title{Gamete}
 \usage{
-makeGameteSingleIndSingleChrom(haplos.par.chr, loc.crossovers)
+makeGameteSingleIndSingleChrom(haplos.par.chr, loc.crossovers,
+  start.haplo = 1)
 }
 \arguments{
 \item{haplos.par.chr}{matrix containing both haplotypes of a parent for a given chromosome (must have dimnames, such as "ind37_h1" in rows and "snp00265" in columns)}
 
-\item{loc.crossovers}{positions of the crossing overs (the coordinate of the first nucleotide is assumed to be 1, and crossing-overs are assumed to occur right after the given localization)}
+\item{loc.crossovers}{positions of the crossing overs (the coordinate of the first nucleotide is assumed to be 1, and crossing-overs are assumed to occur right after the given positions)}
+
+\item{start.haplo}{identifier of the haplotype with which to start the gamete (1/2)}
 }
 \value{
 vector

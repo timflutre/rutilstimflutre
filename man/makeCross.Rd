@@ -5,7 +5,8 @@
 \title{Cross}
 \usage{
 makeCross(haplos.par1, loc.crossovers.par1, haplos.par2 = NULL,
-  loc.crossovers.par2 = NULL, child.name = NULL, verbose = 1)
+  loc.crossovers.par2 = NULL, child.name = NULL, howto.start.haplo = 0,
+  verbose = 1)
 }
 \arguments{
 \item{haplos.par1}{list of matrices (one per chromosome) for the first parent}
@@ -17,6 +18,8 @@ makeCross(haplos.par1, loc.crossovers.par1, haplos.par2 = NULL,
 \item{loc.crossovers.par2}{list of vectors (one per chromosome) for the second parent}
 
 \item{child.name}{identifier of the child (if NULL, <parent1>"-x-"<parent2> or <parent1>"-hd")}
+
+\item{howto.start.haplo}{if 0, haplotypes with which to start the gametes will be chosen at random; but one can also specify 1 (always the first haplotype) or 2 (always the second haplotype)}
 
 \item{verbose}{verbosity level (0/1)}
 }

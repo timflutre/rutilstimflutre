@@ -2098,19 +2098,23 @@ getHaplosInds <- function(haplos, ind.names){
 ##'
 ##' Make a gamete for a given chromosome by recombining two parental haplotypes (always starting with the first haplotype).
 ##' @param haplos.par.chr matrix containing both haplotypes of a parent for a given chromosome (must have dimnames, such as "ind37_h1" in rows and "snp00265" in columns)
-##' @param loc.crossovers positions of the crossing overs (the coordinate of the first nucleotide is assumed to be 1, and crossing-overs are assumed to occur right after the given localization)
+##' @param loc.crossovers positions of the crossing overs (the coordinate of the first nucleotide is assumed to be 1, and crossing-overs are assumed to occur right after the given positions)
+##' @param start.haplo identifier of the haplotype with which to start the gamete (1/2)
 ##' @return vector
 ##' @author Timothee Flutre
 ##' @seealso \code{\link{makeGameteSingleInd}}, \code{\link{drawLocCrossovers}}
 ##' @export
-makeGameteSingleIndSingleChrom <- function(haplos.par.chr, loc.crossovers){
+makeGameteSingleIndSingleChrom <- function(haplos.par.chr, loc.crossovers,
+                                           start.haplo=1){
   stopifnot(is.matrix(haplos.par.chr),
             ! is.null(dimnames(haplos.par.chr)),
-            is.vector(loc.crossovers))
+            is.vector(loc.crossovers),
+            min(loc.crossovers) >= 0,
+            max(loc.crossovers) < ncol(haplos.par.chr),
+            start.haplo %in% c(1, 2))
 
   nb.snps <- ncol(haplos.par.chr)
   loc.crossovers <- sort(loc.crossovers)
-  stopifnot(max(loc.crossovers) < ncol(haplos.par.chr))
 
   ind.name <- strsplit(rownames(haplos.par.chr)[1],
                        "_")[[1]]
@@ -2118,19 +2122,19 @@ makeGameteSingleIndSingleChrom <- function(haplos.par.chr, loc.crossovers){
   gam.chr <- matrix(rep(NA, nb.snps), nrow=1,
                     dimnames=list(ind.name, colnames(haplos.par.chr)))
 
-  ## always start with the first haplotype
+  ## fill the gamete from the left to the right
   if(loc.crossovers[1] != 0)
     loc.crossovers <- c(0, loc.crossovers)
   for(l in 2:length(loc.crossovers))
     gam.chr[(loc.crossovers[l-1]+1):loc.crossovers[l]] <-
-      haplos.par.chr[ifelse(l %% 2 == 0, 1, 2),
+      haplos.par.chr[ifelse((l + start.haplo) %% 2 == 1, 1, 2),
       (loc.crossovers[l-1]+1):loc.crossovers[l]]
 
-  ## if necessary, fill the gamete until the end
-  if(loc.crossovers[length(loc.crossovers)] < nb.snps)
-    gam.chr[(loc.crossovers[length(loc.crossovers)]+1):nb.snps] <-
-    haplos.par.chr[ifelse((length(loc.crossovers)+1) %% 2 == 0, 1, 2),
-    (loc.crossovers[length(loc.crossovers)]+1):nb.snps]
+  ## fill the gamete until the end
+  l <- length(loc.crossovers)
+  gam.chr[(loc.crossovers[l]+1):nb.snps] <-
+    haplos.par.chr[ifelse((l+1 + start.haplo) %% 2 == 1, 1, 2),
+    (loc.crossovers[l]+1):nb.snps]
 
   stopifnot(sum(is.na(gam.chr)) == 0)
 
@@ -2141,16 +2145,27 @@ makeGameteSingleIndSingleChrom <- function(haplos.par.chr, loc.crossovers){
 ##'
 ##' Make a gamete for all chromosomes by recombining two parental haplotypes.
 ##' @param haplos.par list of matrices containing both haplotypes of a parent for each chromosome
-##' @param loc.crossovers list of vectors with positions of the crossing overs (the coordinate of the first nucleotide is assumed to be 1, and crossing-overs are assumed to occur right after the given localization)
+##' @param loc.crossovers list of vectors with positions of the crossing overs (the coordinate of the first nucleotide is assumed to be 1, and crossing-overs are assumed to occur right after the given positions)
+##' @param start.haplos list of identifiers (1/2) of the haplotype with which to start the gamete for each chromosome (if NULL, will be sampled)
 ##' @return list of vectors (one per chromosome)
 ##' @author Timothee Flutre
 ##' @seealso \code{\link{makeCross}}, \code{\link{fecundation}}, \code{\link{makeGameteSingleIndSingleChrom}}
 ##' @export
-makeGameteSingleInd <- function(haplos.par, loc.crossovers){
+makeGameteSingleInd <- function(haplos.par, loc.crossovers,
+                                start.haplos=as.list(rep(1, length(haplos.par)))){
   stopifnot(is.list(haplos.par),
-            is.list(loc.crossovers))
+            is.list(loc.crossovers),
+            length(loc.crossovers) == length(haplos.par))
+  if(! is.null(start.haplos))
+    stopifnot(is.list(start.haplos),
+              length(start.haplos) == length(haplos.par))
 
-  gam <- Map(makeGameteSingleIndSingleChrom, haplos.par, loc.crossovers)
+  nb.chrs <- length(loc.crossovers)
+  if(is.null(start.haplos))
+    start.haplos <- as.list(sample.int(n=2, size=nb.chrs, replace=TRUE))
+
+  gam <- Map(makeGameteSingleIndSingleChrom, haplos.par, loc.crossovers,
+             start.haplos)
 
   return(gam)
 }
@@ -2189,6 +2204,7 @@ fecundation <- function(gam1, gam2, child.name){
 ##' @param haplos.par2 list of matrices (one per chromosome) for the second parent
 ##' @param loc.crossovers.par2 list of vectors (one per chromosome) for the second parent
 ##' @param child.name identifier of the child (if NULL, <parent1>"-x-"<parent2> or <parent1>"-hd")
+##' @param howto.start.haplo if 0, haplotypes with which to start the gametes will be chosen at random; but one can also specify 1 (always the first haplotype) or 2 (always the second haplotype)
 ##' @param verbose verbosity level (0/1)
 ##' @return list of matrices (one per chromosome) for the child
 ##' @author Timothee Flutre
@@ -2199,10 +2215,12 @@ makeCross <- function(haplos.par1,
                       haplos.par2=NULL,
                       loc.crossovers.par2=NULL,
                       child.name=NULL,
+                      howto.start.haplo=0,
                       verbose=1){
   stopifnot(is.list(haplos.par1),
             is.list(loc.crossovers.par1),
-            all(names(haplos.par1) == names(loc.crossovers.par1)))
+            all(names(haplos.par1) == names(loc.crossovers.par1)),
+            howto.start.haplo %in% c(0, 1, 2))
   if(! is.null(haplos.par2))
     stopifnot(is.list(haplos.par2),
               is.list(loc.crossovers.par2),
@@ -2240,13 +2258,18 @@ makeCross <- function(haplos.par1,
   }
 
   ## make the gamete(s) and then the cross
-  gam.par1 <- makeGameteSingleInd(haplos.par1, loc.crossovers.par1)
+  start.haplos <- as.list(rep(howto.start.haplo, length(haplos.par1)))
+  if(howto.start.haplo == 0)
+    start.haplos <- NULL
+  gam.par1 <- makeGameteSingleInd(haplos.par1, loc.crossovers.par1,
+                                  start.haplos)
   if(cross.type == "haplodiploidization"){
     if(is.null(child.name))
       child.name <- paste0(name.par1, "-hd")
     haplos.child <- fecundation(gam.par1, gam.par1, child.name)
   } else{
-    gam.par2 <- makeGameteSingleInd(haplos.par2, loc.crossovers.par2)
+    gam.par2 <- makeGameteSingleInd(haplos.par2, loc.crossovers.par2,
+                                    start.haplos)
     if(is.null(child.name))
       child.name <- paste0(name.par1, "-x-", name.par2)
     haplos.child <- fecundation(gam.par1, gam.par2, child.name)
@@ -2342,7 +2365,8 @@ drawLocCrossovers <- function(crosses, nb.snps, lambda=2){
 ##' Make crosses (fecundation, autofecondation, haplodiploidization).
 ##' @param haplos list of matrices (one per chromosome)
 ##' @param crosses data.frame with three columns, parent1, parent2, child (no duplicate); if parent 1 and 2 are the same, it will be an autofecondation; if parent2 is NA, it will be a haplodiploidization
-##' @param loc.crossovers list of lists (one per cross, then one per parent, then one per chromosome) whose names are crosses$child, in the same order; if NULL, draw many crossing-overs localizations at once (as Poisson with parameter 2, assuming all chromosomes have the same length)
+##' @param loc.crossovers list of lists (one per cross, then one per parent, then one per chromosome) whose names are crosses$child, in the same order; if NULL, draw many crossing-overs positions at once (as Poisson with parameter 2, assuming all chromosomes have the same length)
+##' @param howto.start.haplo if 0, haplotypes with which to start the gametes will be chosen at random; but one can also specify 1 (always the first haplotype) or 2 (always the second haplotype)
 ##' @param nb.cores the number of cores to use, i.e. at most how many child processes will be run simultaneously (not on Windows)
 ##' @param verbose verbosity level (0/1)
 ##' @return list of matrices (one per chromosome) with child haplotypes in rows and SNPs in columns
@@ -2402,6 +2426,7 @@ drawLocCrossovers <- function(crosses, nb.snps, lambda=2){
 ##' }
 ##' @export
 makeCrosses <- function(haplos, crosses, loc.crossovers=NULL,
+                        howto.start.haplo=0,
                         nb.cores=1, verbose=1){
   stopifnot(is.list(haplos),
             length(unique(sapply(haplos, class))) == 1,
@@ -2448,6 +2473,7 @@ makeCrosses <- function(haplos, crosses, loc.crossovers=NULL,
       makeCross(haplos.par1=getHaplosInd(haplos, crosses$parent1[i]),
                 loc.crossovers.par1=loc.crossovers[[i]][[crosses$parent1[i]]],
                 child.name=crosses$child[i],
+                howto.start.haplo=howto.start.haplo,
                 verbose=verbose-1)
     } else #(auto)fecondation
       makeCross(haplos.par1=getHaplosInd(haplos, crosses$parent1[i]),
@@ -2455,6 +2481,7 @@ makeCrosses <- function(haplos, crosses, loc.crossovers=NULL,
                 haplos.par2=getHaplosInd(haplos, crosses$parent2[i]),
                 loc.crossovers.par2=loc.crossovers[[i]][[crosses$parent2[i]]],
                 child.name=crosses$child[i],
+                howto.start.haplo=howto.start.haplo,
                 verbose=verbose-1)
   }, mc.cores=nb.cores)
 
