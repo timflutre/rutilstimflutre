@@ -58,6 +58,7 @@ library(rutilstimflutre)
 library(lattice)
 library(nlme)
 library(lme4)
+library(INLA)
 library(rstan)
 library(loo)
 ```
