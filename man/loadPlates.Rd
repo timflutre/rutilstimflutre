@@ -20,4 +20,3 @@ Read each file into a matrix and gather them into a list.
 \author{
 Timothee Flutre
 }
-

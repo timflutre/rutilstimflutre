@@ -22,10 +22,9 @@ matrix with SNPs in rows and genotypes in columns
 \description{
 Reformat bi-allelic SNP genotypes encoded in genotypic classes to ease subsequent manipulations.
 }
-\author{
-Eric Duchene [aut], Timothee Flutre [ctb]
-}
 \seealso{
 \code{link{genoClasses2genoDoses}}, \code{\link{genoClasses2JoinMap}}
 }
-
+\author{
+Eric Duchene [aut], Timothee Flutre [ctb]
+}

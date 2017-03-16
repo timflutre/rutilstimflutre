@@ -24,4 +24,3 @@ Initialize plates as matrices with missing data.
 \author{
 Timothee Flutre
 }
-

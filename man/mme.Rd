@@ -50,4 +50,3 @@ cor(model$G.A, fit[4:length(fit)])
 \author{
 Timothee Flutre
 }
-

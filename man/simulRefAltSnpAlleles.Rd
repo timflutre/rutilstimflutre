@@ -22,10 +22,9 @@ data frame with SNPs in rows
 \description{
 Simulate alleles for bi-allelic SNPs.
 }
-\author{
-Timothee Flutre
-}
 \seealso{
 \code{\link{simulCoalescent}}, \code{\link{simulGenosDose}}
 }
-
+\author{
+Timothee Flutre
+}

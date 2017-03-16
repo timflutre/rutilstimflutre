@@ -22,4 +22,3 @@ Read a VCF file and print the number of alternate alleles over all records (via 
 \author{
 Timothee Flutre
 }
-

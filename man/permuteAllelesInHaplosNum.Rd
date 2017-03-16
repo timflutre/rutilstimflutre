@@ -23,10 +23,9 @@ However, when one wants to simulate realistic data, one often converts haplotype
 At this step, one may not want to always count the number of copies of the derived allele.
 It hence is useful to permute alleles beforehand.
 }
-\author{
-Timothee Flutre
-}
 \seealso{
 \code{\link{simulCoalescent}}, \code{\link{segSites2allDoses}}, \code{link{haplosAlleles2num}}
 }
-
+\author{
+Timothee Flutre
+}

@@ -20,10 +20,9 @@ invisible data.frame
 Read and check a file supposed to contain requests about plant material.
 It should have 3 columns named \code{parent1}, \code{parent2} and \code{child}.
 }
-\author{
-Timothee Flutre
-}
 \seealso{
 \code{\link{makeExamplePlantFile}}
 }
-
+\author{
+Timothee Flutre
+}

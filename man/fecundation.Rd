@@ -22,4 +22,3 @@ Perform fecundation by uniting the two gametes.
 \author{
 Timothee Flutre
 }
-

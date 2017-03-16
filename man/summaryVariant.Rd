@@ -33,10 +33,9 @@ list of matrices (one per field) with one row per variant and 9 columns (n, na, 
 \description{
 Compute the mean, sd, min, Q1, med, mean, Q3, max of the genotype qualities per variant, also reporting the number of samples and the number of missing data.
 }
-\author{
-Timothee Flutre
-}
 \seealso{
 \code{\link{varqual2summary}}
 }
-
+\author{
+Timothee Flutre
+}

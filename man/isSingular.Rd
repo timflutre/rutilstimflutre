@@ -19,4 +19,3 @@ As \href{http://www.stat.wisc.edu/~st849-1/Rnotes/ModelMatrices.html#sec-2_2}{ex
 \author{
 Timothee Flutre
 }
-

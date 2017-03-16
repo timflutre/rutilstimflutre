@@ -18,4 +18,3 @@ Stops if any package's namespace can't be loaded.
 \author{
 Timothee Flutre
 }
-

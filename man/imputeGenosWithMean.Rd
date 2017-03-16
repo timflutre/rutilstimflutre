@@ -23,10 +23,9 @@ matrix with imputed genotypes
 Impute missing SNP genotypes with the mean of the non-missing.
 The code was inspired from the \code{A.mat} function from the \href{https://cran.r-project.org/web/packages/rrBLUP/}{rrBLUP} package.
 }
-\author{
-Timothee Flutre
-}
 \seealso{
 \code{\link{imputeGenosWithMeanPerPop}}
 }
-
+\author{
+Timothee Flutre
+}

@@ -20,4 +20,3 @@ From a set of genomes simulated together, split them into a training (for estima
 \author{
 Timothee Flutre
 }
-

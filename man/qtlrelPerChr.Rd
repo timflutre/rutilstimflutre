@@ -64,4 +64,3 @@ res <- qtlrelPerChr(dat$response, X, snp.coords, 0.01, "chr1", W=W[,-1], Z=Z)
 \author{
 Timothee Flutre
 }
-

@@ -44,10 +44,9 @@ phenos <- simulTraits12(dat, X=X, Beta=snp.effects12$Beta)
 regplot(phenos$G.A[,1], phenos$G.A[,2])
 }
 }
-\author{
-Timothee Flutre
-}
 \seealso{
 \code{\link{simulSnpEffectsTraits12}}, \code{\link{makeDfInitPhenos}}
 }
-
+\author{
+Timothee Flutre
+}

@@ -20,4 +20,3 @@ Print the output of \code{\link{betterSummary}} in a single line, as well as the
 \author{
 Timothee Flutre
 }
-

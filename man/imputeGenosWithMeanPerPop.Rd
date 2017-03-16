@@ -26,10 +26,9 @@ matrix with imputed genotypes
 \description{
 Impute missing SNP genotypes with the mean of the non-missing, population by population.
 }
-\author{
-Timothee Flutre
-}
 \seealso{
 \code{\link{imputeGenosWithMean}}
 }
-
+\author{
+Timothee Flutre
+}

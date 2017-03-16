@@ -26,4 +26,3 @@ Extract a subset of (possibly several) sequences present in fasta file.
 \author{
 Timothee Flutre
 }
-

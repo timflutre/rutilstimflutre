@@ -58,10 +58,9 @@ genomes <- simulCoalescent(nb.inds=nb.genos,
                            chrom.len=chrom.len)
 }
 }
-\author{
-Timothee Flutre
-}
 \seealso{
 \code{\link{segSites2snpCoords}}, \code{\link{permuteAllelesInHaplosNum}}, \code{\link{segSites2allDoses}}, \code{\link{simulRefAltSnpAlleles}}, \code{\link{makeCrosses}}
 }
-
+\author{
+Timothee Flutre
+}

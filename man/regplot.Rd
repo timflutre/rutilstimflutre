@@ -54,4 +54,3 @@ fit <- regplot(x=x, y=y2, reg=c("lm","rlm"), las=1,
 \author{
 Timothee Flutre
 }
-

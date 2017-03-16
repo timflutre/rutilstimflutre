@@ -17,10 +17,9 @@ matrix similar to X but possibly with less columns
 \description{
 Discard all markers with at least one missing genotype.
 }
-\author{
-Timothee Flutre
-}
 \seealso{
 \code{\link{imputeGenosWithMean}}
 }
-
+\author{
+Timothee Flutre
+}

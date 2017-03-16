@@ -28,4 +28,3 @@ Both input vectors should be sorted beforehand
 \author{
 Timothee Flutre
 }
-

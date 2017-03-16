@@ -29,4 +29,3 @@ To learn more about genetic relatedness, see Weir et al (2006), Astle & Balding 
 \author{
 Timothee Flutre
 }
-

@@ -17,10 +17,9 @@ list of data.tables
 \description{
 Read output files from bedtools coverage with -hist into a list of data.tables. All lines starting by "all" must have been discarded beforehand.
 }
-\author{
-Timothee Flutre
-}
 \seealso{
 \code{\link{depthsPerSample}}, \code{\link{depthsPerRegion}}
 }
-
+\author{
+Timothee Flutre
+}

@@ -21,10 +21,9 @@ Return a matrix of genotypes for SNPs (with possibly multiple alternative allele
 Phasing information is ignored.
 With \href{http://grokbase.com/t/r/bioconductor/135b460s2b/bioc-how-to-convert-genotype-snp-matrix-to-nucleotide-genotypes}{help} from Martin Morgan.
 }
-\author{
-Gautier Sarah, Timothee Flutre
-}
 \seealso{
 \code{\link{vcf2genoClasses}}, \code{\link{gtVcf2dose}}
 }
-
+\author{
+Gautier Sarah, Timothee Flutre
+}

@@ -18,4 +18,3 @@ Count the types of breeding requests.
 \author{
 Timothee Flutre
 }
-

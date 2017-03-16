@@ -19,4 +19,3 @@ Check that the input is a valid list of matrices of bi-allelic marker haplotypes
 \author{
 Timothee Flutre
 }
-

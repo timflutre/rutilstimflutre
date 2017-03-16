@@ -22,10 +22,9 @@ invisible path to stan.file
 \description{
 Animal model
 }
-\author{
-Timothee Flutre
-}
 \seealso{
 \code{\link{stanAM}}
 }
-
+\author{
+Timothee Flutre
+}

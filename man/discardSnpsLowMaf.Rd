@@ -24,4 +24,3 @@ Discard the SNPs with a minor allele frequency below the given threshold.
 \author{
 Timothee Flutre
 }
-

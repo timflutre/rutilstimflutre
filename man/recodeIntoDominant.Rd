@@ -20,4 +20,3 @@ Recode SNP genotypes from additive to dominant.
 \author{
 Timothee Flutre
 }
-

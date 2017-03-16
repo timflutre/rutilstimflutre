@@ -20,4 +20,3 @@ Return effective sample size, posterior mean, time-series standard error of the 
 \author{
 Timothee Flutre
 }
-

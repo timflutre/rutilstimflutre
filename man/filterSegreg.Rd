@@ -21,10 +21,9 @@ data.frame with one row per locus and several columns (chi2, p value, Bonferroni
 \description{
 Filter genotypes based on the chi2 statistic to test for segregation distortion.
 }
-\author{
-Timothee Flutre
-}
 \seealso{
 \code{\link{genoClasses2JoinMap}}, \code{\link{updateJoinMap}}, \code{\link{plotHistPval}}, \code{\link{qqplotPval}}
 }
-
+\author{
+Timothee Flutre
+}

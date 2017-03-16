@@ -25,4 +25,3 @@ Plot missing marker genotypes as a grid, represented in black if missing, white 
 \author{
 Timothee Flutre
 }
-

@@ -20,4 +20,3 @@ Return a subset of SNPs for both haplotypes within a given parent in order to ea
 \author{
 Timothee Flutre
 }
-

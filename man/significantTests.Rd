@@ -22,10 +22,9 @@ list
 \description{
 Call significance tests after multiplicity correction based on various criteria (FWER, FDR) and various procedure for each of them.
 }
-\author{
-Timothee Flutre
-}
 \seealso{
 \code{\link{qqplotPval}}, \code{\link{binaryClassif}}
 }
-
+\author{
+Timothee Flutre
+}

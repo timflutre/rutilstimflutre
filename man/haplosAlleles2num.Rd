@@ -19,10 +19,9 @@ matrix with 0 for major alleles and 1 for minor alleles
 \description{
 Reformat haplotypes from alleles as string into numeric.
 }
-\author{
-Timothee Flutre
-}
 \seealso{
 \code{\link{segSites2allDoses}}
 }
-
+\author{
+Timothee Flutre
+}

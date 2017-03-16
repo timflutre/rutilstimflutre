@@ -38,4 +38,3 @@ plot(x=model$t, y=model$g.t, type="b", las=1, xlab="time (t)", ylab="g(t)")
 \author{
 Timothee Flutre
 }
-

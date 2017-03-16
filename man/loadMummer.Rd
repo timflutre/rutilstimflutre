@@ -39,10 +39,9 @@ idx <- subjectHits(findOverlaps(query=loc, subject=coords.gr))
 plotAligns(coords=as.data.frame(ranges(coords.gr[idx,])))
 }
 }
-\author{
-Timothee Flutre
-}
 \seealso{
 \code{\link{mummer2granges}}
 }
-
+\author{
+Timothee Flutre
+}

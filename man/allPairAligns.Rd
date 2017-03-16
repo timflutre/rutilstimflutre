@@ -25,4 +25,3 @@ Requires the Biostrings package.
 \author{
 Timothee Flutre
 }
-

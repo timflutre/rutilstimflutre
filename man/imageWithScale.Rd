@@ -41,4 +41,3 @@ imageWithScale(z=A, main="Additive genetic relationships", breaks=seq(0,1,length
 \author{
 Timothee Flutre
 }
-

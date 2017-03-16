@@ -27,4 +27,3 @@ Convert SNP genotypes to the file formats used by BimBam, as specified in its \h
 \author{
 Timothee Flutre
 }
-

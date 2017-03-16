@@ -19,10 +19,9 @@ matrix of genotypes
 \description{
 Permute alleles in genotypes once alleles have been permuted in the corresponding haplotypes.
 }
-\author{
-Timothee Flutre
-}
 \seealso{
 \code{\link{permuteAllelesInHaplosNum}}
 }
-
+\author{
+Timothee Flutre
+}

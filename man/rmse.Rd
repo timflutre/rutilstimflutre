@@ -18,4 +18,3 @@ Return the Root Mean Squared Error
 \author{
 Timothee Flutre
 }
-

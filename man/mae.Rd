@@ -18,4 +18,3 @@ Return the Mean Absolute Error
 \author{
 Timothee Flutre
 }
-

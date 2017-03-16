@@ -25,4 +25,3 @@ Return key aspects of a fasta file as summary (number of records, length of each
 \author{
 Timothee Flutre
 }
-

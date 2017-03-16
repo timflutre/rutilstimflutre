@@ -26,10 +26,9 @@ nothing
 \description{
 Plot the two first principal components from a PCA.
 }
-\author{
-Timothee Flutre
-}
 \seealso{
 \code{\link{pca}}
 }
-
+\author{
+Timothee Flutre
+}

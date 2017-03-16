@@ -43,10 +43,9 @@ table(do.call(c, lapply(loc.crossovers, function(lc.off){
 })))
 }
 }
-\author{
-Timothee Flutre
-}
 \seealso{
 \code{\link{makeGameteSingleIndSingleChrom}}
 }
-
+\author{
+Timothee Flutre
+}

@@ -24,4 +24,3 @@ Randomize the given plate.
 \author{
 Timothee Flutre
 }
-

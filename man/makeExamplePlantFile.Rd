@@ -17,10 +17,9 @@ invisible data.frame
 \description{
 Make a file with examples of plant material to request (autofecundation, allofecundation, haplodiploidization)
 }
-\author{
-Timothee Flutre
-}
 \seealso{
 \code{\link{readCheckBreedPlantFile}}
 }
-
+\author{
+Timothee Flutre
+}

@@ -22,4 +22,3 @@ Creates a bar plot with vertical bars of insert sizes from histogram data as cal
 \author{
 Timothee Flutre
 }
-

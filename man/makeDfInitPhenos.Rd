@@ -24,10 +24,9 @@ data.frame
 \description{
 Make the structure of the data.frame that will be given to the players at the beginning of the game.
 }
-\author{
-Timothee Flutre
-}
 \seealso{
 \code{\link{makeDfPhenos}}
 }
-
+\author{
+Timothee Flutre
+}

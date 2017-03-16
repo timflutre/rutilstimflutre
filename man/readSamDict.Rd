@@ -18,4 +18,3 @@ Reads a file in the "dict" format. See \url{https://broadinstitute.github.io/pic
 \author{
 Timothee Flutre
 }
-

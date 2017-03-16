@@ -18,4 +18,3 @@ Identify empty wells, if any, in the given plate.
 \author{
 Timothee Flutre
 }
-

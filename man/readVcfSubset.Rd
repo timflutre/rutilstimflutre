@@ -26,4 +26,3 @@ Read a subset of a VCF file
 \author{
 Timothee Flutre
 }
-

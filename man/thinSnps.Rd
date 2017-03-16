@@ -24,4 +24,3 @@ Thin SNPs according to various methods: based on their index or based on their g
 \author{
 Timothee Flutre
 }
-

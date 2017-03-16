@@ -31,10 +31,9 @@ Load alignment coordinates from the \href{http://blast.ncbi.nlm.nih.gov/Blast.cg
 coords <- loadBlast("megablast_chroms_seqs.txt.gz")
 }
 }
-\author{
-Timothee Flutre
-}
 \seealso{
 \code{\link{blast2granges}}
 }
-
+\author{
+Timothee Flutre
+}

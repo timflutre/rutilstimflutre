@@ -74,10 +74,9 @@ list with one component per BAM file, each being a matrix with columns "nb.bases
 \description{
 Calculate the breadth (fraction of the genome that is covered by reads) and depth (average number of times each position in the genome has been sequenced) of coverage from a set of BAM file(s) (see \href{http://dx.doi.org/10.1093/bib/bbu029}{Molnar & Ilie (2015)}). Results are identical to those from \code{samtools depth}.
 }
-\author{
-Timothee Flutre (with the help of Martin Morgan)
-}
 \seealso{
 \code{\link{freadBedtoolsCoverageHist}}
 }
-
+\author{
+Timothee Flutre (with the help of Martin Morgan)
+}

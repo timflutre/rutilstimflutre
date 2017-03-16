@@ -21,10 +21,9 @@ coords <- loadBlast("megablast_chroms_seqs.txt.gz", asGRanges=FALSE)
 coords.gr <- blast2granges(coords)
 }
 }
-\author{
-Timothee Flutre
-}
 \seealso{
 \code{\link{loadBlast}}
 }
-
+\author{
+Timothee Flutre
+}

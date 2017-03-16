@@ -22,4 +22,3 @@ Modified from http://www.cs.princeton.edu/~mimno/factor-analysis.R
 \author{
 Timothee Flutre
 }
-

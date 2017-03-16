@@ -19,10 +19,9 @@ numeric
 \description{
 Estimate pi0 (proba for a null hypothesis to be true) via the QBF procedure (Wen, arXiv:1311.3981).
 }
-\author{
-Timothee Flutre
-}
 \seealso{
 \code{\link{estimatePi0WithEbf}}, \code{\link{controlBayesFdr}}
 }
-
+\author{
+Timothee Flutre
+}

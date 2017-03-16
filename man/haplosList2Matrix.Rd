@@ -18,4 +18,3 @@ Convert a list of haplotypes into a matrix.
 \author{
 Timothee Flutre
 }
-

@@ -22,4 +22,3 @@ Bolstad et al, Bioinformatics, 2003
 \author{
 Timothee Flutre
 }
-

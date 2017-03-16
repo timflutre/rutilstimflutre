@@ -22,4 +22,3 @@ Returns a VCF object subsetted for allelicity.
 \author{
 Gautier Sarah, Timothee Flutre
 }
-

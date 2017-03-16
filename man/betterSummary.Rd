@@ -18,4 +18,3 @@ Format the output of \code{\link{summary}} in a single line, as well as the tota
 \author{
 Timothee Flutre
 }
-

@@ -58,10 +58,9 @@ summary(fitAD)
 c(modelAD$C); 1/modelAD$V.E; 1/modelAD$V.G.A; 1/modelAD$V.G.D
 }
 }
-\author{
-Timothee Flutre
-}
 \seealso{
 \code{\link{lmerAM}}, \code{\link{jagsAM}}, \code{\link{stanAM}}
 }
-
+\author{
+Timothee Flutre
+}

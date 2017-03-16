@@ -18,4 +18,3 @@ Return the identifiers of all genotypes
 \author{
 Timothee Flutre
 }
-

@@ -27,4 +27,3 @@ Make a data.frame of SNP coordinates from the SFS of independent replicates.
 \author{
 Timothee Flutre
 }
-

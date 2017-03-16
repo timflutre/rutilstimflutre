@@ -20,4 +20,3 @@ Return a first-order auto-regressive correlation matrix, as noted in equation 4 
 \author{
 Timothee Flutre
 }
-

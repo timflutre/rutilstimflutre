@@ -22,4 +22,3 @@ Return a first-order auto-regressive precision matrix, as in section 1.1.1 of Ru
 \author{
 Timothee Flutre
 }
-

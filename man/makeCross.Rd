@@ -29,10 +29,9 @@ list of matrices (one per chromosome) for the child
 \description{
 Make a cross. If two different genotypes are given, then a fecundation is made with one gamete from each genotype. If the same genotype is given twice, an autofecondation is made with two different gametes from this genotype. If a single genotype is given, a haplodiploidization is made with a single gamete from this genotype.
 }
-\author{
-Timothee Flutre
-}
 \seealso{
 \code{\link{makeCrosses}}, \code{\link{drawLocCrossovers}}, \code{\link{makeGameteSingleInd}}, \code{\link{fecundation}}
 }
-
+\author{
+Timothee Flutre
+}

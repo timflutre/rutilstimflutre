@@ -35,4 +35,3 @@ regplot(snp.effects$Beta[,1], snp.effects$Beta[,2])
 \author{
 Timothee Flutre
 }
-

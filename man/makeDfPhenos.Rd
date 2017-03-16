@@ -21,10 +21,9 @@ data.frame
 \description{
 Make the structure of the data.frame that will be given to the players when they request phenotyping during the game.
 }
-\author{
-Timothee Flutre
-}
 \seealso{
 \code{\link{makeDfInitPhenos}}
 }
-
+\author{
+Timothee Flutre
+}

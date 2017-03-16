@@ -40,4 +40,3 @@ Plot the histogram of the allele frequency per SNP.
 \author{
 Timothee Flutre
 }
-

@@ -23,4 +23,3 @@ chromNames2integers(x=chroms)
 \author{
 Timothee Flutre
 }
-

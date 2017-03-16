@@ -57,10 +57,9 @@ cbind(truth=c(c(modelA$C), modelA$V.G.A, modelA$V.E),
       summaryMcmcChain(fitA[[1]], c("c[1]", "c[2]", "c[3]", "sigma.A2", "V.E")))
 }
 }
-\author{
-Timothee Flutre
-}
 \seealso{
 \code{\link{lmerAM}}, \code{\link{inlaAM}}, \code{\link{stanAM}}
 }
-
+\author{
+Timothee Flutre
+}

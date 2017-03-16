@@ -22,4 +22,3 @@ Check if the given breeder is part of the game.
 \author{
 Timothee Flutre
 }
-

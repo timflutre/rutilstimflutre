@@ -28,4 +28,3 @@ var(x)
 \author{
 Timothee Flutre
 }
-

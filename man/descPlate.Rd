@@ -22,4 +22,3 @@ Describe the given plate.
 \author{
 Timothee Flutre
 }
-

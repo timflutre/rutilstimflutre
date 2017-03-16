@@ -18,4 +18,3 @@ Load read counts per individual and lane
 \author{
 Timothee Flutre
 }
-

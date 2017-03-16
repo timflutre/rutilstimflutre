@@ -18,4 +18,3 @@ Reformat the data.frame from \code{\link{loadReadCountsPerIndAndLane}} in a matr
 \author{
 Timothee Flutre
 }
-

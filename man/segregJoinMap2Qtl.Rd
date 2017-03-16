@@ -15,4 +15,3 @@ Return the correspondence in terms of genotype coding between the "segregation" 
 \author{
 Timothee Flutre
 }
-

@@ -18,4 +18,3 @@ Return the Mean Signed Difference
 \author{
 Timothee Flutre
 }
-

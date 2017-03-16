@@ -44,10 +44,9 @@ plotGRanges(gr, shape="arrows")
 legend("right", legend=c("a", "b"), col=c("black", "red"), lwd=2, bty="n")
 }
 }
-\author{
-Timothee Flutre
-}
 \seealso{
 \code{\link{plotAligns}}
 }
-
+\author{
+Timothee Flutre
+}

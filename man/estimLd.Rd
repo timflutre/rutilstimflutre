@@ -35,4 +35,3 @@ When kinship and/or population structure are controlled for, the estimator of Ma
 \author{
 Timothee Flutre
 }
-

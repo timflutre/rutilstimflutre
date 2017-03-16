@@ -60,4 +60,3 @@ See GATK's Best Practices tutorial (\url{https://www.broadinstitute.org/gatk/gui
 \author{
 Timothee Flutre
 }
-

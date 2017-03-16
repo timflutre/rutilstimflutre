@@ -69,4 +69,3 @@ abline(a=fit.u$global.mean["beta.hat"], b=fit.u$tests[snp,"beta"])
 \author{
 Timothee Flutre
 }
-

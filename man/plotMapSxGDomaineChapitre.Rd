@@ -35,4 +35,3 @@ reciprocal cross Syrah x Grenache at the Domaine du Chapitre (near Montpellier, 
 \author{
 Timothee Flutre
 }
-

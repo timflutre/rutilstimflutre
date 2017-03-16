@@ -25,4 +25,3 @@ removeFileExtension(file=f, fileext=".txt.gz")
 \author{
 Timothee Flutre
 }
-

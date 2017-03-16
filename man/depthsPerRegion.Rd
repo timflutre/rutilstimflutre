@@ -29,4 +29,3 @@ Summarize the depth per region of a given length range across samples.
 \author{
 Timothee Flutre
 }
-

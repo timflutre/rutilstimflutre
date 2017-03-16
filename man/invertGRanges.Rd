@@ -18,4 +18,3 @@ Transform a GRanges by inverting references and queries.
 \author{
 Timothee Flutre
 }
-

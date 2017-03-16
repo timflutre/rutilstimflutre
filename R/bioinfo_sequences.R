@@ -2056,6 +2056,59 @@ vcf2genoClasses <- function(vcf.file, genome="", gclasses.file, ca.file,
                  ca.file=paste0(ca.file, ".gz")))
 }
 
+##' Read PLINK
+##'
+##' Read the output files of \code{plink --mendel}.
+##' @param prefix prefix of the file to read
+##' @param suffix suffix of the file to read (mendel/imendel/fmendel/lmendel)
+##' @param verbose verbosity level (0/1)
+##' @return data frame
+##' @author Timothee Flutre
+##' @examples
+##' \dontrun{## run PLINK in the command-line
+##' cmd <- "plink --mendel --bed family.bed --bim family.bim --fam family.fam --out family_plink"
+##' system(cmd)
+##'
+##' pl.mend <- readPlinkMendel(prefix="family_plink", suffix="mendel")
+##' str(pl.mend)
+##'
+##' pl.imend <- readPlinkMendel(prefix="family_plink", suffix="imendel")
+##' head(pl.imend[order(pl.imend$N, decreasing=TRUE),])
+##' }
+##' @export
+readPlinkMendel <- function(prefix, suffix="", verbose=1){
+  stopifnot(suffix %in% c("mendel", "imendel", "fmendel", "lmendel"))
+
+  file <- paste0(prefix, ".", suffix)
+  if(verbose > 0){
+    msg <- paste0("read PLINK's output ", file, " ...")
+    write(msg, stdout())
+  }
+
+  if(suffix == "mendel"){
+    line1 <- readLines(con=file, n=1)
+    cn <- strsplit(line1, "\\s+")[[1]][-1]
+    tmp <- utils::read.table(file, sep="", skip=1, stringsAsFactors=TRUE)
+    data <- cbind(tmp[, 1:5],
+                  t(t(apply(tmp[,6:ncol(tmp)], 1, paste, collapse=" "))),
+                  stringsAsFactors=TRUE)
+    colnames(data) <- cn
+    data$CHR <- as.factor(data$CHR)
+    data$SNP <- as.factor(data$SNP)
+    data$CODE <- as.factor(data$CODE)
+  } else if(suffix == "lmendel"){
+    data <- utils::read.table(file, header=TRUE, sep="")
+    data$CHR <- as.factor(data$CHR)
+    data$SNP <- as.factor(data$SNP)
+  } else if(suffix == "imendel"){
+    data <- utils::read.table(file, header=TRUE, sep="", stringsAsFactors=TRUE)
+  } else if(suffix == "fmendel"){
+    data <- utils::read.table(file, header=TRUE, sep="", stringsAsFactors=TRUE)
+  }
+
+  return(data)
+}
+
 ##' BLAST
 ##'
 ##' Convert a data.frame containing alignments coordinates from BLAST into a GRanges object.

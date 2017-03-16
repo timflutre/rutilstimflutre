@@ -1,6 +1,6 @@
 Package: rutilstimflutre
 Title: Timothee Flutre's personal R code
-Version: 0.117.1
+Version: 0.118.0
 Authors@R: c(
     person("Timothee", "Flutre", email="timothee.flutre@supagro.inra.fr", role=c("aut", "ctb", "cre")),
     person("Carbonetto", "Peter", role="aut", comment="function from varbvs example"),
@@ -58,5 +58,5 @@ Suggests:
     testthat,
     utils,
     VariantAnnotation
-RoxygenNote: 5.0.1
+RoxygenNote: 6.0.1
 VignetteBuilder: knitr

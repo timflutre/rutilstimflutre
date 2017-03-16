@@ -22,4 +22,3 @@ For each pair of consecutive SNPs, return the number of "blocks" (i.e. nucleotid
 \author{
 Timothee Flutre
 }
-

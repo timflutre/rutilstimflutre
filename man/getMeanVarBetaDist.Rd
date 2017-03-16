@@ -20,4 +20,3 @@ Return the values of the mean and variance for the \href{https://en.wikipedia.or
 \author{
 Timothee Flutre
 }
-

@@ -20,10 +20,9 @@ list of vectors (one per chromosome)
 \description{
 Make a gamete for all chromosomes by recombining two parental haplotypes.
 }
-\author{
-Timothee Flutre
-}
 \seealso{
 \code{\link{makeCross}}, \code{\link{fecundation}}, \code{\link{makeGameteSingleIndSingleChrom}}
 }
-
+\author{
+Timothee Flutre
+}

@@ -22,4 +22,3 @@ Calculate the log10(ABF) of Wen & Stephens in Annals of Applied Statistics (2014
 \author{
 Xiaoquan Wen [aut], Timothee Flutre [ctb,cre]
 }
-

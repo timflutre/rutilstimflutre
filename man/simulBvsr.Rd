@@ -148,4 +148,3 @@ fit.AM$Vu / (2 * sum(afs * (1 - afs)))
 \author{
 Timothee Flutre
 }
-

@@ -63,10 +63,9 @@ names(out$pvalues)[out$pv.bonf <= thresh]
 names(out$pvalues)[out$pv.bh <= thresh]
 }
 }
-\author{
-Timothee Flutre (inspired by an anonymous comment at http://gettinggeneticsdone.blogspot.fr/2009/11/qq-plots-of-p-values-in-r-using-ggplot2.html)
-}
 \seealso{
 \code{\link{plotHistPval}}
 }
-
+\author{
+Timothee Flutre (inspired by an anonymous comment at http://gettinggeneticsdone.blogspot.fr/2009/11/qq-plots-of-p-values-in-r-using-ggplot2.html)
+}

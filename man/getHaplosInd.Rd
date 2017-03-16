@@ -20,4 +20,3 @@ Retrieve both haplotypes for all chromosomes of a given genotype.
 \author{
 Timothee Flutre
 }
-

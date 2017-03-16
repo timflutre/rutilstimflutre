@@ -24,10 +24,9 @@ data.frame with variants in rows
 \description{
 Non-bi-allelic variants are discarded.
 }
-\author{
-Timothee Flutre
-}
 \seealso{
 \code{\link{subsetVcfOnAllelicity}}
 }
-
+\author{
+Timothee Flutre
+}

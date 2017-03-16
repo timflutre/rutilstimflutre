@@ -36,4 +36,3 @@ Need to first run bedtools coverage as in http://www.gettinggeneticsdone.com/201
 \author{
 Timothee Flutre
 }
-

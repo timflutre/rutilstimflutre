@@ -23,4 +23,3 @@ The code is not particularly efficient, but at least it exists.
 \author{
 Timothee Flutre
 }
-

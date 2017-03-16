@@ -17,10 +17,9 @@ vector
 \description{
 Estimate minor allele frequencies of bi-allelic SNPs.
 }
-\author{
-Timothee Flutre
-}
 \seealso{
 \code{\link{estimSnpAf}}
 }
-
+\author{
+Timothee Flutre
+}

@@ -22,4 +22,3 @@ It is assumed that the population is of type CP: "a population resulting from a 
 \author{
 Timothee Flutre
 }
-

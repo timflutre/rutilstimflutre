@@ -18,4 +18,3 @@ Count the genotypic classes per SNP (not imputed, i.e. 0, 1, 2 and NA).
 \author{
 Timothee Flutre
 }
-

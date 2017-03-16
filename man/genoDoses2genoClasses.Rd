@@ -31,10 +31,9 @@ Those being heterozygous are "1" and will be "AB".
 Finally, those being homozygous for the second allele are "2" and will be "BB".
 The code is not particularly efficient, but at least it exists.
 }
-\author{
-Timothee Flutre
-}
 \seealso{
 \code{link{genoClasses2genoDoses}}
 }
-
+\author{
+Timothee Flutre
+}

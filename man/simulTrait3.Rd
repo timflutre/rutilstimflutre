@@ -30,10 +30,9 @@ list
 \description{
 Simulate phenotypes of trait 3.
 }
-\author{
-Timothee Flutre
-}
 \seealso{
 \code{\link{makeDfInitPhenos}}
 }
-
+\author{
+Timothee Flutre
+}

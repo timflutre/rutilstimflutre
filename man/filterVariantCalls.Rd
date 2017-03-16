@@ -79,4 +79,3 @@ Filter out variant calls from VCF file according to several criteria (bi-allelic
 \author{
 Timothee Flutre
 }
-

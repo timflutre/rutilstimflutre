@@ -20,4 +20,3 @@ Provide measure of confidence in the genotypes at a given variant.
 \author{
 Timothee Flutre
 }
-

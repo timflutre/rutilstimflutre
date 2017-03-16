@@ -37,10 +37,9 @@ a data.frame with GEMMA's output for all chromosomes
 \description{
 See Zhou & Stephens (Nature Genetics, 2012).
 }
-\author{
-Timothee Flutre [aut,cre], Dalel Ahmed [ctb]
-}
 \seealso{
 \code{link{gemma}}, \code{\link{plotHistPval}}, \code{\link{qqplotPval}}
 }
-
+\author{
+Timothee Flutre [aut,cre], Dalel Ahmed [ctb]
+}

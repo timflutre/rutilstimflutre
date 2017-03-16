@@ -24,10 +24,9 @@ seqIdStartEnd2GRanges(seq.id, seq.start = NULL, seq.end = NULL,
 \description{
 Return a \code{GRanges} object from sequence identifiers, starts and ends.
 }
-\author{
-Timothee Flutre
-}
 \seealso{
 \code{\link{vcf2dosage}}, \code{\link{vcf2genoClasses}}
 }
-
+\author{
+Timothee Flutre
+}

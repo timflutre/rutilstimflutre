@@ -24,4 +24,3 @@ Convert the SFS of independent replicates into a matrix of allele doses.
 \author{
 Timothee Flutre
 }
-

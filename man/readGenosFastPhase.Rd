@@ -20,4 +20,3 @@ Extract the genotypes from the output file of fastPHASE.
 \author{
 Timothee Flutre
 }
-

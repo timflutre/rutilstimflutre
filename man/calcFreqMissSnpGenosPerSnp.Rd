@@ -18,4 +18,3 @@ Calculate the frequency of missing genotypes for each marker.
 \author{
 Timothee Flutre
 }
-

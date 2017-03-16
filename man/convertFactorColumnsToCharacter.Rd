@@ -18,4 +18,3 @@ Convert the factor columns into character.
 \author{
 Timothee Flutre
 }
-

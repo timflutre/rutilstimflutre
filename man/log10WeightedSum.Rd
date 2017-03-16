@@ -23,4 +23,3 @@ Use equal weights if not specified.
 \author{
 Timothee Flutre
 }
-

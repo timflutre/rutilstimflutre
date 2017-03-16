@@ -24,4 +24,3 @@ Calculate the asymptotic Bayes factor proposed by Wakefield in Genetic Epidemiol
 \author{
 Timothee Flutre
 }
-

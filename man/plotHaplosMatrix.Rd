@@ -20,4 +20,3 @@ Plot haplotypes as an image.
 \author{
 Timothee Flutre
 }
-

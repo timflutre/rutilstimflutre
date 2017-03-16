@@ -27,4 +27,3 @@ Check that the input is a valid matrix of bi-allelic SNP genotypes coded in alle
 \author{
 Timothee Flutre
 }
-

@@ -99,4 +99,3 @@ model <- simulAnimalModel(T=1, Q=1, A=A, V.G.A=15, V.E=5, seed=1859, nb.rows=20,
 \author{
 Timothee Flutre
 }
-

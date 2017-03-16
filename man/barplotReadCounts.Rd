@@ -58,4 +58,3 @@ barplotReadCounts(counts=x, perc=TRUE, ylab="Percentage of read pairs",
 \author{
 Timothee Flutre
 }
-

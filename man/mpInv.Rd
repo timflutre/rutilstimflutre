@@ -21,4 +21,3 @@ Return the Moore-Penrose pseudo-inverse of a matrix (Golub & Van Loan, Matrix Co
 \author{
 Timothee Flutre
 }
-

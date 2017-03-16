@@ -20,4 +20,3 @@ Plot the arrangement of samples on the given plate.
 \author{
 Timothee Flutre
 }
-

@@ -51,10 +51,9 @@ sum(p.adjust(out[,"pvalue"], "BH") <= 0.05)
 ## HWTernaryPlot(X=cts, region=2)
 }
 }
-\author{
-Timothee Flutre
-}
 \seealso{
 \code{\link{estimSnpMaf}}, \code{\link{countGenotypicClasses}}
 }
-
+\author{
+Timothee Flutre
+}

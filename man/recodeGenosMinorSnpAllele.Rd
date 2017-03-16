@@ -26,4 +26,3 @@ Let us now assume that, in fact, "A" is the minor (least frequent) allele, then,
 \author{
 Timothee Flutre
 }
-

@@ -18,4 +18,3 @@ Calculate the average number of differences between pairs of sequences, named pi
 \author{
 Timothee Flutre
 }
-

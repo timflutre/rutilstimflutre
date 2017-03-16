@@ -21,10 +21,9 @@ coords <- loadMummer("out-nucmer_filter_coords.txt.gz", asGRanges=FALSE)
 coords.gr <- mummer2granges(coords)
 }
 }
-\author{
-Timothee Flutre
-}
 \seealso{
 \code{\link{loadMummer}}
 }
-
+\author{
+Timothee Flutre
+}

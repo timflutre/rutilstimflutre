@@ -54,10 +54,9 @@ if(require(qvalue)){
 }
 }
 }
-\author{
-Timothee Flutre
-}
 \seealso{
 \code{\link{qqplotPval}}
 }
-
+\author{
+Timothee Flutre
+}

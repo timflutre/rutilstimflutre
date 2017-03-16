@@ -58,4 +58,3 @@ mean(D.v[upper.tri(D.v)]) # should be 0 in a base population at HWE
 \author{
 Timothee Flutre
 }
-

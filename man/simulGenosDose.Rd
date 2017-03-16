@@ -27,4 +27,3 @@ Simulate SNP genotypes as allele dose additively encoded, i.e. 0,1,2.
 \author{
 Peter Carbonetto [aut], Timothee Flutre [ctb]
 }
-

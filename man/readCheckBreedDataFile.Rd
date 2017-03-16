@@ -25,10 +25,9 @@ invisible data.frame
 Read and check a file supposed to contain requests about pheno/geno data.
 It should have 3 columns named \code{ind}, \code{task} and \code{details}.
 }
-\author{
-Timothee Flutre
-}
 \seealso{
 \code{\link{makeExampleDataFile}}
 }
-
+\author{
+Timothee Flutre
+}

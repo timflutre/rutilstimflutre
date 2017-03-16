@@ -51,4 +51,3 @@ Possibility to add two analytical approximations of E[r^2] at equilibrium (see M
 \author{
 Timothee Flutre
 }
-

@@ -39,4 +39,3 @@ summary(tmp) # corresponds well to Sigma
 \author{
 Timothee Flutre
 }
-

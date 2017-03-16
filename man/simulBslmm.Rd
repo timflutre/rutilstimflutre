@@ -74,4 +74,3 @@ cbind(truth=c(mod.lmmC$sigma2, mod.lmmC$sigma.u2 / sum(2 * afs * (1-afs))),
 \author{
 Timothee Flutre
 }
-

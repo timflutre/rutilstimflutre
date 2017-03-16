@@ -38,4 +38,3 @@ Set genotypes (GT field) to missing if the genotype quality (GQ field) isn't hig
 \author{
 Timothee Flutre
 }
-

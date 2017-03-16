@@ -26,4 +26,3 @@ Already-existing directories are not re-created.
 \author{
 Timothee Flutre
 }
-

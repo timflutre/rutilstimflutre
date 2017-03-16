@@ -41,10 +41,9 @@ x <- data.frame(par1=c("AA", "GC", "CG", "AT", NA, "AA"),
 genoClasses2JoinMap(x=x, reformat.input=TRUE, thresh.na=2, verbose=1)
 }
 }
-\author{
-Timothee Flutre
-}
 \seealso{
 \code{link{reformatGenoClasses}}
 }
-
+\author{
+Timothee Flutre
+}

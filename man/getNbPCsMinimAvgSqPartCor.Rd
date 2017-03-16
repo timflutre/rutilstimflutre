@@ -19,4 +19,3 @@ Shriner (Heredity, 2011)
 \author{
 Daniel Shriner [aut], Timothee Flutre [cre]
 }
-

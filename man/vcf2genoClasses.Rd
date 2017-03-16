@@ -40,10 +40,9 @@ invisible vector with the path to the output file
 \description{
 Convert genotypes at SNPs from a VCF file into genotypic classes.
 }
-\author{
-Gautier Sarah, Timothee Flutre
-}
 \seealso{
 \code{\link{gtVcf2genoClasses}}
 }
-
+\author{
+Gautier Sarah, Timothee Flutre
+}

@@ -117,10 +117,9 @@ t(binaryClassif(known.nulls=modelD$gamma == 0,
                 called.nulls=pvadj.DD$pv.bh > 0.05))
 }
 }
-\author{
-Timothee Flutre [aut,cre], Dalel Ahmed [ctb]
-}
 \seealso{
 \code{link{gemmaUlmmPerChr}}
 }
-
+\author{
+Timothee Flutre [aut,cre], Dalel Ahmed [ctb]
+}

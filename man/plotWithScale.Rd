@@ -31,4 +31,3 @@ http://menugget.blogspot.de/2011/08/adding-scale-to-image-plot.html
 \author{
 Timothee Flutre
 }
-

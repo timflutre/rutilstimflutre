@@ -76,10 +76,9 @@ cbind(truth=c(c(modelAD$C), sqrt(modelAD$V.G.A), sqrt(modelAD$V.G.D), sqrt(model
 plot(as.vector(fitAD[[1]][,"sigma_g_A"]), as.vector(fitAD[[1]][,"sigma_g_D"]))
 }
 }
-\author{
-Timothee Flutre
-}
 \seealso{
 \code{\link{lmerAM}}, \code{\link{inlaAM}}, \code{\link{jagsAM}}
 }
-
+\author{
+Timothee Flutre
+}

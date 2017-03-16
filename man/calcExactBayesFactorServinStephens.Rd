@@ -26,4 +26,3 @@ Calculate the exact Bayes factor proposed by Servin and Stephens in PLoS Genetic
 \author{
 Bertrand Servin [aut], Timothee Flutre [ctb,cre]
 }
-

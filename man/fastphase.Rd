@@ -94,4 +94,3 @@ sum(X.imp != genomes$genos)
 \author{
 Timothee Flutre
 }
-

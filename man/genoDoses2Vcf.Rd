@@ -24,4 +24,3 @@ Convert SNP genotypes from "allele doses" into the \href{http://samtools.github.
 \author{
 Timothee Flutre
 }
-

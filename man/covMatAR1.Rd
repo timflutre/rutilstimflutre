@@ -22,4 +22,3 @@ Return a first-order auto-regressive covariance matrix.
 \author{
 Timothee Flutre
 }
-

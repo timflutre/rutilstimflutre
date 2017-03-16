@@ -21,4 +21,3 @@ See \url{https://en.wikipedia.org/wiki/Covariance_matrix#Correlation_matrix}.
 \author{
 Timothee Flutre
 }
-

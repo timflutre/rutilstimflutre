@@ -27,4 +27,3 @@ TODO: show dark background for burn-in in traceplot
 \author{
 Timothee Flutre
 }
-

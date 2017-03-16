@@ -24,4 +24,3 @@ For each SNP pair, return the number of "blocks" (i.e. nucleotides) between both
 \author{
 Timothee Flutre
 }
-

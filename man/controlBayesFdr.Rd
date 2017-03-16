@@ -28,10 +28,9 @@ pi0 <- estimatePi0WithEbf(log10.bfs)
 signif <- controlBayesFdr(log10.bfs, pi0)
 }
 }
-\author{
-Timothee Flutre
-}
 \seealso{
 \code{\link{estimatePi0WithEbf}}, \code{\link{estimatePi0WithQbf}}
 }
-
+\author{
+Timothee Flutre
+}

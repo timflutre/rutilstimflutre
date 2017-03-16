@@ -18,4 +18,3 @@ Lengthen a "wide" plate into 3 columns for easier processing.
 \author{
 Timothee Flutre
 }
-

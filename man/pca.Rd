@@ -46,10 +46,9 @@ out.pca$prop.vars[1:4]
 head(out.pca$rotation[, 1:4]) # rotated data
 }
 }
-\author{
-Timothee Flutre
-}
 \seealso{
 \code{\link{plotPca}}
 }
-
+\author{
+Timothee Flutre
+}

@@ -16,10 +16,9 @@ matrix with variants in rows and samples in columns
 Non-bi-allelic variants are discarded.
 From Martin Morgan (see http://grokbase.com/t/r/bioconductor/135b460s2b/bioc-how-to-convert-genotype-snp-matrix-to-nucleotide-genotypes).
 }
-\author{
-Timothee Flutre
-}
 \seealso{
 \code{\link{vcf2dosage}}, \code{\link{gtVcf2genoClasses}}
 }
-
+\author{
+Timothee Flutre
+}

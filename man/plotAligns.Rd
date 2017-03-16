@@ -33,10 +33,9 @@ par(mar=c(4, 7, 3, 1))
 plotAligns(coords, xlab="chr1", col=c(1, 1, 2, 1))
 }
 }
-\author{
-Timothee Flutre
-}
 \seealso{
 \code{\link{plotGRanges}}
 }
-
+\author{
+Timothee Flutre
+}

@@ -18,4 +18,3 @@ Retrieve the paths to the directories used for the breeding game.
 \author{
 Timothee Flutre
 }
-
