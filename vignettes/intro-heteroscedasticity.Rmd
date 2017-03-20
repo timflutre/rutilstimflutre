@@ -8,10 +8,11 @@ output:
   html_document:
     toc: true
     toc_float: true
+    toc_depth: 4
     number_sections: TRUE
   pdf_document:
     toc: true
-    toc_depth: 3
+    toc_depth: 4
     number_sections: TRUE
 vignette: >
   %\VignetteIndexEntry{Intro heteroscedasticity}
@@ -47,9 +48,11 @@ References:
 
 * [Pinheiro & Bates (2000)](http://dx.doi.org/10.1007/b98882): "Mixed-effects models in S and S-PLUS"
 
-* [Galecki and Burzykowski (2013)](dx.doi.org/10.1007/978-1-4614-3900-4): "Linear mixed-effects models using R: a step-by-step approach"
+* [Galecki and Burzykowski (2013)](http://dx.doi.org/10.1007/978-1-4614-3900-4): "Linear mixed-effects models using R: a step-by-step approach"
 
-* [Carpenter et al (2016)](http://www.stat.columbia.edu/~gelman/research/unpublished/stan-resubmit-JSS1293.pdf): "Stan: a probabilistic programming language"
+* [Martins et al (2013)](http://dx.doi.org/10.1016/j.csda.2013.04.014): "Bayesian computing with INLA: New features"
+
+* [Carpenter et al (2016)](http://dx.doi.org/10.18637/jss.v076.i01): "Stan: a probabilistic programming language"
 
 External packages:
 
@@ -69,7 +72,9 @@ t0 <- proc.time()
 ```
 
 
-# Model
+# Heteroscedasticity in the errors
+
+## Model
 
 Goal: study the genotype-phenotype map
 
@@ -100,7 +105,7 @@ With real data, it is not that rare to have large errors ("outliers"), which wou
 Moreover, it is also frequent to have missing data, which inbalances the design.
 
 
-# Simulation
+## Simulation
 
 ```{r simul}
 set.seed(1859)
@@ -131,7 +136,7 @@ str(dat)
 Don't hesitate to play by changing some values, e.g. increasing or decreasing $B$ and/or $G$, setting $\sigma_u$ at 0 or not, setting $\nu$ at $+\infty$ or not, etc.
 
 
-# Data exploration
+## Data exploration
 
 Descriptive stats:
 ```{r desc_stat}
@@ -150,7 +155,7 @@ abline(h=mean(dat$y), lty=2)
 ```
 
 
-# Model fit and diagnostics
+## Model fit and diagnostics
 
 <!--
 For some fitting functions, before using them, we need to reorder the data according to block variances:
@@ -163,7 +168,7 @@ dat2 <- dat[idx,]
 ```
 -->
 
-## Useful function
+### Useful function
 
 For diagnostics:
 
@@ -216,9 +221,9 @@ summary(u[true.best.genos])
 ```
 
 
-## `gls`
+### `gls`
 
-### Model fit
+#### Model fit
 
 The `gls` function from the `nlme` package performs inference via generalized least squares, but can't handle random variables.
 
@@ -232,19 +237,19 @@ y.hat <- fitted(fit.gls)
 tmp <- cbind(dat, scaled.residuals, y.hat)
 ```
 
-### Model comparison and selection
+#### Model comparison and selection
 
 ```{r gls_modcomp}
 AIC(fit.gls)
 ```
 
-### Diagnostics
+#### Diagnostics
 
 ```{r gls_diagno}
 diagnose("gls", tmp)
 ```
 
-### Inference
+#### Inference
 
 ```{r gls_infer}
 summary(fit.gls)
@@ -253,9 +258,9 @@ cbind(sigma.b, sigma.b.hat)
 ```
 
 
-## `lmer`
+### `lmer`
 
-### Model fit
+#### Model fit
 
 The `lmer` function from the `lme4` package performs inference via ReML and handle random variables, but can't handle heteroscedasticity.
 
@@ -271,19 +276,19 @@ y.hat <- fitted(fit.lmer.hom)
 tmp <- cbind(dat, scaled.residuals, y.hat)
 ```
 
-### Model comparison and selection
+#### Model comparison and selection
 
 ```{r lmer_modcomp}
 extractAIC(fit.lmer.hom)
 ```
 
-### Diagnostics
+#### Diagnostics
 
 ```{r lmer_diagno}
 diagnose("lmer", tmp)
 ```
 
-### Inference
+#### Inference
 
 ```{r lmer_infer}
 summary(fit.lmer.hom)
@@ -303,9 +308,9 @@ if(sigma.u > 0){
 ```
 
 
-## `lme`
+### `lme`
 
-### Model fit
+#### Model fit
 
 The `lme` function from the `nlme` package performs inference via ReML, and can handle both random variables and heteroscedasticity.
 
@@ -324,19 +329,19 @@ y.hat <- fitted(fit.lme.het)
 tmp <- cbind(dat, scaled.residuals, y.hat)
 ```
 
-### Model comparison and selection
+#### Model comparison and selection
 
 ```{r lme_modcomp}
 AIC(fit.lme.het)
 ```
 
-### Diagnostics
+#### Diagnostics
 
 ```{r lme_diagno}
 diagnose("lme", tmp)
 ```
 
-### Inference
+#### Inference
 
 ```{r lme_infer}
 summary(fit.lme.het)
@@ -359,11 +364,9 @@ if(sigma.u > 0){
 ```
 
 
-## `inla`
+### `inla`
 
-TODO
-
-### Model fit
+#### Model fit
 
 The `inla` function from the `INLA` package performs inference via the "integrated nested Laplace approximation", and can handle both random variables and heteroscedasticity.
 
@@ -391,19 +394,19 @@ scaled.residuals <- residuals / rep(sigma.b.hat, each=G)
 tmp <- cbind(dat, scaled.residuals, y.hat)
 ```
 
-### Model comparison and selection
+#### Model comparison and selection
 
 ```{r inla_modcomp, eval=TRUE}
 c(fit.inla$waic$p.eff, fit.inla$waic$waic)
 ```
 
-### Diagnostics
+#### Diagnostics
 
 ```{r inla_diagno, eval=TRUE}
 diagnose("inla", tmp)
 ```
 
-### Inference
+#### Inference
 
 ```{r inla_infer, eval=TRUE}
 summary(fit.inla)
@@ -436,9 +439,9 @@ if(sigma.u > 0){
 ```
 
 
-## `stan`
+### `stan`
 
-### Model fit
+#### Model fit
 
 The `stan` function from the `rstan` package performs inference via HMC, and can handle both random variables and heteroscedasticity.
 
@@ -527,14 +530,14 @@ To use a robust noise model, we can simply replace `normal` by `student_t`, with
 
 To jointly estimate parameters and predict (impute) missing responses, we can simply add a second response vector: `y_miss ~ normal(X_miss * beta + Z_miss * u, sigma_e[b])`.
 
-### Model comparison and selection
+#### Model comparison and selection
 
 ```{r stan_modcomp, eval=FALSE}
 loo(extract_log_lik(fit.stan))
 waic(extract_log_lik(fit.stan))
 ```
 
-### Diagnostics
+#### Diagnostics
 
 Check first if we have convergence (the true value is indicated in red on the plots):
 ```{r stan_convergence, eval=FALSE}
@@ -551,7 +554,7 @@ for(b in 1:B)
 diagnose("stan", tmp)
 ```
 
-### Inference
+#### Inference
 
 ```{r stan_infer, eval=FALSE}
 cbind(beta, beta.hat)
@@ -571,6 +574,27 @@ regplot(x=u, y=u.hat, pred.int=FALSE, asp=1, las=1,
         main="Diagnostics stan", xlab="u", ylab="u.hat", legend.x="bottomright")
 abline(a=0, b=1, lty=2); abline(v=0, h=0, lty=2)
 ```
+
+
+
+# Heteroscedasticity in a multi-level predictor
+
+## Model
+
+TODO
+
+## Simulation
+
+TODO
+
+## Data exploration
+
+TODO
+
+## Model fit and diagnostics
+
+TODO
+
 
 
 # Appendix
