@@ -7,20 +7,20 @@
 removeFileExtension(file, fileext)
 }
 \arguments{
-\item{file}{character}
+\item{file}{character (will be passed to \code{\link{strsplit}})}
 
-\item{fileext}{character}
+\item{fileext}{character containing a regular expression (will be passed to \code{\link{strsplit}})}
 }
 \value{
 character
 }
 \description{
-Remove the last extension in a file name.
+Remove extension(s) from a file name.
 }
 \examples{
 f <- "data.txt.gz"
-removeFileExtension(file=f, fileext=".gz")
-removeFileExtension(file=f, fileext=".txt.gz")
+removeFileExtension(file=f, fileext="\\\\.gz")
+removeFileExtension(file=f, fileext="\\\\.txt\\\\.gz")
 }
 \author{
 Timothee Flutre

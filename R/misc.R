@@ -29,20 +29,20 @@ requireNamespaces <- function(packages){
 
 ##' File
 ##'
-##' Remove the last extension in a file name.
-##' @param file character
-##' @param fileext character
+##' Remove extension(s) from a file name.
+##' @param file character (will be passed to \code{\link{strsplit}})
+##' @param fileext character containing a regular expression (will be passed to \code{\link{strsplit}})
 ##' @return character
 ##' @author Timothee Flutre
 ##' @examples
 ##' f <- "data.txt.gz"
-##' removeFileExtension(file=f, fileext=".gz")
-##' removeFileExtension(file=f, fileext=".txt.gz")
+##' removeFileExtension(file=f, fileext="\\.gz")
+##' removeFileExtension(file=f, fileext="\\.txt\\.gz")
 ##' @export
 removeFileExtension <- function(file, fileext){
   stopifnot(is.character(file),
-            strsplit(fileext, "")[[1]][1] == ".")
-  out <- strsplit(file, fileext)[[1]][1]
+            is.character(fileext))
+  out <- strsplit(x=file, split=fileext)[[1]][1]
   return(out)
 }
 
