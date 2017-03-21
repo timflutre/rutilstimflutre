@@ -1633,7 +1633,7 @@ segSites2allDoses <- function(seg.sites, ind.ids=NULL, snp.ids=NULL,
 
 ##' Site frequency spectrum
 ##'
-##' Make a data.frame of SNP coordinates from the SFS of independent replicates.
+##' Make a data.frame of SNP coordinates (1-based) from the SFS of independent replicates.
 ##' @param seg.sites list of haplotypes returned by \code{scrm}, each component of which corresponds to a matrix with haplotypes in rows and SNP in columns
 ##' @param snp.ids vector of identifiers (one per SNP)
 ##' @param chrom.len chromosome length (same for all)
@@ -1643,7 +1643,7 @@ segSites2allDoses <- function(seg.sites, ind.ids=NULL, snp.ids=NULL,
 ##' @author Timothee Flutre
 ##' @export
 segSites2snpCoords <- function(seg.sites, snp.ids, chrom.len, prefix="chr",
-                               verbose=0){
+                               verbose=1){
   stopIfNotValidHaplos(haplos=seg.sites, check.hasColNames=TRUE,
                        check.noNA=FALSE)
 
@@ -1664,12 +1664,25 @@ segSites2snpCoords <- function(seg.sites, snp.ids, chrom.len, prefix="chr",
   snp.coords$pos <- as.numeric(do.call(c, lapply(seg.sites, colnames)))
 
   ## convert genomic positions from float to integer
-  snp.coords$pos <- floor(snp.coords$pos)
-  for(chr in levels(snp.coords$chr)){
-    tmp <- snp.coords$pos[snp.coords$chr == chr]
-    stopifnot(anyDuplicated(tmp) == 0,
-              min(tmp) > 0,
-              max(tmp) <= chrom.len)
+  snp.coords$pos <- ceiling(snp.coords$pos)
+  for(chr in unique(snp.coords$chr)){
+    ## message(chr) # when debugging
+    idx <- which(snp.coords$chr == chr)
+    pos <- snp.coords$pos[idx]
+    if(any(pos == 0))
+      pos <- pos + 1
+    if(max(pos) > chrom.len){
+      pos[which.max(pos)] <- chrom.len
+    }
+    while(anyDuplicated(pos)){
+      ## message("dedup") # when debugging
+      i.dup <- which(duplicated(pos))
+      pos[i.dup] <- pos[i.dup] + 1
+    }
+    stopifnot(min(pos) >= 1,
+              max(pos) <= chrom.len,
+              anyDuplicated(pos) == 0)
+    snp.coords$pos[idx] <- pos
   }
 
   return(snp.coords)
@@ -1842,27 +1855,30 @@ simulCoalescent <- function(nb.inds=100,
     cmd <- paste0(cmd, " ", 2 * nb.inds.per.pop[nb.pops])
     cmd <- paste0(cmd, " ", mig.rate)
   }
-  if(verbose > 1)
-    message(cmd)
+  if(verbose > 0){
+    msg <- paste0("scrm ", cmd)
+    write(msg, stdout())
+  }
   sum.stats <- scrm::scrm(cmd)
   if(verbose > 1)
     print(utils::str(sum.stats))
 
   prefix <- "chr"
   names(sum.stats$seg_sites) <- paste0(prefix, 1:nb.reps)
-
   nb.snps.per.chr <- sapply(sum.stats$seg_sites, ncol)
   nb.snps <- sum(nb.snps.per.chr)
-  snp.ids <- sprintf(fmt=paste0("snp%0", floor(log10(nb.snps))+1, "i"),
-                     1:nb.snps)
-  snp.coords <- segSites2snpCoords(sum.stats$seg_sites, snp.ids, chrom.len,
-                                   prefix)
-  out[["snp.coords"]] <- snp.coords
   if(verbose > 0){
     msg <- paste0("nb of SNPs: ", nb.snps)
     write(msg, stdout())
     print(sapply(sum.stats$seg_sites, ncol))
   }
+
+  snp.ids <- sprintf(fmt=paste0("snp%0", floor(log10(nb.snps))+1, "i"),
+                     1:nb.snps)
+  snp.coords <- segSites2snpCoords(seg.sites=sum.stats$seg_sites,
+                                   snp.ids=snp.ids, chrom.len=chrom.len,
+                                   prefix=prefix, verbose=verbose)
+  out[["snp.coords"]] <- snp.coords
 
   if(verbose > 0){
     msg <- "randomize haplotypes to make diploid genotypes ..."

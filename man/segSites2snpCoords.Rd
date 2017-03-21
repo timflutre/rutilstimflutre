@@ -5,7 +5,7 @@
 \title{Site frequency spectrum}
 \usage{
 segSites2snpCoords(seg.sites, snp.ids, chrom.len, prefix = "chr",
-  verbose = 0)
+  verbose = 1)
 }
 \arguments{
 \item{seg.sites}{list of haplotypes returned by \code{scrm}, each component of which corresponds to a matrix with haplotypes in rows and SNP in columns}
@@ -22,7 +22,7 @@ segSites2snpCoords(seg.sites, snp.ids, chrom.len, prefix = "chr",
 data.frame with SNPs in rows and 2 columns (chr, pos)
 }
 \description{
-Make a data.frame of SNP coordinates from the SFS of independent replicates.
+Make a data.frame of SNP coordinates (1-based) from the SFS of independent replicates.
 }
 \author{
 Timothee Flutre
