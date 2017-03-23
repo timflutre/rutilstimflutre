@@ -7,9 +7,15 @@
 readPlinkMendel(prefix, suffix = "", verbose = 1)
 }
 \arguments{
-\item{prefix}{prefix of the file to read}
+\item{prefix}{prefix of the file to read (e.g. \code{"~/work/output_plink"})}
 
-\item{suffix}{suffix of the file to read (mendel/imendel/fmendel/lmendel)}
+\item{suffix}{suffix of the file to read
+\itemize{
+\item fmendel: one row per parental pair
+\item imendel: one row per individual per parental pair
+\item lmendel: one row per variant (SNP)
+\item mendel: one row per error (Mendelian violation)
+}}
 
 \item{verbose}{verbosity level (0/1)}
 }
@@ -17,17 +23,18 @@ readPlinkMendel(prefix, suffix = "", verbose = 1)
 data frame
 }
 \description{
-Read the output files of \code{plink --mendel}.
+Read output files from the \href{https://www.cog-genomics.org/plink2}{PLINK} software used with the \code{--mendel} option.
+For potentially large files ("lmendel" and "mendel"), the \code{fread} function from the \href{https://cran.r-project.org/package=data.table}{data.table} package is used as it is faster than \code{\link[utils]{read.table}}.
 }
 \examples{
-\dontrun{## run PLINK in the command-line
-cmd <- "plink --mendel --bed family.bed --bim family.bim --fam family.fam --out family_plink"
+\dontrun{## assuming properly-formatted data, launch PLINK via a system call
+cmd <- "plink --mendel --bed input.bed --bim input.bim --fam input.fam --out output"
 system(cmd)
 
-pl.mend <- readPlinkMendel(prefix="family_plink", suffix="mendel")
+pl.mend <- readPlinkMendel(prefix="output", suffix="mendel")
 str(pl.mend)
 
-pl.imend <- readPlinkMendel(prefix="family_plink", suffix="imendel")
+pl.imend <- readPlinkMendel(prefix="output", suffix="imendel")
 head(pl.imend[order(pl.imend$N, decreasing=TRUE),])
 }
 }

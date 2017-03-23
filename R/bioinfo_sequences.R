@@ -2058,21 +2058,28 @@ vcf2genoClasses <- function(vcf.file, genome="", gclasses.file, ca.file,
 
 ##' Read PLINK
 ##'
-##' Read the output files of \code{plink --mendel}.
-##' @param prefix prefix of the file to read
-##' @param suffix suffix of the file to read (mendel/imendel/fmendel/lmendel)
+##' Read output files from the \href{https://www.cog-genomics.org/plink2}{PLINK} software used with the \code{--mendel} option.
+##' For potentially large files ("lmendel" and "mendel"), the \code{fread} function from the \href{https://cran.r-project.org/package=data.table}{data.table} package is used as it is faster than \code{\link[utils]{read.table}}.
+##' @param prefix prefix of the file to read (e.g. \code{"~/work/output_plink"})
+##' @param suffix suffix of the file to read
+##' \itemize{
+##' \item fmendel: one row per parental pair
+##' \item imendel: one row per individual per parental pair
+##' \item lmendel: one row per variant (SNP)
+##' \item mendel: one row per error (Mendelian violation)
+##' }
 ##' @param verbose verbosity level (0/1)
 ##' @return data frame
 ##' @author Timothee Flutre
 ##' @examples
-##' \dontrun{## run PLINK in the command-line
-##' cmd <- "plink --mendel --bed family.bed --bim family.bim --fam family.fam --out family_plink"
+##' \dontrun{## assuming properly-formatted data, launch PLINK via a system call
+##' cmd <- "plink --mendel --bed input.bed --bim input.bim --fam input.fam --out output"
 ##' system(cmd)
 ##'
-##' pl.mend <- readPlinkMendel(prefix="family_plink", suffix="mendel")
+##' pl.mend <- readPlinkMendel(prefix="output", suffix="mendel")
 ##' str(pl.mend)
 ##'
-##' pl.imend <- readPlinkMendel(prefix="family_plink", suffix="imendel")
+##' pl.imend <- readPlinkMendel(prefix="output", suffix="imendel")
 ##' head(pl.imend[order(pl.imend$N, decreasing=TRUE),])
 ##' }
 ##' @export
@@ -2086,9 +2093,12 @@ readPlinkMendel <- function(prefix, suffix="", verbose=1){
   }
 
   if(suffix == "mendel"){
+    requireNamespace("data.table")
     line1 <- readLines(con=file, n=1)
     cn <- strsplit(line1, "\\s+")[[1]][-1]
-    tmp <- utils::read.table(file, sep="", skip=1, stringsAsFactors=TRUE)
+    ## tmp <- utils::read.table(file, sep="", skip=1, stringsAsFactors=TRUE)
+    tmp <- as.data.frame(
+        data.table::fread(file, skip=1, stringsAsFactors=TRUE))
     data <- cbind(tmp[, 1:5],
                   t(t(apply(tmp[,6:ncol(tmp)], 1, paste, collapse=" "))),
                   stringsAsFactors=TRUE)
@@ -2097,7 +2107,8 @@ readPlinkMendel <- function(prefix, suffix="", verbose=1){
     data$SNP <- as.factor(data$SNP)
     data$CODE <- as.factor(data$CODE)
   } else if(suffix == "lmendel"){
-    data <- utils::read.table(file, header=TRUE, sep="")
+    ## data <- utils::read.table(file, header=TRUE, sep="")
+    data <- as.data.frame(data.table::fread(file))
     data$CHR <- as.factor(data$CHR)
     data$SNP <- as.factor(data$SNP)
   } else if(suffix == "imendel"){
