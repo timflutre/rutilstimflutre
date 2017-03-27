@@ -966,6 +966,93 @@ tableVcfAlt <- function(vcf.file, genome="", verbose=1){
   invisible(alts)
 }
 
+##' Fasta file
+##'
+##' Simulate a reference genome sequence compatible with alleles from genotype data in the VCF format.
+##' Useful with the GATK software.
+##' @param vcf.file path to the file in the VCF format (will be used only if \code{vcf.rng.all=NULL}
+##' @param vcf.rng.all data frame output from \code{\link{rngVcf2df}}
+##' @param chr.lengths vector of chromosome lengths (if a single number, will be repeated, i.e. all chromosomes will have the ame length)
+##' @param fa.file path to the output file in the fasta format (will be compressed via \code{gzip} if the name ends with \code{gz}); if NULL, the reference sequence will be returned as an object but not written into a file
+##' @param seed seed for the pseudo-random number generator (will be set only if non-NULL)
+##' @param verbose verbosity level (0/1)
+##' @return invisible DNAStringSet
+##' @author Timothee Flutre
+##' @export
+simulRefseqCompatibleWithVcf <- function(vcf.file=NULL, vcf.rng.all=NULL,
+                                         chr.lengths=10^5, fa.file=NULL,
+                                         seed=NULL, verbose=1){
+  requireNamespaces(c("VariantAnnotation", "Biostrings"))
+  stopifnot(! all(is.null(vcf.file), is.null(vcf.rng.all)))
+  if(is.null(vcf.rng.all))
+    stopifnot(file.exists(vcf.file))
+
+  if(is.null(vcf.rng.all)){
+    if(verbose > 0){
+      msg <- paste0("retrieve ranges and alleles from file '",
+                    vcf.file, "' ...")
+      write(msg, stdout())
+    }
+    vcf <- VariantAnnotation::readVcf(file=vcf.file, genome="")
+    vcf.rng.all <- rngVcf2df(vcf=vcf, with.coords=TRUE, with.alleles=TRUE,
+                             single.ref=TRUE, single.alt=TRUE)
+  }
+
+  chr.names <- unique(vcf.rng.all$chr)
+  nb.chrs <- length(chr.names)
+  if(verbose > 0){
+    msg <- paste0("nb of chromosomes: ", nb.chrs)
+    write(msg, stdout())
+  }
+  if(! is.null(names(chr.lengths)))
+    stopifnot(all(names(chr.lengths) %in% chr.names),
+              all(chr.names %in% chr.lengths))
+  if(all(length(chr.names) > 1, length(chr.lengths) == 1)){
+    chr.lengths <- rep(chr.lengths, nb.chrs)
+  }
+  if(is.null(names(chr.lengths)))
+    names(chr.lengths) <- chr.names
+  chr.lengths <- chr.lengths[chr.names] # same order
+  max.pos <- tapply(vcf.rng.all$pos, as.factor(vcf.rng.all$chr), max)
+  for(i in 1:nb.chrs){
+    if(max.pos[i] > chr.lengths[i]){
+      msg <- paste0(chr.names[i], " has length smaller than",
+                    " maximum SNP position")
+      stop(msg)
+    }
+  }
+  if(! is.null(seed))
+    set.seed(seed)
+
+  if(verbose > 0){
+    msg <- paste0("simulate chromosomes for the reference sequence ...")
+    write(msg, stdout())
+  }
+  refseq <- lapply(1:nb.chrs, function(i){
+    sample(x=c("A","T","G","C"), size=chr.lengths[i], replace=TRUE)
+  })
+  refseq <- lapply(1:nb.chrs, function(i){
+    tmp <- refseq[[i]]
+    idx <- which(vcf.rng.all$chr == chr.names[i])
+    tmp[vcf.rng.all$pos[idx]] <- vcf.rng.all$allele.ref[idx]
+    paste(tmp, collapse="")
+  })
+  names(refseq) <- chr.names
+  refseq <- Biostrings::DNAStringSet(unlist(refseq))
+
+  if(! is.null(fa.file)){
+    if(verbose > 0){
+      msg <- paste0("write as fasta in file '", fa.file, "' ...")
+      write(msg, stdout())
+    }
+    Biostrings::writeXStringSet(x=refseq, filepath=fa.file,
+                                compress=tools::file_ext(fa.file) == "gz",
+                                format="fasta")
+  }
+
+  invisible(refseq)
+}
+
 ##' Information on variant-level calls
 ##'
 ##' Return some information to help in hard-filtering variant-level calls.
