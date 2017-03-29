@@ -321,6 +321,60 @@ statsAllPairAligns <- function(aligns, nb.sequences){
 							nmismatchs=nmismatchs, ninss=ninss, ndels=ndels))
 }
 
+##' Genomic bins
+##'
+##' Summarize a given metric per \code{GRanges} over genomic bins.
+##' @param gr \code{GRanges} object
+##' @param colname character specifying a given column in \code{mcols(gr)}
+##' @param binwidth fixed width of each bin
+##' @param which.summary names of the summaryzing function (one or several among \code{c("sum", "mean", "min", "max")})
+##' @param which.plot name of the summaryzing function to plot along the karyogram (if not NULL; via the \href{http://www.bioconductor.org/packages/ggbio/}{ggbio} package)
+##' @return invisible \code{GRanges} containing the bins with the summary
+##' @author Timothee Flutre
+##' @export
+grSummaryPerBin <- function(gr, colname, binwidth=200, which.summary="sum",
+                            which.plot=NULL){
+  requireNamespaces(c("S4Vectors", "GenomicRanges", "IRanges",
+                      "GenomeInfoDb", "BiocGenerics"))
+  stopifnot(colname %in% colnames(S4Vectors::mcols(gr)),
+            all(which.summary %in% c("sum", "mean", "min", "max")))
+  if(! is.null(which.plot)){
+    requireNamespaces("ggbio")
+    stopifnot(length(which.plot) == 1,
+              which.plot %in% c("sum", "mean", "min", "max"))
+  }
+
+  bins <- GenomicRanges::tileGenome(seqlengths=GenomeInfoDb::seqlengths(gr),
+                                    tilewidth=binwidth,
+                                    cut.last.tile.in.chrom=TRUE)
+  cvg <- GenomicRanges::coverage(gr, weight=colname)
+  list.views <- IRanges::RleViewsList(
+      lapply(names(cvg), function(seqname){
+        IRanges::Views(cvg[[seqname]],
+                       IRanges::ranges(GenomeInfoDb::keepSeqlevels(bins,
+                                                                   seqname)))
+      }))
+  if("sum" %in% which.summary)
+    S4Vectors::mcols(bins)[[paste0(colname, ".sum")]] <-
+      BiocGenerics::unlist(IRanges::viewSums(list.views))
+  if("mean" %in% which.summary)
+    S4Vectors::mcols(bins)[[paste0(colname, ".mean")]] <-
+      BiocGenerics::unlist(IRanges::viewMeans(list.views))
+  if("min" %in% which.summary)
+    S4Vectors::mcols(bins)[[paste0(colname, ".min")]] <-
+      BiocGenerics::unlist(IRanges::viewMins(list.views))
+  if("max" %in% which.summary)
+    S4Vectors::mcols(bins)[[paste0(colname, ".max")]] <-
+      BiocGenerics::unlist(IRanges::viewMeans(list.views))
+
+  if(! is.null(which.plot))
+    print(ggbio::autoplot(bins, layout="karyogram",
+                          ggplot2::aes_string(color=paste0(colname, ".",
+                                                           which.plot))))
+
+  invisible(bins)
+}
+
 ##' Load read counts
 ##'
 ##' Load read counts per individual and lane
