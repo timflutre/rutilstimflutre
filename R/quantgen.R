@@ -5698,18 +5698,32 @@ qtlrelPerChr <- function(y, X, snp.coords, thresh=0.01, chr.ids=NULL, W=NULL, Z=
 ##' Asymptotic Bayes factor
 ##'
 ##' Calculate the asymptotic Bayes factor proposed by Wakefield in Genetic Epidemiology 33:79-86 (2009, \url{http://dx.doi.org/10.1002/gepi.20359}).
-##' @param theta.hat MLE of the additive genetic effect
-##' @param V variance of theta.hat
-##' @param W variance of the prior on theta
+##' Can also be averaged over a grid of values of W, as done in various papers from Matthew Stephens' lab.
+##' @param theta.hat vector of MLE(s) of the additive genetic effect(s)
+##' @param V vector of the corresponding variance(s) of \code{theta.hat}
+##' @param W vector of variance(s) of the prior on theta (if several values, the ABF will be averaged over them)
+##' @param weights weights used to average over the grid of \code{W} (all equal by default)
 ##' @param log10 return the log10 of the ABF
 ##' @return numeric
 ##' @author Timothee Flutre
 ##' @export
-calcAsymptoticBayesFactorWakefield <- function(theta.hat, V, W, log10=TRUE){
+calcAsymptoticBayesFactorWakefield <- function(theta.hat, V, W, weights=NULL,
+                                               log10=TRUE){
+  stopifnot(length(V) == length(theta.hat))
+
   z2 <- theta.hat^2 / V # Wald statistic
 
-  log10.ABF <- 0.5 * log10(V) - 0.5 * log10(V + W) +
-    (0.5 * z2 * W / (V + W)) / log(10)
+  if(length(theta.hat) == 1){
+    log10.ABF <- 0.5 * log10(V) - 0.5 * log10(V + W) +
+      (0.5 * z2 * W / (V + W)) / log(10)
+  } else{
+    log10.ABF <- sapply(seq_along(theta.hat), function(i){
+      tmp <- sapply(W, function(Wj){
+        calcAsymptoticBayesFactorWakefield(theta.hat[i], V[i], Wj)
+      })
+      log10WeightedSum(x=tmp, weights=weights)
+    })
+  }
 
   if(log10)
     return(log10.ABF)

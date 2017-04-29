@@ -1343,3 +1343,24 @@ test_that("rearrangeInputsForAssoGenet", {
   expect_equal(obs$snp.coords, exp$snp.coords)
   expect_equal(obs$alleles, exp$alleles)
 })
+
+test_that("calcAsymptoticBayesFactorWakefield", {
+  beta <- c(0.7, 0.7, -0.1)
+  se <- c(0.2, 0.1, 0.4)
+  grid = c(0.1, 0.2, 0.4, 0.8, 1.6)
+
+  z2 <- (beta/se)^2
+  v2 <- se^2
+  expected <- log10(sapply(1:length(z2), function(i){
+    mean(sapply(grid, function(phi){
+      phi2 <- phi^2
+      sqrt(v2[i] / (v2[i] + phi2)) * exp(0.5 * phi2 * z2[i] / (phi2 + v2[i]))
+    }))
+  }))
+
+  observed <- calcAsymptoticBayesFactorWakefield(theta.hat=beta, V=se^2,
+                                                 W=grid^2)
+
+  expect_equal(observed, expected)
+})
+

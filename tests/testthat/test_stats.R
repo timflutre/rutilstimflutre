@@ -22,6 +22,27 @@ test_that("binaryClassif", {
   expect_equal(observed, expected)
 })
 
+test_that("log10WeightedSum_without_weights", {
+  x <- c(0.3, 0.01, 0.7)
+
+  expected <- log10(mean(10^x))
+
+  observed <- log10WeightedSum(x=x)
+
+  expect_equal(observed, expected)
+})
+
+test_that("log10WeightedSum_with_weights", {
+  x <- c(0.3, 0.01, 0.7)
+  weights <- c(0.2, 0.5, 0.3)
+
+  expected <- log10(sum(weights * (10^x)))
+
+  observed <- log10WeightedSum(x=x, weights=weights)
+
+  expect_equal(observed, expected)
+})
+
 test_that("isSingular", {
   ## example of an ANOVA with 2 factors
   L1 <- 3 # nb of levels of the first factor

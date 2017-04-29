@@ -2,7 +2,7 @@
 % Please edit documentation in R/stats.R
 \name{mpInv}
 \alias{mpInv}
-\title{Pseudo-inverse}
+\title{Moore-Penrose pseudo-inverse}
 \usage{
 mpInv(x)
 }
@@ -13,9 +13,6 @@ mpInv(x)
 matrix
 }
 \description{
-Moore-Penrose pseudo-inverse
-}
-\details{
 Return the Moore-Penrose pseudo-inverse of a matrix (Golub & Van Loan, Matrix Computations, 3rd edition, ch5, p257).
 }
 \author{

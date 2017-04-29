@@ -2,7 +2,7 @@
 % Please edit documentation in R/stats.R
 \name{binaryClassif}
 \alias{binaryClassif}
-\title{Binary classification}
+\title{Hypothesis testing}
 \usage{
 binaryClassif(known.nulls, called.nulls)
 }
@@ -15,9 +15,6 @@ binaryClassif(known.nulls, called.nulls)
 vector with names
 }
 \description{
-Hypothesis testing
-}
-\details{
 Return the number of true positives, false positives, true negatives,
 false negatives, true positive proportion (sensitivity), false positive
 proportion, accuracy, true negative proportion (specificity), false

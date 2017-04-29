@@ -4,14 +4,17 @@
 \alias{calcAsymptoticBayesFactorWakefield}
 \title{Asymptotic Bayes factor}
 \usage{
-calcAsymptoticBayesFactorWakefield(theta.hat, V, W, log10 = TRUE)
+calcAsymptoticBayesFactorWakefield(theta.hat, V, W, weights = NULL,
+  log10 = TRUE)
 }
 \arguments{
-\item{theta.hat}{MLE of the additive genetic effect}
+\item{theta.hat}{vector of MLE(s) of the additive genetic effect(s)}
 
-\item{V}{variance of theta.hat}
+\item{V}{vector of the corresponding variance(s) of \code{theta.hat}}
 
-\item{W}{variance of the prior on theta}
+\item{W}{vector of variance(s) of the prior on theta (if several values, the ABF will be averaged over them)}
+
+\item{weights}{weights used to average over the grid of \code{W} (all equal by default)}
 
 \item{log10}{return the log10 of the ABF}
 }
@@ -20,6 +23,7 @@ numeric
 }
 \description{
 Calculate the asymptotic Bayes factor proposed by Wakefield in Genetic Epidemiology 33:79-86 (2009, \url{http://dx.doi.org/10.1002/gepi.20359}).
+Can also be averaged over a grid of values of W, as done in various papers from Matthew Stephens' lab.
 }
 \author{
 Timothee Flutre

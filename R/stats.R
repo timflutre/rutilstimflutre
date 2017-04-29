@@ -52,10 +52,9 @@ prettyPrintSummary <- function(x, spec="%.2f"){
   invisible(out)
 }
 
-##' Return the Root Mean Squared Error
+##' Root mean squared error
 ##'
-##'
-##' @title Root Mean Squared Error
+##' Returns the root mean squared error (RMSE).
 ##' @param error vector \eqn{\hat{\theta}_i - \theta_i}
 ##' @return numeric
 ##' @author Timothee Flutre
@@ -64,10 +63,9 @@ rmse <- function(error){
   sqrt(mean(error^2))
 }
 
-##' Return the Mean Absolute Error
+##' Mean absolute error
 ##'
-##'
-##' @title Mean Absolute Error
+##' Returns the mean absolute error (MAE).
 ##' @param error vector \eqn{\hat{\theta}_i - \theta_i}
 ##' @return numeric
 ##' @author Timothee Flutre
@@ -76,10 +74,9 @@ mae <- function(error){
   mean(abs(error))
 }
 
-##' Return the Mean Signed Difference
+##' Mean signed difference
 ##'
-##'
-##' @title Mean Signed Difference
+##' Returns the mean signed difference (MSD).
 ##' @param error vector \eqn{\hat{\theta}_i - \theta_i}
 ##' @return numeric
 ##' @author Timothee Flutre
@@ -142,7 +139,6 @@ getMeanVarBetaDist <- function(alpha, beta){
 ##' discovery proportion, false negative proportion and positive predictive
 ##' value (precision)
 ##' Both input vectors should be sorted beforehand
-##' @title Binary classification
 ##' @param known.nulls vector of booleans (TRUE if the null is true)
 ##' @param called.nulls vector of booleans (TRUE if the null is accepted)
 ##' @return vector with names
@@ -196,12 +192,11 @@ binaryClassif <- function(known.nulls, called.nulls){
            tpp=tpp, fnp=fnp, tnp=tnp, fpp=fpp, fdp=fdp, ppv=ppv, acc=acc))
 }
 
-##' Stable computation of \eqn{log_{10}(\sum_i w_i 10^x_i)}
+##' Log of weighted sum
 ##'
-##' Use equal weights if not specified.
-##' @title Log of weighted sum
-##' @param x vector
-##' @param weights weights
+##' Performs the stable computation of \eqn{log_{10}(\sum_i w_i 10^x_i)}.
+##' @param x vector of log10 values
+##' @param weights weights (use equal weights if not specified)
 ##' @return numeric
 ##' @author Timothee Flutre
 ##' @export
@@ -219,7 +214,6 @@ log10WeightedSum <- function(x, weights=NULL){
 ##' Moore-Penrose pseudo-inverse
 ##'
 ##' Return the Moore-Penrose pseudo-inverse of a matrix (Golub & Van Loan, Matrix Computations, 3rd edition, ch5, p257).
-##' @title Pseudo-inverse
 ##' @param x matrix
 ##' @return matrix
 ##' @author Timothee Flutre

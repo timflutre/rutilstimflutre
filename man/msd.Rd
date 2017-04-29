@@ -2,7 +2,7 @@
 % Please edit documentation in R/stats.R
 \name{msd}
 \alias{msd}
-\title{Mean Signed Difference}
+\title{Mean signed difference}
 \usage{
 msd(error)
 }
@@ -13,7 +13,7 @@ msd(error)
 numeric
 }
 \description{
-Return the Mean Signed Difference
+Returns the mean signed difference (MSD).
 }
 \author{
 Timothee Flutre

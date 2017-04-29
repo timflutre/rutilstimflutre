@@ -2,7 +2,7 @@
 % Please edit documentation in R/stats.R
 \name{mae}
 \alias{mae}
-\title{Mean Absolute Error}
+\title{Mean absolute error}
 \usage{
 mae(error)
 }
@@ -13,7 +13,7 @@ mae(error)
 numeric
 }
 \description{
-Return the Mean Absolute Error
+Returns the mean absolute error (MAE).
 }
 \author{
 Timothee Flutre

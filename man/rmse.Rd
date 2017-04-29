@@ -2,7 +2,7 @@
 % Please edit documentation in R/stats.R
 \name{rmse}
 \alias{rmse}
-\title{Root Mean Squared Error}
+\title{Root mean squared error}
 \usage{
 rmse(error)
 }
@@ -13,7 +13,7 @@ rmse(error)
 numeric
 }
 \description{
-Return the Root Mean Squared Error
+Returns the root mean squared error (RMSE).
 }
 \author{
 Timothee Flutre

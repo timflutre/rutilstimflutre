@@ -7,18 +7,15 @@
 log10WeightedSum(x, weights = NULL)
 }
 \arguments{
-\item{x}{vector}
+\item{x}{vector of log10 values}
 
-\item{weights}{weights}
+\item{weights}{weights (use equal weights if not specified)}
 }
 \value{
 numeric
 }
 \description{
-Stable computation of \eqn{log_{10}(\sum_i w_i 10^x_i)}
-}
-\details{
-Use equal weights if not specified.
+Performs the stable computation of \eqn{log_{10}(\sum_i w_i 10^x_i)}.
 }
 \author{
 Timothee Flutre
