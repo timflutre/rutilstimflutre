@@ -5778,6 +5778,7 @@ calcExactBayesFactorServinStephens <- function(G, Y, sigma.a, sigma.d,
 ##' @param oma2 prior variance of \eqn{\bar{b}}; controls the prior expected size of the average effect across subgroups
 ##' @return numeric
 ##' @author Xiaoquan Wen [aut], Timothee Flutre [ctb,cre]
+##' @seealso \code{\link{calcL10ApproximateBayesFactorWen}}
 ##' @export
 calcL10ApproximateBayesFactorWenStephens <- function(sstats, phi2, oma2){
   stopifnot(is.matrix(sstats),
@@ -5826,6 +5827,81 @@ calcL10ApproximateBayesFactorWenStephens <- function(sstats, phi2, oma2){
     } else
       l10abf <- 0
   }
+
+  return(as.numeric(l10abf))
+}
+
+##' Approximate Bayes factor
+##'
+##' Calculate the log10(ABF) under the SSMR model (equation 11 with s=1) of \href{http://dx.doi.org/10.1111/biom.12112}{Wen (Biometrics, 2013)}.
+##' @param Y n x r phenotype matrix
+##' @param Xg n x p genotype matrix
+##' @param Xc n x q design matrix of covariates
+##' @param Wg r x r prior var-covar matrix on beta_g (if NULL, requires phi and oma)
+##' @param phi used to make Wg
+##' @param oma used to make Wg
+##' @param alpha mixing proportion
+##' @param H r x r matrix parameter of Wishart prior
+##' @param nu positive scalar parameter of Wishart prior
+##' @param ES if TRUE, use the scale-invariant prior formulation
+##' @return numeric
+##' @author Xiaoquan Wen [aut], Timothee Flutre [ctb,cre]
+##' @seealso \code{\link{calcL10ApproximateBayesFactorWenStephens}}
+##' @export
+calcL10ApproximateBayesFactorWen <- function(Y, Xg, Xc,
+                                             Wg=NULL, phi=NULL, oma=NULL,
+                                             alpha=0, H=0, nu=0, ES=TRUE){
+  stopifnot(all(is.matrix(Y), is.matrix(Xg), is.matrix(Xc)),
+            ! is.null(Wg) || (! is.null(phi) && ! is.null(oma)),
+            is.logical(ES))
+
+  l10abf <- NA
+
+  n <- dim(Y)[1]
+  r <- dim(Y)[2]
+  q <- dim(Xc)[2]
+  p <- dim(Xg)[2]
+  ## message(paste0("n=",n, " r=",r, " q=",q, " p=",p))
+
+  make_Wg <- function(phi, omega, p, r){
+    phi2 <- phi^2
+    omg2 <- omega^2
+    W <- matrix(ncol=r, rep(omg2,r*r)) + diag(rep(phi2,r))
+    Wg <- diag(rep(1,p)) %x% W
+    return(Wg)
+  }
+  if(is.null(Wg))
+    Wg <- make_Wg(phi=phi, omega=oma, p=p, r=r)
+
+  X <- cbind(Xc,Xg)
+
+  Sigma_hat <- Sigma_tilde <- diag(rep(0,r))
+
+  if(H == 0){
+    H <- diag(rep(1e-8,r))
+  }
+
+  if(alpha > 0){
+    Sigma_hat <- (t(Y)%*%(diag(rep(1,n)) - X%*%ginv(t(X)%*%X)%*%t(X))%*%Y)/n
+  }
+
+  if(alpha<1){
+    Sigma_tilde <- (t(Y)%*%(diag(rep(1,n)) - Xc%*%solve(t(Xc)%*%Xc)%*%t(Xc))%*%Y)/n
+  }
+
+  Sigma <- (nu/(nu+n))*H + (n/(n+nu))*(alpha*Sigma_hat + (1-alpha)*Sigma_tilde)
+  Sigma_inv <- solve(Sigma)
+
+  if(ES){
+    S <- diag(rep(1,p))%x%diag(sqrt(diag(Sigma)))
+    Wg <- S%*%Wg%*%S
+  }
+
+  Vg_inv <- (t(Xg)%*%Xg - t(Xg)%*%Xc%*%solve(t(Xc)%*%Xc)%*%t(Xc)%*%Xg)%x%Sigma_inv
+  vec <- matrix(ncol=1, as.vector(t(Y-Xc%*%solve(t(Xc)%*%Xc)%*%t(Xc)%*%Y)))
+  bVi <- t(vec)%*%(Xg%x%Sigma_inv)
+  ivw <- diag(rep(1,p*r))+Vg_inv%*%Wg
+  l10abf <- (.5*bVi%*%Wg%*%solve(ivw)%*%t(bVi)-0.5*determinant(ivw)$modulus[[1]])/log(10)
 
   return(as.numeric(l10abf))
 }

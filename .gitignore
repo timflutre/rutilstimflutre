@@ -4,3 +4,4 @@
 .RData
 *.bgz*
 inst/doc
+*.html

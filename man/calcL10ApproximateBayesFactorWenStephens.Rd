@@ -19,6 +19,9 @@ numeric
 \description{
 Calculate the log10(ABF) of Wen & Stephens in Annals of Applied Statistics (2014, \url{http://dx.doi.org/10.1214/13-AOAS695}) according to the "exchangeable standardized effects" model.
 }
+\seealso{
+\code{\link{calcL10ApproximateBayesFactorWen}}
+}
 \author{
 Xiaoquan Wen [aut], Timothee Flutre [ctb,cre]
 }
