@@ -5882,7 +5882,7 @@ calcL10ApproximateBayesFactorWen <- function(Y, Xg, Xc,
   }
 
   if(alpha > 0){
-    Sigma_hat <- (t(Y)%*%(diag(rep(1,n)) - X%*%ginv(t(X)%*%X)%*%t(X))%*%Y)/n
+    Sigma_hat <- (t(Y)%*%(diag(rep(1,n)) - X%*%mpInv(t(X)%*%X)%*%t(X))%*%Y)/n
   }
 
   if(alpha<1){

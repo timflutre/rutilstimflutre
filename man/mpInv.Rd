@@ -14,6 +14,7 @@ matrix
 }
 \description{
 Return the Moore-Penrose pseudo-inverse of a matrix (Golub & Van Loan, Matrix Computations, 3rd edition, ch5, p257).
+If the \href{https://cran.r-project.org/package=MASS}{MASS} package is available, the \code{ginv} function is used.
 }
 \author{
 Timothee Flutre

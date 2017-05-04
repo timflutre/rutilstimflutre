@@ -214,17 +214,24 @@ log10WeightedSum <- function(x, weights=NULL){
 ##' Moore-Penrose pseudo-inverse
 ##'
 ##' Return the Moore-Penrose pseudo-inverse of a matrix (Golub & Van Loan, Matrix Computations, 3rd edition, ch5, p257).
+##' If the \href{https://cran.r-project.org/package=MASS}{MASS} package is available, the \code{ginv} function is used.
 ##' @param x matrix
 ##' @return matrix
 ##' @author Timothee Flutre
 ##' @export
 mpInv <- function(x){
-  stopifnot(is.matrix(x))
+  out <- NULL
 
-  mat.svd <- svd(x)
-  out <- mat.svd$v %*% diag(1/mat.svd$d) %*% t(mat.svd$u)
+  requireNamespace("MASS", quietly=TRUE)
+  if("MASS" %in% loadedNamespaces()){
+    out <- MASS::ginv(X=x)
+  } else{
+    stopifnot(is.matrix(x))
+    mat.svd <- svd(x)
+    out <- mat.svd$v %*% diag(1/mat.svd$d) %*% t(mat.svd$u)
+  }
+
   dimnames(out) <- dimnames(x)
-
   return(out)
 }
 
