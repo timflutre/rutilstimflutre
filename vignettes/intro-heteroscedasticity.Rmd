@@ -3,8 +3,6 @@ title: "Introduction to heteroscedasticity in regression"
 author: "Timothée Flutre (INRA)"
 date: "`r format(Sys.time(), '%d/%m/%Y %H:%M:%S')`"
 output:
-  rmarkdown::html_vignette:
-    toc: true
   html_document:
     toc: true
     toc_float: true

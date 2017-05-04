@@ -3,15 +3,14 @@ title: "Introduction to the AR(1) process"
 author: "Timothée Flutre (INRA)"
 date: "`r format(Sys.time(), '%d/%m/%Y %H:%M:%S')`"
 output:
-  rmarkdown::html_vignette:
-    toc: true
   html_document:
     toc: true
     toc_float: true
+    toc_depth: 4
     number_sections: TRUE
   pdf_document:
     toc: true
-    toc_depth: 3
+    toc_depth: 4
     number_sections: TRUE
 vignette: >
   %\VignetteIndexEntry{Intro AR1}

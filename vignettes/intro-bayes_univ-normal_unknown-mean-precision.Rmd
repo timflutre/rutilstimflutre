@@ -3,8 +3,15 @@ title: "Introduction to Bayesian statistics via the univariate Normal model with
 author: "Timothée Flutre (INRA)"
 date: "`r Sys.Date()`"
 output:
-  rmarkdown::html_vignette:
+  html_document:
     toc: true
+    toc_float: true
+    toc_depth: 4
+    number_sections: TRUE
+  pdf_document:
+    toc: true
+    toc_depth: 4
+    number_sections: TRUE
 vignette: >
   %\VignetteIndexEntry{Intro Bayes (univ Normal, unknwo mu and tau)}
   %\VignetteEngine{knitr::rmarkdown}
