@@ -534,7 +534,40 @@ prettyPrintSummary(apply(X1, 3, function(Xi){
 
 ### Via multivariate Normals
 
-TODO
+```{r ar1xar1.sim.mv, eval=FALSE}
+set.seed(1859)
+ar1xar1.sim.mv <- function(N, R, C, rho.r, rho.c, sigma2){
+  stopifnot(R > 1, C > 1, abs(rho.r) <= 1, abs(rho.c) <= 1, sigma2 >= 0)
+  ## ... TODO ...
+}
+```
+
+Check the code by simulating with only column correlation:
+```{r ar1xar1.sim.mv.onlyC, eval=FALSE}
+X2 <- ar1xar1.sim.mv(N, R=2, C=500, rho.r=0, rho.c, sigma2)
+prettyPrintSummary(apply(X2, 3, function(Xi){
+  acf(Xi[1,], lag.max=1, type="correlation", plot=FALSE)$acf[2]
+}))
+```
+
+Idem, with only row correlation:
+```{r ar1xar1.sim.mv.onlyR, eval=FALSE}
+X2 <- ar1xar1.sim.mv(N, R=500, C=2, rho.r, rho.c=0.0, sigma2)
+prettyPrintSummary(apply(X2, 3, function(Xi){
+  acf(Xi[,1], lag.max=1, type="correlation", plot=FALSE)$acf[2]
+}))
+```
+
+Now with both row and column correlations:
+```{r ar1xar1.sim.mv.bothRC, eval=FALSE}
+X2 <- ar1xar1.sim.mv(N, R, C, rho.r, rho.c, sigma2)
+prettyPrintSummary(apply(X2, 3, function(Xi){
+  acf(Xi[1,], lag.max=1, type="correlation", plot=FALSE)$acf[2]
+}))
+prettyPrintSummary(apply(X2, 3, function(Xi){
+  acf(Xi[,1], lag.max=1, type="correlation", plot=FALSE)$acf[2]
+}))
+```
 
 
 ## Inference
@@ -543,6 +576,8 @@ Let us take one particular sample, and perform inference:
 
 ```{r choose_sample_2d}
 X <- X1[,,1]
+dim(X)
+X[1:3, 1:6]
 ```
 
 Make coordinates (note that columns are along the $x$-axis and rows along the $y$-axis):
@@ -560,6 +595,7 @@ Reformat the data accordingly:
 
 ```{r reformat_dat}
 dat <- data.frame(var1=c(X))
+dim(dat)
 ```
 
 Make a spatial data structure, and plot it:
