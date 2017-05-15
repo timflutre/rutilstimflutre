@@ -255,7 +255,7 @@ updateJoinMap <- function(x, verbose=1){
 ##' @param verbose verbosity level (0/1)
 ##' @return data.frame
 ##' @author Timothee Flutre
-##' @seealso \code{link{reformatGenoClasses}}
+##' @seealso \code{link{reformatGenoClasses}}, \code{\link{writeSegregJoinMap}}
 ##' @examples
 ##' \dontrun{
 ##' nb.snps <- 6
@@ -681,6 +681,89 @@ segregJoinMap2Qtl <- function(){
       stringsAsFactors=FALSE)
 
   return(out)
+}
+
+##' Write genotypes
+##'
+##' Write "segregation" data into a "loc" file in the \href{https://www.kyazma.nl/index.php/JoinMap/}{JoinMap/MapQTL} format.
+##' @param pop.name name of the population
+##' @param pop.type type of the population
+##' @param locus vector of locus names
+##' @param segregs vector of segregation types
+##' @param phases vector of phase types
+##' @param classifs vector of classification types
+##' @param genos data frame containing genotypes encoded in the JoinMap format,  similar to the output from \code{\link{genoClasses2JoinMap}}
+##' @param file name of the file in which the data will be saved
+##' @param save.ind.names if TRUE, individual names will be saved at the end of the file
+##' @return nothing
+##' @author Timothee Flutre
+##' @seealso \code{\link{genoClasses2JoinMap}}
+##' @examples
+##' \dontrun{
+##' nb.snps <- 6
+##' x <- data.frame(par1=c("AA", "GC", "CG", "AT", NA, "AA"),
+##'                 par2=c("AT", "GC", "GG", "AT", "AT", "AT"),
+##'                 off1=c("AA", "GG", "CG", "AA", "AA", "AT"),
+##'                 off2=c("AT", "GG", "CG", "AT", "AT", "AA"),
+##'                 off3=c("AT", "GG", "GG", "TT", "TT", NA),
+##'                 off4=c(NA, NA, NA, NA, NA, NA),
+##'                 row.names=paste0("snp", 1:nb.snps),
+##'                 stringsAsFactors=FALSE)
+##' jm <- genoClasses2JoinMap(x=x, reformat.input=TRUE, thresh.na=2, verbose=1)
+##' idx <- which(! is.na(jm$seg))
+##' writeSegregJoinMap(pop.name="test", pop.type="CP", locus=rownames(jm[idx,]),
+##'                    segregs=jm[idx,"seg"], phases=rep("{01}", length(idx)),
+##'                    classifs=rep("(a,c)", length(idx)),
+##'                    genos=jm[idx,-c(1:9)], file="test.txt")
+##' }
+##' @export
+writeSegregJoinMap <- function(pop.name, pop.type="CP",
+                               locus, segregs, phases, classifs, genos,
+                               file, save.ind.names=TRUE){
+  stopifnot(is.character(pop.name),
+            is.character(pop.type),
+            pop.type %in% c("BC1", "F2", "RIx", "DH", "DH1", "DH2", "HAP",
+                            "HAP1", "CP", "BCpxFy", "IMxFy"),
+            is.character(locus),
+            all(nchar(locus) <= 20),
+            is.character(segregs),
+            is.character(phases),
+            is.character(classifs),
+            is.data.frame(genos),
+            nrow(genos) == length(locus),
+            nrow(genos) == length(segregs),
+            nrow(genos) == length(phases),
+            nrow(genos) == length(classifs),
+            is.logical(save.ind.names))
+
+  tmp <- cbind(locus, segregs, phases, classifs, genos)
+
+  con <- file(description=file, open="w")
+
+  txt <- c("; written by the `writeSegregJoinMap` function",
+           paste0("; from the `rutilstimflutre` package version ",
+                  utils::packageVersion("rutilstimflutre")),
+           "",
+           paste0("name = ", pop.name),
+           paste0("popt = ", pop.type),
+           paste0("nloc = ", nrow(genos)),
+           paste0("nind = ", ncol(genos)),
+           "")
+  writeLines(text=txt, con=con)
+
+  utils::write.table(x=tmp, file=con, append=TRUE, quote=FALSE, sep="\t",
+                     row.names=FALSE,
+                     col.names=FALSE)
+
+  if(save.ind.names){
+    stopifnot(all(nchar(colnames(genos)) <= 20))
+    txt <- c("",
+             "individual names: ",
+             colnames(genos))
+    writeLines(text=txt, con=con)
+  }
+
+  close(con)
 }
 
 ##' Haplotypes

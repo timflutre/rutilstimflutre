@@ -42,7 +42,7 @@ genoClasses2JoinMap(x=x, reformat.input=TRUE, thresh.na=2, verbose=1)
 }
 }
 \seealso{
-\code{link{reformatGenoClasses}}
+\code{link{reformatGenoClasses}}, \code{\link{writeSegregJoinMap}}
 }
 \author{
 Timothee Flutre
