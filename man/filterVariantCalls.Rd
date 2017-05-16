@@ -6,10 +6,11 @@
 \usage{
 filterVariantCalls(vcf.file, genome = "", out.file, yieldSize = NA_integer_,
   dict.file = NULL, seq.id = NULL, seq.start = NULL, seq.end = NULL,
-  is.snv = NULL, is.biall = NULL, min.var.dp = NULL, max.var.dp = NULL,
-  min.alt.af = NULL, max.alt.af = NULL, min.spl.dp = NULL,
-  min.perc.spl.dp = NULL, min.spl.gq = NULL, min.perc.spl.gq = NULL,
-  max.var.nb.gt.na = NULL, max.var.perc.gt.na = NULL, verbose = 1)
+  variants.tokeep = NULL, is.snv = NULL, is.biall = NULL,
+  min.var.dp = NULL, max.var.dp = NULL, min.alt.af = NULL,
+  max.alt.af = NULL, min.spl.dp = NULL, min.perc.spl.dp = NULL,
+  min.spl.gq = NULL, min.perc.spl.gq = NULL, max.var.nb.gt.na = NULL,
+  max.var.perc.gt.na = NULL, verbose = 1)
 }
 \arguments{
 \item{vcf.file}{path to the VCF file (bgzip index should exist in same directory; should be already filtered for INFO tags such as QD, FS, MQ, etc)}
@@ -22,11 +23,13 @@ filterVariantCalls(vcf.file, genome = "", out.file, yieldSize = NA_integer_,
 
 \item{dict.file}{path to the SAM dict file (see \url{https://broadinstitute.github.io/picard/command-line-overview.html#CreateSequenceDictionary}) if seq.id is specified with no start/end}
 
-\item{seq.id}{sequence identifier to work on (e.g. "chr2")}
+\item{seq.id}{sequence identifier to work on (e.g. \code{"chr2"})}
 
 \item{seq.start}{start of the sequence to work on (if NULL, whole seq)}
 
 \item{seq.end}{end of the sequence to work on (if NULL, whole seq)}
+
+\item{variants.tokeep}{character vector of variant names to keep (e.g. \code{c("chr1:35718_C/A","chr1:61125_A/G")})}
 
 \item{is.snv}{if not NULL but TRUE, filter out the variants which are not SNVs}
 
@@ -56,6 +59,8 @@ filterVariantCalls(vcf.file, genome = "", out.file, yieldSize = NA_integer_,
 }
 \value{
 the destination file path as a character(1)
+
+TRUE if in subset of variants to keep
 
 TRUE if SNV (single nucleotide variant)
 

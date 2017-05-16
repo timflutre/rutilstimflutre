@@ -777,9 +777,13 @@ writeSegregJoinMap <- function(pop.name, pop.type="CP",
 
   close(con)
 
-  if(file.ext == "gz")
-    if(file.exists(Sys.which("gzip")))
-      system(command=paste("gzip", file))
+  if(file.ext == "gz"){
+    if(file.exists(Sys.which("gzip"))){ # should work on Linux and Mac OS
+      if(file.exists(paste0(file, ".gz")))
+        file.remove(paste0(file, ".gz"))
+        system(command=paste("gzip", file))
+    }
+  }
 }
 
 ##' Haplotypes

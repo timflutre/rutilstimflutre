@@ -1457,9 +1457,10 @@ setGt2Na <- function(vcf.file, genome="", out.file,
 ##' @param out.file path to the output VCF file (a bgzip index will be created in the same directory)
 ##' @param yieldSize number of records to yield each time the file is read from (see ?TabixFile) if seq.id is NULL
 ##' @param dict.file path to the SAM dict file (see \url{https://broadinstitute.github.io/picard/command-line-overview.html#CreateSequenceDictionary}) if seq.id is specified with no start/end
-##' @param seq.id sequence identifier to work on (e.g. "chr2")
+##' @param seq.id sequence identifier to work on (e.g. \code{"chr2"})
 ##' @param seq.start start of the sequence to work on (if NULL, whole seq)
 ##' @param seq.end end of the sequence to work on (if NULL, whole seq)
+##' @param variants.tokeep character vector of variant names to keep (e.g. \code{c("chr1:35718_C/A","chr1:61125_A/G")})
 ##' @param is.snv if not NULL but TRUE, filter out the variants which are not SNVs
 ##' @param is.biall if not NULL but TRUE, filter out the variants with more than one alternative allele
 ##' @param min.var.dp minimum variant-level DP below which variants are filtered out
@@ -1479,6 +1480,7 @@ setGt2Na <- function(vcf.file, genome="", out.file,
 filterVariantCalls <- function(vcf.file, genome="", out.file,
                                yieldSize=NA_integer_, dict.file=NULL,
                                seq.id=NULL, seq.start=NULL, seq.end=NULL,
+                               variants.tokeep=NULL,
                                is.snv=NULL, is.biall=NULL,
                                min.var.dp=NULL, max.var.dp=NULL,
                                min.alt.af=NULL, max.alt.af=NULL,
@@ -1487,11 +1489,15 @@ filterVariantCalls <- function(vcf.file, genome="", out.file,
                                max.var.nb.gt.na=NULL, max.var.perc.gt.na=NULL,
                                verbose=1){
   requireNamespaces(c("IRanges", "GenomicRanges", "VariantAnnotation",
-                      "Rsamtools", "S4Vectors", "BiocInstaller"))
+                      "Rsamtools", "S4Vectors", "BiocInstaller",
+                      "SummarizedExperiment"))
   stopifnot(file.exists(vcf.file))
   if(! is.null(seq.id) & is.null(seq.start) & is.null(seq.end))
     stopifnot(! is.null(dict.file),
               file.exists(dict.file))
+  if(! is.null(variants.tokeep))
+    stopifnot(is.vector(variants.tokeep),
+              is.character(variants.tokeep))
   if(! is.null(is.snv))
     stopifnot(is.logical(is.snv))
   if(! is.null(is.biall))
@@ -1514,6 +1520,11 @@ filterVariantCalls <- function(vcf.file, genome="", out.file,
 
   out.file <- sub("\\.gz$", "", out.file)
   out.file <- sub("\\.bgz$", "", out.file)
+
+  ##' @return TRUE if in subset of variants to keep
+  filterVariantsToKeep <- function(x, vtk=variants.tokeep){
+    (names(SummarizedExperiment::rowRanges(x)) %in% vtk)
+  }
 
   ##' @return TRUE if SNV (single nucleotide variant)
   filterSnv <- function(x){
@@ -1595,6 +1606,9 @@ filterVariantCalls <- function(vcf.file, genome="", out.file,
 
   ## set the filters
   tmp <- list()
+  if(! is.null(variants.tokeep)){
+    tmp[["filterVariantsToKeep"]] <- filterVariantsToKeep
+  }
   if(! is.null(is.snv)){
     if(is.snv)
       tmp[["filterSnv"]] <- filterSnv
