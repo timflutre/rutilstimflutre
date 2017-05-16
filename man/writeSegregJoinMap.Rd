@@ -22,7 +22,7 @@ writeSegregJoinMap(pop.name, pop.type = "CP", locus, segregs, phases,
 
 \item{genos}{data frame containing genotypes encoded in the JoinMap format,  similar to the output from \code{\link{genoClasses2JoinMap}}}
 
-\item{file}{name of the file in which the data will be saved}
+\item{file}{name of the file in which the data will be saved (will be compressed if ends with ".gz" and "gzip" is available in the PATH)}
 
 \item{save.ind.names}{if TRUE, individual names will be saved at the end of the file}
 }

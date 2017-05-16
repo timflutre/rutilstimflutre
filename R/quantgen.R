@@ -545,10 +545,15 @@ filterSegreg <- function(x, thresh.pval=0.05, return.counts=FALSE, verbose=1){
   ## -------------------------------------------------------
   ## un-vectorized version:
 
-  if(verbose > 0)
-    pb <- utils::txtProgressBar(min=0, max=nrow(x), style=3)
-
-  for(i in (1:nrow(x))[! is.na(x$seg)]){
+  idx.rows <- (1:nrow(x))[! is.na(x$seg)]
+  if(verbose > 0){
+    msg <- paste0("nb of segregations to test: ", length(idx.rows))
+    write(msg, stdout())
+    pb <- utils::txtProgressBar(min=0, max=length(idx.rows), style=3)
+    tmp <- stats::setNames(object=cut(x=idx.rows, breaks=10, labels=FALSE),
+                           nm=idx.rows) # to update pb no more than 10 times
+  }
+  for(i in idx.rows){
     obs.classes <- as.character(x[i,-1])
     distinct.classes <- sort(unique(obs.classes))
     counts <- table(obs.classes, useNA="no")
@@ -574,8 +579,11 @@ filterSegreg <- function(x, thresh.pval=0.05, return.counts=FALSE, verbose=1){
                                   0.25 * sum(counts),
                                   0.25 * sum(counts))
 
-    if(verbose > 0)
-      utils::setTxtProgressBar(pb, i)
+    if(verbose > 0){
+      ## utils::setTxtProgressBar(pb, i) # update pb at each loop iteration
+      if(i %in% as.numeric(names(tmp)[cumsum(table(tmp))]))
+        utils::setTxtProgressBar(pb, which(idx.rows == i))
+    }
   }
   if(verbose > 0)
     close(pb)
@@ -693,7 +701,7 @@ segregJoinMap2Qtl <- function(){
 ##' @param phases vector of phase types
 ##' @param classifs vector of classification types
 ##' @param genos data frame containing genotypes encoded in the JoinMap format,  similar to the output from \code{\link{genoClasses2JoinMap}}
-##' @param file name of the file in which the data will be saved
+##' @param file name of the file in which the data will be saved (will be compressed if ends with ".gz" and "gzip" is available in the PATH)
 ##' @param save.ind.names if TRUE, individual names will be saved at the end of the file
 ##' @return nothing
 ##' @author Timothee Flutre
@@ -720,6 +728,7 @@ segregJoinMap2Qtl <- function(){
 writeSegregJoinMap <- function(pop.name, pop.type="CP",
                                locus, segregs, phases, classifs, genos,
                                file, save.ind.names=TRUE){
+  requireNamespace("tools")
   stopifnot(is.character(pop.name),
             is.character(pop.type),
             pop.type %in% c("BC1", "F2", "RIx", "DH", "DH1", "DH2", "HAP",
@@ -734,10 +743,12 @@ writeSegregJoinMap <- function(pop.name, pop.type="CP",
             nrow(genos) == length(segregs),
             nrow(genos) == length(phases),
             nrow(genos) == length(classifs),
+            is.character(file),
             is.logical(save.ind.names))
 
-  tmp <- cbind(locus, segregs, phases, classifs, genos)
-
+  file.ext <- tools::file_ext(file)
+  if(file.ext == "gz")
+    file <- sub("\\.gz$", "", file)
   con <- file(description=file, open="w")
 
   txt <- c("; written by the `writeSegregJoinMap` function",
@@ -751,6 +762,7 @@ writeSegregJoinMap <- function(pop.name, pop.type="CP",
            "")
   writeLines(text=txt, con=con)
 
+  tmp <- cbind(locus, segregs, phases, classifs, genos)
   utils::write.table(x=tmp, file=con, append=TRUE, quote=FALSE, sep="\t",
                      row.names=FALSE,
                      col.names=FALSE)
@@ -764,6 +776,10 @@ writeSegregJoinMap <- function(pop.name, pop.type="CP",
   }
 
   close(con)
+
+  if(file.ext == "gz")
+    if(file.exists(Sys.which("gzip")))
+      system(command=paste("gzip", file))
 }
 
 ##' Haplotypes
