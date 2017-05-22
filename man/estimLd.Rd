@@ -4,17 +4,17 @@
 \alias{estimLd}
 \title{Pairwise linkage disequilibrium}
 \usage{
-estimLd(X, K = NULL, pops = NULL, snp.coords, only.chr = NULL,
+estimLd(X, snp.coords, K = NULL, pops = NULL, only.chr = NULL,
   only.pop = NULL, use.ldcorsv = FALSE, verbose = 1)
 }
 \arguments{
 \item{X}{matrix of bi-allelic SNP genotypes encoded in allele doses in {0,1,2}, with genotypes in rows and SNPs in columns; missing values should be encoded as NA}
 
+\item{snp.coords}{data.frame with SNP identifiers as row names, and two columns, "chr" and "pos"}
+
 \item{K}{matrix of "kinship" (additive genetic relationships)}
 
 \item{pops}{vector of characters indicating the population of each genotype}
-
-\item{snp.coords}{data.frame with SNP identifiers as row names, and two columns, "chr" and "pos"}
 
 \item{only.chr}{identifier of a given chromosome}
 

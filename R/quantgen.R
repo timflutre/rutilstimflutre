@@ -1904,12 +1904,12 @@ simulRefAltSnpAlleles <- function(nb.snps=NULL, snp.ids=NULL,
 ##'                            chrom.len=chrom.len)
 ##' }
 ##' @export
-simulCoalescent <- function(nb.inds=100,
+simulCoalescent <- function(nb.inds=500,
                             ind.ids=NULL,
                             nb.reps=10,
                             pop.mut.rate=40,
                             pop.recomb.rate=40,
-                            chrom.len=10^4,
+                            chrom.len=5*10^5,
                             other=NULL,
                             nb.pops=1,
                             mig.rate=5,
@@ -2905,9 +2905,9 @@ estimGenRel <- function(X, afs=NULL, thresh=NULL, relationships="additive",
 ##' When ignoring kinship and population structure, the estimator of Rogers and Huff (Genetics, 2009) can be used.
 ##' When kinship and/or population structure are controlled for, the estimator of Mangin et al (Heredity, 2012) is used via their LDcorSV package.
 ##' @param X matrix of bi-allelic SNP genotypes encoded in allele doses in {0,1,2}, with genotypes in rows and SNPs in columns; missing values should be encoded as NA
+##' @param snp.coords data.frame with SNP identifiers as row names, and two columns, "chr" and "pos"
 ##' @param K matrix of "kinship" (additive genetic relationships)
 ##' @param pops vector of characters indicating the population of each genotype
-##' @param snp.coords data.frame with SNP identifiers as row names, and two columns, "chr" and "pos"
 ##' @param only.chr identifier of a given chromosome
 ##' @param only.pop identifier of a given population
 ##' @param use.ldcorsv required if K and/or pops are not NULL; otherwise use the square of \code{\link{cor}}
@@ -2915,7 +2915,7 @@ estimGenRel <- function(X, afs=NULL, thresh=NULL, relationships="additive",
 ##' @return data frame
 ##' @author Timothee Flutre
 ##' @export
-estimLd <- function(X, K=NULL, pops=NULL, snp.coords,
+estimLd <- function(X, snp.coords, K=NULL, pops=NULL,
                     only.chr=NULL, only.pop=NULL,
                     use.ldcorsv=FALSE, verbose=1){
   if(use.ldcorsv & ! requireNamespace("LDcorSV", quietly=TRUE))
@@ -3024,8 +3024,8 @@ estimLd <- function(X, K=NULL, pops=NULL, snp.coords,
 ##' Possibility to add two analytical approximations of E[r^2] at equilibrium (see McVean, Handbook of Stat Gen, 2007): 1 / (1 + 4 Ne c x) by Sved (1971) and (10 + 4 Ne c x) / (22 + 13 * 4 Ne c x + (4 Ne c x)^2) by Ohta and Kimura (1971).
 ##' @param x vector of distances between SNPs (see \code{\link{distSnpPairs}})
 ##' @param y vector of LD estimates (see \code{\link{estimLd}})
-##' @param estim estimator of pairwise LD corresponding to the values in y (r2/r)
 ##' @param main main title
+##' @param estim estimator of pairwise LD corresponding to the values in y (r2/r)
 ##' @param use.density if TRUE, uses smoothScatter; otherwise, use scatter.smooth
 ##' @param xlab label for the x axis
 ##' @param ylab label for the y axis
@@ -3040,13 +3040,13 @@ estimLd <- function(X, K=NULL, pops=NULL, snp.coords,
 ##' @return nothing
 ##' @author Timothee Flutre
 ##' @export
-plotLd <- function(x, y, estim="r2", main,
+plotLd <- function(x, y, main="", estim="r2",
                    use.density=TRUE,
                    xlab="Physical distance (bp)",
                    ylab=paste0("Linkage disequilibrium (", estim, ")"),
                    span=1/10, degree=1, evaluation=50,
                    sample.size=NULL,
-                   add.ohta.kimura=TRUE, add.sved=TRUE, Ne=NULL, c=NULL){
+                   add.ohta.kimura=FALSE, add.sved=FALSE, Ne=NULL, c=NULL){
   stopifnot(is.vector(x),
             is.vector(y),
             estim %in% c("r2","r"),

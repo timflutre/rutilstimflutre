@@ -4,10 +4,10 @@
 \alias{plotLd}
 \title{Pairwise linkage disequilibrium}
 \usage{
-plotLd(x, y, estim = "r2", main, use.density = TRUE,
+plotLd(x, y, main = "", estim = "r2", use.density = TRUE,
   xlab = "Physical distance (bp)", ylab = paste0("Linkage disequilibrium (",
   estim, ")"), span = 1/10, degree = 1, evaluation = 50,
-  sample.size = NULL, add.ohta.kimura = TRUE, add.sved = TRUE,
+  sample.size = NULL, add.ohta.kimura = FALSE, add.sved = FALSE,
   Ne = NULL, c = NULL)
 }
 \arguments{
@@ -15,9 +15,9 @@ plotLd(x, y, estim = "r2", main, use.density = TRUE,
 
 \item{y}{vector of LD estimates (see \code{\link{estimLd}})}
 
-\item{estim}{estimator of pairwise LD corresponding to the values in y (r2/r)}
-
 \item{main}{main title}
+
+\item{estim}{estimator of pairwise LD corresponding to the values in y (r2/r)}
 
 \item{use.density}{if TRUE, uses smoothScatter; otherwise, use scatter.smooth}
 

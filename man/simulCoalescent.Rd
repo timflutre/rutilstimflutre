@@ -4,8 +4,8 @@
 \alias{simulCoalescent}
 \title{Coalescent with recombination}
 \usage{
-simulCoalescent(nb.inds = 100, ind.ids = NULL, nb.reps = 10,
-  pop.mut.rate = 40, pop.recomb.rate = 40, chrom.len = 10^4,
+simulCoalescent(nb.inds = 500, ind.ids = NULL, nb.reps = 10,
+  pop.mut.rate = 40, pop.recomb.rate = 40, chrom.len = 5 * 10^5,
   other = NULL, nb.pops = 1, mig.rate = 5, get.trees = FALSE,
   get.tmrca = FALSE, get.alleles = FALSE, permute.alleles = TRUE,
   verbose = 1)
