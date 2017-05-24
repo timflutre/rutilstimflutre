@@ -15,7 +15,7 @@ readHaplosFastPhase(file, snp.ids)
 matrix with haplotypes in rows (2 per genotype) and SNPs in columns
 }
 \description{
-Extract the haplotypes from the output file of fastPHASE.
+Extract the haplotypes from fastPHASE's output files ("hapguess_switch" and "hapguess_indiv").
 }
 \author{
 Timothee Flutre

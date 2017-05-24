@@ -37,7 +37,7 @@ fastphase(X, snp.coords, alleles, out.dir = getwd(), task.id = "fastphase",
 \item{verbose}{verbosity level (0/1)}
 }
 \value{
-list with matrix of genotypes before imputation, and matrix of haplotypes (2 per genotype, in rows) after imputation
+list with matrix of genotypes before imputation, matrix of haplotypes (2 per genotype, in rows) after imputation, stdout/stderr
 }
 \description{
 Impute SNP genotypes via fastPHASE (Scheet and Stephens, 2006).
@@ -45,15 +45,18 @@ Impute SNP genotypes via fastPHASE (Scheet and Stephens, 2006).
 \examples{
 \dontrun{## simulate haplotypes and genotypes in a single population
 set.seed(1859)
-nb.inds <- 100
+nb.inds <- 5*10^2
+nb.chrs <- 1
 Ne <- 10^4
-chrom.len <- 10^5
+chrom.len <- 1*10^6
 mu <- 10^(-8)
 c <- 10^(-7)
 genomes <- simulCoalescent(nb.inds=nb.inds,
+                           nb.reps=nb.chrs,
                            pop.mut.rate=4 * Ne * mu * chrom.len,
                            pop.recomb.rate=4 * Ne * c * chrom.len,
-                           chrom.len=chrom.len)
+                           chrom.len=chrom.len,
+                           get.alleles=TRUE)
 nb.snps <- nrow(genomes$snp.coords)
 plotHaplosMatrix(genomes$haplos[[1]]) # quick view of the amount of LD
 
@@ -61,35 +64,41 @@ plotHaplosMatrix(genomes$haplos[[1]]) # quick view of the amount of LD
 ## some inds with high density of genotyped SNPs, and the others with
 ## low density of SNPs, these being on both microarrays
 ind.names <- rownames(genomes$genos)
-inds.high <- sample(x=ind.names, size=floor(0.5 * nb.inds))
+inds.high <- sample(x=ind.names, size=floor(0.4 * nb.inds))
 inds.low <- setdiff(ind.names, inds.high)
 snp.names <- colnames(genomes$genos)
-snps.high.only <- sample(x=snp.names, size=0.5 * nb.snps)
-X.na <- genomes$genos
+mafs <- estimSnpMaf(X=genomes$genos)
+length(idx <- which(mafs >= 0.05))
+snps.high <- names(idx)
+snps.high.only <- sample(x=snp.high, size=floor(0.7*length(snps.high)))
+dim(X <- genomes$genos[ind.names, snps.high])
+X.na <- X
 X.na[inds.low, snps.high.only] <- NA
+sum(is.na(X.na)) / length(X.na)
 plotGridMissGenos(X=X.na)
 
 ## perform imputation
-alleles <- as.data.frame(matrix(cbind(rep("A", nb.snps), rep("T", nb.snps)),
-                                ncol=2, dimnames=list(snp.names,
-                                                      c("major", "minor"))))
-out.imp <- fastphase(X=X.na, snp.coords=genomes$snp.coords,
-                     alleles=alleles, nb.starts=3, clean=TRUE)
-X.imp <- segSites2allDoses(seg.sites=list(haplosAlleles2num(haplos=out.imp$haplos,
-                                                            alleles=alleles)),
-                           ind.ids=rownames(genomes$genos))
+snp.coords <- genomes$snp.coords[colnames(X.na),]
+alleles <- genomes$alleles[colnames(X.na),]
+out.imp <- fastphase(X=X.na, snp.coords=snp.coords, alleles=alleles,
+                     nb.starts=3, clean=TRUE)
+out.imp$stdouterr
+tmp <- haplosAlleles2num(haplos=out.imp$haplos.switch, alleles=alleles)
+X.imp <- segSites2allDoses(seg.sites=list(tmp), ind.ids=ind.names)
 
 ## assess imputation accuracy
-genomes$haplos[[1]][1:4, 1:6]
-genomes$genos[1:2, 1:6]
+genomes$haplos[[1]][1:4, 1:7]
+genomes$genos[1:2, 1:7]
 X.na[1:2, 1:6]
 head(alleles)
 out.imp$genos[1:4, 1:6]
-out.imp$haplos[1:4, 1:6]
+out.imp$haplos.switch[1:4, 1:6]
 X.imp[1:2, 1:6]
-sum(X.imp != genomes$genos)
-100 * sum(X.imp != genomes$genos) / sum(is.na(X.na))
+100 * sum(X.imp != X) / sum(is.na(X.na))
 }
+}
+\seealso{
+\code{\link{writeInputsForFastPhase}}, \code{\link{readGenosFastPhase}}, \code{\link{readHaplosFastPhase}}
 }
 \author{
 Timothee Flutre

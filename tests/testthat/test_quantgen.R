@@ -290,9 +290,9 @@ test_that("haplosAlleles2num", {
   alleles <- as.data.frame(matrix(data=c(rep("A", nb.snps), rep("T", nb.snps)),
                                   nrow=nb.snps, ncol=2,
                                   dimnames=list(paste0("snp", 1:nb.snps),
-                                                c("minor", "major"))))
+                                                c("first", "second"))))
 
-  expected <- matrix(data=c(0,0,0,0, 0,1,0,1, 1,0,1,1),
+  expected <- matrix(data=c(1,1,1,1, 1,0,1,0, 0,1,0,0),
                      nrow=2*nb.inds, ncol=nb.snps,
                      dimnames=dimnames(haplos))
 

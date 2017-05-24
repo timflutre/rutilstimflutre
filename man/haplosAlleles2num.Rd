@@ -9,12 +9,12 @@ haplosAlleles2num(haplos, alleles, nb.cores = 1)
 \arguments{
 \item{haplos}{matrix with haplotypes in rows (2 consecutive per genotype) and SNPs in columns}
 
-\item{alleles}{data.frame with SNPs in rows (names as row names) and alleles in columns (named "minor" and "major")}
+\item{alleles}{data.frame with SNPs in rows (names as row names) and alleles in 2 columns}
 
 \item{nb.cores}{the number of cores to use, i.e. at most how many child processes will be run simultaneously (not on Windows)}
 }
 \value{
-matrix with 0 for major alleles and 1 for minor alleles
+matrix with 0 for the first-column alleles and 1 for the second-column alleles
 }
 \description{
 Reformat haplotypes from alleles as string into numeric.
