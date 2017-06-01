@@ -57,6 +57,8 @@ External packages:
 ```{r load_pkg}
 library(rutilstimflutre)
 library(lattice)
+library(cvTools)
+library(caret)
 library(nlme)
 library(lme4)
 library(INLA)
@@ -78,9 +80,9 @@ Goal: study the genotype-phenotype map
 
 Notations:
 
-* $g \in \{1,\ldots,G\}$: index of the genotype (assuming a plant species whose genotypes can be vegetatively multipled, hence cloned and planted in multiple blocks, such as perennial crops)
+* $g \in \{1,\ldots,G\}$: index of the genotype (assuming a plant species whose genotypes can be vegetatively multipled, hence cloned and planted in multiple blocks, such as perennial crops), assuming $G$ is "large" (say, 100)
 
-* $b \in \{1,\ldots,B\}$: index of the block (field plots often are divided into multiple blocks to handle spatial heterogeneity)
+* $b \in \{1,\ldots,B\}$: index of the block (field plots often are divided into multiple blocks to handle spatial heterogeneity), assuming $B$ is "small" (say, 3)
 
 * $y_{gb}$: observed value (phenotype) of the $g$-th genotype in the $b$-th block
 
@@ -210,6 +212,13 @@ diagnose <- function(fit.name, tmp){
 }
 ```
 
+For model selection:
+```{r useful_modsel}
+cvf <- cvTools::cvFolds(n=nrow(dat), K=5, type="interleaved")
+train.ctl <- caret::trainControl(method="repeatedcv", number=5,
+                                 repeats=3)
+```
+  
 For inference:
 ```{r useful_infer}
 u.sort.desc <- sort(u, decreasing=TRUE)
@@ -237,8 +246,32 @@ tmp <- cbind(dat, scaled.residuals, y.hat)
 
 #### Model comparison and selection
 
-```{r gls_modcomp}
+```{r gls_AIC}
 AIC(fit.gls)
+```
+
+```{r gls_cv}
+fit.gls.cv <- cvFit(gls, data=dat, y=dat$y, cost=rmspe, folds=cvf)
+fit.gls.cv
+glsMeth <- list(label="Generalized least squares",
+                library="nlme",
+                type="Regression",
+                parameters=NULL,
+                grid=function(x, y, len=NULL, search){
+                },
+                fit=function(form, data, var.func){
+                  gls(model=form, data=data, weights=var.func)
+                },
+                predict=function(modelFit, newdata){
+                  predict(modelFit, newdata)
+                },
+                prob=NULL,
+                sort=NULL)
+fit.gls.cv <- train(form=y ~ 1 + block, data=dat,
+                    var.func=varIdent(form=~1|block),
+                    method=glsMeth,
+                    trControl=train.ctl)
+fit.gls.cv
 ```
 
 #### Diagnostics
