@@ -360,6 +360,30 @@ test_that("calcFreqMissSnpGenosPerSnp", {
   expect_equal(observed, expected)
 })
 
+test_that("calcFreqMissSnpGenosPerSnp_vcf", {
+  if(all(requireNamespace("Rsamtools"),
+         requireNamespace("VariantAnnotation"))){
+
+    tmpd <- tempdir()
+
+    vcf.file <- system.file("extdata", "example.vcf",
+                            package="rutilstimflutre")
+    N <- 3
+    snp.ids <- c("snp1", "snp2", "indel1")
+
+    expected <- setNames(c(0/N, 2/N, 0/N), snp.ids)
+
+    if(! file.exists(paste0(tmpd, "/", basename(vcf.file))))
+      file.copy(from=vcf.file, to=tmpd)
+    bgz.file <- Rsamtools::bgzip(file=paste0(tmpd, "/", basename(vcf.file)),
+                                 overwrite=TRUE)
+    Rsamtools::indexTabix(bgz.file, "vcf")
+    observed <- calcFreqMissSnpGenosPerSnp(vcf.file=bgz.file)
+
+    expect_equal(observed, expected)
+  }
+})
+
 test_that("calcFreqMissSnpGenosPerGeno", {
   N <- 2 # individuals
   P <- 4 # SNPs

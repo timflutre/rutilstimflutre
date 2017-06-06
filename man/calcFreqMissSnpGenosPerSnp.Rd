@@ -4,16 +4,33 @@
 \alias{calcFreqMissSnpGenosPerSnp}
 \title{Missing genotypes}
 \usage{
-calcFreqMissSnpGenosPerSnp(X)
+calcFreqMissSnpGenosPerSnp(X = NULL, vcf.file = NULL, yieldSize = 10000)
 }
 \arguments{
-\item{X}{matrix of marker genotypes, with genotypes in rows and markers in columns; missing values should be encoded as NA}
+\item{X}{matrix of marker genotypes, with genotypes in rows and markers in columns; missing values should be encoded as NA; if not NULL, will be used in priority even if \code{vcf.file} is not NULL}
+
+\item{vcf.file}{path to the VCF file (bgzip index should exist in same directory)}
+
+\item{yieldSize}{number of records to yield each time the VCF file is read from (see ?TabixFile)}
 }
 \value{
 vector
 }
 \description{
 Calculate the frequency of missing genotypes for each marker.
+}
+\examples{
+\dontrun{## simulate fake SNP genotypes
+set.seed(1859)
+X <- simulGenosDose(nb.genos=200, nb.snps=10^3)
+
+## randomly create missing SNP genotypes
+idx <- sample.int(n=length(X), size=10^3)
+X[idx] <- NA
+
+miss.snp <- calcFreqMissSnpGenosPerSnp(X=X)
+hist(miss.snp, xlab="proportion of missing data at a given SNP,\\nmeasured across all individuals", ylab="number of SNPs")
+}
 }
 \author{
 Timothee Flutre

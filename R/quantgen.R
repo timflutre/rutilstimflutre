@@ -986,16 +986,52 @@ genoDoses2Vcf <- function(X, snp.coords, alleles, verbose=1){
 ##' Missing genotypes
 ##'
 ##' Calculate the frequency of missing genotypes for each marker.
-##' @param X matrix of marker genotypes, with genotypes in rows and markers in columns; missing values should be encoded as NA
+##' @param X matrix of marker genotypes, with genotypes in rows and markers in columns; missing values should be encoded as NA; if not NULL, will be used in priority even if \code{vcf.file} is not NULL
+##' @param vcf.file path to the VCF file (bgzip index should exist in same directory)
+##' @param yieldSize number of records to yield each time the VCF file is read from (see ?TabixFile)
 ##' @return vector
 ##' @author Timothee Flutre
+##' @examples
+##' \dontrun{## simulate fake SNP genotypes
+##' set.seed(1859)
+##' X <- simulGenosDose(nb.genos=200, nb.snps=10^3)
+##'
+##' ## randomly create missing SNP genotypes
+##' idx <- sample.int(n=length(X), size=10^3)
+##' X[idx] <- NA
+##'
+##' miss.snp <- calcFreqMissSnpGenosPerSnp(X=X)
+##' hist(miss.snp, xlab="proportion of missing data at a given SNP,\nmeasured across all individuals", ylab="number of SNPs")
+##' }
 ##' @export
-calcFreqMissSnpGenosPerSnp <- function(X){
-  stopIfNotValidGenosDose(X, check.hasColNames=FALSE, check.hasRowNames=FALSE,
-                          check.noNA=FALSE, check.isDose=FALSE)
+calcFreqMissSnpGenosPerSnp <- function(X=NULL, vcf.file=NULL, yieldSize=10000){
+  stopifnot(! all(is.null(X), is.null(vcf.file)))
 
-  N <- nrow(X) # number of genotypes
-  out <- apply(X, 2, function(Xp){sum(is.na(Xp)) / N})
+  out <- c()
+
+  if(! is.null(X)){
+    stopIfNotValidGenosDose(X, check.hasColNames=FALSE, check.hasRowNames=FALSE,
+                            check.noNA=FALSE, check.isDose=FALSE)
+    N <- nrow(X) # number of genotypes
+    out <- apply(X, 2, function(Xp){sum(is.na(Xp)) / N})
+  } else{
+    stopifnot(file.exists(vcf.file),
+              ! is.na(yieldSize))
+    tabix.file <- Rsamtools::TabixFile(file=vcf.file,
+                                       yieldSize=yieldSize)
+    open(tabix.file)
+    hdr <- VariantAnnotation::scanVcfHeader(file=tabix.file)
+    N <- length(VariantAnnotation::samples(hdr))
+    while(nrow(vcf <- VariantAnnotation::readVcf(file=tabix.file,
+                                                 genome=""))){
+          X.tmp <- VariantAnnotation::geno(vcf)[["GT"]]
+          out.tmp <- apply(X.tmp, 1, function(Xp.tmp){
+            sum(Xp.tmp %in% c("./.", ".")) / N
+          })
+          out <- c(out, out.tmp)
+    }
+    close(tabix.file)
+  }
 
   return(out)
 }
