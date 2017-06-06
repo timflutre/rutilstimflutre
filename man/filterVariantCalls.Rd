@@ -13,7 +13,7 @@ filterVariantCalls(vcf.file, genome = "", out.file, yieldSize = NA_integer_,
   max.var.perc.gt.na = NULL, verbose = 1)
 }
 \arguments{
-\item{vcf.file}{path to the VCF file (bgzip index should exist in same directory; should be already filtered for INFO tags such as QD, FS, MQ, etc)}
+\item{vcf.file}{path to the VCF file (if the bgzip index doesn't exist in the same directory, it will be created)}
 
 \item{genome}{genome identifier (e.g. "VITVI_12x2")}
 

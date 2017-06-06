@@ -9,7 +9,7 @@ setGt2Na(vcf.file, genome = "", out.file, yieldSize = NA_integer_,
   min.gq = 90, verbose = 1)
 }
 \arguments{
-\item{vcf.file}{path to the VCF file (bgzip index should exist in same directory; should be already filtered for INFO tags such as QD, FS, MQ, etc)}
+\item{vcf.file}{path to the VCF file (if the bgzip index doesn't exist in the same directory, it will be created)}
 
 \item{genome}{genome identifier (e.g. "VITVI_12x2")}
 
@@ -34,6 +34,9 @@ the destination file path as an invisible character(1)
 }
 \description{
 Set genotypes (GT field) to missing if the genotype quality (GQ field) isn't high enough.
+}
+\seealso{
+\code{\link{filterVariantCalls}}
 }
 \author{
 Timothee Flutre

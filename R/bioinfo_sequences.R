@@ -1375,7 +1375,7 @@ confidenceGenoOneVar <- function(x, plot.it=FALSE){
 ##' Set GT to NA
 ##'
 ##' Set genotypes (GT field) to missing if the genotype quality (GQ field) isn't high enough.
-##' @param vcf.file path to the VCF file (bgzip index should exist in same directory; should be already filtered for INFO tags such as QD, FS, MQ, etc)
+##' @param vcf.file path to the VCF file (if the bgzip index doesn't exist in the same directory, it will be created)
 ##' @param genome genome identifier (e.g. "VITVI_12x2")
 ##' @param out.file path to the output VCF file (a bgzip index will be created in the same directory)
 ##' @param yieldSize number of records to yield each time the file is read from (see ?TabixFile) if seq.id is NULL
@@ -1387,6 +1387,7 @@ confidenceGenoOneVar <- function(x, plot.it=FALSE){
 ##' @param verbose verbosity level (0/1)
 ##' @return the destination file path as an invisible character(1)
 ##' @author Timothee Flutre
+##' @seealso \code{\link{filterVariantCalls}}
 ##' @export
 setGt2Na <- function(vcf.file, genome="", out.file,
                      yieldSize=NA_integer_, dict.file=NULL,
@@ -1409,6 +1410,8 @@ setGt2Na <- function(vcf.file, genome="", out.file,
     write(msg, stdout()); flush(stdout())
   }
 
+  if(! file.exists(paste0(vcf.file, ".tbi")))
+    Rsamtools::indexTabix(file=vcf.file, format="vcf")
   tabix.file <- Rsamtools::TabixFile(file=vcf.file,
                                      yieldSize=yieldSize)
   if(! is.null(seq.id)){
@@ -1452,7 +1455,7 @@ setGt2Na <- function(vcf.file, genome="", out.file,
 ##' Filter variant calls
 ##'
 ##' Filter out variant calls from VCF file according to several criteria (bi-allelic, single nucleotide variant, proper amount of missing genotypes, overall depth and allele frequency).
-##' @param vcf.file path to the VCF file (bgzip index should exist in same directory; should be already filtered for INFO tags such as QD, FS, MQ, etc)
+##' @param vcf.file path to the VCF file (if the bgzip index doesn't exist in the same directory, it will be created)
 ##' @param genome genome identifier (e.g. "VITVI_12x2")
 ##' @param out.file path to the output VCF file (a bgzip index will be created in the same directory)
 ##' @param yieldSize number of records to yield each time the file is read from (see ?TabixFile) if seq.id is NULL
@@ -1642,6 +1645,8 @@ filterVariantCalls <- function(vcf.file, genome="", out.file,
       print(filters)
 
     ## filter the VCF file
+    if(! file.exists(paste0(vcf.file, ".tbi")))
+      Rsamtools::indexTabix(file=vcf.file, format="vcf")
     tabix.file <- Rsamtools::TabixFile(file=vcf.file,
                                        yieldSize=yieldSize)
     if(! is.null(seq.id)){
@@ -1706,7 +1711,7 @@ varqual2summary <- function(vcf, fields="GQ"){
 ##' Summary per variant
 ##'
 ##' Compute the mean, sd, min, Q1, med, mean, Q3, max of the genotype qualities per variant, also reporting the number of samples and the number of missing data.
-##' @param vcf.file path to the VCF file
+##' @param vcf.file path to the VCF file (if the bgzip index doesn't exist in the same directory, it will be created)
 ##' @param genome genome identifier (e.g. "VITVI_12x2")
 ##' @param yieldSize number of records to yield each time the file is read from (see ?TabixFile) if seq.id is NULL
 ##' @param dict.file path to the SAM dict file (see \url{https://broadinstitute.github.io/picard/command-line-overview.html#CreateSequenceDictionary}) if seq.id is specified with no start/end
@@ -1740,6 +1745,8 @@ summaryVariant <- function(vcf.file, genome="", yieldSize=NA_integer_,
     write(msg, stdout()); flush(stdout())
   }
 
+  if(! file.exists(paste0(vcf.file, ".tbi")))
+    Rsamtools::indexTabix(file=vcf.file, format="vcf")
   tabix.file <- Rsamtools::TabixFile(file=vcf.file,
                                      yieldSize=yieldSize)
   if(! is.null(seq.id)){
@@ -1938,7 +1945,7 @@ rngVcf2df <- function(vcf, with.coords=TRUE, with.alleles=TRUE,
 ##' Convert VCF to dose
 ##'
 ##' Convert genotypes at bi-allelic variants from a VCF file into allele doses.
-##' @param vcf.file path to the VCF file (bgzip index should exist in same directory; should only contain SNPs and be already filtered for QD, FS, MQ, etc)
+##' @param vcf.file path to the VCF file (if the bgzip index doesn't exist in the same directory, it will be created)
 ##' @param genome genome identifier (e.g. "VITVI_12x2")
 ##' @param gdose.file path to the output file to record genotypes as allele doses (will be gzipped)
 ##' @param ca.file path to the output file to record SNP 1-based coordinates and alleles (will be gzipped)
@@ -1951,7 +1958,7 @@ rngVcf2df <- function(vcf, with.coords=TRUE, with.alleles=TRUE,
 ##' @param verbose verbosity level (0/1)
 ##' @return an invisible list with both output file paths
 ##' @author Timothee Flutre
-##' @seealso \code{\link{gtVcf2dose}}
+##' @seealso \code{\link{gtVcf2dose}}, \code{\link{filterVariantCalls}}
 ##' @export
 vcf2dosage <- function(vcf.file, genome="", gdose.file, ca.file,
                        yieldSize=NA_integer_, dict.file=NULL,
@@ -1979,6 +1986,8 @@ vcf2dosage <- function(vcf.file, genome="", gdose.file, ca.file,
   ca.con <- file(ca.file, open="a")
   cat("chr\tpos\tallele.ref\tallele.alt\n", file=ca.con, append=TRUE)
 
+  if(! file.exists(paste0(vcf.file, ".tbi")))
+    Rsamtools::indexTabix(file=vcf.file, format="vcf")
   tabix.file <- Rsamtools::TabixFile(file=vcf.file,
                                      yieldSize=yieldSize)
   if(! is.null(seq.id)){
@@ -2032,8 +2041,12 @@ vcf2dosage <- function(vcf.file, genome="", gdose.file, ca.file,
   for(gz.out.file in c(paste0(gdose.file, ".gz"), paste0(ca.file, ".gz")))
     if(file.exists(gz.out.file))
       file.remove(gz.out.file)
-  system(command=paste("gzip", gdose.file))
-  system(command=paste("gzip", ca.file))
+  if(file.exists(Sys.which("gzip"))){ # should work on Linux and Mac OS
+    system(command=paste("gzip", gdose.file))
+    system(command=paste("gzip", ca.file))
+  } else{
+    warning("'gzip' not available on this computer")
+  }
 
   invisible(list(gdose.file=paste0(gdose.file, ".gz"),
                  ca.file=paste0(ca.file, ".gz")))
@@ -2106,7 +2119,7 @@ gtVcf2genoClasses <- function(vcf, na.string=NA, single.alt=TRUE){
 ##' Convert VCF to genotypic classes
 ##'
 ##' Convert genotypes at SNPs from a VCF file into genotypic classes.
-##' @param vcf.file path to the VCF file (bgzip index should exist in same directory; should only contain SNPs and be already filtered for QD, FS, MQ, etc, e.g. via \code{\link{filterVariantCalls}})
+##' @param vcf.file path to the VCF file (if the bgzip index doesn't exist in the same directory, it will be created)
 ##' @param genome genome identifier (e.g. "VITVI_12x2")
 ##' @param gclasses.file path to the output file to record genotypes into genotypic classes (will be gzipped)
 ##' @param ca.file path to the output file to record SNP 1-based coordinates and alleles (will be gzipped)
@@ -2120,7 +2133,7 @@ gtVcf2genoClasses <- function(vcf, na.string=NA, single.alt=TRUE){
 ##' @param verbose verbosity level (0/1)
 ##' @return invisible vector with the path to the output file
 ##' @author Gautier Sarah, Timothee Flutre
-##' @seealso \code{\link{gtVcf2genoClasses}}
+##' @seealso \code{\link{gtVcf2genoClasses}}, \code{\link{filterVariantCalls}}
 ##' @export
 vcf2genoClasses <- function(vcf.file, genome="", gclasses.file, ca.file,
                             yieldSize=NA_integer_, dict.file=NULL,
@@ -2148,6 +2161,8 @@ vcf2genoClasses <- function(vcf.file, genome="", gclasses.file, ca.file,
   ca.con <- file(ca.file, open="a")
   cat("chr\tpos\tallele.ref\tallele.alt\n", file=ca.con, append=TRUE)
 
+  if(! file.exists(paste0(vcf.file, ".tbi")))
+    Rsamtools::indexTabix(file=vcf.file, format="vcf")
   tabix.file <- Rsamtools::TabixFile(file=vcf.file,
                                      yieldSize=yieldSize)
   if(! is.null(seq.id)){
@@ -2204,8 +2219,12 @@ vcf2genoClasses <- function(vcf.file, genome="", gclasses.file, ca.file,
                        paste0(ca.file, ".gz")))
     if(file.exists(gz.out.file))
       file.remove(gz.out.file)
-  system(command=paste("gzip", gclasses.file))
-  system(command=paste("gzip", ca.file))
+  if(file.exists(Sys.which("gzip"))){ # should work on Linux and Mac OS
+    system(command=paste("gzip", gclasses.file))
+    system(command=paste("gzip", ca.file))
+  } else{
+    warning("'gzip' not available on this computer")
+  }
 
   invisible(list(gclasses.file=paste0(gclasses.file, ".gz"),
                  ca.file=paste0(ca.file, ".gz")))

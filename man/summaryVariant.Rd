@@ -9,7 +9,7 @@ summaryVariant(vcf.file, genome = "", yieldSize = NA_integer_,
   fields = "GQ", verbose = 1)
 }
 \arguments{
-\item{vcf.file}{path to the VCF file}
+\item{vcf.file}{path to the VCF file (if the bgzip index doesn't exist in the same directory, it will be created)}
 
 \item{genome}{genome identifier (e.g. "VITVI_12x2")}
 

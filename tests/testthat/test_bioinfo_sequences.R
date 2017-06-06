@@ -236,8 +236,7 @@ test_that("setGt2Na", {
     vcf.init.file.bgz <- Rsamtools::bgzip(file=vcf.init.file,
                                           overwrite=TRUE)
     all.files <- c(all.files, vcf.init.file.bgz)
-    vcf.init.file.bgz.idx <- Rsamtools::indexTabix(file=vcf.init.file.bgz,
-                                                   format="vcf")
+    vcf.init.file.bgz.idx <- paste0(vcf.init.file.bgz, ".tbi")
     all.files <- c(all.files, vcf.init.file.bgz.idx)
     vcf.init <- VariantAnnotation::readVcf(file=vcf.init.file.bgz,
                                            genome=genome)
@@ -277,8 +276,7 @@ test_that("filterVariantCalls", {
     vcf.init.file.bgz <- Rsamtools::bgzip(file=vcf.init.file,
                                           overwrite=TRUE)
     all.files <- c(all.files, vcf.init.file.bgz)
-    vcf.init.file.bgz.idx <- Rsamtools::indexTabix(file=vcf.init.file.bgz,
-                                                   format="vcf")
+    vcf.init.file.bgz.idx <- paste0(vcf.init.file.bgz, ".tbi")
     all.files <- c(all.files, vcf.init.file.bgz.idx)
     vcf.init <- VariantAnnotation::readVcf(file=vcf.init.file.bgz,
                                            genome=genome)
@@ -317,8 +315,7 @@ test_that("summaryVariant", {
     vcf.init.file.bgz <- Rsamtools::bgzip(file=vcf.init.file,
                                           overwrite=TRUE)
     all.files <- c(all.files, vcf.init.file.bgz)
-    vcf.init.file.bgz.idx <- Rsamtools::indexTabix(file=vcf.init.file.bgz,
-                                                   format="vcf")
+    vcf.init.file.bgz.idx <- paste0(vcf.init.file.bgz, ".tbi")
     all.files <- c(all.files, vcf.init.file.bgz.idx)
     vcf.init <- VariantAnnotation::readVcf(file=vcf.init.file.bgz,
                                            genome=genome)
@@ -370,8 +367,7 @@ test_that("vcf2dosage", {
     vcf.init.file.bgz <- Rsamtools::bgzip(file=vcf.init.file,
                                           overwrite=TRUE)
     all.files <- c(all.files, vcf.init.file.bgz)
-    vcf.init.file.bgz.idx <- Rsamtools::indexTabix(file=vcf.init.file.bgz,
-                                                   format="vcf")
+    vcf.init.file.bgz.idx <- paste0(vcf.init.file.bgz, ".tbi")
     all.files <- c(all.files, vcf.init.file.bgz.idx)
     vcf.init <- VariantAnnotation::readVcf(file=vcf.init.file.bgz,
                                            genome=genome)
@@ -466,8 +462,7 @@ test_that("vcf2genoClasses", {
     vcf.init.file.bgz <- Rsamtools::bgzip(file=vcf.init.file,
                                           overwrite=TRUE)
     all.files <- c(all.files, vcf.init.file.bgz)
-    vcf.init.file.bgz.idx <- Rsamtools::indexTabix(file=vcf.init.file.bgz,
-                                                   format="vcf")
+    vcf.init.file.bgz.idx <- paste0(vcf.init.file.bgz, ".tbi")
     all.files <- c(all.files, vcf.init.file.bgz.idx)
     expected <- list(genos=matrix(c("AA", "AC", "CC",
                                     "AC", "NN", "NN"),

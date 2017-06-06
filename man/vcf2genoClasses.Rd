@@ -10,7 +10,7 @@ vcf2genoClasses(vcf.file, genome = "", gclasses.file, ca.file,
   verbose = 1)
 }
 \arguments{
-\item{vcf.file}{path to the VCF file (bgzip index should exist in same directory; should only contain SNPs and be already filtered for QD, FS, MQ, etc, e.g. via \code{\link{filterVariantCalls}})}
+\item{vcf.file}{path to the VCF file (if the bgzip index doesn't exist in the same directory, it will be created)}
 
 \item{genome}{genome identifier (e.g. "VITVI_12x2")}
 
@@ -41,7 +41,7 @@ invisible vector with the path to the output file
 Convert genotypes at SNPs from a VCF file into genotypic classes.
 }
 \seealso{
-\code{\link{gtVcf2genoClasses}}
+\code{\link{gtVcf2genoClasses}}, \code{\link{filterVariantCalls}}
 }
 \author{
 Gautier Sarah, Timothee Flutre

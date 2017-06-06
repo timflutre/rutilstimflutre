@@ -9,7 +9,7 @@ vcf2dosage(vcf.file, genome = "", gdose.file, ca.file,
   seq.start = NULL, seq.end = NULL, uncertain = FALSE, verbose = 1)
 }
 \arguments{
-\item{vcf.file}{path to the VCF file (bgzip index should exist in same directory; should only contain SNPs and be already filtered for QD, FS, MQ, etc)}
+\item{vcf.file}{path to the VCF file (if the bgzip index doesn't exist in the same directory, it will be created)}
 
 \item{genome}{genome identifier (e.g. "VITVI_12x2")}
 
@@ -38,7 +38,7 @@ an invisible list with both output file paths
 Convert genotypes at bi-allelic variants from a VCF file into allele doses.
 }
 \seealso{
-\code{\link{gtVcf2dose}}
+\code{\link{gtVcf2dose}}, \code{\link{filterVariantCalls}}
 }
 \author{
 Timothee Flutre
