@@ -786,6 +786,208 @@ writeSegregJoinMap <- function(pop.name, pop.type="CP",
   }
 }
 
+##' Genotype coding
+##'
+##' Convert genotypes encoded in the \href{https://www.kyazma.nl/index.php/JoinMap/}{JoinMap} format into a design matrix.
+##' See equation 3 of \href{http://dx.doi.org/10.1186/1471-2156-12-82}{Wang (2011)} for the parameterization, as well as \href{https://doi.org/10.1177/1471082X16644998}{Chiquet et al (2016)} for the constraints.
+##' Additive and dominance effects are handled, but epistasis is ignored.
+##' Moreover, genotypes are assumed to come from a bi-parental family with heterozygous parents (population type CP in JoinMap); for each marker, only a subset of all genotypes are expected to be present.
+##' @param jm data frame in the JoinMap format, for instance from \code{\link{genoClasses2JoinMap}}; the first four columns should be "locus", "seg", "phase" and "clas" (only the first two are used for the moment); no missing data is allowed
+##' @param parameterization parameterization (allele/F_infinity/allele-count)
+##' @param constraints constraints (NULL/mu-zero/last-zero)
+##' @param rm.col.zeros if TRUE, the columns full of zeros will be removed
+##' @param rm.dom if TRUE, the columns corresponding to dominance effects will be removed
+##' @param verbose verbosity level (0/1)
+##' @return matrix, with genotypes in rows
+##' @author Timothee Flutre
+##' @seealso \code{link{genoClasses2JoinMap}}, \code{\link{writeSegregJoinMap}}, \code{\link{updateJoinMap}}
+##' @export
+joinMap2designMatrix <- function(jm, parameterization="allele",
+                                 constraints=NULL, rm.col.zeros=TRUE,
+                                 rm.dom=FALSE,
+                                 verbose=1){
+  stopifnot(is.data.frame(jm),
+            all(colnames(jm)[1:4] == c("locus", "seg", "phase", "clas")),
+            all(jm$seg %in% c("<abxcd>", "<efxeg>", "<hkxhk>", "<lmxll>",
+                              "<nnxnp>")),
+            parameterization %in% c("allele", "F_infinity", "allele-count"),
+            all(! is.na(jm[, -c(1:4)])),
+            is.logical(rm.col.zeros),
+            is.logical(rm.dom))
+  if(! is.null(constraints))
+    stopifnot(constraints %in% c("mu-zero", "last-zero"))
+
+  out <- NULL
+
+  nb.locus <- nrow(jm)
+  nb.inds <- ncol(jm) - 4
+  if(verbose > 0){
+    msg <- paste0("nb of locus: ", nb.locus,
+                  "\nnb of inds: ", nb.inds)
+    write(msg, stdout())
+  }
+  alleles <- lapply(strsplit(jm$seg, ""), function(x){
+    sort(unique(x[! x %in% c("<","x",">")]))
+  })
+  nb.alleles <- sapply(alleles, length)
+
+  if(verbose > 0){
+    msg <- "for each locus, make the unconstrained design matrix..."
+    write(msg, stdout())
+  }
+  X <- list()
+  for(l in 1:nb.locus){
+
+    if(parameterization == "allele"){ # equation 3 of Wang (2011)
+      ## set up the design matrix
+      locus <- jm$locus[l]
+      m <- nb.alleles[l]
+      X[[l]] <- matrix(data=0, nrow=nb.inds, ncol=m + m*(m+1)/2)
+      rownames(X[[l]]) <- colnames(jm)[-(1:4)]
+      tmp <- c()
+      for(j in 1:m)
+        tmp <- c(tmp, paste0(locus, ".", alleles[[l]][j]))
+      for(j in 1:m){
+        for(k in j:m)
+          tmp <- c(tmp, paste0(locus, ".", alleles[[l]][j], alleles[[l]][k]))
+      }
+      colnames(X[[l]]) <- tmp
+
+      ## fill the design matrix
+      ## caution, not all cases are present in a bi-parental family!
+      if(jm$seg[l] == "<abxcd>"){ # a b c d aa ab ac ad bb bc bd cc cd dd
+        idx <- which(jm[l,-(1:4)] == "ac")
+        if(length(idx) > 0)
+          X[[l]][idx, c(1,3,7)] <- matrix(c(1,1,1), nrow=length(idx),
+                                          ncol=3, byrow=TRUE)
+        idx <- which(jm[l,-(1:4)] == "ad")
+        if(length(idx) > 0)
+          X[[l]][idx, c(1,4,8)] <- matrix(c(1,1,1), nrow=length(idx),
+                                          ncol=3, byrow=TRUE)
+        idx <- which(jm[l,-(1:4)] == "bc")
+        if(length(idx) > 0)
+          X[[l]][idx, c(2,3,10)] <- matrix(c(1,1,1), nrow=length(idx),
+                                           ncol=3, byrow=TRUE)
+        idx <- which(jm[l,-(1:4)] == "bd")
+        if(length(idx) > 0)
+          X[[l]][idx, c(2,4,11)] <- matrix(c(1,1,1), nrow=length(idx),
+                                           ncol=3, byrow=TRUE)
+      } else if(jm$seg[l] == "<efxeg>"){ # e f g ee ef eg ff fg gg
+        idx <- which(jm[l,-(1:4)] == "ee")
+        if(length(idx) > 0)
+          X[[l]][idx, c(1,4)] <- matrix(c(2,1), nrow=length(idx), ncol=2,
+                                        byrow=TRUE)
+        idx <- which(jm[l,-(1:4)] == "eg")
+        if(length(idx) > 0)
+          X[[l]][idx, c(1,3,6)] <- matrix(c(1,1,1), nrow=length(idx), ncol=3,
+                                          byrow=TRUE)
+        idx <- which(jm[l,-(1:4)] == "ef")
+        if(length(idx) > 0)
+          X[[l]][idx, c(1,2,5)] <- matrix(c(1,1,1), nrow=length(idx), ncol=3,
+                                          byrow=TRUE)
+        idx <- which(jm[l,-(1:4)] == "fg")
+        if(length(idx) > 0)
+          X[[l]][idx, c(2,3,8)] <- matrix(c(1,1,1), nrow=length(idx), ncol=3,
+                                          byrow=TRUE)
+      } else if(jm$seg[l] == "<hkxhk>"){ # h k hh hk kk
+        idx <- which(jm[l,-(1:4)] == "hh")
+        if(length(idx) > 0)
+          X[[l]][idx, c(1,3)] <- matrix(c(2,1), nrow=length(idx), ncol=2,
+                                        byrow=TRUE)
+        idx <- which(jm[l,-(1:4)] == "hk")
+        if(length(idx) > 0)
+          X[[l]][idx, c(1,2,4)] <- matrix(c(1,1,1), nrow=length(idx), ncol=3,
+                                          byrow=TRUE)
+        idx <- which(jm[l,-(1:4)] == "kk")
+        if(length(idx) > 0)
+          X[[l]][idx, c(2,5)] <- matrix(c(2,1), nrow=length(idx), ncol=2,
+                                        byrow=TRUE)
+      } else if(jm$seg[l] == "<lmxll>"){ # l m ll lm mm
+        idx <- which(jm[l,-(1:4)] == "ll")
+        if(length(idx) > 0)
+          X[[l]][idx, c(1,3)] <- matrix(c(2,1), nrow=length(idx), ncol=2,
+                                        byrow=TRUE)
+        idx <- which(jm[l,-(1:4)] == "lm")
+        if(length(idx) > 0)
+          X[[l]][idx, c(1,2,4)] <- matrix(c(1,1,1), nrow=length(idx), ncol=3,
+                                          byrow=TRUE)
+      } else if(jm$seg[l] == "<nnxnp>"){ # n p nn np pp
+        idx <- which(jm[l,-(1:4)] == "nn")
+        if(length(idx) > 0)
+          X[[l]][idx, c(1,3)] <- matrix(c(2,1), nrow=length(idx), ncol=2,
+                                        byrow=TRUE)
+        idx <- which(jm[l,-(1:4)] == "np")
+        if(length(idx) > 0)
+          X[[l]][idx, c(1,2,4)] <- matrix(c(1,1,1), nrow=length(idx), ncol=3,
+                                          byrow=TRUE)
+      }
+    } else{
+      msg <- paste0("'", parameterization, "' parameterization",
+                    " not yet implemented")
+      stop(msg)
+    }
+  } # end for loop over locus
+  names(X) <- jm$locus
+
+  if(! is.null(constraints)){
+    if(verbose > 0){
+      msg <- "apply constraints..."
+      write(msg, stdout())
+    }
+    if(constraints == "last-zero"){
+      idx <- which(jm$seg == "<abxcd>")
+      if(length(idx) > 0)
+        for(l in idx)
+          X[[l]] <- X[[l]][, -c(4,8,11,13,14)]
+      idx <- which(jm$seg == "<efxeg>")
+      if(length(idx) > 0)
+        for(l in idx)
+          X[[l]] <- X[[l]][, -c(3,6,8,9)]
+      idx <- which(jm$seg == "<hkxhk>")
+      if(length(idx) > 0)
+        for(l in idx)
+          X[[l]] <- X[[l]][, -c(2,4,5)]
+      idx <- which(jm$seg == "<lmxll>")
+      if(length(idx) > 0)
+        for(l in idx)
+          X[[l]] <- X[[l]][, -c(2,4,5)]
+      idx <- which(jm$seg == "<nnxnp>")
+      if(length(idx) > 0)
+        for(l in idx)
+          X[[l]] <- X[[l]][, -c(2,4,5)]
+    }
+  }
+  out <- do.call(cbind, X)
+  if(is.null(constraints)){
+    out <- cbind(rep(1, nb.inds), out)
+    colnames(out)[1] <- "intercept"
+  }
+
+  if(rm.col.zeros){
+    idx <- which(apply(out, 2, function(col.j){all(col.j == 0)}))
+    if(verbose > 0){
+      msg <- paste0("remove ", length(idx), " columns full of zeros...")
+      write(msg, stdout())
+    }
+    out <- out[, -idx]
+  }
+
+  if(rm.dom){
+    idx <- which(sapply(strsplit(colnames(out), ""), function(x){
+      x[length(x)-1] != "."
+    }))
+    if(colnames(out)[1] == "intercept")
+      idx <- idx[-1]
+    if(verbose > 0){
+      msg <- paste0("remove ", length(idx), " columns encoding dominance...")
+      write(msg, stdout())
+    }
+    out <- out[, -idx]
+  }
+
+  return(out)
+}
+
 ##' Haplotypes
 ##'
 ##' Check that the input is a valid list of matrices of bi-allelic marker haplotypes.

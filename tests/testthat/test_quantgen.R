@@ -112,6 +112,57 @@ test_that("genoClasses2JoinMap", {
   expect_equal(observed, expected)
 })
 
+test_that("joinMap2designMatrix", {
+  nb.locus <- 5
+  nb.genos <- 4
+  jm <- data.frame(locus=paste0("loc", 1:nb.locus),
+                   seg=c("<abxcd>", "<efxeg>", "<hkxhk>", "<lmxll>", "<nnxnp>"),
+                   phase=rep(NA, nb.locus),
+                   clas=rep(NA, nb.locus),
+                   geno1=c("ac", "ee", "hh", "ll", "nn"),
+                   geno2=c("ad", "eg", "hk", "ll", "np"),
+                   geno3=c("bc", "ef", "hk", "lm", "nn"),
+                   geno4=c("bd", "fg", "kk", "lm", "np"),
+                   stringsAsFactors=FALSE)
+
+  expected <- matrix(data=0, nrow=nb.genos,
+                     ncol=1+(4+4)+(3+4)+(2+3)+(2+2)+(2+2))
+  rownames(expected) <- paste0("geno", 1:nb.genos)
+  colnames(expected) <- c("intercept",
+                          "loc1.a", "loc1.b", "loc1.c", "loc1.d",
+                          "loc1.ac", "loc1.ad", "loc1.bc", "loc1.bd",
+                          "loc2.e", "loc2.f", "loc2.g",
+                          "loc2.ee", "loc2.ef", "loc2.eg", "loc2.fg",
+                          "loc3.h", "loc3.k",
+                          "loc3.hh", "loc3.hk", "loc3.kk",
+                          "loc4.l", "loc4.m",
+                          "loc4.ll", "loc4.lm",
+                          "loc5.n", "loc5.p",
+                          "loc5.nn", "loc5.np")
+  expected[, "intercept"] <- 1
+  expected["geno1", c(2,4,6, 10,13, 17,19, 22,24, 26,28)] <-
+    c(1,1,1, 2,1, 2,1, 2,1, 2,1)
+  expected["geno2", c(2,5,7, 10,12,15, 17,18,20, 22,24, 26,27,29)] <-
+    c(1,1,1, 1,1,1, 1,1,1, 2,1, 1,1,1)
+  expected["geno3", c(3,4,8, 10,11,14, 17,18,20, 22,23,25, 26,28)] <-
+    c(1,1,1, 1,1,1, 1,1,1, 1,1,1, 2,1)
+  expected["geno4", c(3,5,9, 11,12,16, 18,21, 22,23,25, 26,27,29)] <-
+    c(1,1,1, 1,1,1, 2,1, 1,1,1, 1,1,1)
+
+  observed <- joinMap2designMatrix(jm=jm, parameterization="allele",
+                                   constraints=NULL, rm.col.zeros=TRUE,
+                                   verbose=0)
+
+  expect_equal(observed, expected)
+
+  ## test rm.dom=TRUE
+  expected <- expected[, -c(6:9, 13:16, 19:21, 24:25, 28:29)]
+  observed <- joinMap2designMatrix(jm=jm, parameterization="allele",
+                                   constraints=NULL, rm.col.zeros=TRUE,
+                                   rm.dom=TRUE, verbose=0)
+  expect_equal(observed, expected)
+})
+
 test_that("filterSegreg", {
   nb.offs <- 6 # offsprings
   N <- 2 + nb.offs
