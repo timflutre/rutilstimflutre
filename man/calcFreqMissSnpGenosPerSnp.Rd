@@ -9,7 +9,7 @@ calcFreqMissSnpGenosPerSnp(X = NULL, vcf.file = NULL, yieldSize = 10000)
 \arguments{
 \item{X}{matrix of marker genotypes, with genotypes in rows and markers in columns; missing values should be encoded as NA; if not NULL, will be used in priority even if \code{vcf.file} is not NULL}
 
-\item{vcf.file}{path to the VCF file (bgzip index should exist in same directory)}
+\item{vcf.file}{path to the VCF file (if the bgzip index doesn't exist in the same directory, it will be created); used only if \code{X=NULL}}
 
 \item{yieldSize}{number of records to yield each time the VCF file is read from (see ?TabixFile)}
 }

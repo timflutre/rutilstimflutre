@@ -987,7 +987,7 @@ genoDoses2Vcf <- function(X, snp.coords, alleles, verbose=1){
 ##'
 ##' Calculate the frequency of missing genotypes for each marker.
 ##' @param X matrix of marker genotypes, with genotypes in rows and markers in columns; missing values should be encoded as NA; if not NULL, will be used in priority even if \code{vcf.file} is not NULL
-##' @param vcf.file path to the VCF file (bgzip index should exist in same directory)
+##' @param vcf.file path to the VCF file (if the bgzip index doesn't exist in the same directory, it will be created); used only if \code{X=NULL}
 ##' @param yieldSize number of records to yield each time the VCF file is read from (see ?TabixFile)
 ##' @return vector
 ##' @author Timothee Flutre
@@ -1005,6 +1005,7 @@ genoDoses2Vcf <- function(X, snp.coords, alleles, verbose=1){
 ##' }
 ##' @export
 calcFreqMissSnpGenosPerSnp <- function(X=NULL, vcf.file=NULL, yieldSize=10000){
+  requireNamespaces(c("Rsamtools", "VariantAnnotation"))
   stopifnot(! all(is.null(X), is.null(vcf.file)))
 
   out <- c()
@@ -1017,6 +1018,8 @@ calcFreqMissSnpGenosPerSnp <- function(X=NULL, vcf.file=NULL, yieldSize=10000){
   } else{
     stopifnot(file.exists(vcf.file),
               ! is.na(yieldSize))
+    if(! file.exists(paste0(vcf.file, ".tbi")))
+      Rsamtools::indexTabix(file=vcf.file, format="vcf")
     tabix.file <- Rsamtools::TabixFile(file=vcf.file,
                                        yieldSize=yieldSize)
     open(tabix.file)

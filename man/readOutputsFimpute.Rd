@@ -11,7 +11,7 @@ readOutputsFimpute(out.dir)
 Read output files from FImpute.}
 }
 \value{
-nothing
+list
 }
 \description{
 Read outputs from FImpute

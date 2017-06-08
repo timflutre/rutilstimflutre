@@ -7,7 +7,7 @@
 writePedFileFimpute(ped, ped.file)
 }
 \arguments{
-\item{ped}{data frame of pedigree with four columns in that order, genotype identifiers (same as in \code{X}), parent1 identifiers (considered as father/sire), parent2 identifiers (considered as mother/dam), and sex (as M or F); for the parents, use \code{0} for founders}
+\item{ped}{data frame of pedigree with four columns in that order, genotype identifiers (same as in \code{X}), parent1 identifiers (considered as father/sire), parent2 identifiers (considered as mother/dam), and sex (as M or F); use \code{NA} for founders' parents (will be replaced by \code{0} in the output file)}
 
 \item{ped.file}{path to the file in which the pedigree will be saved}
 }

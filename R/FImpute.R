@@ -3,7 +3,7 @@
 ##' Write pedigree for FImpute
 ##'
 ##' Write a pedigree into a file formatted for FImpute.
-##' @param ped data frame of pedigree with four columns in that order, genotype identifiers (same as in \code{X}), parent1 identifiers (considered as father/sire), parent2 identifiers (considered as mother/dam), and sex (as M or F); for the parents, use \code{0} for founders
+##' @param ped data frame of pedigree with four columns in that order, genotype identifiers (same as in \code{X}), parent1 identifiers (considered as father/sire), parent2 identifiers (considered as mother/dam), and sex (as M or F); use \code{NA} for founders' parents (will be replaced by \code{0} in the output file)
 ##' @param ped.file path to the file in which the pedigree will be saved
 ##' @return nothing
 ##' @author Timothee Flutre
@@ -16,7 +16,7 @@ writePedFileFimpute <- function(ped, ped.file){
   colnames(ped) <- c("ID", "Sire", "Dam", "Sex")
 
   utils::write.table(x=ped, file=ped.file, quote=FALSE, sep="\t",
-                     row.names=FALSE, col.names=TRUE)
+                     row.names=FALSE, col.names=TRUE, na="0")
 }
 
 ##' Write SNP information for FImpute
@@ -83,11 +83,13 @@ writeGenosFimpute <- function(X, genos.file, chips=NULL){
 ##'
 ##' Write inputs into files formatted for FImpute.
 ##' @param ctl.file path to the control file in which FImpute's configuration will be saved
-##' @param X matrix of bi-allelic SNP genotypes encoded in number of copies of the 2nd allele, i.e. as allele doses in {0,1,2}, with genotypes in rows and SNPs in columns; missing values should be encoded as NA; the maximum length of genotypes identifiers is 30 characters
+##' @param X matrix of bi-allelic SNP genotypes encoded in number of copies of the 2nd allele, i.e. as allele doses in {0,1,2}, with genotypes in rows and SNPs in columns; missing values should be encoded as NA; the maximum length of genotypes identifiers is 30 characters; if not NULL, will be used in priority even if \code{vcf.file} is not NULL
 ##' @param genos.file path to the file in which genotypes will be saved
 ##' @param chips if several microarrays were used, provide a vector with chip numbers which names are genotype identifiers (same as in \code{X})
-##' @param snp.coords data.frame with SNP identifiers as row names, and two compulsory columns in that order, chromosome identifiers and coordinate/position identifiers; the maximum length of SNP identifiers is 50 characters; chromosome identifiers should be numeric; other optional column(s) contain the SNP order on the microarray(s) (maximum 10)
+##' @param snp.coords data.frame with SNP identifiers as row names, and two compulsory columns in that order, chromosome identifiers and coordinate/position identifiers; the maximum length of SNP identifiers is 50 characters; chromosome identifiers should be numeric; other optional column(s) contain the SNP order on the microarray(s) (maximum 10); compulsory if \code{X} is specified
 ##' @param snp.info.file path to the file in which SNP information will be saved
+##' @param vcf.file path to the VCF file (if the bgzip index doesn't exist in the same directory, it will be created); used only if \code{X=NULL}
+##' @param yieldSize number of records to yield each time the file is read from  (see \code{?TabixFile})
 ##' @param ped data frame of pedigree with four columns in that order, genotype identifiers (same as in \code{X}), parent1 identifiers (considered as father/sire), parent2 identifiers (considered as mother/dam), and sex (as M or F)
 ##' @param ped.file path to the file in which the pedigree will be saved
 ##' @param title character identifying the analysis
@@ -108,22 +110,45 @@ writeGenosFimpute <- function(X, genos.file, chips=NULL){
 ##' @author Timothee Flutre
 ##' @export
 writeInputsFimpute <- function(ctl.file,
-                                  X, genos.file, chips=NULL,
-                                  snp.coords, snp.info.file,
-                                  ped=NULL, ped.file=NULL,
-                                  title="FImpute",
-                                  out.dir,
-                                  hap.lib.file=NULL, add.ungen=NULL,
-                                  parentage.test=NULL, ped.depth=NULL,
-                                  turn.off.fam=FALSE, turn.off.pop=FALSE,
-                                  save.partial=FALSE, save.genos=FALSE,
-                                  save.hap.lib=FALSE, random.fill=FALSE,
-                                  nb.jobs=1, verbose=1){
+															 X=NULL, genos.file, chips=NULL,
+															 snp.coords=NULL, snp.info.file,
+															 vcf.file=NULL, yieldSize=10000,
+															 ped=NULL, ped.file=NULL,
+															 title="FImpute",
+															 out.dir,
+															 hap.lib.file=NULL, add.ungen=NULL,
+															 parentage.test=NULL, ped.depth=NULL,
+															 turn.off.fam=FALSE, turn.off.pop=FALSE,
+															 save.partial=FALSE, save.genos=FALSE,
+															 save.hap.lib=FALSE, random.fill=FALSE,
+															 nb.jobs=1, verbose=1){
+  stopifnot(! all(is.null(X), is.null(vcf.file)))
+	if(is.null(X)){
+		file.prefix <- paste0(dirname(vcf.file), "/tmpfile-for-FImpute")
+		vcf2dosage(vcf.file=vcf.file, yieldSize=yieldSize,
+							 gdose.file=paste0(file.prefix, "_gdose.txt.gz"),
+							 ca.file=paste0(file.prefix, "_ca.txt.gz"),
+							 verbose=verbose)
+		X <- t(as.matrix(
+				utils::read.table(file=paste0(file.prefix, "_gdose.txt.gz"),
+													check.names=FALSE)))
+		snp.coords <- utils::read.table(file=paste0(file.prefix, "_ca.txt.gz"),
+																		header=TRUE, stringsAsFactors=FALSE)
+		snp.coords <- snp.coords[,1:2]
+		if(! is.numeric(snp.coords$chr))
+			snp.coords$chr <- chromNames2integers(x=snp.coords$chr)$renamed
+		## file.remove(paste0(file.prefix, c("_gdose", "_ca"), ".txt.gz"))
+	} else{
+		stopifnot(! is.null(snp.coords))
+	}
+	geno.ids <- rownames(X)
+	snp.ids <- colnames(X)
+
   stopIfNotValidGenosDose(X, check.noNA=FALSE)
-  stopifnot(all(nchar(rownames(X)) <= 30),
+  stopifnot(all(nchar(geno.ids) <= 30),
             ! is.null(genos.file),
             is.data.frame(snp.coords),
-            all(colnames(X) %in% rownames(snp.coords)),
+            all(snp.ids %in% rownames(snp.coords)),
             all(nchar(rownames(snp.coords)) <= 50),
             ncol(snp.coords) >= 2,
             is.numeric(snp.coords[,1]),
@@ -142,13 +167,13 @@ writeInputsFimpute <- function(ctl.file,
             nb.jobs > 0)
   if(! is.null(chips))
     stopifnot(is.vector(chips),
-              length(chips) == nrow(X),
+              length(chips) == length(geno.ids),
               ! is.null(names(chips)),
-              all(sort(names(chips)) == sort(rownames(X))))
+              all(sort(names(chips)) == sort(geno.ids)))
   if(! is.null(ped))
     stopifnot(is.data.frame(ped),
               ncol(ped) == 4,
-              all(rownames(X) %in% rownames(ped)),
+              all(geno.ids %in% ped[,1]),
               ! is.null(ped.file))
   if(! is.null(hap.lib.file))
     stop("support for 'hap.lib.file' not yet implemented")
@@ -169,12 +194,13 @@ writeInputsFimpute <- function(ctl.file,
   txt <- paste0("genotype_file=\"", genos.file, "\";\n")
   cat(txt, file=ctl.file, append=TRUE)
 
-  snp.coords <- snp.coords[colnames(X),]
+  snp.coords <- snp.coords[snp.ids,]
   writeSnpInfoFimpute(snp.coords, snp.info.file)
   txt <- paste0("snp_info_file=\"", snp.info.file, "\";\n")
   cat(txt, file=ctl.file, append=TRUE)
 
   if(! is.null(ped)){
+		## ped <- ped[ped$id %in% geno.ids,]
     writePedFileFimpute(ped, ped.file)
     txt <- paste0("ped_file=\"", ped.file, "\";\n")
     cat(txt, file=ctl.file, append=TRUE)
@@ -339,7 +365,7 @@ readGenosFimpute <- function(file, snp.ids, input.haplos=TRUE,
 ##'
 ##' @param out.dir directory in which the output files are saved
 ##' Read output files from FImpute.
-##' @return nothing
+##' @return list
 ##' @author Timothee Flutre
 ##' @export
 readOutputsFimpute <- function(out.dir){
@@ -384,9 +410,11 @@ readOutputsFimpute <- function(out.dir){
 ##' Genotype imputation via FImpute
 ##'
 ##' Impute SNP genotypes via FImpute (\href{http://dx.doi.org/10.1186/1471-2164-15-478}{Sargolzaei et al, 2014}).
-##' @param X matrix of bi-allelic SNP genotypes encoded in number of copies of the 2nd allele, i.e. as allele doses in {0,1,2}, with genotypes in rows and SNPs in columns
+##' @param X matrix of bi-allelic SNP genotypes encoded in number of copies of the 2nd allele, i.e. as allele doses in {0,1,2}, with genotypes in rows and SNPs in columns; missing values should be encoded as NA; the maximum length of genotypes identifiers is 30 characters; if not NULL, will be used in priority even if \code{vcf.file} is not NULL
 ##' @param chips if several microarrays were used, provide a vector with chip numbers which names are genotype identifiers (same as in \code{X})
-##' @param snp.coords data.frame with SNP identifiers as row names, and two compulsory columns in that order, chromosome identifiers and coordinate/position identifiers; the maximum length of SNP identifiers is 50 characters; chromosome identifiers should be numeric; other optional column(s) contain the SNP order on the microarray(s) (maximum 10)
+##' @param snp.coords data.frame with SNP identifiers as row names, and two compulsory columns in that order, chromosome identifiers and coordinate/position identifiers; the maximum length of SNP identifiers is 50 characters; chromosome identifiers should be numeric; other optional column(s) contain the SNP order on the microarray(s) (maximum 10); compulsory if \code{X} is specified
+##' @param vcf.file path to the VCF file (if the bgzip index doesn't exist in the same directory, it will be created); used only if \code{X=NULL}
+##' @param yieldSize number of records to yield each time the file is read from  (see \code{?TabixFile})
 ##' @param ped data frame of pedigree with four columns in that order, genotype identifiers (same as in \code{X}), parent1 identifiers (considered as father/sire), parent2 identifiers (considered as mother/dam), and sex (as M or F)
 ##' @param work.dir directory in which the input and output files will be saved
 ##' @param task.id identifier of the task (used in temporary and output file names)
@@ -445,12 +473,15 @@ readOutputsFimpute <- function(out.dir){
 ##' 100 * sum(X.imp.FI != X) / sum(is.na(X.na))
 ##' }
 ##' @export
-runFimpute <- function(X, chips=NULL, snp.coords, ped=NULL, work.dir=getwd(),
-                       task.id="fimpute", params.fimpute=NULL, clean=FALSE,
-                       verbose=1){
+runFimpute <- function(X=NULL, chips=NULL, snp.coords=NULL,
+                       vcf.file=NULL, yieldSize=10000,
+                       ped=NULL,
+                       work.dir=getwd(), task.id="fimpute",
+                       params.fimpute=NULL,
+                       clean=FALSE, verbose=1){
   exe.name <- "FImpute"
   stopifnot(file.exists(Sys.which(exe.name)))
-  stopIfNotValidGenosDose(X, check.noNA=FALSE)
+  stopifnot(! all(is.null(X), is.null(vcf.file)))
   stopifnot(is.character(task.id),
             length(task.id) == 1,
             all(! grepl(" ", task.id)))
@@ -481,9 +512,11 @@ runFimpute <- function(X, chips=NULL, snp.coords, ped=NULL, work.dir=getwd(),
                            save.hap.lib=FALSE,
                            random.fill=FALSE,
                            nb.jobs=1)
+
   writeInputsFimpute(ctl.file=tmp.files["ctl"],
                      X=X, genos.file=tmp.files["genos"], chips=chips,
                      snp.coords=snp.coords,
+										 vcf.file=vcf.file, yieldSize=yieldSize,
                      snp.info.file=tmp.files["snp.info"],
                      ped=ped, ped.file=tmp.files["ped"],
                      out.dir=out.dir,
@@ -511,8 +544,6 @@ runFimpute <- function(X, chips=NULL, snp.coords, ped=NULL, work.dir=getwd(),
                  stdout=tmp.files["stdouterr"], stderr=tmp.files["stdouterr"],
                  wait=TRUE)
 
-  if(file.exists(tmp.files["stdouterr"]))
-    out$stdouterr <- readLines(tmp.files["stdouterr"])
   if(ret != 0){
     msg <- paste0("command '", exe.name, "' returned '", ret, "'")
     warning(msg)
@@ -522,11 +553,14 @@ runFimpute <- function(X, chips=NULL, snp.coords, ped=NULL, work.dir=getwd(),
       write(msg, stdout())
     }
     out <- readOutputsFimpute(out.dir)
-    if(clean)
-      for(f in tmp.files)
-        if(file.exists(f))
-          file.remove(f)
-  }
+	}
+
+	if(file.exists(tmp.files["stdouterr"]))
+		out$stdouterr <- readLines(tmp.files["stdouterr"])
+	if(clean)
+		for(f in tmp.files)
+			if(file.exists(f))
+				file.remove(f)
 
   return(out)
 }

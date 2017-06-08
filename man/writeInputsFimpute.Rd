@@ -4,8 +4,9 @@
 \alias{writeInputsFimpute}
 \title{Write inputs for FImpute}
 \usage{
-writeInputsFimpute(ctl.file, X, genos.file, chips = NULL, snp.coords,
-  snp.info.file, ped = NULL, ped.file = NULL, title = "FImpute", out.dir,
+writeInputsFimpute(ctl.file, X = NULL, genos.file, chips = NULL,
+  snp.coords = NULL, snp.info.file, vcf.file = NULL, yieldSize = 10000,
+  ped = NULL, ped.file = NULL, title = "FImpute", out.dir,
   hap.lib.file = NULL, add.ungen = NULL, parentage.test = NULL,
   ped.depth = NULL, turn.off.fam = FALSE, turn.off.pop = FALSE,
   save.partial = FALSE, save.genos = FALSE, save.hap.lib = FALSE,
@@ -14,15 +15,19 @@ writeInputsFimpute(ctl.file, X, genos.file, chips = NULL, snp.coords,
 \arguments{
 \item{ctl.file}{path to the control file in which FImpute's configuration will be saved}
 
-\item{X}{matrix of bi-allelic SNP genotypes encoded in number of copies of the 2nd allele, i.e. as allele doses in {0,1,2}, with genotypes in rows and SNPs in columns; missing values should be encoded as NA; the maximum length of genotypes identifiers is 30 characters}
+\item{X}{matrix of bi-allelic SNP genotypes encoded in number of copies of the 2nd allele, i.e. as allele doses in {0,1,2}, with genotypes in rows and SNPs in columns; missing values should be encoded as NA; the maximum length of genotypes identifiers is 30 characters; if not NULL, will be used in priority even if \code{vcf.file} is not NULL}
 
 \item{genos.file}{path to the file in which genotypes will be saved}
 
 \item{chips}{if several microarrays were used, provide a vector with chip numbers which names are genotype identifiers (same as in \code{X})}
 
-\item{snp.coords}{data.frame with SNP identifiers as row names, and two compulsory columns in that order, chromosome identifiers and coordinate/position identifiers; the maximum length of SNP identifiers is 50 characters; chromosome identifiers should be numeric; other optional column(s) contain the SNP order on the microarray(s) (maximum 10)}
+\item{snp.coords}{data.frame with SNP identifiers as row names, and two compulsory columns in that order, chromosome identifiers and coordinate/position identifiers; the maximum length of SNP identifiers is 50 characters; chromosome identifiers should be numeric; other optional column(s) contain the SNP order on the microarray(s) (maximum 10); compulsory if \code{X} is specified}
 
 \item{snp.info.file}{path to the file in which SNP information will be saved}
+
+\item{vcf.file}{path to the VCF file (if the bgzip index doesn't exist in the same directory, it will be created); used only if \code{X=NULL}}
+
+\item{yieldSize}{number of records to yield each time the file is read from  (see \code{?TabixFile})}
 
 \item{ped}{data frame of pedigree with four columns in that order, genotype identifiers (same as in \code{X}), parent1 identifiers (considered as father/sire), parent2 identifiers (considered as mother/dam), and sex (as M or F)}
 

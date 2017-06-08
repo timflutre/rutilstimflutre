@@ -959,6 +959,40 @@ readSamDict <- function(file){
   return(out)
 }
 
+##' VCF dimensions
+##'
+##' Return the dimensions of a VCF file, i.e. the number of sites (rows) and samples (columns)
+##' @param vcf.file path to the VCF file (if the bgzip index doesn't exist in the same directory, it will be created)
+##' @param genome genome identifier (e.g. "VITVI_12x2")
+##' @param yieldSize number of records to yield each time the file is read from
+##' @return vector
+##' @author Timothee Flutre
+##' @export
+dimVcf <- function(vcf.file, genome="", yieldSize=10000){
+  requireNamespaces(c("Rsamtools", "VariantAnnotation"))
+  stopifnot(file.exists(vcf.file))
+
+  out <- stats::setNames(object=c(NA, NA), nm=c("sites", "samples"))
+
+  if(! file.exists(paste0(vcf.file, ".tbi")))
+    Rsamtools::indexTabix(file=vcf.file, format="vcf")
+  tabix.file <- Rsamtools::TabixFile(file=vcf.file,
+                                     yieldSize=yieldSize)
+  open(tabix.file)
+  hdr <- VariantAnnotation::scanVcfHeader(file=tabix.file)
+  out["samples"] <- length(VariantAnnotation::samples(hdr))
+
+  out["sites"] <- 0
+  vcf <- VariantAnnotation::readVcf(file=tabix.file, genome=genome)
+  while(nrow(vcf)){
+    out["sites"] <- out["sites"] + nrow(vcf)
+    vcf <- VariantAnnotation::readVcf(file=tabix.file, genome=genome)
+  }
+  close(tabix.file)
+
+  return(out)
+}
+
 ##' Read VCF
 ##'
 ##' Read a subset of a VCF file
