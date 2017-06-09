@@ -6,7 +6,7 @@
 \usage{
 runFimpute(X = NULL, chips = NULL, snp.coords = NULL, vcf.file = NULL,
   yieldSize = 10000, ped = NULL, work.dir = getwd(),
-  task.id = "fimpute", params.fimpute = NULL, clean = FALSE,
+  task.id = "fimpute", params.fimpute = NULL, clean = "none",
   verbose = 1)
 }
 \arguments{
@@ -28,7 +28,7 @@ runFimpute(X = NULL, chips = NULL, snp.coords = NULL, vcf.file = NULL,
 
 \item{params.fimpute}{list of additional parameters to pass to FImpute}
 
-\item{clean}{remove files}
+\item{clean}{remove files: none, some (temporary only), all (temporary and results)}
 
 \item{verbose}{verbosity level (0/1)}
 }
@@ -76,7 +76,7 @@ plotGridMissGenos(X=X.na)
 ## perform imputation
 snp.coords <- genomes$snp.coords[colnames(X.na),]
 snp.coords$chr <- as.numeric(sub("chr", "", snp.coords$chr))
-out.FI <- runFimpute(X=X.na, snp.coords=snp.coords, clean=TRUE)
+out.FI <- runFimpute(X=X.na, snp.coords=snp.coords, clean="all")
 X.imp.FI <- out.FI$genos.imp
 
 ## assess imputation accuracy

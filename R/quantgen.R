@@ -1207,7 +1207,6 @@ genoDoses2Vcf <- function(X, snp.coords, alleles, verbose=1){
 ##' }
 ##' @export
 calcFreqMissSnpGenosPerSnp <- function(X=NULL, vcf.file=NULL, yieldSize=10000){
-  requireNamespaces(c("Rsamtools", "VariantAnnotation"))
   stopifnot(! all(is.null(X), is.null(vcf.file)))
 
   out <- c()
@@ -1218,6 +1217,7 @@ calcFreqMissSnpGenosPerSnp <- function(X=NULL, vcf.file=NULL, yieldSize=10000){
     N <- nrow(X) # number of genotypes
     out <- apply(X, 2, function(Xp){sum(is.na(Xp)) / N})
   } else{
+    requireNamespaces(c("Rsamtools", "VariantAnnotation"))
     stopifnot(file.exists(vcf.file),
               ! is.na(yieldSize))
     if(! file.exists(paste0(vcf.file, ".tbi")))

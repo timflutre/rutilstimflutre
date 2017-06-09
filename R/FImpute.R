@@ -210,7 +210,7 @@ writeInputsFimpute <- function(ctl.file,
   ## cat(txt, file=ctl.file, append=TRUE)
 
   if(dir.exists(out.dir))
-    unlink(out.dir)
+    unlink(out.dir, recursive=TRUE)
   txt <- paste0("output_folder=\"", out.dir, "\";\n")
   cat(txt, file=ctl.file, append=TRUE)
 
@@ -419,7 +419,7 @@ readOutputsFimpute <- function(out.dir){
 ##' @param work.dir directory in which the input and output files will be saved
 ##' @param task.id identifier of the task (used in temporary and output file names)
 ##' @param params.fimpute list of additional parameters to pass to FImpute
-##' @param clean remove files
+##' @param clean remove files: none, some (temporary only), all (temporary and results)
 ##' @param verbose verbosity level (0/1)
 ##' @return list
 ##' @author Timothee Flutre
@@ -462,7 +462,7 @@ readOutputsFimpute <- function(out.dir){
 ##' ## perform imputation
 ##' snp.coords <- genomes$snp.coords[colnames(X.na),]
 ##' snp.coords$chr <- as.numeric(sub("chr", "", snp.coords$chr))
-##' out.FI <- runFimpute(X=X.na, snp.coords=snp.coords, clean=TRUE)
+##' out.FI <- runFimpute(X=X.na, snp.coords=snp.coords, clean="all")
 ##' X.imp.FI <- out.FI$genos.imp
 ##'
 ##' ## assess imputation accuracy
@@ -478,13 +478,14 @@ runFimpute <- function(X=NULL, chips=NULL, snp.coords=NULL,
                        ped=NULL,
                        work.dir=getwd(), task.id="fimpute",
                        params.fimpute=NULL,
-                       clean=FALSE, verbose=1){
+                       clean="none", verbose=1){
   exe.name <- "FImpute"
   stopifnot(file.exists(Sys.which(exe.name)))
   stopifnot(! all(is.null(X), is.null(vcf.file)))
   stopifnot(is.character(task.id),
             length(task.id) == 1,
-            all(! grepl(" ", task.id)))
+            all(! grepl(" ", task.id)),
+            clean %in% c("none", "some", "all"))
   if(! is.null(params.fimpute))
     stopifnot(is.list(params.fimpute))
 
@@ -557,10 +558,13 @@ runFimpute <- function(X=NULL, chips=NULL, snp.coords=NULL,
 
 	if(file.exists(tmp.files["stdouterr"]))
 		out$stdouterr <- readLines(tmp.files["stdouterr"])
-	if(clean)
+	if(clean != "none"){
 		for(f in tmp.files)
 			if(file.exists(f))
 				file.remove(f)
+    if(clean == "all")
+      unlink(out.dir, recursive=TRUE)
+  }
 
   return(out)
 }
