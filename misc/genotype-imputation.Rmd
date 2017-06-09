@@ -1,0 +1,306 @@
+---
+title: "Genotype imputation"
+author: "Timothée Flutre (INRA)"
+date: "`r format(Sys.time(), '%d/%m/%Y %H:%M:%S')`"
+colorlinks: true
+output:
+  html_document:
+    toc: true
+    toc_depth: 3
+    toc_float: true
+    number_sections: TRUE
+  pdf_document:
+    toc: true
+    toc_depth: 3
+    number_sections: TRUE
+urlcolor: blue
+---
+
+<!--
+This R chunk is used to set up some options.
+-->
+```{r setup, include=FALSE}
+R.v.maj <- as.numeric(R.version$major)
+R.v.min.1 <- as.numeric(strsplit(R.version$minor, "\\.")[[1]][1])
+if(R.v.maj < 2 || (R.v.maj == 2 && R.v.min.1 < 15))
+  stop("requires R >= 2.15", call.=FALSE)
+
+suppressPackageStartupMessages(library(knitr))
+opts_chunk$set(echo=TRUE, warning=TRUE, message=TRUE, cache=FALSE, fig.align="center")
+```
+
+
+# Overview
+
+This document requires external packages to be available:
+```{r load_pkg}
+library(rutilstimflutre)
+library(scrm)
+stopifnot(file.exists(Sys.which("FImpute")))
+```
+
+This R chunk is used to assess how much time it takes to execute the R code in this document until the end:
+```{r time_0}
+t0 <- proc.time()
+```
+
+
+# Simulate genetic data at HWE
+
+Set the seed:
+```{r, set_seed}
+set.seed(1859)
+```
+
+Simulate haplotypes and genotypes in a single population:
+```{r simul_haplos_genos}
+nb.genos <- 1*10^3
+nb.chrs <- 2
+Ne <- 10^4
+chrom.len <- 1*10^6
+mu <- 10^(-8)
+c.rec <- 10^(-8)
+genomes <- simulCoalescent(nb.inds=nb.genos,
+                           nb.reps=nb.chrs,
+                           pop.mut.rate=4 * Ne * mu * chrom.len,
+                           pop.recomb.rate=4 * Ne * c.rec * chrom.len,
+                           chrom.len=chrom.len,
+                           get.alleles=TRUE)
+afs.hwe <- estimSnpAf(X=genomes$genos)
+plotHistAllelFreq(afs=afs.hwe,
+                  main="Allele frequencies at HWE")
+mafs.hwe <- estimSnpMaf(afs=afs.hwe)
+plotHistMinAllelFreq(mafs=mafs.hwe,
+                     main="Minor allele frequencies at HWE")
+A.vr.hwe <- estimGenRel(X=genomes$genos, afs=afs.hwe, method="vanraden1")
+imageWithScale(A.vr.hwe,
+               main="Additive genetic relationships at HWE")
+summary(diag(A.vr.hwe))
+hist(diag(A.vr.hwe), col="grey", border="white")
+summary(A.vr.hwe[upper.tri(A.vr.hwe)])
+hist(A.vr.hwe[upper.tri(A.vr.hwe)], col="grey", border="white")
+```
+
+
+# Perform controlled crosses
+
+Choose 4 individuals at random as grand-parents:
+```{r, choose_gdparents}
+(idx.gdparents <- sample.int(n=nb.genos, size=4))
+genos.gdparents <- genomes$genos[idx.gdparents,]
+names.gdparents <- rownames(genos.gdparents)
+haplos.gdparents <- getHaplosInds(haplos=genomes$haplos,
+                                  ind.names=names.gdparents)
+```
+
+Make 2 pairs and cross each pair once, to make parents:
+```{r, crosse_to_make_parents}
+name.par1 <- paste0(idx.gdparents[1], "x", idx.gdparents[2], "-1")
+name.par2 <- paste0(idx.gdparents[3], "x", idx.gdparents[4], "-1")
+(crosses.par <- data.frame(parent1=c(names.gdparents[1], names.gdparents[3]),
+                           parent2=c(names.gdparents[2], names.gdparents[4]),
+                           child=c(name.par1, name.par2),
+                           stringsAsFactors=FALSE))
+loc.crovers.par <- drawLocCrossovers(crosses=crosses.par,
+                                     nb.snps=sapply(haplos.gdparents, ncol))
+haplos.par <- makeCrosses(haplos=haplos.gdparents, crosses=crosses.par,
+                          loc.crossovers=loc.crovers.par)
+genos.par <- segSites2allDoses(seg.sites=haplos.par,
+                               ind.ids=getIndNamesFromHaplos(haplos.par),
+                               snp.ids=rownames(genomes$snp.coords))
+```
+
+Cross them several times to make offsprings:
+```{r, crosse_to_make_offsprings}
+nb.offs <- 200
+names.offs <- paste0("off-",
+                     sprintf(fmt=paste0("%0", floor(log10(nb.offs))+1, "i"),
+                             1:nb.offs))
+head(crosses.off <- data.frame(parent1=rep(name.par1, nb.offs),
+                               parent2=rep(name.par2, nb.offs),
+                               child=names.offs,
+                               stringsAsFactors=FALSE))
+loc.crovers.off <- drawLocCrossovers(crosses=crosses.off,
+                                     nb.snps=sapply(haplos.par, ncol))
+haplos.offs <- makeCrosses(haplos=haplos.par, crosses=crosses.off,
+                           loc.crossovers=loc.crovers.off)
+genos.offs <- segSites2allDoses(seg.sites=haplos.offs,
+                                ind.ids=getIndNamesFromHaplos(haplos.offs),
+                                snp.ids=rownames(genomes$snp.coords))
+```
+
+Plot pedigree:
+```{r, plot_ped}
+ped <- data.frame(ind=c(names.gdparents,
+                        crosses.par$child,
+                        crosses.off$child),
+                  mother=c(rep(NA, length(names.gdparents)),
+                           crosses.par$parent1,
+                           crosses.off$parent1),
+                  father=c(rep(NA, length(names.gdparents)),
+                           crosses.par$parent2,
+                           crosses.off$parent2),
+                  gen=c(rep(-1, length(names.gdparents)),
+                        rep(0, nrow(crosses.par)),
+                        rep(1, nrow(crosses.off))),
+                  stringsAsFactors=FALSE)
+ped.tmp <- rbind(ped[1:7,],
+                 c(ind="off-..", ped[7, -1]),
+                 c(ind="off-...", ped[7, -1]),
+                 c(ind="off-....", ped[7, -1]),
+                 ped[nrow(ped),])
+plotPedigree(inds=ped.tmp$ind, mothers=ped.tmp$mother, fathers=ped.tmp$father,
+             generations=ped.tmp$gen, main="Pedigree of the controlled crosses")
+```
+
+Check additive genetic relationships:
+```{r, add_gen_rel}
+A.vr.cross <- estimGenRel(X=rbind(genos.gdparents, genos.par, genos.offs),
+                         afs=afs.hwe, method="vanraden1")
+A.t.cross <- estimGenRel(X=rbind(genos.gdparents, genos.par, genos.offs),
+                         afs=afs.hwe, method="toro2011_eq10")
+cor(c(A.vr.cross), c(A.t.cross))
+imageWithScale(A.vr.cross, main="Additive genetic relationships of crosses")
+imageWithScale(A.vr.cross[1:10, 1:10],
+               main="Additive genetic relationships of crosses (subset)",
+               idx.rownames=1:10, idx.colnames=1:10)
+summary(diag(A.vr.cross))
+summary(A.vr.cross[upper.tri(A.vr.cross)])
+summary(A.vr.cross[name.par1, grep("off", colnames(A.vr.cross))])
+summary(A.vr.cross[name.par2, grep("off", colnames(A.vr.cross))])
+summary(A.t.cross[name.par1, grep("off", colnames(A.t.cross))])
+summary(A.t.cross[name.par2, grep("off", colnames(A.t.cross))])
+```
+
+As expected, the additive genetic relationships between all parent-child pairs are around 0.5, corresponding to a coancestry coefficient of 1/4.
+
+Impact of not using the allele frequencies estimated from the original population at HWE, on the estimation of additive genetic relationships:
+```{r, add_gen_rel_allfreq}
+A.vr.cross <- estimGenRel(X=rbind(genos.gdparents, genos.par, genos.offs),
+                          method="vanraden1")
+A.t.cross <- estimGenRel(X=rbind(genos.gdparents, genos.par, genos.offs),
+                         method="toro2011_eq10")
+cor(c(A.vr.cross), c(A.t.cross))
+summary(A.vr.cross[name.par1, grep("off", colnames(A.vr.cross))])
+summary(A.vr.cross[name.par2, grep("off", colnames(A.vr.cross))])
+summary(A.t.cross[name.par1, grep("off", colnames(A.t.cross))])
+summary(A.t.cross[name.par2, grep("off", colnames(A.t.cross))])
+```
+
+In that case, we don't retrieve the theoretical coancestry coefficient of 1/4.
+But note that for predicting BLUPs of breeding values, it should not matter (see Stranden and Christensen, 2011).
+
+
+# Mimick genotyping by sequencing
+
+Discard SNP genotypes according to a "GBS" design, i.e. all genotypes and SNPs have NA, but with a skewed distribution (30% of the sites with 0-0.05% NA, 17% of the sites with 0.05-0.1% NA, 8% with 0.1-0.15% NA, and the remaining sites with a uniformly-increasing amount of NA):
+```{r, gbs}
+dim(X <- rbind(genos.gdparents, genos.par, genos.offs))
+X.na <- X
+bin.width <- 0.05
+max.prop <- 0.9
+bin.mids <- seq(from=bin.width/2, to=max.prop, by=bin.width)
+bin.heights <- c(0.3, 0.17, 0.08,
+                 rep((1-(0.3+0.17+0.08))/(length(bin.mids) - 3),
+                     length(bin.mids) - 3))
+stopifnot(sum(bin.heights) == 1)
+assigned.bins <- cut(x=1:ncol(X),
+                     breaks=floor(ncol(X) * cumsum(c(0, bin.heights))),
+                     labels=FALSE)
+assigned.bins <- sample(assigned.bins) # shuffle the bins among SNPs
+table(assigned.bins)
+bin.probs <- seq(from=0, to=max.prop, length.out=length(bin.mids))
+## for each SNP, sample genotype indices to set as missing
+idx1 <- sapply(1:ncol(X), function(j){
+  sample.int(n=nrow(X), size=round(bin.probs[assigned.bins[j]] * nrow(X)))
+})
+idx2 <- do.call(c, lapply(1:length(idx1), function(j){
+  ((j-1) * nrow(X)) + idx1[[j]]
+}))
+X.na[idx2] <- NA
+sum(is.na(X.na))
+sum(is.na(X.na)) / length(X.na)
+```
+
+Plot grid of missing SNP genotypes:
+```{r}
+plotGridMissGenos(X=X.na)
+```
+
+Plot histogram of NA proportions (same as fig S4 of Chan et al, 2016):
+```{r}
+miss.snps <- calcFreqMissSnpGenosPerSnp(X=X.na)
+hist(miss.snps, breaks=seq(0,1,0.05), col="grey", border="white",
+     main="Distribution of the proportion of missing data per biallelic SNP",
+     xlab="proportion of missing data at a given SNP",
+     ylab="number of SNPs")
+```
+
+
+# Perform imputation
+
+```{r, imputation}
+snp.coords <- genomes$snp.coords[colnames(X.na),]
+snp.coords$chr <- as.numeric(sub("chr", "", snp.coords$chr))
+system.time(
+    out.FI <- runFimpute(X=X.na, snp.coords=snp.coords, clean="all"))
+names(out.FI)
+X.imp.FI <- out.FI$genos.imp
+```
+
+Use the pedigree:
+```{r, imputation_ped}
+ped.FI <- data.frame(id=ped$ind,
+                     father=ped$father,
+                     mother=ped$mother,
+                     sex=NA,
+                     stringsAsFactors=FALSE)
+ped.FI$sex[1:6] <- c("F","M","F","M", "F","M")
+ped.FI$sex[-c(1:6)] <- sample(c("F","M"), size=nrow(ped.FI)-6, replace=TRUE)
+head(ped.FI, 10)
+system.time(
+    out.FI.ped <- runFimpute(X=X.na, snp.coords=snp.coords,
+                             ped=ped.FI, clean="all"))
+X.imp.FI.ped <- out.FI.ped$genos.imp
+```
+
+
+# Assess accuracy
+
+Accuracy of imputation without the pedigree:
+```{r, assess_accuracy}
+length(X)
+sum(X.na == X, na.rm=TRUE)
+sum(is.na(X.na))
+sum(X.imp.FI == X)
+sum(X.imp.FI != X)
+sum(X.imp.FI != X) / sum(is.na(X.na))
+```
+
+Check additive genetic relationships:
+```{r}
+A.vr.cross.imp <- estimGenRel(X=X.imp.FI, afs=afs.hwe)
+summary(A.vr.cross.imp[name.par1, grep("off", colnames(A.vr.cross.imp))])
+summary(A.vr.cross.imp[name.par2, grep("off", colnames(A.vr.cross.imp))])
+```
+
+Accuracy of imputation with the pedigree:
+```{r, assess_accuracy_ped}
+sum(X.imp.FI.ped == X)
+sum(X.imp.FI.ped != X)
+sum(X.imp.FI.ped != X) / sum(is.na(X.na))
+```
+
+Comparison:
+```{r}
+length(idx.pedwrong <- which(X.imp.FI == X & X.imp.FI.ped != X))
+length(idx.pedright <- which(X.imp.FI.ped == X & X.imp.FI != X))
+```
+
+
+# Appendix
+
+```{r info}
+t1 <- proc.time(); t1 - t0
+print(sessionInfo(), locale=FALSE)
+```

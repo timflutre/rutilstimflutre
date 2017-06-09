@@ -1,0 +1,327 @@
+---
+title: "Introduction to the Gibbs sampler"
+author: "Timothée Flutre (Inra)"
+date: "`r format(Sys.time(), '%d/%m/%Y %H:%M:%S')`"
+output:
+  rmarkdown::html_vignette:
+    toc: true
+  html_document:
+    toc: true
+    toc_depth: 3
+    toc_float: true
+    number_sections: TRUE
+  pdf_document:
+    toc: true
+    toc_depth: 3
+    number_sections: TRUE
+vignette: >
+  %\VignetteIndexEntry{Intro to Gibbs sampler}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+<!--
+setwd("~/src/rutilstimflutre/vignettes/")
+
+library(devtools)
+build_vignettes()
+
+library(rmarkdown)
+render("intro-Gibbs-sampler.Rmd", "html_document")
+-->
+
+# Preamble
+
+License: [CC BY-SA 4.0](http://creativecommons.org/licenses/by-sa/4.0/)
+
+References:
+
+* Gelman *et al*, (2004), Bayesian Data Analysis
+
+* http://galton.uchicago.edu/~eichler/stat24600/Handouts/s09.pdf
+
+
+# Example based on the Normal model
+
+## Data
+
+Let us imagine we measured height of $N$ plants from the same wheat variety.
+As the data display some variation, we will use $N$ random variables, $Y_1,\ldots,Y_N$, as a useful abstraction to capture such a variation.
+For each of them, we have a single realization, noted $y_1,\ldots,y_N$.
+The data set hence is:
+
+\[
+\mathcal{D} = \{y_1, \ldots, y_N \}
+\]
+
+Let us assume they all come from the same Normal distribution, specified by its mean, $\mu$, and variance, $\sigma^2$.
+The parameter set hence is:
+
+\[
+\Theta = \{ \mu, \sigma^2 \}
+\]
+
+Furthermore, we also assume that all observations are exchangeable, i.e. conditionally independent given the parameters:
+
+\[
+\forall i \in \{1,\ldots,N\}, \; y_i | \mu, \sigma^2 \overset{\text{i.i.d.}}{\sim} \mathcal{N}(\mu, \sigma^2)
+\]
+
+The likelihood hence can be written as:
+
+\begin{align}
+\mathcal{L}(\Theta; \mathcal{D}) &= p(\mathcal{D} \, | \, \Theta) \\
+&= \prod_{i=1}^N p(y_i \, | \, \mu, \sigma^2) \\
+&= \prod_{i=1}^N \frac{1}{\sigma \sqrt{2 \pi}} \exp \left( - \frac{1}{2} \frac{(y_i - \mu)^2}{\sigma^2}\right)
+\end{align}
+
+
+## Simulation
+
+```{r normal-model_simul, fig.width=7, fig.height=5}
+set.seed(1859)
+N <- 200
+mu <- 52
+sigma <- 4
+y <- rnorm(n=N, mean=mu, sd=sigma)
+hist(y, breaks="FD", col="grey", border="white", las=1)
+```
+
+
+## Inference
+
+### Conjuguate prior assuming unknown mean but known variance
+
+See section 2.6 "Estimating the mean of a normal distribution with known variance", from Gelman *et al* (2004), page 46.
+
+The likelihood of a single data point, say $y_i$, is Normal, as the exponential of a quadratic form.
+A conjuguate prior hence also is Normal: $\mu \sim \mathcal{N}(\mu_0, \sigma_0^2)$.
+And so is the posterior: $\mu | y_i \sim \mathcal{N}(\mu_1, \sigma_1^2)$ with $\frac{1}{\sigma_1^2} = \frac{1}{\sigma_0^2} + \frac{1}{\sigma^2}$ and $\mu_1 = \frac{\frac{1}{\sigma_0^2} \mu_0 + \frac{1}{\sigma^2} y_i}{\frac{1}{\sigma_1^2}}$.
+
+Now with all data points:
+
+\begin{align}
+p(\mu | \boldsymbol{y}) &= p(\mu) \prod_i p(y_i |\mu) \\
+&\propto \exp \left( -\frac{1}{2} \left[ \frac{1}{\sigma_0^2} (\mu - \mu_0)^2 + \frac{1}{\sigma^2} \sum_i (y_i - \mu)^2 \right] \right)
+\end{align}
+
+After algebraic manipulations: $\mu | \boldsymbol{y} \sim \mathcal{N}(\mu_N, \sigma_N^2)$ with $\frac{1}{\sigma_N^2} = \frac{1}{\sigma_0^2} + \frac{N}{\sigma^2}$ and $\mu_N = \frac{\frac{1}{\sigma_0^2} \mu_0 + \frac{N}{\sigma^2} \bar{y}}{\frac{1}{\sigma_1^2}}$.
+
+When assuming unknown mean but known variance, we can see that, with $N$ fixed, as $\sigma_0^2 \rightarrow + \infty$, then $\mu|\boldsymbol{y} \sim \mathcal{N}(\bar{y}, \sigma^2 / N)$.
+
+
+### Conjuguate prior assuming unknown variance but known mean
+
+See section 2.7 "Other standard single-parameter models", from Gelman *et al* (2004), page 49.
+
+The likelihood is: $p(\boldsymbol{y} | \sigma^2) \propto (\sigma^2)^{-N/2} \exp \left( - \frac{N}{2 \sigma^2} v \right)$, where $v = \frac{1}{N} \sum_i (y_i - \mu)^2$.
+
+The corresponding conjuguate prior is: $p(\sigma^2) \propto (\sigma^2)^{-(\nu_0+1)} \exp \left( - \frac{\sigma_0^2}{\sigma^2} \right)$.
+It is a scaled inverse-$\chi^2$ distribution with $\nu_0$ degrees of freedom and scale $\sigma_0^2$.
+It is equivalent to an inverse gamma distribution, $\text{Inv}-\Gamma$, with shape $\nu_0 / 2$ and scale $(\nu_0 / 2) \times \sigma_0^2$ (see page 574 of Gelman *et al*).
+
+The resulting posterior is: $\sigma^2 | \boldsymbol{y} \sim \text{Inv}-\chi^2 \left( \nu_0 + N, \frac{\nu_0 \sigma_0^2 + N v}{\nu_0 + N} \right)$.
+
+If the prior degrees of freedom $\nu_0$ is small relative to the data degrees of freedom $N$, then the posterior is approximately as if $\nu_0 = 0$, that is: $\sigma^2 | \boldsymbol{y} \sim \text{Inv}-\chi^2 (N, v)$.
+This limiting form of the posterior also corresponds to the prior $p(\sigma^2) \propto 1 / \sigma^2$.
+
+
+### Non-informative prior assuming unknown mean and variance
+
+See section 2.9 "Noninformative prior distributions", from Gelman *et al* (2004), page 61.
+
+Realizing that $\mu$ is a pure *location parameter* and aiming at a non-informative prior implies a Uniform distribution on $\mu$, that is $p(\mu) \propto \text{constant}$ over the range $]-\infty, +\infty[$.
+
+Realizing that $\sigma$ is a pure *scale parameter* and aiming at a non-informative prior implies a Uniform distribution on $\log(\sigma)$, that is $p(\log(\sigma)) \propto 1$, or $p(\sigma^2) \propto 1 / \sigma^2$.
+
+Here, we will thus choose a so-called "non-informative" prior using these Uniform distributions. See section 3.2 "Normal data with a noninformative prior distribution", from Gelman *et al* (2004), page 74.
+
+\begin{align}
+p(\Theta) &= p(\mu, \sigma^2) \\
+&= p(\mu) \times p(\sigma^2) \\
+&\propto 1 / \sigma^2
+\end{align}
+
+With this prior, the joint posterior is:
+
+\begin{align}
+p(\mu, \sigma^2 | \boldsymbol{y}) &\propto \sigma^{-N-2} \exp \left( - \frac{1}{2 \sigma^2} \sum_i (y_i - \mu)^2 \right) \\
+&= \sigma^{-N-2} \exp \left( - \frac{1}{2 \sigma^2} [(N-1)s^2 + N(\bar{y} - \mu)^2] \right)
+\end{align}
+
+where $s^2 = \frac{1}{N-1} \sum_i (y_i - \bar{y}) ^2$.
+
+However, we are mostly interested in $\mu$, and $\sigma^2$ is seen as a nuisance parameter.
+Assuming $\sigma^2$ known, it is easy to see that the conditional posterior for $\mu$ is: $\mu | \sigma^2, \boldsymbol{y} \sim \mathcal{N}(\bar{y}, \sigma^2 / N)$.
+Now, the marginal posterior for $\sigma^2$ is: $\sigma^2 | \boldsymbol{y} \sim \text{Inv}-\chi^2 (N-1, s^2)$.
+
+As it rarely happens, for this model, we can also derive the marginal posterior distribution for $\mu$ in closed form, which is Student' $t$: $\mu | \boldsymbol{y} \sim t(\bar{y}, s^2 / N)$.
+
+
+### Implementation
+
+Even though we can here directly sample from the marginal posterior of $\mu$, this is rarely the case in practice.
+But having closed form for $\sigma^2 | \boldsymbol{y}$ and $\mu | \sigma^2, \boldsymbol{y}$ allows to use the Gibbs sampler.
+See section 11.3 "The Gibbs sampler" from Gelman *et al* (2004), page 287.
+
+```{r normal-model_implem}
+##' Gibbs sampler
+##'
+##' Perform inference with the Gibbs sampelr for the Normal model with non-informative priors for the mean and variance. Caution, the goal of the function is pedagogy, not efficiency.
+##' @param y vector of data; missing data should be encoded as NA and will be ignored
+##' @param seeds vector of seeds for the pseudo-random number generator; one per chain (see \code{\link[base]{set.seed}})
+##' @param init list with initial parameters' values; same for all chains; if NULL, default values will be used
+##' @param nb.chains number of chains
+##' @param nb.iters number of iterations per chain; same for all chains
+##' @param nb.cores number of cores to use (see \code{\link[parallel]{mclapply}))
+##' @param verbose verbosity level (0/1)
+##' @return list with one matrix per chain, with iterations in rows and parameters in columns
+##' @author Timothee Flutre
+##' @export 
+gibbsSamplerNormalModel <- function(y, seeds=NULL, init=NULL, nb.chains=2,
+                                    nb.iters=10^3, nb.cores=1, verbose=1){
+  stopifnot(is.vector(y))
+  if(! is.null(seeds))
+    stopifnot(is.vector(seeds),
+              length(seeds) == nb.chains)
+  if(! is.null(init))
+    stopifnot(is.list(init),
+              ! is.null(names(init)),
+              "sigma2" %in% names(init))
+
+  ## discard the missing data and compute the sufficient statistics
+  y <- y[stats::complete.cases(y)]
+  N <- length(y)
+  y.bar <- mean(y)
+  s2 <- (1 / (N - 1)) * sum((y - y.bar)^2)
+  if(verbose > 0){
+    msg <- paste0("N=", N,
+                  " y.bar=", format(y.bar, digits=2),
+                  " s2=", format(s2, digits=2))
+    write(msg, stdout())
+  }
+
+  ## prepare the requirements for the sampler
+  if(is.null(seeds))
+    seeds <- sample.int(n=nb.chains, size=10^6)
+  rinvgamma <- function(n, shape, scale){
+    stopifnot(shape > 0, scale > 0)
+    1 / stats::rgamma(n=n, shape=shape, scale=1 /scale)
+  }
+  rscalinvchisq <- function(n, df, scale){
+    stopifnot(df > 0, scale > 0)
+    rinvgamma(n=n, shape=df / 2, scale=(df / 2) * scale)
+  }
+
+  ## run the Gibbs sampler
+  post.samples <- parallel::mclapply(1:nb.chains, function(c){
+    if(verbose > 0){
+      write(paste("chain", c), stdout())
+      pb <- txtProgressBar(style=3)
+    }
+
+    set.seed(seeds[c])
+    out <- matrix(data=NA, nrow=nb.iters, ncol=2)
+    colnames(out) <- c("sigma2", "mu")
+
+    if(! is.null(init)){
+      sigma2 <- init$sigma2
+    } else
+      sigma2 <- rscalinvchisq(n=1, df=N - 1, scale=s2)
+    for(i in 1:nb.iters){
+      if(verbose > 0)
+        setTxtProgressBar(pb, i)
+      mu <- stats::rnorm(n=1, mean=y.bar, sd=sqrt(sigma2 / N))
+      sigma2 <- rscalinvchisq(n=1, df=N - 1, scale=s2)
+      out[i, "mu"] <- mu
+      out[i, "sigma2"] <- sigma2
+    }
+
+    close(pb)
+
+    return(out)
+  }, mc.silent=ifelse(verbose == 0, TRUE, FALSE), mc.cores=nb.cores)
+
+  return(post.samples)
+}
+```
+
+
+### Execution
+
+```{r normal-model_exec, eval=TRUE}
+out <- gibbsSamplerNormalModel(y=y, seeds=c(1859, 9581), nb.chains=2,
+                               nb.iters=10^3, nb.cores=1, verbose=1)
+```
+
+
+## Evaluation
+
+### Convergence
+
+Requires the [coda](https://cran.r-project.org/web/packages/coda/) package:
+
+```{r normal-model_eval, eval=TRUE, fig.width=7, fig.height=5}
+if(require(coda)){
+  out <- coda::as.mcmc.list(lapply(out, as.mcmc))
+  for(c in 1:length(out)){
+    print(paste("chain", c))
+    rutilstimflutre::plotMcmcChain(out[[c]], "mu", pe=mu)
+    rutilstimflutre::plotMcmcChain(out[[c]], "sigma2", pe=sigma^2)
+  }
+  print(gelman.diag(out))
+  print(geweke.diag(out))
+  print(heidel.diag(out))
+  print(raftery.diag(out, q=0.5, r=0.05)  )
+}
+```
+
+Based on the diagnostics, we can assume that convergence has occurred.
+Moreover, a small number of burn-in iterations can be discarded, but no thinning is necessary.
+
+
+### Posteriors
+
+```{r normal-model_posteriors, fig.width=7, fig.height=5}
+if(require(coda)){
+  burnin <- 100
+  thin <- 1
+  out <- window(x=out, start=1 + burnin, end=nrow(out[[1]]), thin=thin)
+  print(summary(out))
+  print(effectiveSize(out))
+  plot(as.vector(out[[1]][,"mu"]), as.vector(out[[1]][,"sigma2"]),
+       xlab="mu", ylab="sigma2", las=1,
+       main="Joint posterior distribution")
+  points(as.vector(out[[1]][,"mu"]), as.vector(out[[1]][,"sigma2"]))
+}
+```
+
+
+# Example based on the multiple linear regression
+
+## Data
+
+...
+
+## Simulation
+
+...
+
+## Inference
+
+...
+
+## Implementation
+
+...
+
+## Evaluation
+
+...
+
+
+# Appendix
+
+```{r info}
+print(sessionInfo(), locale=FALSE)
+```
