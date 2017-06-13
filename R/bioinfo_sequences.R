@@ -2264,6 +2264,96 @@ vcf2genoClasses <- function(vcf.file, genome="", gclasses.file, ca.file,
                  ca.file=paste0(ca.file, ".gz")))
 }
 
+##' Missing genotypes in VCF
+##'
+##' Calculate the frequency of missing genotypes for each marker.
+##' @param vcf CollapsedVCF (see pkg \href{http://bioconductor.org/packages/VariantAnnotation/}{VariantAnnotation})
+##' @param with.coords if TRUE, a GRanges object is returned
+##' @return numeric vector or GRanges
+##' @author Timothee Flutre
+##' @export
+calcFreqNaVcf <- function(vcf, with.coords=FALSE){
+  requireNamespaces(c("VariantAnnotation", "SummarizedExperiment", "S4Vectors"))
+
+  gt <- VariantAnnotation::geno(vcf)$GT
+  nb.samples <- ncol(gt)
+  isMissing <- matrix(data=gt %in% c("./.", "."), nrow=nrow(gt),
+                      ncol=ncol(gt), dimnames=dimnames(gt))
+  freqNa <-  rowSums(isMissing) / nb.samples
+
+  if(with.coords){
+    gr <- SummarizedExperiment::rowRanges(vcf)
+    S4Vectors::mcols(gr)$freqNa <- freqNa
+    return(gr)
+  } else
+    return(freqNa)
+}
+
+##' Plot VCF
+##'
+##' Plot markers from a VCF file along chromosomes, colored according to their percentage of missing genotypes.
+##' @param vcf.file path to the VCF file (if the bgzip index doesn't exist in the same directory, it will be created)
+##' @param yieldSize number of records to yield each time the file is read from (see \code{?TabixFile}) if seq.id is NULL
+##' @param dict.file path to the SAM dict file (see \url{https://broadinstitute.github.io/picard/command-line-overview.html#CreateSequenceDictionary}) if seq.id is specified with no start/end
+##' @param seq.id sequence identifier to work on (e.g. "chr2")
+##' @param seq.start start of the sequence to work on (if NULL, whole seq)
+##' @param seq.end end of the sequence to work on (if NULL, whole seq)
+##' @param main main title of the plot
+##' @param plot.it if TRUE, \code{autoplot} from the ggbio package will be used
+##' @return GenomicRange
+##' @author Timothee Flutre
+##' @export
+plotVcfPercNa <- function(vcf.file, yieldSize=NA_integer_, dict.file=NULL,
+                          seq.id=NULL, seq.start=NULL, seq.end=NULL,
+                          main="Density of missing genotypes",
+                          plot.it=TRUE){
+  requireNamespaces(c("Rsamtools", "VariantAnnotation", "SummarizedExperiment",
+                      "S4Vectors"))
+  if(plot.it)
+    requireNamespaces(c("ggplot2", "ggbio"))
+  stopifnot(file.exists(vcf.file),
+            xor(is.na(yieldSize), is.null(seq.id)))
+  if(! is.null(seq.id) & is.null(seq.start) & is.null(seq.end))
+    stopifnot(! is.null(dict.file),
+              file.exists(dict.file))
+
+  if(! file.exists(paste0(vcf.file, ".tbi")))
+    Rsamtools::indexTabix(file=vcf.file, format="vcf")
+  tabix.file <- Rsamtools::TabixFile(file=vcf.file,
+                                     yieldSize=yieldSize)
+  open(tabix.file)
+
+  if(! is.null(seq.id)){
+    rngs <- seqIdStartEnd2GRanges(seq.id=seq.id, seq.start=seq.start,
+                                  seq.end=seq.end, dict.file=dict.file)
+    vcf.params <- VariantAnnotation::ScanVcfParam(which=rngs)
+    vcf <- VariantAnnotation::readVcf(file=tabix.file, genome="",
+                                      param=vcf.params)
+    gr <- calcFreqNaVcf(vcf=vcf, with.coords=TRUE)
+  } else{
+    vcf <- VariantAnnotation::readVcf(file=tabix.file, genome="")
+    gr <- calcFreqNaVcf(vcf=vcf, with.coords=TRUE)
+    vcf <- VariantAnnotation::readVcf(file=tabix.file, genome="")
+    while(nrow(vcf)){
+      gr <- c(gr, calcFreqNaVcf(vcf=vcf, with.coords=TRUE))
+      vcf <- VariantAnnotation::readVcf(file=tabix.file, genome="")
+    }
+  }
+
+  close(tabix.file)
+
+  if(plot.it){
+    percNa <- 100 * S4Vectors::mcols(gr)$freqNa # avoid NOTE in "R CMD check"
+    S4Vectors::mcols(gr)$percNa <- percNa
+    p <- ggbio::autoplot(gr, layout="karyogram",
+                         ggplot2::aes(color=percNa, fill=percNa),
+                         main=main)
+    print(p)
+  }
+
+  invisible(gr)
+}
+
 ##' Read PLINK
 ##'
 ##' Read output files from the \href{https://www.cog-genomics.org/plink2}{PLINK} software used with the \code{--mendel} option.

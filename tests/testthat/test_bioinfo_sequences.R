@@ -525,6 +525,24 @@ test_that("vcf2genoClasses", {
   }
 })
 
+test_that("calcFreqNaVcf", {
+  if(all(requireNamespace("S4Vectors"),
+         requireNamespace("VariantAnnotation"),
+         requireNamespace("SummarizedExperiment"))){
+    vcf.file <- system.file("extdata", "example.vcf",
+                            package="rutilstimflutre")
+    vcf <- VariantAnnotation::readVcf(vcf.file, genome="")
+    N <- 3
+    snp.ids <- c("snp1", "snp2", "indel1")
+
+    expected <- setNames(c(0/N, 2/N, 0/N), snp.ids)
+
+    observed <- calcFreqNaVcf(vcf=vcf, with.coords=FALSE)
+
+    expect_equal(observed, expected)
+  }
+})
+
 test_that("invertGRanges", {
   if(all(requireNamespace("S4Vectors"),
          requireNamespace("BiocGenerics"),

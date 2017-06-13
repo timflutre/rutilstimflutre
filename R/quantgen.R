@@ -1225,15 +1225,10 @@ calcFreqMissSnpGenosPerSnp <- function(X=NULL, vcf.file=NULL, yieldSize=10000){
     tabix.file <- Rsamtools::TabixFile(file=vcf.file,
                                        yieldSize=yieldSize)
     open(tabix.file)
-    hdr <- VariantAnnotation::scanVcfHeader(file=tabix.file)
-    N <- length(VariantAnnotation::samples(hdr))
-    while(nrow(vcf <- VariantAnnotation::readVcf(file=tabix.file,
-                                                 genome=""))){
-          X.tmp <- VariantAnnotation::geno(vcf)[["GT"]]
-          out.tmp <- apply(X.tmp, 1, function(Xp.tmp){
-            sum(Xp.tmp %in% c("./.", ".")) / N
-          })
-          out <- c(out, out.tmp)
+    vcf <- VariantAnnotation::readVcf(file=tabix.file, genome="")
+    while(nrow(vcf)){
+      out <- c(out, calcFreqNaVcf(vcf=vcf, with.coords=FALSE))
+      vcf <- VariantAnnotation::readVcf(file=tabix.file, genome="")
     }
     close(tabix.file)
   }
