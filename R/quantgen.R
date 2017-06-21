@@ -1215,7 +1215,7 @@ calcFreqMissSnpGenosPerSnp <- function(X=NULL, vcf.file=NULL, yieldSize=10000){
     stopIfNotValidGenosDose(X, check.hasColNames=FALSE, check.hasRowNames=FALSE,
                             check.noNA=FALSE, check.isDose=FALSE)
     N <- nrow(X) # number of genotypes
-    out <- apply(X, 2, function(Xp){sum(is.na(Xp)) / N})
+    out <- colSums(is.na(X)) / N
   } else{
     requireNamespaces(c("Rsamtools", "VariantAnnotation"))
     stopifnot(file.exists(vcf.file),
@@ -1248,7 +1248,7 @@ calcFreqMissSnpGenosPerGeno <- function(X){
                           check.noNA=FALSE, check.isDose=FALSE)
 
   P <- ncol(X) # number of markers
-  out <- apply(X, 1, function(Xn){sum(is.na(Xn)) / P})
+  out <- rowSums(is.na(X)) / P
 
   return(out)
 }

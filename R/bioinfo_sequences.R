@@ -981,13 +981,7 @@ dimVcf <- function(vcf.file, genome="", yieldSize=10000){
   open(tabix.file)
   hdr <- VariantAnnotation::scanVcfHeader(file=tabix.file)
   out["samples"] <- length(VariantAnnotation::samples(hdr))
-
-  out["sites"] <- 0
-  vcf <- VariantAnnotation::readVcf(file=tabix.file, genome=genome)
-  while(nrow(vcf)){
-    out["sites"] <- out["sites"] + nrow(vcf)
-    vcf <- VariantAnnotation::readVcf(file=tabix.file, genome=genome)
-  }
+  out["sites"] <- Rsamtools::countTabix(tabix.file)[[1]]
   close(tabix.file)
 
   return(out)
