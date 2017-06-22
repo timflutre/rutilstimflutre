@@ -696,7 +696,7 @@ segregJoinMap2Qtl <- function(){
 ##' Write "segregation" data into a "loc" file in the \href{https://www.kyazma.nl/index.php/JoinMap/}{JoinMap/MapQTL} format.
 ##' @param pop.name name of the population
 ##' @param pop.type type of the population
-##' @param locus vector of locus names
+##' @param locus vector of locus names (should be shorter or equal to 20 characters, otherwise a warning will be issued)
 ##' @param segregs vector of segregation types
 ##' @param phases vector of phase types
 ##' @param classifs vector of classification types
@@ -734,7 +734,6 @@ writeSegregJoinMap <- function(pop.name, pop.type="CP",
             pop.type %in% c("BC1", "F2", "RIx", "DH", "DH1", "DH2", "HAP",
                             "HAP1", "CP", "BCpxFy", "IMxFy"),
             is.character(locus),
-            all(nchar(locus) <= 20),
             is.character(segregs),
             is.character(phases),
             is.character(classifs),
@@ -745,6 +744,13 @@ writeSegregJoinMap <- function(pop.name, pop.type="CP",
             nrow(genos) == length(classifs),
             is.character(file),
             is.logical(save.ind.names))
+  locus.ids.too.long <- nchar(locus) > 20
+  if(any(locus.ids.too.long)){
+    msg <- paste0(sum(locus.ids.too.long), " locus identifier",
+                  ifelse(sum(locus.ids.too.long) > 1, "s", ""),
+                  " longer than 20 characters")
+    warning(msg)
+  }
 
   file.ext <- tools::file_ext(file)
   if(file.ext == "gz")

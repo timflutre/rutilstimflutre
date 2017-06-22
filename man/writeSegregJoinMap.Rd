@@ -12,7 +12,7 @@ writeSegregJoinMap(pop.name, pop.type = "CP", locus, segregs, phases,
 
 \item{pop.type}{type of the population}
 
-\item{locus}{vector of locus names}
+\item{locus}{vector of locus names (should be shorter or equal to 20 characters, otherwise a warning will be issued)}
 
 \item{segregs}{vector of segregation types}
 
