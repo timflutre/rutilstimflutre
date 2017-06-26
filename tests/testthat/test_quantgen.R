@@ -112,6 +112,56 @@ test_that("genoClasses2JoinMap", {
   expect_equal(observed, expected)
 })
 
+test_that("joinMap2carthaGene", {
+  nb.locus <- 6
+  nb.genos <- 4
+  jm <- data.frame(locus=paste0("loc", 1:nb.locus),
+                   seg=c("<abxcd>", "<efxeg>", "<hkxhk>", "<lmxll>", "<nnxnp>",
+                         NA),
+                   phase=rep(NA, nb.locus),
+                   clas=rep(NA, nb.locus),
+                   geno1=c("ac", "ee", "hh", "ll", "nn", ""),
+                   geno2=c("ad", "eg", "hk", "ll", "np", ""),
+                   geno3=c("bc", "ef", "hk", "lm", "nn", ""),
+                   geno4=c("bd", "fg", "kk", "lm", NA, ""),
+                   stringsAsFactors=FALSE)
+
+  expected <- list(parent1=data.frame(geno1=c("A", "A", "A", "A"),
+                                      geno2=c("A", "A", "-", "A"),
+                                      geno3=c("H", "H", "-", "H"),
+                                      geno4=c("H", "H", "H", "H"),
+                                      row.names=paste0("loc", c(1,2,3,4)),
+                                      stringsAsFactors=FALSE),
+                   parent2=data.frame(geno1=c("A", "A", "A", "A"),
+                                      geno2=c("H", "H", "-", "H"),
+                                      geno3=c("A", "A", "-", "A"),
+                                      geno4=c("H", "H", "H", "-"),
+                                      row.names=paste0("loc", c(1,2,3,5)),
+                                      stringsAsFactors=FALSE))
+  expected$parent1 <- rbind(expected$parent1,
+                            data.frame(geno1=c("H", "H", "H", "H"),
+                                       geno2=c("H", "H", "-", "H"),
+                                       geno3=c("A", "A", "-", "A"),
+                                       geno4=c("A", "A", "A", "A"),
+                                       row.names=paste0(rownames(expected$parent1),
+                                                        "_m"),
+                                       stringsAsFactors=FALSE))
+  expected$parent2 <- rbind(expected$parent2,
+                            data.frame(geno1=c("H", "H", "H", "H"),
+                                       geno2=c("A", "A", "-", "A"),
+                                       geno3=c("H", "H", "-", "H"),
+                                       geno4=c("A", "A", "A", "-"),
+                                       row.names=paste0(rownames(expected$parent2),
+                                                        "_m"),
+                                       stringsAsFactors=FALSE))
+  expected$parent1 <- as.matrix(expected$parent1)
+  expected$parent2 <- as.matrix(expected$parent2)
+
+  observed <- joinMap2CarthaGene(x=jm, verbose=0)
+
+  expect_equal(observed, expected)
+})
+
 test_that("joinMap2designMatrix", {
   nb.locus <- 5
   nb.genos <- 4

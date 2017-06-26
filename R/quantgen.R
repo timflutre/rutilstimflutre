@@ -794,6 +794,225 @@ writeSegregJoinMap <- function(pop.name, pop.type="CP",
 
 ##' Genotype coding
 ##'
+##' Write marker genotypes formatted for CarthaGene in a file.
+##' @param x matrix of characters containing marker genotypes in the CarthaGene formatfor instance from \code{\link{joinMap2CarthaGene}}; row names should correspond to marker names
+##' @param file path to the file to which the data will be written
+##' @param type type of the data ("f2 backcross")
+##' @param aliases aliases
+##' @return nothing
+##' @author Timothee Flutre
+##' @seealso \code{\link{joinMap2CarthaGene}}
+##' @export
+writeCartagene <- function(x, file, type="f2 backcross", aliases=NULL){
+  stopifnot(is.matrix(x),
+            ! is.null(rownames(x)),
+            type %in% c("f2 backcross"))
+  if(! is.null(aliases))
+    stopifnot(is.vector(aliases),
+              is.character(aliases))
+  if(file.exists(file))
+    file.remove(file)
+
+  con <- file(file, open="a")
+
+  ## first line: type of the data
+  txt <- paste0("data type ", type, "\n")
+  cat(txt, file=con, append=TRUE)
+
+  ## second line: size of the data
+  txt <- paste0(ncol(x), " ", nrow(x), " 0 0")
+  if(! is.null(aliases))
+    for(a in aliases)
+      txt <- paste0(" ", a)
+  txt <- paste0(txt, "\n")
+  cat(txt, file=con, append=TRUE)
+
+  ## last section: marker data
+  txt <- apply(cbind(paste0("*", rownames(x)),
+                     apply(x, 1, paste, collapse="")),
+               1, paste, collapse="\t")
+  rownames(txt) <- NULL
+  cat(txt, file=con, append=TRUE, sep="\n")
+
+  close(con)
+}
+
+##' Genotype coding
+##'
+##' Convert genotypes encoded in the \href{https://www.kyazma.nl/index.php/JoinMap/}{JoinMap} format into the \href{http://www7.inra.fr/mia/T/CarthaGene/}{CarthaGene} format.
+##' Genotypes are assumed to come from a bi-parental family with heterozygous parents (population type CP in JoinMap) and the goal is to build two parental genetic maps via a pseudo-test-cross strategy (Grattapaglia and Sederoff, 1994).
+##' This function hence encodes genotypes as two backcrosses, one per parent, with "A" for "homozygous" and "H" for "heterozygous".
+##' All locus will be duplicated and the suffix "_m" (for "mirror") added to their identifiers.
+##' @param x data frame in the JoinMap format, for instance from \code{\link{genoClasses2JoinMap}}; columns named "phase" and "clas" will be discarded from the start; a column named "seg" should be present; a column named "locus" should be present unless row names are given; all other columns are supposed to correspond to genotypes
+##' @param verbose verbosity level (0/1/2)
+##' @return list of two matrices, one per parent
+##' @author Timothee Flutre [aut], Agnes Doligez [ctb]
+##' @seealso \code{\link{genoClasses2JoinMap}}
+##' @export
+joinMap2CarthaGene <- function(x, verbose=1){
+  seg.types <- c("<abxcd>", "<efxeg>", "<hkxhk>", "<lmxll>", "<nnxnp>")
+  stopifnot(is.data.frame(x),
+            ncol(x) >= 5,
+            ! is.null(colnames(x)),
+            "seg" %in% colnames(x),
+            all(x$seg %in% c(seg.types, NA)))
+  if(! "locus" %in% colnames(x))
+    stopifnot(! is.null(rownames(x)))
+
+  out <- list()
+
+  ## reformat the input
+  x <- convertFactorColumnsToCharacter(x)
+  idx <- which(colnames(x) %in% c("phase", "clas"))
+  if(length(idx) > 0)
+    x <- x[, -idx]
+  idx.loc <- which(colnames(x) == "locus")
+  idx.seg <- which(colnames(x) == "seg")
+  if(length(idx.loc) == 0){
+    x <- cbind(x, locus=rownames(x))
+    idx.loc <- ncol(x)
+  }
+  x <- x[, c(idx.loc, idx.seg, setdiff(1:ncol(x), c(idx.loc, idx.seg)))]
+  rownames(x) <- NULL
+
+  ## clean the input
+  miss.segreg <- is.na(x$seg)
+  if(any(miss.segreg)){
+    if(verbose > 0){
+      msg <- paste0("discard ", sum(miss.segreg),
+                    " locus with missing segregation...")
+      write(msg, stdout())
+    }
+    x <- x[! miss.segreg,]
+  }
+
+  if(verbose > 0){
+    msg <- paste0("convert genotypes at ", nrow(x), " locus",
+                  " from JoinMap to CarthaGene...")
+    write(msg, stdout())
+  }
+
+  ## make one matrix per parent
+  idx.seg <- lapply(seg.types, function(seg){
+    which(x$seg == seg)
+  })
+  names(idx.seg) <- seg.types
+  idx.loc.p1 <- c(idx.seg[["<abxcd>"]], idx.seg[["<efxeg>"]],
+                  idx.seg[["<hkxhk>"]], idx.seg[["<lmxll>"]])
+  idx.loc.p2 <- c(idx.seg[["<abxcd>"]], idx.seg[["<efxeg>"]],
+                  idx.seg[["<hkxhk>"]], idx.seg[["<nnxnp>"]])
+  p1 <- as.matrix(x[idx.loc.p1, -1])
+  rownames(p1) <- x[idx.loc.p1, "locus"]
+  p2 <- as.matrix(x[idx.loc.p2, -1])
+  rownames(p2) <- x[idx.loc.p2, "locus"]
+
+  ## convert genotypes' format
+  seg <- "<abxcd>"
+  idx.p1 <- which(p1[,"seg"] == seg)
+  if(length(idx.p1) > 0)
+    p1[idx.p1, -1] <-
+      t(matrix(apply(p1[idx.p1, -1, drop=FALSE], 2, function(genos){
+        genos <- gsub("ac|ad", "A", genos)
+        gsub("bc|bd", "H", genos)
+      }))) # assume parent 2 is homozygous "aa"
+  idx.p2 <- which(p2[,"seg"] == seg)
+  if(length(idx.p2) > 0)
+    p2[idx.p2, -1] <-
+      t(matrix(apply(p2[idx.p2, -1, drop=FALSE], 2, function(genos){
+        genos <- gsub("ac|bc", "A", genos)
+        gsub("ad|bd", "H", genos)
+      }))) # assume parent 1 is homozygous "cc"
+
+  seg <- "<efxeg>"
+  idx.p1 <- which(p1[,"seg"] == seg)
+  if(length(idx.p1) > 0)
+    p1[idx.p1, -1] <-
+      t(matrix(apply(p1[idx.p1, -1, drop=FALSE], 2, function(genos){
+        genos <- gsub("ee|eg", "A", genos)
+        gsub("ef|fg", "H", genos)
+      }))) # assume parent 2 is homozygous "ee"
+  idx.p2 <- which(p2[,"seg"] == seg)
+  if(length(idx.p2) > 0)
+    p2[idx.p2, -1] <-
+      t(matrix(apply(p2[idx.p2, -1, drop=FALSE], 2, function(genos){
+        genos <- gsub("ee|ef", "A", genos)
+        gsub("eg|fg", "H", genos)
+      }))) # assume parent 1 is homozygous "ee"
+
+  seg <- "<hkxhk>"
+  idx.p1 <- which(p1[,"seg"] == seg)
+  if(length(idx.p1) > 0)
+    p1[idx.p1, -1] <-
+      t(matrix(apply(p1[idx.p1, -1, drop=FALSE], 2, function(genos){
+        genos <- gsub("hh", "A", genos)
+        genos <- gsub("hk", "-", genos)
+        gsub("kk", "H", genos)
+      }))) # "hk" as "-" because phase is unknown
+  idx.p2 <- which(p2[,"seg"] == seg)
+  if(length(idx.p2) > 0)
+    p2[idx.p2, -1] <-
+      t(matrix(apply(p2[idx.p2, -1, drop=FALSE], 2, function(genos){
+        genos <- gsub("hh", "A", genos)
+        genos <- gsub("hk", "-", genos)
+        gsub("kk", "H", genos)
+      }))) # "hk" as "-" because phase is unknown
+
+  seg <- "<lmxll>"
+  idx.p1 <- which(p1[,"seg"] == seg)
+  if(length(idx.p1) > 0)
+    p1[idx.p1, -1] <-
+      t(matrix(apply(p1[idx.p1, -1, drop=FALSE], 2, function(genos){
+        genos <- gsub("ll", "A", genos)
+        gsub("lm", "H", genos)
+      })))
+
+  seg <- "<nnxnp>"
+  idx.p2 <- which(p2[,"seg"] == seg)
+  if(length(idx.p2) > 0)
+    p2[idx.p2, -1] <-
+      t(matrix(apply(p2[idx.p2, -1, drop=FALSE], 2, function(genos){
+        genos <- gsub("nn", "A", genos)
+        gsub("np", "H", genos)
+      })))
+
+  if(verbose > 0){
+    msg <- paste0("nb of locus: parent1=", nrow(p1), " parent2=", nrow(p2))
+    write(msg, stdout())
+  }
+
+  if(verbose > 0){
+    msg <- "duplicate all locus and invert the coding..."
+    write(msg, stdout())
+  }
+  p1 <- p1[, -1]
+  p1.m <- apply(p1, 2, function(genos){
+    genos <- gsub("A", "Z", genos)
+    genos <- gsub("H", "A", genos)
+    gsub("Z", "H", genos)
+  })
+  rownames(p1.m) <- paste0(rownames(p1), "_m")
+  out$parent1 <- rbind(p1, p1.m)
+  idx.na <- which(is.na(out$parent1))
+  if(length(idx.na) > 0)
+    out$parent1[idx.na] <- "-"
+
+  p2 <- p2[, -1]
+  p2.m <- apply(p2, 2, function(genos){
+    genos <- gsub("A", "Z", genos)
+    genos <- gsub("H", "A", genos)
+    gsub("Z", "H", genos)
+  })
+  rownames(p2.m) <- paste0(rownames(p2), "_m")
+  out$parent2 <- rbind(p2, p2.m)
+  idx.na <- which(is.na(out$parent2))
+  if(length(idx.na) > 0)
+    out$parent2[idx.na] <- "-"
+
+  return(out)
+}
+
+##' Genotype coding
+##'
 ##' Convert genotypes encoded in the \href{https://www.kyazma.nl/index.php/JoinMap/}{JoinMap} format into a design matrix.
 ##' See equation 3 of \href{http://dx.doi.org/10.1186/1471-2156-12-82}{Wang (2011)} for the parameterization, as well as \href{https://doi.org/10.1177/1471082X16644998}{Chiquet et al (2016)} for the constraints.
 ##' Additive and dominance effects are handled, but epistasis is ignored.
