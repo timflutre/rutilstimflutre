@@ -5608,6 +5608,43 @@ calcAsymptoticBayesFactorWakefield <- function(theta.hat, V, W, weights=NULL,
     return(10^log10.ABF)
 }
 
+##' Genotype frequencies
+##'
+##' Calculate the genotype frequencies at a bi-allelic SNP, from its minor allele frequency, assuming Hardy-Weinberg equilibrium.
+##' @param maf frequency of the minor allele, a
+##' @return vector of genotype frequencies
+##' @author Timothee Flutre
+##' @examples
+##' \dontrun{set.seed(1859)
+##' genos <- sample(x=c(0,1,2), size=n, replace=TRUE, prob=maf2genoFreq(maf))
+##' table(genos)
+##' }
+##' @export
+maf2genoFreq <- function(maf){
+  stopifnot(is.numeric(maf), length(maf) == 1, maf >= 0, maf <= 0.5)
+  geno.freq <- c((1 - maf)^2,
+                 2 * (1 - maf) * maf,
+                 maf^2)
+  names(geno.freq) <- c("AA", "Aa", "aa")
+  return(geno.freq)
+}
+
+##' Proportion of variance explained
+##'
+##' For the model "y_i = mu + beta * x_i + epsilon_i", compute the additive effect of a bi-allelic SNP (beta) given its PVE, MAF and error standard deviation.
+##' @param pve proportion of variance explained
+##' @param n sample size
+##' @param maf minor allele frequency
+##' @param sigma error standard deviation
+##' @return numeric
+##' @author Timothee Flutre
+##' @export
+pve2beta <- function(pve=0.7, n=200, maf=0.3, sigma=1){
+  var.genos <- maf * (1 - maf)
+  beta <- sigma * sqrt(pve / ((1 - pve) * var.genos))
+  return(beta)
+}
+
 ##' Exact Bayes factor
 ##'
 ##' Calculate the exact Bayes factor proposed by Servin and Stephens in PLoS Genetics 3,7 (2007, \url{http://dx.doi.org/10.1371/journal.pgen.0030114}).
@@ -5618,6 +5655,29 @@ calcAsymptoticBayesFactorWakefield <- function(theta.hat, V, W, weights=NULL,
 ##' @param log10 return the log10 of the ABF
 ##' @return numeric
 ##' @author Bertrand Servin [aut], Timothee Flutre [ctb,cre]
+##' @examples
+##' \dontrun{## make fake data
+##' set.seed(1859)
+##' n <- 200
+##' mu <- 50
+##' maf <- 0.3
+##' genos <- sample(x=c(0,1,2), size=n, replace=TRUE, prob=maf2genoFreq(maf))
+##' (beta <- pve2beta(pve=0.4, n=n, maf=maf, sigma=1))
+##' phenos <- mu + beta * genos + rnorm(n=n, mean=0, sd=1)
+##'
+##' boxplot(phenos ~ genos, las=1, xlab="genotypes", ylab="phenotypes", at=0:2)
+##'
+##' ## perform inference via maximum likelihood
+##' (fit <- lm(phenos ~ genos))
+##' abline(fit)
+##'
+##' ## compute the Bayes factors
+##' (BF <- calcExactBayesFactorServinStephens(G=genos, Y=phenos, sigma.a=0.5,
+##'                                           sigma.d=NULL))
+##' (aBF <- calcAsymptoticBayesFactorWakefield(theta.hat=coef(fit)[2],
+##'                                            V=diag(vcov(fit))["genos"],
+##'                                            W=0.5^2))
+##' }
 ##' @export
 calcExactBayesFactorServinStephens <- function(G, Y, sigma.a, sigma.d,
                                                log10=TRUE){
@@ -5629,17 +5689,24 @@ calcExactBayesFactorServinStephens <- function(G, Y, sigma.a, sigma.d,
   stopifnot(length(Y) == length(G))
 
   N <- length(G)
-  X <- cbind(rep(1,N), G, G == 1)
-  inv.Sigma.B <- diag(c(0, 1/sigma.a^2, 1/sigma.d^2))
+  if(is.null(sigma.d)){
+    X <- cbind(rep(1,N), G)
+    inv.Sigma.B <- diag(c(0, 1/sigma.a^2))
+  } else{
+    X <- cbind(rep(1,N), G, G == 1)
+    inv.Sigma.B <- diag(c(0, 1/sigma.a^2, 1/sigma.d^2))
+  }
   inv.Omega <- inv.Sigma.B + t(X) %*% X
   inv.Omega0 <- N
   tY.Y <- t(Y) %*% Y
   log10.BF <- as.numeric(0.5 * log10(inv.Omega0) -
-                           0.5 * log10(det(inv.Omega)) -
-                           log10(sigma.a) - log10(sigma.d) -
-                           (N/2) * (log10(tY.Y - t(Y) %*% X %*% solve(inv.Omega)
-                                          %*% t(X) %*% cbind(Y)) -
-                                    log10(tY.Y - N*mean(Y)^2)))
+                         0.5 * log10(det(inv.Omega)) -
+                         ifelse(is.null(sigma.d),
+                                log10(sigma.a),
+                                log10(sigma.a) + log10(sigma.d)) -
+                         (N/2) * (log10(tY.Y - t(Y) %*% X %*% solve(inv.Omega)
+                                        %*% t(X) %*% cbind(Y)) -
+                                  log10(tY.Y - N*mean(Y)^2)))
 
   if(log10)
     return(log10.BF)
@@ -5827,8 +5894,10 @@ calcL10ApproximateBayesFactorWen <- function(Y, Xg, Xc,
 ##' snp <- rownames(fit.u$tests[order(fit.u$tests$p_wald),])[1]
 ##' boxplotCandidateQtl(y=modelA$Y[,1], X=X, snp=snp, main=snp, notch=FALSE,
 ##'                     show.points=TRUE)
-##' abline(lm(modelA$Y[,1] ~ X[,snp]), col="red")
+##' fit <- lm(modelA$Y[,1] ~ X[,snp])
+##' abline(fit, col="red")
 ##' abline(a=fit.u$global.mean["beta.hat"], b=fit.u$tests[snp,"beta"])
+##' legend("topright", legend=c("lm","gemma"), col=c("red","black"), lty=1, bty="n")
 ##' }
 ##' @export
 boxplotCandidateQtl <- function(y, X, snp, xlab="Genotype", ylab="Phenotype",
@@ -5870,18 +5939,18 @@ boxplotCandidateQtl <- function(y, X, snp, xlab="Genotype", ylab="Phenotype",
     write(msg, stdout())
 
     print(do.call(rbind, tapply(y, factor(x), function(tmp){
-      c(mean.y=mean(tmp), sd.y=stats::sd(tmp))
+      c(mean.y=mean(tmp), med.y=stats::median(tmp), sd.y=stats::sd(tmp))
     })), digits=3)
   }
 
   ## make boxplot
   bp <- graphics::boxplot(y ~ x, las=1, varwidth=TRUE, notch=notch,
-                          xlab=xlab, ylab=ylab, ...)
+                          xlab=xlab, ylab=ylab, at=sort(unique(x)), ...)
 
   if(show.points){
     for(ct in sort(unique(x))){
       tmp <- y[x == ct]
-      graphics::points(x=jitter(rep(ct+1, length(tmp))), y=tmp)
+      graphics::points(x=jitter(rep(ct, length(tmp))), y=tmp)
     }
   }
 

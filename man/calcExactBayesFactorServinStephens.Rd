@@ -23,6 +23,30 @@ numeric
 \description{
 Calculate the exact Bayes factor proposed by Servin and Stephens in PLoS Genetics 3,7 (2007, \url{http://dx.doi.org/10.1371/journal.pgen.0030114}).
 }
+\examples{
+\dontrun{## make fake data
+set.seed(1859)
+n <- 200
+mu <- 50
+maf <- 0.3
+genos <- sample(x=c(0,1,2), size=n, replace=TRUE, prob=maf2genoFreq(maf))
+(beta <- pve2beta(pve=0.4, n=n, maf=maf, sigma=1))
+phenos <- mu + beta * genos + rnorm(n=n, mean=0, sd=1)
+
+boxplot(phenos ~ genos, las=1, xlab="genotypes", ylab="phenotypes", at=0:2)
+
+## perform inference via maximum likelihood
+(fit <- lm(phenos ~ genos))
+abline(fit)
+
+## compute the Bayes factors
+(BF <- calcExactBayesFactorServinStephens(G=genos, Y=phenos, sigma.a=0.5,
+                                          sigma.d=NULL))
+(aBF <- calcAsymptoticBayesFactorWakefield(theta.hat=coef(fit)[2],
+                                           V=diag(vcov(fit))["genos"],
+                                           W=0.5^2))
+}
+}
 \author{
 Bertrand Servin [aut], Timothee Flutre [ctb,cre]
 }

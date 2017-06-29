@@ -62,8 +62,10 @@ pvadj.AA <- qqplotPval(fit.u$tests$p_wald, col=cols, ctl.fdr.bh=TRUE,
 snp <- rownames(fit.u$tests[order(fit.u$tests$p_wald),])[1]
 boxplotCandidateQtl(y=modelA$Y[,1], X=X, snp=snp, main=snp, notch=FALSE,
                     show.points=TRUE)
-abline(lm(modelA$Y[,1] ~ X[,snp]), col="red")
+fit <- lm(modelA$Y[,1] ~ X[,snp])
+abline(fit, col="red")
 abline(a=fit.u$global.mean["beta.hat"], b=fit.u$tests[snp,"beta"])
+legend("topright", legend=c("lm","gemma"), col=c("red","black"), lty=1, bty="n")
 }
 }
 \author{
