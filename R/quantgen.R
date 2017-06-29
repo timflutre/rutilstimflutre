@@ -698,16 +698,16 @@ segregJoinMap2Qtl <- function(){
 ##' @param pop.type type of the population
 ##' @param locus vector of locus names (should be shorter or equal to 20 characters, otherwise a warning will be issued)
 ##' @param segregs vector of segregation types
-##' @param phases vector of phase types
-##' @param classifs vector of classification types
 ##' @param genos data frame containing genotypes encoded in the JoinMap format,  similar to the output from \code{\link{genoClasses2JoinMap}}
+##' @param phases vector of phase types (optional)
+##' @param classifs vector of classification types (optional)
 ##' @param file name of the file in which the data will be saved (will be compressed if ends with ".gz" and "gzip" is available in the PATH)
 ##' @param save.ind.names if TRUE, individual names will be saved at the end of the file
 ##' @return nothing
 ##' @author Timothee Flutre
 ##' @seealso \code{\link{genoClasses2JoinMap}}
 ##' @examples
-##' \dontrun{
+##' \dontrun{## make fake data
 ##' nb.snps <- 6
 ##' x <- data.frame(par1=c("AA", "GC", "CG", "AT", NA, "AA"),
 ##'                 par2=c("AT", "GC", "GG", "AT", "AT", "AT"),
@@ -720,13 +720,11 @@ segregJoinMap2Qtl <- function(){
 ##' jm <- genoClasses2JoinMap(x=x, reformat.input=TRUE, thresh.na=2, verbose=1)
 ##' idx <- which(! is.na(jm$seg))
 ##' writeSegregJoinMap(pop.name="test", pop.type="CP", locus=rownames(jm[idx,]),
-##'                    segregs=jm[idx,"seg"], phases=rep("{01}", length(idx)),
-##'                    classifs=rep("(a,c)", length(idx)),
-##'                    genos=jm[idx,-c(1:9)], file="test.txt")
+##'                    segregs=jm[idx,"seg"], genos=jm[idx,-c(1:9)], file="test.txt")
 ##' }
 ##' @export
 writeSegregJoinMap <- function(pop.name, pop.type="CP",
-                               locus, segregs, phases, classifs, genos,
+                               locus, segregs, genos, phases=NULL, classifs=NULL,
                                file, save.ind.names=TRUE){
   requireNamespace("tools")
   stopifnot(is.character(pop.name),
@@ -735,15 +733,17 @@ writeSegregJoinMap <- function(pop.name, pop.type="CP",
                             "HAP1", "CP", "BCpxFy", "IMxFy"),
             is.character(locus),
             is.character(segregs),
-            is.character(phases),
-            is.character(classifs),
             is.data.frame(genos),
             nrow(genos) == length(locus),
             nrow(genos) == length(segregs),
-            nrow(genos) == length(phases),
-            nrow(genos) == length(classifs),
             is.character(file),
             is.logical(save.ind.names))
+  if(! is.null(phases))
+    stopifnot(is.character(phases),
+              nrow(genos) == length(phases))
+  if(! is.null(classifs))
+    stopifnot(is.character(classifs),
+              nrow(genos) == length(classifs))
   locus.ids.too.long <- nchar(locus) > 20
   if(any(locus.ids.too.long)){
     msg <- paste0(sum(locus.ids.too.long), " locus identifier",
@@ -768,7 +768,12 @@ writeSegregJoinMap <- function(pop.name, pop.type="CP",
            "")
   writeLines(text=txt, con=con)
 
-  tmp <- cbind(locus, segregs, phases, classifs, genos)
+  tmp <- cbind(locus, segregs)
+  if(! is.null(phases))
+    tmp <- cbind(tmp, phases)
+  if(! is.null(classifs))
+    tmp <- cbind(tmp, classifs)
+  tmp <- cbind(tmp, genos)
   utils::write.table(x=tmp, file=con, append=TRUE, quote=FALSE, sep="\t",
                      row.names=FALSE,
                      col.names=FALSE)

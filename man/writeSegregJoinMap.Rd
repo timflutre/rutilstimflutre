@@ -4,8 +4,8 @@
 \alias{writeSegregJoinMap}
 \title{Write genotypes}
 \usage{
-writeSegregJoinMap(pop.name, pop.type = "CP", locus, segregs, phases,
-  classifs, genos, file, save.ind.names = TRUE)
+writeSegregJoinMap(pop.name, pop.type = "CP", locus, segregs, genos,
+  phases = NULL, classifs = NULL, file, save.ind.names = TRUE)
 }
 \arguments{
 \item{pop.name}{name of the population}
@@ -16,11 +16,11 @@ writeSegregJoinMap(pop.name, pop.type = "CP", locus, segregs, phases,
 
 \item{segregs}{vector of segregation types}
 
-\item{phases}{vector of phase types}
-
-\item{classifs}{vector of classification types}
-
 \item{genos}{data frame containing genotypes encoded in the JoinMap format,  similar to the output from \code{\link{genoClasses2JoinMap}}}
+
+\item{phases}{vector of phase types (optional)}
+
+\item{classifs}{vector of classification types (optional)}
 
 \item{file}{name of the file in which the data will be saved (will be compressed if ends with ".gz" and "gzip" is available in the PATH)}
 
@@ -33,7 +33,7 @@ nothing
 Write "segregation" data into a "loc" file in the \href{https://www.kyazma.nl/index.php/JoinMap/}{JoinMap/MapQTL} format.
 }
 \examples{
-\dontrun{
+\dontrun{## make fake data
 nb.snps <- 6
 x <- data.frame(par1=c("AA", "GC", "CG", "AT", NA, "AA"),
                 par2=c("AT", "GC", "GG", "AT", "AT", "AT"),
@@ -46,9 +46,7 @@ x <- data.frame(par1=c("AA", "GC", "CG", "AT", NA, "AA"),
 jm <- genoClasses2JoinMap(x=x, reformat.input=TRUE, thresh.na=2, verbose=1)
 idx <- which(! is.na(jm$seg))
 writeSegregJoinMap(pop.name="test", pop.type="CP", locus=rownames(jm[idx,]),
-                   segregs=jm[idx,"seg"], phases=rep("{01}", length(idx)),
-                   classifs=rep("(a,c)", length(idx)),
-                   genos=jm[idx,-c(1:9)], file="test.txt")
+                   segregs=jm[idx,"seg"], genos=jm[idx,-c(1:9)], file="test.txt")
 }
 }
 \seealso{
