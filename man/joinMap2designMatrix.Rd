@@ -4,30 +4,34 @@
 \alias{joinMap2designMatrix}
 \title{Genotype coding}
 \usage{
-joinMap2designMatrix(jm, parameterization = "allele", constraints = NULL,
-  rm.col.zeros = TRUE, rm.dom = FALSE, verbose = 1)
+joinMap2designMatrix(jm, use.phase = FALSE, parameterization = "allele",
+  constraints = NULL, rm.col.zeros = TRUE, rm.dom = FALSE, verbose = 1)
 }
 \arguments{
 \item{jm}{data frame in the JoinMap format, for instance from \code{\link{genoClasses2JoinMap}}; the first four columns should be "locus", "seg", "phase" and "clas" (only the first two are used for the moment); no missing data is allowed}
 
-\item{parameterization}{parameterization (allele/F_infinity/allele-count)}
+\item{use.phase}{if TRUE, phase information will be used}
 
-\item{constraints}{constraints (NULL/mu-zero/last-zero)}
+\item{parameterization}{parameterization (allele/F_infinity/allele-count); ignored if \code{use.phase=TRUE}}
+
+\item{constraints}{constraints (NULL/mu-zero/last-zero); ignored if \code{use.phase=TRUE}}
 
 \item{rm.col.zeros}{if TRUE, the columns full of zeros will be removed}
 
-\item{rm.dom}{if TRUE, the columns corresponding to dominance effects will be removed}
+\item{rm.dom}{if TRUE, the columns corresponding to dominance effects will be removed; ignored if \code{use.phase=TRUE}}
 
 \item{verbose}{verbosity level (0/1)}
 }
 \value{
-matrix, with genotypes in rows
+matrix, with genotypes in rows and markers in columns
 }
 \description{
 Convert genotypes encoded in the \href{https://www.kyazma.nl/index.php/JoinMap/}{JoinMap} format into a design matrix.
-See equation 3 of \href{http://dx.doi.org/10.1186/1471-2156-12-82}{Wang (2011)} for the parameterization, as well as \href{https://doi.org/10.1177/1471082X16644998}{Chiquet et al (2016)} for the constraints.
+Genotypes are assumed to come from a bi-parental family with heterozygous parents (population type CP in JoinMap).
+* When phase information is not used, see equation 3 of \href{http://dx.doi.org/10.1186/1471-2156-12-82}{Wang (2011)} for the parameterization, as well as \href{https://doi.org/10.1177/1471082X16644998}{Chiquet et al (2016)} for the constraints.
 Additive and dominance effects are handled, but epistasis is ignored.
-Moreover, genotypes are assumed to come from a bi-parental family with heterozygous parents (population type CP in JoinMap); for each marker, only a subset of all genotypes are expected to be present.
+* When phase information is used, each marker is coded with four columns, one per parental haplotype.
+Only additive effects are handled.
 }
 \seealso{
 \code{link{genoClasses2JoinMap}}, \code{\link{writeSegregJoinMap}}, \code{\link{updateJoinMap}}

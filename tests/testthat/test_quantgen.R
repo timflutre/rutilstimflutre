@@ -162,7 +162,7 @@ test_that("joinMap2carthaGene", {
   expect_equal(observed, expected)
 })
 
-test_that("joinMap2designMatrix", {
+test_that("joinMap2designMatrix_without-phase", {
   nb.locus <- 5
   nb.genos <- 4
   jm <- data.frame(locus=paste0("loc", 1:nb.locus),
@@ -210,6 +210,55 @@ test_that("joinMap2designMatrix", {
   observed <- joinMap2designMatrix(jm=jm, parameterization="allele",
                                    constraints=NULL, rm.col.zeros=TRUE,
                                    rm.dom=TRUE, verbose=0)
+  expect_equal(observed, expected)
+})
+
+test_that("joinMap2designMatrix_with-phase", {
+  nb.locus <- 10
+  nb.genos <- 4
+  jm <- data.frame(locus=paste0("loc", 1:nb.locus),
+                   seg=c("<abxcd>", "<abxcd>", "<abxcd>", "<abxcd>",
+                         "<efxeg>", "<hkxhk>",
+                         "<lmxll>", "<lmxll>", "<nnxnp>", "<nnxnp>"),
+                   phase=c("{00}", "{01}", "{10}", "{11}",
+                           "{00}", "{11}",
+                           "{0-}", "{1-}", "{-1}", "{-0}"),
+                   clas=rep(NA, nb.locus),
+                   geno1=c("ac", "ac", "ac", "ac",
+                           "ee", "hh",
+                           "ll", "ll", "nn", "nn"),
+                   geno2=c("ad", "ad", "ad", "ad",
+                           "eg", "hk",
+                           "ll", "ll", "np", "np"),
+                   geno3=c("bc", "bc", "bc", "bc",
+                           "ef", "hk",
+                           "lm", "lm", "nn", "nn"),
+                   geno4=c("bd", "bd", "bd", "bd",
+                           "fg", "kk",
+                           "lm", "lm", "np", "np"),
+                   stringsAsFactors=FALSE)
+
+  expected <- matrix(data=0, nrow=nb.genos, ncol=1 + (4 * nb.locus))
+  rownames(expected) <- paste0("geno", 1:nb.genos)
+  colnames(expected) <- c("intercept",
+                          paste0(rep(paste0("loc", 1:nb.locus), each=4),
+                                 rep(paste0(rep(paste0(".par", 1:2), each=2),
+                                            rep(paste0(".haplo", 1:2), 2)), nb.locus)))
+  expected[, "intercept"] <- 1
+  expected[, grep("loc1.par[12].haplo1", colnames(expected))] <- 1
+  expected[, grep("loc2.par1.haplo1|loc2.par2.haplo2", colnames(expected))] <- 1
+  expected[, grep("loc3.par1.haplo2|loc3.par2.haplo1", colnames(expected))] <- 1
+  expected[, grep("loc4.par[12].haplo2", colnames(expected))] <- 1
+  expected[, grep("loc5.par[12].haplo1", colnames(expected))] <- 1
+  expected[, grep("loc6.par[12].haplo2", colnames(expected))] <- 1
+  expected[, grep("loc7.par1.haplo1", colnames(expected))] <- 1
+  expected[, grep("loc8.par1.haplo2", colnames(expected))] <- 1
+  expected[, grep("loc9.par2.haplo2", colnames(expected))] <- 1
+  expected[, grep("loc10.par2.haplo1", colnames(expected))] <- 1
+
+  observed <- joinMap2designMatrix(jm=jm, use.phase=TRUE, rm.col.zeros=FALSE,
+                                   verbose=0)
+
   expect_equal(observed, expected)
 })
 
