@@ -5888,8 +5888,9 @@ calcL10ApproximateBayesFactorWen <- function(Y, Xg, Xc,
 ##'
 ##' Make a boxplot of a candidate QTL.
 ##' @param y vector of phenotypes with genotype names
-##' @param X matrix of bi-allelic SNP genotypes encoded in allele doses in [0,2], with genotypes in rows and SNPs in columns; missing values should be encoded as NA; SNP genotypes at the given snp should not be imputed
+##' @param X matrix of bi-allelic SNP genotypes encoded in allele doses in [0,2], with genotypes in rows and SNPs in columns; missing values should be encoded as NA
 ##' @param snp character with SNP name corresponding to the candidate QTL to plot
+##' @param simplify.imputed if TRUE, imputed genotypes will be transformed back to {0,1,2}
 ##' @param xlab label ox the x-axis
 ##' @param ylab label of the y-axis
 ##' @param show.points if TRUE, individual points will be shown, with \code{\link{jitter}}, especially useful if some genotypic classes have very low counts
@@ -5934,7 +5935,8 @@ calcL10ApproximateBayesFactorWen <- function(Y, Xg, Xc,
 ##' legend("topright", legend=c("lm","gemma"), col=c("red","black"), lty=1, bty="n")
 ##' }
 ##' @export
-boxplotCandidateQtl <- function(y, X, snp, xlab="Genotype", ylab="Phenotype",
+boxplotCandidateQtl <- function(y, X, snp, simplify.imputed=TRUE,
+                                xlab="Genotype", ylab="Phenotype",
                                 show.points=FALSE, notch=TRUE, verbose=1, ...){
   if(is.matrix(y)){
     stopifnot(ncol(y) == 1,
@@ -5949,7 +5951,8 @@ boxplotCandidateQtl <- function(y, X, snp, xlab="Genotype", ylab="Phenotype",
             is.character(snp),
             snp %in% colnames(X))
   X.snp <- X[names(y), snp, drop=FALSE]
-  stopIfNotValidGenosDose(X.snp, check.noNA=FALSE, check.notImputed=TRUE)
+  stopIfNotValidGenosDose(X.snp, check.noNA=FALSE,
+                          check.notImputed=ifelse(simplify.imputed, FALSE, TRUE))
 
   ## reformat the inputs
   x <- stats::setNames(as.vector(X.snp), rownames(X.snp))
@@ -5958,6 +5961,12 @@ boxplotCandidateQtl <- function(y, X, snp, xlab="Genotype", ylab="Phenotype",
   ind.names <- intersect(names(y), names(x))
   x <- x[ind.names]
   y <- y[ind.names]
+  if(simplify.imputed){
+    boundaries <- seq(from=0, to=2, length.out=4)
+    x[x <= boundaries[2]] <- 0
+    x[x > boundaries[2] & x <= boundaries[3]] <- 1
+    x[x > boundaries[3]] <- 2
+  }
 
   counts <- table(x)
   if(verbose > 0){

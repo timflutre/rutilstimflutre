@@ -4,15 +4,18 @@
 \alias{boxplotCandidateQtl}
 \title{Boxplot of QTL}
 \usage{
-boxplotCandidateQtl(y, X, snp, xlab = "Genotype", ylab = "Phenotype",
-  show.points = FALSE, notch = TRUE, verbose = 1, ...)
+boxplotCandidateQtl(y, X, snp, simplify.imputed = TRUE, xlab = "Genotype",
+  ylab = "Phenotype", show.points = FALSE, notch = TRUE, verbose = 1,
+  ...)
 }
 \arguments{
 \item{y}{vector of phenotypes with genotype names}
 
-\item{X}{matrix of bi-allelic SNP genotypes encoded in allele doses in [0,2], with genotypes in rows and SNPs in columns; missing values should be encoded as NA; SNP genotypes at the given snp should not be imputed}
+\item{X}{matrix of bi-allelic SNP genotypes encoded in allele doses in [0,2], with genotypes in rows and SNPs in columns; missing values should be encoded as NA}
 
 \item{snp}{character with SNP name corresponding to the candidate QTL to plot}
+
+\item{simplify.imputed}{if TRUE, imputed genotypes will be transformed back to {0,1,2}}
 
 \item{xlab}{label ox the x-axis}
 
