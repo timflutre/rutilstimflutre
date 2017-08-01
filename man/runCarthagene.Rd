@@ -12,7 +12,7 @@ runCarthagene(cg, cmd)
 \item{cmd}{character specifying the command to run}
 }
 \value{
-vector of lines
+invisible vector of lines corresponding to the output from CarthaGene
 }
 \description{
 Send a command to CarthaGene and wait for the result.

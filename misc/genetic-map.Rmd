@@ -1,0 +1,245 @@
+---
+title: "Genetic map"
+author: "Timothée Flutre (INRA)"
+date: "`r format(Sys.time(), '%d/%m/%Y %H:%M:%S')`"
+colorlinks: true
+output:
+  html_document:
+    toc: true
+    toc_depth: 3
+    toc_float: true
+    number_sections: TRUE
+  pdf_document:
+    toc: true
+    toc_depth: 3
+    number_sections: TRUE
+urlcolor: blue
+---
+
+<!--
+This R chunk is used to set up some options.
+-->
+```{r setup, include=FALSE}
+R.v.maj <- as.numeric(R.version$major)
+R.v.min.1 <- as.numeric(strsplit(R.version$minor, "\\.")[[1]][1])
+if(R.v.maj < 2 || (R.v.maj == 2 && R.v.min.1 < 15))
+  stop("requires R >= 2.15", call.=FALSE)
+
+suppressPackageStartupMessages(library(knitr))
+opts_chunk$set(echo=TRUE, warning=TRUE, message=TRUE, cache=FALSE, fig.align="center")
+```
+
+
+# Overview
+
+This document requires external packages to be available:
+```{r load_pkg}
+library(rutilstimflutre)
+library(scrm)
+library(ASMap)
+stopifnot(file.exists(Sys.which("carthagene")))
+```
+
+This R chunk is used to assess how much time it takes to execute the R code in this document until the end:
+```{r time_0}
+t0 <- proc.time()
+```
+
+
+# Simulate genetic data at HWE
+
+Set the seed:
+```{r, set_seed}
+set.seed(1859)
+```
+
+Simulate haplotypes and genotypes in a single population:
+```{r simul_haplos_genos}
+nb.genos <- 1*10^3
+nb.chrs <- 2
+Ne <- 10^4
+chrom.len <- 1*10^6
+mu <- 10^(-8)
+c.rec <- 10^(-8)
+genomes <- simulCoalescent(nb.inds=nb.genos,
+                           nb.reps=nb.chrs,
+                           pop.mut.rate=4 * Ne * mu * chrom.len,
+                           pop.recomb.rate=4 * Ne * c.rec * chrom.len,
+                           chrom.len=chrom.len,
+                           get.alleles=TRUE)
+afs.hwe <- estimSnpAf(X=genomes$genos)
+plotHistAllelFreq(afs=afs.hwe,
+                  main="Allele frequencies at HWE")
+mafs.hwe <- estimSnpMaf(afs=afs.hwe)
+plotHistMinAllelFreq(mafs=mafs.hwe,
+                     main="Minor allele frequencies at HWE")
+A.vr.hwe <- estimGenRel(X=genomes$genos, afs=afs.hwe, method="vanraden1")
+imageWithScale(A.vr.hwe,
+               main="Additive genetic relationships at HWE")
+summary(diag(A.vr.hwe))
+hist(diag(A.vr.hwe), col="grey", border="white")
+summary(A.vr.hwe[upper.tri(A.vr.hwe)])
+hist(A.vr.hwe[upper.tri(A.vr.hwe)], col="grey", border="white")
+```
+
+
+# Perform controlled crosses
+
+Choose two individuals at random as parents:
+```{r, choose_parents}
+(idx.parents <- sample.int(n=nb.genos, size=2))
+genos.parents <- genomes$genos[idx.parents,]
+names.parents <- rownames(genos.parents)
+haplos.parents <- getHaplosInds(haplos=genomes$haplos,
+                                ind.names=names.parents)
+```
+
+Cross them several times to make offsprings:
+```{r, crosse_to_make_offsprings}
+nb.offs <- 200
+names.offs <- paste0("off-",
+                     sprintf(fmt=paste0("%0", floor(log10(nb.offs))+1, "i"),
+                             1:nb.offs))
+head(crosses.off <- data.frame(parent1=rep(names.parents[1], nb.offs),
+                               parent2=rep(names.parents[2], nb.offs),
+                               child=names.offs,
+                               stringsAsFactors=FALSE))
+loc.crovers.off <- drawLocCrossovers(crosses=crosses.off,
+                                     nb.snps=sapply(haplos.parents, ncol))
+haplos.offs <- makeCrosses(haplos=haplos.parents, crosses=crosses.off,
+                           loc.crossovers=loc.crovers.off)
+genos.offs <- segSites2allDoses(seg.sites=haplos.offs,
+                                ind.ids=getIndNamesFromHaplos(haplos.offs),
+                                snp.ids=rownames(genomes$snp.coords))
+```
+
+Plot pedigree:
+```{r, plot_ped}
+ped <- data.frame(ind=c(names.parents,
+                        crosses.off$child),
+                  mother=c(rep(NA, length(names.parents)),
+                           crosses.off$parent1),
+                  father=c(rep(NA, length(names.parents)),
+                           crosses.off$parent2),
+                  gen=c(rep(0, length(names.parents)),
+                        rep(1, nrow(crosses.off))),
+                  stringsAsFactors=FALSE)
+ped.tmp <- rbind(ped[1:7,],
+                 c(ind="off-..", ped[7, -1]),
+                 c(ind="off-...", ped[7, -1]),
+                 c(ind="off-....", ped[7, -1]),
+                 ped[nrow(ped),])
+plotPedigree(inds=ped.tmp$ind, mothers=ped.tmp$mother, fathers=ped.tmp$father,
+             generations=ped.tmp$gen, main="Pedigree of the controlled crosses")
+```
+
+Check additive genetic relationships:
+```{r, add_gen_rel}
+A.vr.cross <- estimGenRel(X=rbind(genos.parents, genos.offs),
+                          afs=afs.hwe, method="vanraden1")
+A.t.cross <- estimGenRel(X=rbind(genos.parents, genos.offs),
+                         afs=afs.hwe, method="toro2011_eq10")
+cor(c(A.vr.cross), c(A.t.cross))
+imageWithScale(A.vr.cross, main="Additive genetic relationships of crosses")
+imageWithScale(A.vr.cross[1:10, 1:10],
+               main="Additive genetic relationships of crosses (subset)",
+               idx.rownames=1:10, idx.colnames=1:10)
+summary(diag(A.vr.cross))
+summary(A.vr.cross[upper.tri(A.vr.cross)])
+summary(A.vr.cross[names.parents[1], grep("off", colnames(A.vr.cross))])
+summary(A.vr.cross[names.parents[2], grep("off", colnames(A.vr.cross))])
+summary(A.t.cross[names.parents[1], grep("off", colnames(A.t.cross))])
+summary(A.t.cross[names.parents[2], grep("off", colnames(A.t.cross))])
+```
+
+As expected, the additive genetic relationships between all parent-child pairs are around 0.5, corresponding to a coancestry coefficient of 1/4.
+
+
+# Build genetic map with CarthaGene
+
+Prepare the input data:
+```{r}
+genos.doses <- cbind(t(genos.parents), t(genos.offs))
+genos.classes <- genoDoses2genoClasses(tX=genos.doses,
+                                       alleles=genomes$alleles)
+genos.jm <- genoClasses2JoinMap(genos.classes)
+genos.cg <- joinMap2CarthaGene(genos.jm[, -c(1:8)])
+file.par1 <- "genos_carthagene_parent1.txt"
+writeCartagene(genos.cg$parent1, file.par1)
+```
+
+Load the data set:
+```{r}
+cg <- openCarthagene(file.par1)
+(out <- runCarthagene(cg, "cgversion"))
+(out <- runCarthagene(cg, "dsinfo"))
+out <- runCarthagene(cg, "mrkinfo")
+mrk.info <- parseCgMrkinfo(out.mrkinfo)
+(out <- runCarthagene(cg, "heapsizeget"))
+```
+
+Determine the linkage groups:
+```{r}
+cmd <- "group 0.2 7" # params chosen by trial and error
+out.group <- runCarthagene(cg, cmd)
+linkgroups <- parseCgGroup(out.group, mrk.info)
+sapply(linkgroups, nrow)
+```
+
+Check that all markers put in the same linkage group belong to the same chromosome:
+```{r}
+sapply(linkgroups, function(lg){
+  table(genomes$snp.coords[gsub("_m", "", lg$name), "chr"])
+})
+```
+
+Determine the marker order for the first group (by building a framework map):
+```{r}
+runCarthagene(cg, "mrkselset [groupget 1]")
+system.time(
+    out.buildfw <- runCarthagene(cg, "buildfw 3 3 {} 1")) # 2400 sec = 40 min
+```
+
+Check its reliability:
+```{r}
+system.time(
+    out.flips <- runCarthagene(cg, "flips 4 3 0"))
+out.flips
+```
+
+Get the maps (best is last):
+```{r}
+out.heaprint <- runCarthagene(cg, "heaprint")
+out.bestprint <- runCarthagene(cg, "bestprint")
+out.bestprintd <- runCarthagene(cg, "bestprintd")
+```
+
+TODO: parse the output of bestprintd
+
+Save CarthaGene's state:
+```{r}
+file.cgsave <- "cgsave.tcl"
+(out <- runCarthagene(cg, paste("cgsave", file.cgsave)))
+file.export <- "cg_map.txt"
+(out <- runCarthagene(cg, paste("cgexport", file.export,
+                                "FruitSelgen_SxG", "chr2")))
+```
+
+Clean:
+```{r}
+closeCarthagene(cg)
+```
+
+
+# Build genetic map with ASMap
+
+TODO
+
+
+
+# Appendix
+
+```{r info}
+t1 <- proc.time(); t1 - t0
+print(sessionInfo(), locale=FALSE)
+```

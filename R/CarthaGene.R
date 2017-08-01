@@ -56,7 +56,7 @@ openCarthagene <- function(file=NULL){
 ##' Send a command to CarthaGene and wait for the result.
 ##' @param cg list output from \code{\link{openCarthagene}}
 ##' @param cmd character specifying the command to run
-##' @return vector of lines
+##' @return invisible vector of lines corresponding to the output from CarthaGene
 ##' @author Matthieu Falque [aut], Timothee Flutre [ctb]
 ##' @export
 runCarthagene <- function(cg, cmd){
@@ -81,6 +81,84 @@ runCarthagene <- function(cg, cmd){
 
   ## remove the lines corresponding to the dummy command
   out <- out[-((length(out)-1):length(out))]
+
+  invisible(out)
+}
+
+##' Parse CarthaGene's output
+##'
+##' Parse the output of CarthaGene's command "mrkinfo".
+##' @param out.mrkinfo vector of character output from \code{\link{runCarthagene}} corresponding to "mrkinfo"
+##' @return data frame with one row per marker and columns "id", "name", etc
+##' @author Timothee Flutre
+##' @export
+parseCgMrkinfo <- function(out.mrkinfo){
+  stopifnot(is.character(out.mrkinfo))
+
+  idx <- grep("Num                Names : Sets Merges", out.mrkinfo)
+  if(length(idx) == 0){
+    msg <- paste0("can't parse CarthaGene's output;",
+                  " does it correspond to the 'mrkinfo' command?")
+    stop(msg)
+  }
+
+  tmp <- strsplit(out.mrkinfo[-c(1:idx)], " |:")
+  tmp <- lapply(tmp, function(x){
+    x[! x == ""]
+  })
+  if(unique(sapply(tmp, length)) != 3){
+    msg <- paste0("can't parse CarthaGene's output;",
+                  " does it correspond to the 'mrkinfo' command?")
+    stop(msg)
+  }
+  out <- as.data.frame(do.call(rbind, tmp), stringsAsFactors=FALSE)
+  colnames(out) <- c("id", "name", "datasets")
+  out$id <- as.integer(out$id)
+
+  return(out)
+}
+
+##' Parse CarthaGene's output
+##'
+##' Parse the output of CarthaGene's command "group".
+##' @param out.group vector of character output from \code{\link{runCarthagene}} corresponding to "group"
+##' @param mrk.info data frame output from \code{\link{parseCgMrkinfo}} (optional; useful to have the marker names instead of only the marker identifiers)
+##' @return list with one data frame per linkage group
+##' @author Timothee Flutre
+##' @export
+parseCgGroup <- function(out.group, mrk.info=NULL){
+  stopifnot(is.character(out.group))
+  if(! is.null(mrk.info))
+    stopifnot(is.data.frame(mrk.info),
+              ncol(mrk.info) >= 2,
+              all(c("id", "name") %in% colnames(mrk.info)))
+
+  out <- list()
+
+  idx <- grep("Group ID : Marker ID List ..", out.group)
+  if(length(idx) == 0){
+    msg <- paste0("can't parse CarthaGene's output;",
+                  " does it correspond to the 'group' command?")
+    stop(msg)
+  }
+
+  nb.linkgroups <- as.integer(out.group[length(out.group)])
+  for(lg in 1:nb.linkgroups){
+    tmp <- strsplit(out.group[idx + lg], ":")[[1]]
+    if(length(tmp) != 2){
+      msg <- paste0("can't parse data for linkage group '", lg, "'")
+      stop(msg)
+    }
+    out[[lg]] <- data.frame(id=as.integer(strsplit(tmp[2], " ")[[1]][-1]),
+                            stringsAsFactors=FALSE)
+  }
+
+  if(! is.null(mrk.info)){
+    out <- lapply(out, function(lg){
+      lg$name <- mrk.info$name[match(lg$id, mrk.info$id)]
+      lg
+    })
+  }
 
   return(out)
 }

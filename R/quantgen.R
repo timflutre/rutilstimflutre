@@ -800,7 +800,7 @@ writeSegregJoinMap <- function(pop.name, pop.type="CP",
 ##' Genotype coding
 ##'
 ##' Write marker genotypes formatted for CarthaGene in a file.
-##' @param x matrix of characters containing marker genotypes in the CarthaGene formatfor instance from \code{\link{joinMap2CarthaGene}}; row names should correspond to marker names
+##' @param x matrix of characters containing marker genotypes in the CarthaGene format, for instance from \code{\link{joinMap2CarthaGene}}; row names should correspond to marker names
 ##' @param file path to the file to which the data will be written
 ##' @param type type of the data ("f2 backcross")
 ##' @param aliases aliases
