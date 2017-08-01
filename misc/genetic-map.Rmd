@@ -173,7 +173,7 @@ Load the data set:
 cg <- openCarthagene(file.par1)
 (out <- runCarthagene(cg, "cgversion"))
 (out <- runCarthagene(cg, "dsinfo"))
-out <- runCarthagene(cg, "mrkinfo")
+out.mrkinfo <- runCarthagene(cg, "mrkinfo")
 mrk.info <- parseCgMrkinfo(out.mrkinfo)
 (out <- runCarthagene(cg, "heapsizeget"))
 ```
