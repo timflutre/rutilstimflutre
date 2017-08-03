@@ -262,6 +262,22 @@ test_that("joinMap2designMatrix_with-phase", {
   expect_equal(observed, expected)
 })
 
+test_that("getSegregatingLocusPerParent", {
+  N <- 2
+  P <- 10
+  tX <- matrix(data=c(rep(0:2, each=3),NA, rep(0:2, times=3),1),
+               nrow=P, ncol=N,
+               dimnames=list(paste0("snp", 1:P), c("par1", "par2")))
+
+  expected <- list(parent1=setNames(4:6, paste0("snp", 4:6)),
+                   parent2=setNames(c(seq(2,10,3),10),
+                                    paste0("snp", c(seq(2,10,3),10))))
+
+  observed <- getSegregatingLocusPerParent(tX)
+
+  expect_equal(observed, expected)
+})
+
 test_that("filterSegreg", {
   nb.offs <- 6 # offsprings
   N <- 2 + nb.offs

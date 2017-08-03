@@ -1252,6 +1252,64 @@ joinMap2designMatrix <- function(jm, use.phase=FALSE,
   return(out)
 }
 
+getSegregatingLocusPerParent <- function(tX){
+  stopifnot(is.matrix(tX),
+            ncol(tX) == 2)
+
+  out <- list()
+
+  obs1 <- ! is.na(tX[,1])
+  obs2 <- ! is.na(tX[,2])
+  par1.het <- tX[,1] == 1
+  par2.het <- tX[,2] == 1
+
+  hkhk <- obs1 & par1.het & obs2 & par2.het
+  lmll <- obs1 & par1.het & ((obs2 & (! par2.het)) | (! obs2))
+  nnnp <- ((obs1 & (! par1.het)) | (! obs1)) & obs2 & par2.het
+
+  out$parent1 <- which(hkhk | lmll)
+  out$parent2 <- which(hkhk | nnnp)
+
+  return(out)
+}
+
+##' Convert genotypes
+##'
+##' Convert SNP genotypes of a bi-parental cross from "allele doses" for usage in the "ASMap" package.
+##' @param X matrix of bi-allelic SNP genotypes encoded, for each SNP, in number of copies of its second allele, i.e. as allele doses in {0,1,2}, with genotypes in rows and SNPs in columns; the "second" allele is arbitrary, it can correspond to the minor (least frequent) or the major (most frequent) allele
+##' @param tX matrix with SNPs in rows and genotypes in columns
+##' @return list of two data frames, one per parental map
+##' @author Timothee Flutre
+##' @export
+genoDoses2ASMap <- function(X=NULL, tX=NULL){
+  stopifnot(xor(is.null(X), is.null(tX)))
+  if(! is.null(X)){
+    stopIfNotValidGenosDose(X=X, check.noNA=FALSE, check.notImputed=TRUE)
+    tX <- t(X)
+  }
+
+  out <- list()
+
+  convertAndDuplicate <- function(tX.par){
+    tmp <- apply(tX.par, 2, function(x){
+      x[is.na(x)] <- "U"
+      gsub("0|2", "A", gsub("1", "B", x))
+    })
+    tmp.m <- apply(tX.par, 2, function(x){
+      x[is.na(x)] <- "U"
+      gsub("0|2", "B", gsub("1", "A", x))
+    })
+    rownames(tmp.m) <- paste0(rownames(tmp.m), "_m")
+    return(as.data.frame(rbind(tmp, tmp.m), stringsAsFactors=FALSE))
+  }
+
+  idx.loc.pars <- getSegregatingLocusPerParent(tX[, 1:2])
+  out$parent1 <- convertAndDuplicate(tX[idx.loc.pars[[1]], -(1:2)])
+  out$parent2 <- convertAndDuplicate(tX[idx.loc.pars[[2]], -(1:2)])
+
+  return(out)
+}
+
 ##' Haplotypes
 ##'
 ##' Check that the input is a valid list of matrices of bi-allelic marker haplotypes.

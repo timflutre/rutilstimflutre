@@ -34,9 +34,9 @@ opts_chunk$set(echo=TRUE, warning=TRUE, message=TRUE, cache=FALSE, fig.align="ce
 
 This document requires external packages to be available:
 ```{r load_pkg}
-library(rutilstimflutre)
-library(scrm)
-library(ASMap)
+suppressPackageStartupMessages(library(rutilstimflutre))
+suppressPackageStartupMessages(library(scrm))
+suppressPackageStartupMessages(library(ASMap))
 stopifnot(file.exists(Sys.which("carthagene")))
 ```
 
@@ -67,6 +67,10 @@ genomes <- simulCoalescent(nb.inds=nb.genos,
                            pop.recomb.rate=4 * Ne * c.rec * chrom.len,
                            chrom.len=chrom.len,
                            get.alleles=TRUE)
+```
+
+Look at some visual checks:
+```{r}
 afs.hwe <- estimSnpAf(X=genomes$genos)
 plotHistAllelFreq(afs=afs.hwe,
                   main="Allele frequencies at HWE")
@@ -164,6 +168,7 @@ genos.classes <- genoDoses2genoClasses(tX=genos.doses,
                                        alleles=genomes$alleles)
 genos.jm <- genoClasses2JoinMap(genos.classes)
 genos.cg <- joinMap2CarthaGene(genos.jm[, -c(1:8)])
+sapply(genos.cg, dim)
 file.par1 <- "genos_carthagene_parent1.txt"
 writeCartagene(genos.cg$parent1, file.par1)
 ```
@@ -233,8 +238,48 @@ closeCarthagene(cg)
 
 # Build genetic map with ASMap
 
-TODO
+Prepare the input data:
+```{r}
+genos.doses <- cbind(t(genos.parents), t(genos.offs))
+dim(tX <- genos.doses[estimSnpMaf(t(genos.doses[,-(1:2)])) > 0.15,])
+genos.asmap <- genoDoses2ASMap(tX=tX)
+sapply(genos.asmap, dim)
+```
 
+Build the map:
+```{r}
+map.par1 <- mstmap(genos.asmap$parent1,
+                   pop.type="BC",
+                   dist.fun="kosambi",
+                   objective.fun="COUNT",
+                   p.value=10^(-5),
+                   miss.thresh=1,
+                   as.cross=TRUE)
+```
+
+```{r, eval=TRUE}
+heatMap(map.par1)
+```
+
+```{r, eval=TRUE}
+profileMark(map.par1, crit.val="bonf")
+```
+
+```{r, eval=TRUE}
+clones <- genClones(map.par1)
+(pair1 <- c(as.character(clones$cgd[1,1]),
+            as.character(clones$cgd[1,2])))
+A.vr.cross[pair1, pair1]
+loc.crovers.off[[pair1[1]]]
+loc.crovers.off[[pair1[2]]]
+idx <- grep(paste(pair1, collapse="|"), rownames(haplos.offs$chr1))
+plotHaplosMatrix(haplos.offs$chr1[idx[c(1,3,2,4)],])
+plotHaplosMatrix(haplos.offs$chr2[idx[c(1,3,2,4)],])
+```
+
+```{r, eval=FALSE}
+map.c <- combineMap(map.par1, map.par2)
+```
 
 
 # Appendix
