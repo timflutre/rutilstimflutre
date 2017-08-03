@@ -4,7 +4,8 @@
 \alias{drawLocCrossovers}
 \title{Crossing-overs}
 \usage{
-drawLocCrossovers(crosses, nb.snps, lambda = 2)
+drawLocCrossovers(crosses, nb.snps, lambda = 2, simplistic = FALSE,
+  verbose = 0)
 }
 \arguments{
 \item{crosses}{data.frame with three columns, parent1, parent2, child; if parent 1 and 2 are the same, it will be an autofecondation; if parent2 is NA, it will be a haplodiploidization}
@@ -12,6 +13,10 @@ drawLocCrossovers(crosses, nb.snps, lambda = 2)
 \item{nb.snps}{vector with the nb of SNPs per chromosome, which names are chromosome names}
 
 \item{lambda}{mean number of crossing-overs (parameter of a Poisson)}
+
+\item{simplistic}{if TRUE, the value of \code{lambda} is ignored, and a single crossing over per gamete chromosome is assumed, which location is drawn uniformly}
+
+\item{verbose}{verbosity level (0/1)}
 }
 \value{
 list of lists (one per cross, then one per parent, then one per chromosome) whose names are crosses$child, in the same order
@@ -33,14 +38,8 @@ crosses <- data.frame(parent1=rep("par1", nb.offs),
 ## draw locations of crossing-overs
 loc.crossovers <- drawLocCrossovers(crosses=crosses,
                                     nb.snps=setNames(c(2739, 2811),
-                                                     c("chr1", "chr2")))
-
-## quick check at their distributions per chr
-table(do.call(c, lapply(loc.crossovers, function(lc.off){
-  do.call(c, lapply(lc.off, function(lc.par){
-    sapply(lc.par, length)
-  }))
-})))
+                                                     c("chr1", "chr2")),
+                                    verbose=1)
 }
 }
 \seealso{

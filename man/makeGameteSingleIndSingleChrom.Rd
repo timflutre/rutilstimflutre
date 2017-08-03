@@ -18,7 +18,7 @@ makeGameteSingleIndSingleChrom(haplos.par.chr, loc.crossovers,
 vector
 }
 \description{
-Make a gamete for a given chromosome by recombining two parental haplotypes (always starting with the first haplotype).
+Make a gamete for a given chromosome by recombining two parental haplotypes.
 }
 \seealso{
 \code{\link{makeGameteSingleInd}}, \code{\link{drawLocCrossovers}}

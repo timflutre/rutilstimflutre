@@ -53,45 +53,95 @@ Set the seed:
 set.seed(1859)
 ```
 
-Simulate haplotypes and genotypes in a single population:
+<!--
+Simulate haplotypes and genotypes in a single population with a bottleneck:
 ```{r simul_haplos_genos}
 nb.genos <- 1*10^3
 nb.chrs <- 2
-Ne <- 10^4
-chrom.len <- 1*10^6
-mu <- 10^(-8)
-c.rec <- 10^(-8)
+chrom.len <- 1*10^6     # in base pairs
+mu <- 10^(-8)           # neutral mutation rate in events / base / generation
+u <- mu * chrom.len     #  in events / chrom / gen
+c.rec <- 10^(-8)        # recomb rate in events / base / gen
+r <- c.rec * chrom.len  #  in events / chrom / gen
+##                             _____
+##                            /
+##       ____________________/      Nec
+##                       _Neb_
+##                       |    \_____
+##            Nea        |
+##                       |
+##                       |
+##       ________________|
+##                       2   1      0
+## time  <---------------+---+------+
+Nea <- 5 * 10^4         # ancestral
+Neb <- 10 * 10^2        # bottleneck
+Nec <- Ne0 <- 5 * 10^3  # current
+theta <- 4 * Ne0 * u    # scaled neutral mutation rate in events / chrom
+rho <- 4 * Ne0 * r      # scaled recomb rate in events / chrom
+T1 <- 8000
+T2 <- T1 + 2000
+alpha <- - (4 * Ne0) / T1 * log(Neb / Ne0) # exp growth rate from Nec to Neb
+cmd <- paste0("-eG ", T1/(4*Ne0), " ", alpha,
+              " -eN ", T2/(4*Ne0), " ", Nea/Ne0)
 genomes <- simulCoalescent(nb.inds=nb.genos,
                            nb.reps=nb.chrs,
-                           pop.mut.rate=4 * Ne * mu * chrom.len,
-                           pop.recomb.rate=4 * Ne * c.rec * chrom.len,
+                           pop.mut.rate=theta,
+                           pop.recomb.rate=rho,
                            chrom.len=chrom.len,
+                           other=cmd,
                            get.alleles=TRUE)
+afs.pop <- estimSnpAf(X=genomes$genos)
+mafs.pop <- estimSnpMaf(afs=afs.pop)
+```
+-->
+
+Simulate haplotypes and genotypes in two populations:
+```{r}
+nb.genos <- 1*10^3
+nb.chrs <- 2
+chrom.len <- 1*10^6     # in base pairs
+mu <- 10^(-8)           # neutral mutation rate in events / base / generation
+u <- mu * chrom.len     #  in events / chrom / gen
+c.rec <- 10^(-8)        # recomb rate in events / base / gen
+r <- c.rec * chrom.len  #  in events / chrom / gen
+m <- 2*10^(-5)          # migration rate in events / gen
+Ne <- 10^4
+theta <- 4 * Ne * u     # scaled neutral mutation rate in events / chrom
+rho <- 4 * Ne * r       # scaled recomb rate in events / chrom
+M <- 4 * Ne * m         # scaled migration rate in events
+genomes <- simulCoalescent(nb.inds=nb.genos,
+                           nb.reps=nb.chrs,
+                           pop.mut.rate=theta,
+                           pop.recomb.rate=rho,
+                           chrom.len=chrom.len,
+                           nb.pops=2,
+                           mig.rate=M,
+                           get.alleles=TRUE)
+table(inds.per.pop <- kmeans(genomes$genos, 2)$cluster)
+afs.pop <- estimSnpAf(X=genomes$genos)
+mafs.pop <- estimSnpMaf(afs=afs.pop)
 ```
 
 Look at some visual checks:
 ```{r}
-afs.hwe <- estimSnpAf(X=genomes$genos)
-plotHistAllelFreq(afs=afs.hwe,
-                  main="Allele frequencies at HWE")
-mafs.hwe <- estimSnpMaf(afs=afs.hwe)
-plotHistMinAllelFreq(mafs=mafs.hwe,
-                     main="Minor allele frequencies at HWE")
-A.vr.hwe <- estimGenRel(X=genomes$genos, afs=afs.hwe, method="vanraden1")
-imageWithScale(A.vr.hwe,
-               main="Additive genetic relationships at HWE")
-summary(diag(A.vr.hwe))
-hist(diag(A.vr.hwe), col="grey", border="white")
-summary(A.vr.hwe[upper.tri(A.vr.hwe)])
-hist(A.vr.hwe[upper.tri(A.vr.hwe)], col="grey", border="white")
+plotHistAllelFreq(afs=afs.pop, main="Allele frequencies")
+plotHistMinAllelFreq(mafs=mafs.pop, main="Minor allele frequencies")
+A.vr.pop <- estimGenRel(X=genomes$genos, afs=afs.pop, method="vanraden1")
+imageWithScale(A.vr.pop, main="Additive genetic relationships")
+summary(diag(A.vr.pop))
+hist(diag(A.vr.pop), col="grey", border="white")
+summary(A.vr.pop[upper.tri(A.vr.pop)])
+hist(A.vr.pop[upper.tri(A.vr.pop)], col="grey", border="white")
 ```
 
 
 # Perform controlled crosses
 
-Choose two individuals at random as parents:
+Choose two individuals as parents (one per population):
 ```{r, choose_parents}
-(idx.parents <- sample.int(n=nb.genos, size=2))
+(idx.parents <- c(sample(x=names(inds.per.pop)[inds.per.pop == 1], size=1),
+                  sample(x=names(inds.per.pop)[inds.per.pop == 2], size=1)))
 genos.parents <- genomes$genos[idx.parents,]
 names.parents <- rownames(genos.parents)
 haplos.parents <- getHaplosInds(haplos=genomes$haplos,
@@ -109,9 +159,12 @@ head(crosses.off <- data.frame(parent1=rep(names.parents[1], nb.offs),
                                child=names.offs,
                                stringsAsFactors=FALSE))
 loc.crovers.off <- drawLocCrossovers(crosses=crosses.off,
-                                     nb.snps=sapply(haplos.parents, ncol))
+                                     nb.snps=sapply(haplos.parents, ncol),
+                                     simplistic=FALSE,
+                                     verbose=1)
 haplos.offs <- makeCrosses(haplos=haplos.parents, crosses=crosses.off,
-                           loc.crossovers=loc.crovers.off)
+                           loc.crossovers=loc.crovers.off,
+                           howto.start.haplo=0)
 genos.offs <- segSites2allDoses(seg.sites=haplos.offs,
                                 ind.ids=getIndNamesFromHaplos(haplos.offs),
                                 snp.ids=rownames(genomes$snp.coords))
@@ -140,9 +193,9 @@ plotPedigree(inds=ped.tmp$ind, mothers=ped.tmp$mother, fathers=ped.tmp$father,
 Check additive genetic relationships:
 ```{r, add_gen_rel}
 A.vr.cross <- estimGenRel(X=rbind(genos.parents, genos.offs),
-                          afs=afs.hwe, method="vanraden1")
+                          afs=afs.pop, method="vanraden1")
 A.t.cross <- estimGenRel(X=rbind(genos.parents, genos.offs),
-                         afs=afs.hwe, method="toro2011_eq10")
+                         afs=afs.pop, method="toro2011_eq10")
 cor(c(A.vr.cross), c(A.t.cross))
 imageWithScale(A.vr.cross, main="Additive genetic relationships of crosses")
 imageWithScale(A.vr.cross[1:10, 1:10],
@@ -156,7 +209,7 @@ summary(A.t.cross[names.parents[1], grep("off", colnames(A.t.cross))])
 summary(A.t.cross[names.parents[2], grep("off", colnames(A.t.cross))])
 ```
 
-As expected, the additive genetic relationships between all parent-child pairs are around 0.5, corresponding to a coancestry coefficient of 1/4.
+Under HWE in a single population, the additive genetic relationships between all parent-child pairs should be centered around 0.5, corresponding to a coancestry coefficient of 1/4.
 
 
 # Build genetic map with CarthaGene
@@ -179,16 +232,17 @@ cg <- openCarthagene(file.par1)
 (out <- runCarthagene(cg, "cgversion"))
 (out <- runCarthagene(cg, "dsinfo"))
 out.mrkinfo <- runCarthagene(cg, "mrkinfo")
-mrk.info <- parseCgMrkinfo(out.mrkinfo)
+dim(mrk.info <- parseCgMrkinfo(out.mrkinfo))
 (out <- runCarthagene(cg, "heapsizeget"))
 ```
 
 Determine the linkage groups:
 ```{r}
-cmd <- "group 0.2 7" # params chosen by trial and error
+cmd <- "group 0.3 3" # params chosen by trial and error
 out.group <- runCarthagene(cg, cmd)
 linkgroups <- parseCgGroup(out.group, mrk.info)
 sapply(linkgroups, nrow)
+head(linkgroups[[1]])
 ```
 
 Check that all markers put in the same linkage group belong to the same chromosome:
@@ -248,16 +302,18 @@ sapply(genos.asmap, dim)
 
 Build the map:
 ```{r}
-map.par1 <- mstmap(genos.asmap$parent1,
-                   pop.type="BC",
-                   dist.fun="kosambi",
-                   objective.fun="COUNT",
-                   p.value=10^(-5),
-                   miss.thresh=1,
-                   as.cross=TRUE)
+system.time(
+    map.par1 <- mstmap(genos.asmap$parent1,
+                       pop.type="BC",
+                       dist.fun="kosambi",
+                       objective.fun="COUNT",
+                       p.value=10^(-6), # proba below which markers are in same group
+                       miss.thresh=1,
+                       as.cross=TRUE))
 ```
 
 ```{r, eval=TRUE}
+plot.map(map.par1)
 heatMap(map.par1)
 ```
 
@@ -267,14 +323,15 @@ profileMark(map.par1, crit.val="bonf")
 
 ```{r, eval=TRUE}
 clones <- genClones(map.par1)
+clones$cgd
 (pair1 <- c(as.character(clones$cgd[1,1]),
             as.character(clones$cgd[1,2])))
 A.vr.cross[pair1, pair1]
 loc.crovers.off[[pair1[1]]]
 loc.crovers.off[[pair1[2]]]
 idx <- grep(paste(pair1, collapse="|"), rownames(haplos.offs$chr1))
-plotHaplosMatrix(haplos.offs$chr1[idx[c(1,3,2,4)],])
-plotHaplosMatrix(haplos.offs$chr2[idx[c(1,3,2,4)],])
+plotHaplosMatrix(haplos.offs$chr1[idx[c(1,3,2,4)],], main="Haplotypes (chr1)")
+plotHaplosMatrix(haplos.offs$chr2[idx[c(1,3,2,4)],], main="Haplotypes (chr2)")
 ```
 
 ```{r, eval=FALSE}

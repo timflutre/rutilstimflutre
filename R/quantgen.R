@@ -2723,7 +2723,7 @@ getHaplosInds <- function(haplos, ind.names){
 
 ##' Gamete
 ##'
-##' Make a gamete for a given chromosome by recombining two parental haplotypes (always starting with the first haplotype).
+##' Make a gamete for a given chromosome by recombining two parental haplotypes.
 ##' @param haplos.par.chr matrix containing both haplotypes of a parent for a given chromosome (must have dimnames, such as "ind37_h1" in rows and "snp00265" in columns)
 ##' @param loc.crossovers positions of the crossing overs (the coordinate of the first nucleotide is assumed to be 1, and crossing-overs are assumed to occur right after the given positions)
 ##' @param start.haplo identifier of the haplotype with which to start the gamete (1/2)
@@ -2911,6 +2911,8 @@ makeCross <- function(haplos.par1,
 ##' @param crosses data.frame with three columns, parent1, parent2, child; if parent 1 and 2 are the same, it will be an autofecondation; if parent2 is NA, it will be a haplodiploidization
 ##' @param nb.snps vector with the nb of SNPs per chromosome, which names are chromosome names
 ##' @param lambda mean number of crossing-overs (parameter of a Poisson)
+##' @param simplistic if TRUE, the value of \code{lambda} is ignored, and a single crossing over per gamete chromosome is assumed, which location is drawn uniformly
+##' @param verbose verbosity level (0/1)
 ##' @return list of lists (one per cross, then one per parent, then one per chromosome) whose names are crosses$child, in the same order
 ##' @author Timothee Flutre
 ##' @seealso \code{\link{makeGameteSingleIndSingleChrom}}
@@ -2928,24 +2930,20 @@ makeCross <- function(haplos.par1,
 ##' ## draw locations of crossing-overs
 ##' loc.crossovers <- drawLocCrossovers(crosses=crosses,
 ##'                                     nb.snps=setNames(c(2739, 2811),
-##'                                                      c("chr1", "chr2")))
-##'
-##' ## quick check at their distributions per chr
-##' table(do.call(c, lapply(loc.crossovers, function(lc.off){
-##'   do.call(c, lapply(lc.off, function(lc.par){
-##'     sapply(lc.par, length)
-##'   }))
-##' })))
+##'                                                      c("chr1", "chr2")),
+##'                                     verbose=1)
 ##' }
 ##' @export
-drawLocCrossovers <- function(crosses, nb.snps, lambda=2){
+drawLocCrossovers <- function(crosses, nb.snps, lambda=2, simplistic=FALSE,
+                              verbose=0){
   stopifnot(is.data.frame(crosses),
             ncol(crosses) >= 3,
             all(c("parent1", "parent2", "child") %in% colnames(crosses)),
             sum(is.na(crosses$parent1)) == 0,
             sum(is.na(crosses$child)) == 0,
             is.vector(nb.snps),
-            ! is.null(names(nb.snps)))
+            ! is.null(names(nb.snps)),
+            is.logical(simplistic))
 
   loc.crossovers <- list()
 
@@ -2954,10 +2952,16 @@ drawLocCrossovers <- function(crosses, nb.snps, lambda=2){
   parent.names <- parent.names[! is.na(parent.names)]
   nb.gametes <- length(parent.names)
   nb.chroms <- length(nb.snps)
-  nb.crossovers <- stats::rpois(nb.gametes * nb.chroms, lambda)
+  if(simplistic){
+    nb.crossovers <- rep(1, nb.gametes * nb.chroms)
+  } else
+    nb.crossovers <- stats::rpois(nb.gametes * nb.chroms, lambda)
   nb.crossovers[nb.crossovers == 0] <- 1 # at least 1 per chromosome
 
   ## draw the location of each crossing-over
+  drawLocCrossoversOneChr <- function(nb.snps, nb.crossovers){
+    sort(sample.int(n=nb.snps, size=nb.crossovers))
+  }
   nb.crosses <- nrow(crosses)
   chrom.names <- names(nb.snps)
   cross.idx <- 0
@@ -2967,21 +2971,32 @@ drawLocCrossovers <- function(crosses, nb.snps, lambda=2){
     child <- list()
     gam.idx <- gam.idx + 1
     gam.par1 <- lapply(1:nb.chroms, function(c){
-      sort(sample.int(n=nb.snps[c] - 1,
-                      size=nb.crossovers[(gam.idx-1)*nb.chroms + c]))
+      drawLocCrossoversOneChr(nb.snps[c] - 1,
+                              nb.crossovers[(gam.idx-1)*nb.chroms + c])
     })
     names(gam.par1) <- chrom.names
     child[[crosses$parent1[cross.idx]]] <- gam.par1
     if(! is.na(crosses$parent2[cross.idx])){ # (auto)fecondation
       gam.idx <- gam.idx + 1
       gam.par2 <- lapply(1:nb.chroms, function(c){
-        sort(sample.int(n=nb.snps[c] - 1,
-                        size=nb.crossovers[(gam.idx-1)*nb.chroms + c]))
+        drawLocCrossoversOneChr(nb.snps[c] - 1,
+                                nb.crossovers[(gam.idx-1)*nb.chroms + c])
       })
       names(gam.par2) <- chrom.names
       child[[crosses$parent2[cross.idx]]] <- gam.par2
     }
     loc.crossovers[[crosses$child[cross.idx]]] <- child
+  }
+
+  if(verbose > 0){
+    msg <- "distribution of the nb of crossing-overs per chromosome:"
+    write(msg, stdout())
+    tmp <- table(do.call(c, lapply(loc.crossovers, function(lc.off){
+      do.call(c, lapply(lc.off, function(lc.par){
+        sapply(lc.par, length)
+      }))
+    })))
+    print(tmp)
   }
 
   return(loc.crossovers)
