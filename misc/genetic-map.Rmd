@@ -100,13 +100,14 @@ Simulate haplotypes and genotypes in two populations:
 ```{r}
 nb.genos <- 1*10^3
 nb.chrs <- 2
-chrom.len <- 1*10^6     # in base pairs
+chr.len.phy <- 10^6     # chromosome physical length in base pairs
 mu <- 10^(-8)           # neutral mutation rate in events / base / generation
-u <- mu * chrom.len     #  in events / chrom / gen
-c.rec <- 10^(-8)        # recomb rate in events / base / gen
-r <- c.rec * chrom.len  #  in events / chrom / gen
-m <- 2*10^(-5)          # migration rate in events / gen
-Ne <- 10^4
+u <- mu * chr.len.phy   #  in events / chrom / gen
+chr.len.gen <- 10^(-1)  # chromosome genetic length in Morgans
+c.r <- chr.len.gen / chr.len.phy # recomb rate in events / base / gen
+r <- c.r * chr.len.phy  #  in events / chrom / gen
+m <- 10^(-5)            # fraction of a pop replaced from other pops each gen
+Ne <- 10^4              # effective population size
 theta <- 4 * Ne * u     # scaled neutral mutation rate in events / chrom
 rho <- 4 * Ne * r       # scaled recomb rate in events / chrom
 M <- 4 * Ne * m         # scaled migration rate in events
@@ -114,7 +115,7 @@ genomes <- simulCoalescent(nb.inds=nb.genos,
                            nb.reps=nb.chrs,
                            pop.mut.rate=theta,
                            pop.recomb.rate=rho,
-                           chrom.len=chrom.len,
+                           chrom.len=chr.len.phy,
                            nb.pops=2,
                            mig.rate=M,
                            get.alleles=TRUE)
@@ -238,7 +239,7 @@ dim(mrk.info <- parseCgMrkinfo(out.mrkinfo))
 
 Determine the linkage groups:
 ```{r}
-cmd <- "group 0.3 3" # params chosen by trial and error
+cmd <- "group 0.3 5" # params chosen by trial and error
 out.group <- runCarthagene(cg, cmd)
 linkgroups <- parseCgGroup(out.group, mrk.info)
 sapply(linkgroups, nrow)
@@ -252,22 +253,22 @@ sapply(linkgroups, function(lg){
 })
 ```
 
-Determine the marker order for the first group (by building a framework map):
-```{r}
+Determine the marker order for the first group, by building a "framework" map:
+```{r, eval=FALSE}
 runCarthagene(cg, "mrkselset [groupget 1]")
 system.time(
-    out.buildfw <- runCarthagene(cg, "buildfw 3 3 {} 1")) # 2400 sec = 40 min
+    out.buildfw <- runCarthagene(cg, "buildfw 3 3 {} 1"))
 ```
 
 Check its reliability:
-```{r}
+```{r, eval=FALSE}
 system.time(
     out.flips <- runCarthagene(cg, "flips 4 3 0"))
 out.flips
 ```
 
 Get the maps (best is last):
-```{r}
+```{r, eval=FALSE}
 out.heaprint <- runCarthagene(cg, "heaprint")
 out.bestprint <- runCarthagene(cg, "bestprint")
 out.bestprintd <- runCarthagene(cg, "bestprintd")
@@ -276,7 +277,7 @@ out.bestprintd <- runCarthagene(cg, "bestprintd")
 TODO: parse the output of bestprintd
 
 Save CarthaGene's state:
-```{r}
+```{r, eval=FALSE}
 file.cgsave <- "cgsave.tcl"
 (out <- runCarthagene(cg, paste("cgsave", file.cgsave)))
 file.export <- "cg_map.txt"
@@ -286,7 +287,8 @@ file.export <- "cg_map.txt"
 
 Clean:
 ```{r}
-closeCarthagene(cg)
+closeCarthagene(cg, file=file.par1)
+file.remove(file.par1)
 ```
 
 
@@ -309,7 +311,9 @@ system.time(
                        objective.fun="COUNT",
                        p.value=10^(-6), # proba below which markers are in same group
                        miss.thresh=1,
+                       trace=TRUE,
                        as.cross=TRUE))
+map.par1
 ```
 
 ```{r, eval=TRUE}
@@ -336,6 +340,12 @@ plotHaplosMatrix(haplos.offs$chr2[idx[c(1,3,2,4)],], main="Haplotypes (chr2)")
 
 ```{r, eval=FALSE}
 map.c <- combineMap(map.par1, map.par2)
+```
+
+Clean:
+```{r}
+if(file.exists("MSToutput.txt"))
+  file.remove("MSToutput.txt")
 ```
 
 
