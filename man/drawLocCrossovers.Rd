@@ -22,7 +22,7 @@ drawLocCrossovers(crosses, nb.snps, lambda = 2, simplistic = FALSE,
 list of lists (one per cross, then one per parent, then one per chromosome) whose names are crosses$child, in the same order
 }
 \description{
-Draw the number and location of crossing-overs per gamete.
+Draw the number and location of crossing-overs per gamete, in terms of SNP indices and not physical coordinates.
 }
 \examples{
 \dontrun{## make inputs

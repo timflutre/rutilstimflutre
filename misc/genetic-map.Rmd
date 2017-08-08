@@ -143,6 +143,7 @@ Choose two individuals as parents (one per population):
 ```{r, choose_parents}
 (idx.parents <- c(sample(x=names(inds.per.pop)[inds.per.pop == 1], size=1),
                   sample(x=names(inds.per.pop)[inds.per.pop == 2], size=1)))
+A.vr.pop[idx.parents, idx.parents]
 genos.parents <- genomes$genos[idx.parents,]
 names.parents <- rownames(genos.parents)
 haplos.parents <- getHaplosInds(haplos=genomes$haplos,

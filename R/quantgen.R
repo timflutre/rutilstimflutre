@@ -2725,7 +2725,7 @@ getHaplosInds <- function(haplos, ind.names){
 ##'
 ##' Make a gamete for a given chromosome by recombining two parental haplotypes.
 ##' @param haplos.par.chr matrix containing both haplotypes of a parent for a given chromosome (must have dimnames, such as "ind37_h1" in rows and "snp00265" in columns)
-##' @param loc.crossovers positions of the crossing overs (the coordinate of the first nucleotide is assumed to be 1, and crossing-overs are assumed to occur right after the given positions)
+##' @param loc.crossovers positions of the crossing overs in terms of SNP indices and not physical coordinates (the coordinate of the first nucleotide is assumed to be 1, and crossing-overs are assumed to occur right after the given positions)
 ##' @param start.haplo identifier of the haplotype with which to start the gamete (1/2)
 ##' @return vector
 ##' @author Timothee Flutre
@@ -2785,7 +2785,8 @@ makeGameteSingleInd <- function(haplos.par, loc.crossovers,
             length(loc.crossovers) == length(haplos.par))
   if(! is.null(start.haplos))
     stopifnot(is.list(start.haplos),
-              length(start.haplos) == length(haplos.par))
+              length(start.haplos) == length(haplos.par),
+              all(do.call(c, start.haplos) %in% c(1,2)))
 
   nb.chrs <- length(loc.crossovers)
   if(is.null(start.haplos))
@@ -2907,7 +2908,7 @@ makeCross <- function(haplos.par1,
 
 ##' Crossing-overs
 ##'
-##' Draw the number and location of crossing-overs per gamete.
+##' Draw the number and location of crossing-overs per gamete, in terms of SNP indices and not physical coordinates.
 ##' @param crosses data.frame with three columns, parent1, parent2, child; if parent 1 and 2 are the same, it will be an autofecondation; if parent2 is NA, it will be a haplodiploidization
 ##' @param nb.snps vector with the nb of SNPs per chromosome, which names are chromosome names
 ##' @param lambda mean number of crossing-overs (parameter of a Poisson)
