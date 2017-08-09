@@ -10,7 +10,7 @@ loadReadCountsPerIndAndLane(lanes.dir)
 \item{lanes.dir}{vector of paths to "lane" directories, each containing a "demultiplex" directory in which \href{https://github.com/timflutre/quantgen/blob/master/demultiplex.py}{demultiplex.py} was executed}
 }
 \value{
-data.frame with (individual,lane) in rows and counts in columns
+data frame with (individual,lane) in rows and counts in columns
 }
 \description{
 Load read counts per individual and lane

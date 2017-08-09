@@ -379,13 +379,14 @@ grSummaryPerBin <- function(gr, colname, binwidth=200, which.summary="sum",
 ##'
 ##' Load read counts per individual and lane
 ##' @param lanes.dir vector of paths to "lane" directories, each containing a "demultiplex" directory in which \href{https://github.com/timflutre/quantgen/blob/master/demultiplex.py}{demultiplex.py} was executed
-##' @return data.frame with (individual,lane) in rows and counts in columns
+##' @return data frame with (individual,lane) in rows and counts in columns
 ##' @author Timothee Flutre
 ##' @export
 loadReadCountsPerIndAndLane <- function(lanes.dir){
   stopifnot(is.vector(lanes.dir),
             length(lanes.dir) > 0,
-            is.character(lanes.dir))
+            is.character(lanes.dir),
+            all(file.exists(lanes.dir)))
 
   reads <- list()
 
@@ -394,13 +395,15 @@ loadReadCountsPerIndAndLane <- function(lanes.dir){
     lane.file <- paste0(lane.dir, "/demultiplex/",
                         lane, "_stats-demultiplex.txt.gz")
     if(! file.exists(lane.file))
-      stop(paste0("file ", lane.file, " doesn't exist"))
+      stop(paste0("file '", lane.file, "' doesn't exist"))
     reads[[lane]] <- utils::read.table(lane.file, header=TRUE)
     if(! all(colnames(reads[[lane]] %in% c("ind","barcode","assigned","lane"))))
       warning(paste0("look at header line of file '", lane.file, "'"))
   }
 
   reads <- do.call(rbind, reads)
+  reads$flowcell <- as.factor(sapply(strsplit(rownames(reads), "_"),
+                                     function(x){x[1]}))
   reads$lane <- as.factor(sapply(strsplit(rownames(reads), "\\."),
                                  function(x){x[1]}))
 
