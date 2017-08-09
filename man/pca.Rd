@@ -8,7 +8,7 @@ pca(X, ct = TRUE, sc = FALSE, plot = NULL, main = "PCA",
   cols = rep("black", nrow(X)), pchs = rep(20, nrow(X)))
 }
 \arguments{
-\item{X}{data matrix with N rows and P columns}
+\item{X}{data matrix with N rows and P columns (a data frame will be converted into a matrix)}
 
 \item{ct}{use TRUE to center the columns of X (recommended), FALSE otherwise}
 

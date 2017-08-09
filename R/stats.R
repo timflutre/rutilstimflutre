@@ -238,7 +238,7 @@ mpInv <- function(x){
 ##' Principal component analysis
 ##'
 ##' It is performed via the singular value decomposition (SVD) of the usually-centered data matrix, Xc = U D V^T. This is mostly for teaching purposes, see \code{\link[stats]{prcomp}} otherwise. A good reason to center the data matrix for PCA is given in \href{http://link.springer.com/10.1007/s11063-007-9069-2}{Miranda et al (2008)}.
-##' @param X data matrix with N rows and P columns
+##' @param X data matrix with N rows and P columns (a data frame will be converted into a matrix)
 ##' @param ct use TRUE to center the columns of X (recommended), FALSE otherwise
 ##' @param sc use TRUE to scale the columns of X (if different units), FALSE otherwise
 ##' @param plot if not NULL, use "points" to show a plot with \code{\link[graphics]{points}} of PC1 versus PC2, and "text" to use \code{\link[graphics]{text}} with row names of \code{X} as labels
@@ -268,6 +268,8 @@ mpInv <- function(x){
 ##' @export
 pca <- function(X, ct=TRUE, sc=FALSE, plot=NULL, main="PCA",
                 cols=rep("black", nrow(X)), pchs=rep(20, nrow(X))){
+  if(! is.matrix(X))
+    X <- as.matrix(X)
   stopifnot(is.matrix(X),
             is.logical(ct),
             is.logical(sc))
