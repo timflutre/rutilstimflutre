@@ -1,0 +1,233 @@
+---
+title: "Variable selection in quantitative genetics"
+author: "Timothée Flutre (INRA)"
+date: "`r format(Sys.time(), '%d/%m/%Y %H:%M:%S')`"
+colorlinks: true
+output:
+  html_document:
+    toc: true
+    toc_depth: 3
+    toc_float: true
+    number_sections: TRUE
+  pdf_document:
+    toc: true
+    toc_depth: 3
+    number_sections: TRUE
+urlcolor: blue
+---
+
+<!--
+This R chunk is used to set up some options.
+-->
+```{r setup, include=FALSE}
+R.v.maj <- as.numeric(R.version$major)
+R.v.min.1 <- as.numeric(strsplit(R.version$minor, "\\.")[[1]][1])
+if(R.v.maj < 2 || (R.v.maj == 2 && R.v.min.1 < 15))
+  stop("requires R >= 2.15", call.=FALSE)
+
+suppressPackageStartupMessages(library(knitr))
+opts_chunk$set(echo=TRUE, warning=TRUE, message=TRUE, cache=FALSE, fig.align="center")
+opts_knit$set(progress=TRUE, verbose=TRUE)
+```
+
+
+# Overview
+
+This document requires external packages:
+```{r load_pkg}
+suppressPackageStartupMessages(library(varbvs))
+suppressPackageStartupMessages(library(coda))
+suppressPackageStartupMessages(library(rgs3))
+suppressPackageStartupMessages(library(rutilstimflutre))
+```
+
+This R chunk is used to assess how much time it takes to execute the R code in this document until the end:
+```{r time_0}
+t0 <- proc.time()
+```
+
+
+# Simulate some data
+
+## Genotypes
+
+```{r}
+set.seed(1859)
+nb.genos <- 200
+Ne <- 10^4
+nb.chroms <- 10
+chrom.len <- 10^5
+mu <- 10^(-8)
+c.rec <- 10^(-7)
+genomes <- simulCoalescent(nb.inds=nb.genos,
+                           nb.reps=nb.chroms,
+                           pop.mut.rate=4 * Ne * mu * chrom.len,
+                           pop.recomb.rate=4 * Ne * c.rec * chrom.len,
+                           chrom.len=chrom.len,
+                           get.alleles=TRUE)
+plotHistAllelFreq(X=genomes$genos)
+X <- discardSnpsLowMaf(X=genomes$genos, thresh=0.01)
+```
+
+## Phenotypes
+
+```{r}
+set.seed(1859)
+phenos <- simulBvsr(Q=1, X=X, pi=0.01, pve=0.7, sigma.a2=1, min.maf=0.01)
+sum(phenos$gamma != 0)
+summary(abs(phenos$a[phenos$gamma == 1]))
+```
+
+
+# Explore the data
+
+```{r}
+hist(phenos$Y[,1], breaks="FD",
+     xlab="phenotypic values", main="Simulated data",
+     col="grey", border="white", las=1)
+```
+
+
+# Perform inference SNP-by-SNP with GEMMA
+
+```{r}
+fit.gemma <- gemma(model="ulmm", y=phenos$Y[,1], X=X, maf=0.01,
+                   snp.coords=genomes$snp.coords, alleles=genomes$alleles,
+                   W=phenos$W, clean="all")
+cols <- rep("black",ncol(X)); cols[phenos$gamma==1] <- "red"
+pvadj <- qqplotPval(fit.gemma$tests$p_wald, col=cols, ctl.fdr.bh=TRUE,
+                    plot.signif=TRUE)
+t(binaryClassif(known.nulls=phenos$gamma == 0,
+                called.nulls=pvadj$pv.bh > 0.05))
+cor(phenos$a[phenos$gamma == 1],
+    fit.gemma$tests[names(phenos$a[phenos$gamma == 1]), "beta"])
+```
+
+
+# Perform inference all SNPs jointly with varbvs
+
+```{r}
+fit.varbvs <- varbvs(X=phenos$X.A, Z=NULL, y=phenos$Y[,1], verbose=FALSE)
+print(fit.varbvs.s <- summary(fit.varbvs))
+names(sort(phenos$a[phenos$gamma == 1], decreasing=TRUE))
+subset.snps <- unique(c(as.character(fit.varbvs.s$top.vars$variable),
+                        names(sort(phenos$a[phenos$gamma == 1], decreasing=TRUE))))
+subset.coords <- genomes$snp.coords[subset.snps,]
+(subset.coords <- subset.coords[order(subset.coords$chr, rownames(subset.coords)),])
+ld <- estimLd(X=X[, rownames(subset.coords)], snp.coords=subset.coords)
+ld[ld$loc1 == "snp2270",]
+```
+
+Inference concerning $\pi$:
+```{r}
+(pi.hat <- 10^(fit.varbvs.s$logodds$x0) / (1 + 10^(fit.varbvs.s$logodds$x0)))
+(pi.hat.low <- 10^(fit.varbvs.s$logodds$a) / (1 + 10^(fit.varbvs.s$logodds$a)))
+(pi.hat.high <- 10^(fit.varbvs.s$logodds$b) / (1 + 10^(fit.varbvs.s$logodds$b)))
+```
+
+Inference concerning the PIPs:
+```{r}
+w <- c(normalizelogweights(fit.varbvs$logw))
+pips <- c(fit.varbvs$alpha %*% w)
+cols <- rep("black", ncol(phenos$X.A))
+cols[phenos$gamma != 0] <- "red"
+plot(x=1:ncol(phenos$X.A), y=pips, col=cols, las=1, xlab="SNPs", ylab="PIP",
+     main="Posterior inclusion probabilities (varbvs)")
+```
+
+TODO: Inference concerning the SNP effects:
+
+
+
+# Perform inference all SNPs jointly with GS3
+
+Prepare the input files:
+```{r}
+task.id <- "test"
+dat <- data.frame(geno.id=rownames(phenos$Y),
+                  overall.mean=1,
+                  pheno=phenos$Y[,1],
+                  weight=NA)
+inds <- setNames(object=1:nlevels(dat$geno.id),
+                 nm=levels(dat$geno.id))
+data.GS3.file <- paste0(task.id, "_data.tsv")
+writeDataForGs3(x=dat, file=data.GS3.file, inds=inds,
+                col.id=which(colnames(dat) == "geno.id"),
+                col.traits=which(colnames(dat) == "pheno"))
+genos.GS3.file <- paste0(task.id, "_genos.tsv")
+writeGenosForGs3(x=X, file=genos.GS3.file, inds=inds)
+```
+
+Set up the configuration:
+```{r}
+ptl <- data.frame(position=c(2, ncol(dat) + 1),
+                  type=c("cross", "add_SNP"),
+                  nlevels=c(1, 0))
+config <- getDefaultConfig(
+    nb.snps=ncol(X),
+    rec.id=which(colnames(dat) == "geno.id"),
+    twc=c(which(colnames(dat) == "pheno"), 0),
+    method="VCE",
+    ptl=ptl,
+    use.mix="T")
+config$niter <- 10^5
+config$burnin <- 5*10^3
+config$thin <- 5
+config$ap
+getMeanVarBetaDist(1, 10)
+stopifnot(isValidConfig(config))
+config.file <- writeConfigForGs3(config=config,
+                                 data.file=data.GS3.file,
+                                 genos.file=genos.GS3.file,
+                                 task.id=task.id)
+```
+
+Run GS3, and assess convergence:
+```{r, fig.height=15}
+stdouterr.GS3.file <- execGs3(config.file, task.id)
+vcs <- vcs2mcmc(config$vcs.file)
+vcs <- vcs[, c("vara","vare","pa_1","2varapqpi")]
+plot(vcs)
+raftery.diag(vcs, q=0.5)
+summary(vcs)
+```
+
+Look at the proportion of variance explained by breeding values:
+```{r}
+pve.bv <- vcs[[1]][,"2varapqpi"] / (vcs[[1]][,"2varapqpi"] + vcs[[1]][,"vare"])
+summary(pve.bv)
+plot(pve.bv)
+```
+
+Look at SNP effects and inclusion:
+```{r}
+sols <- read.table(file=config$sol.file, header=TRUE)
+table(sols$effect)
+sols$solution[sols$effect == 1]
+post.snps <- sols[sols$effect == 2,]
+rownames(post.snps) <- colnames(X)
+summary(post.snps$solution)
+summary(post.snps$p)
+true.qtls <- names(phenos$gamma[phenos$gamma != 0])
+post.snps[true.qtls,]
+cols <- rep("black", ncol(X))
+cols[phenos$gamma != 0] <- "red"
+plot(x=1:ncol(X), y=post.snps[names(phenos$gamma), "p"],
+     col=cols, las=1, xlab="SNPs", ylab="PIP",
+     main="Posterior inclusion probabilities (GS3 BayesCPi)")
+```
+
+Clean files:
+```{r}
+cleanGs3(config, config.file, task.id)
+file.remove(data.GS3.file)
+file.remove(genos.GS3.file)
+```
+
+
+# Appendix
+
+```{r info}
+t1 <- proc.time(); t1 - t0
+print(sessionInfo(), locale=FALSE)
+```
