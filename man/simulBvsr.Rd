@@ -5,8 +5,8 @@
 \title{BVSR}
 \usage{
 simulBvsr(Q = 3, mu = 50, mean.c = 5, sd.c = 2, X, pi = 1,
-  pve = 0.7, sigma.a2 = 1, sigma.d2 = 0, perc.NA = 0, err.df = Inf,
-  seed = NULL)
+  pve = 0.7, sigma.a2 = 1, sigma.d2 = 0, min.maf = 0, perc.NA = 0,
+  err.df = Inf, seed = NULL, verbose = 1)
 }
 \arguments{
 \item{Q}{number of fixed effects, i.e. the intercept plus the number of years during which genotypes are phenotyped (starting in 2010)}
@@ -27,11 +27,15 @@ simulBvsr(Q = 3, mu = 50, mean.c = 5, sd.c = 2, X, pi = 1,
 
 \item{sigma.d2}{prior variance of the non-zero dominant effects (if non-null, a reasonable choice is half of \code{sigma.a2}, as in Servin & Stephens (2007) with their prior D2)}
 
+\item{min.maf}{minimum minor allele frequency below which SNPs can't have any effect (neither additive nor dominant)}
+
 \item{perc.NA}{percentage of missing phenotypes, at random}
 
 \item{err.df}{degrees of freedom of errors' Student's t-distribution}
 
 \item{seed}{seed for the pseudo-random number generator}
+
+\item{verbose}{verbosity level (0/1)}
 }
 \value{
 list

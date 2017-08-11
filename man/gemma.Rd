@@ -118,7 +118,7 @@ t(binaryClassif(known.nulls=modelD$gamma == 0,
 }
 }
 \seealso{
-\code{link{gemmaUlmmPerChr}}
+\code{\link{gemmaUlmmPerChr}}
 }
 \author{
 Timothee Flutre [aut,cre], Dalel Ahmed [ctb]

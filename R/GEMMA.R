@@ -71,7 +71,7 @@ genoDoses2bimbam <- function(X=NULL, tX=NULL, alleles, file=NULL, format="mean")
 ##' @param thin thining (if model="bslmm")
 ##' @return invisible list
 ##' @author Timothee Flutre [aut,cre], Dalel Ahmed [ctb]
-##' @seealso \code{link{gemmaUlmmPerChr}}
+##' @seealso \code{\link{gemmaUlmmPerChr}}
 ##' @examples
 ##' \dontrun{## simulate genotypes
 ##' set.seed(1859)

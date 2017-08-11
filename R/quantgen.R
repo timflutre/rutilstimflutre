@@ -4961,9 +4961,11 @@ stanAM <- function(data, relmat, errors.Student=FALSE,
 ##' @param pve proportion of phenotypic variance explained by SNPs with non-zero effects ("heritability"); PVE = V[g] / V[y] where y = g + e and g = g_a + g_d (no epistasis); the magnitude of g_a (resp. g_d) depends on whether or not \code{sigma.a2} (resp. \code{sigma.d2}) is set to zero; a value for sigma^2 is then chosen
 ##' @param sigma.a2 prior variance of the non-zero additive effects
 ##' @param sigma.d2 prior variance of the non-zero dominant effects (if non-null, a reasonable choice is half of \code{sigma.a2}, as in Servin & Stephens (2007) with their prior D2)
+##' @param min.maf minimum minor allele frequency below which SNPs can't have any effect (neither additive nor dominant)
 ##' @param perc.NA percentage of missing phenotypes, at random
 ##' @param err.df degrees of freedom of errors' Student's t-distribution
 ##' @param seed seed for the pseudo-random number generator
+##' @param verbose verbosity level (0/1)
 ##' @return list
 ##' @author Timothee Flutre
 ##' @examples
@@ -5071,7 +5073,8 @@ stanAM <- function(data, relmat, errors.Student=FALSE,
 ##' @export
 simulBvsr <- function(Q=3, mu=50, mean.c=5, sd.c=2,
                       X, pi=1, pve=0.7, sigma.a2=1, sigma.d2=0,
-                      perc.NA=0, err.df=Inf, seed=NULL){
+                      min.maf=0, perc.NA=0, err.df=Inf, seed=NULL,
+                      verbose=1){
   stopIfNotValidGenosDose(X)
   stopifnot(sd.c >= 0,
             pi >= 0,
@@ -5080,10 +5083,14 @@ simulBvsr <- function(Q=3, mu=50, mean.c=5, sd.c=2,
             pve <= 1,
             sigma.a2 >= 0,
             sigma.d2 >= 0,
+            min.maf < 1,
             perc.NA >= 0,
             perc.NA <= 100)
   if(! is.null(seed))
     set.seed(seed)
+
+  if(min.maf > 0)
+    X <- discardSnpsLowMaf(X=X, thresh=min.maf, verbose=verbose)
 
   I <- nrow(X)
   P <- ncol(X)
