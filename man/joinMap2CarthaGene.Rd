@@ -4,10 +4,12 @@
 \alias{joinMap2CarthaGene}
 \title{Genotype coding}
 \usage{
-joinMap2CarthaGene(x, verbose = 1)
+joinMap2CarthaGene(x, alias.het = "H", verbose = 1)
 }
 \arguments{
 \item{x}{data frame in the JoinMap format, for instance from \code{\link{genoClasses2JoinMap}}; columns named "phase" and "clas" will be discarded from the start; a column named "seg" should be present; a column named "locus" should be present unless row names are given; all other columns are supposed to correspond to genotypes}
+
+\item{alias.het}{alias to specify heterozygotes, "Z" being forbidden}
 
 \item{verbose}{verbosity level (0/1/2)}
 }

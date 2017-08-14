@@ -849,18 +849,22 @@ writeCartagene <- function(x, file, type="f2 backcross", aliases=NULL){
 ##' This function hence encodes genotypes as two backcrosses, one per parent, with "A" for "homozygous" and "H" for "heterozygous".
 ##' All locus will be duplicated and the suffix "_m" (for "mirror") added to their identifiers.
 ##' @param x data frame in the JoinMap format, for instance from \code{\link{genoClasses2JoinMap}}; columns named "phase" and "clas" will be discarded from the start; a column named "seg" should be present; a column named "locus" should be present unless row names are given; all other columns are supposed to correspond to genotypes
+##' @param alias.het alias to specify heterozygotes, "Z" being forbidden
 ##' @param verbose verbosity level (0/1/2)
 ##' @return list of two matrices, one per parent
 ##' @author Timothee Flutre [aut], Agnes Doligez [ctb]
 ##' @seealso \code{\link{genoClasses2JoinMap}}
 ##' @export
-joinMap2CarthaGene <- function(x, verbose=1){
+joinMap2CarthaGene <- function(x, alias.het="H", verbose=1){
   seg.types <- c("<abxcd>", "<efxeg>", "<hkxhk>", "<lmxll>", "<nnxnp>")
   stopifnot(is.data.frame(x),
             ncol(x) >= 5,
             ! is.null(colnames(x)),
             "seg" %in% colnames(x),
-            all(x$seg %in% c(seg.types, NA)))
+            all(x$seg %in% c(seg.types, NA)),
+            is.character(alias.het),
+            length(alias.het) == 1,
+            alias.het != "Z")
   if(! "locus" %in% colnames(x))
     stopifnot(! is.null(rownames(x)))
 
@@ -918,14 +922,14 @@ joinMap2CarthaGene <- function(x, verbose=1){
     p1[idx.p1, -1] <-
       t(matrix(apply(p1[idx.p1, -1, drop=FALSE], 2, function(genos){
         genos <- gsub("ac|ad", "A", genos)
-        gsub("bc|bd", "H", genos)
+        gsub("bc|bd", alias.het, genos)
       }))) # assume parent 2 is homozygous "aa"
   idx.p2 <- which(p2[,"seg"] == seg)
   if(length(idx.p2) > 0)
     p2[idx.p2, -1] <-
       t(matrix(apply(p2[idx.p2, -1, drop=FALSE], 2, function(genos){
         genos <- gsub("ac|bc", "A", genos)
-        gsub("ad|bd", "H", genos)
+        gsub("ad|bd", alias.het, genos)
       }))) # assume parent 1 is homozygous "cc"
 
   seg <- "<efxeg>"
@@ -934,14 +938,14 @@ joinMap2CarthaGene <- function(x, verbose=1){
     p1[idx.p1, -1] <-
       t(matrix(apply(p1[idx.p1, -1, drop=FALSE], 2, function(genos){
         genos <- gsub("ee|eg", "A", genos)
-        gsub("ef|fg", "H", genos)
+        gsub("ef|fg", alias.het, genos)
       }))) # assume parent 2 is homozygous "ee"
   idx.p2 <- which(p2[,"seg"] == seg)
   if(length(idx.p2) > 0)
     p2[idx.p2, -1] <-
       t(matrix(apply(p2[idx.p2, -1, drop=FALSE], 2, function(genos){
         genos <- gsub("ee|ef", "A", genos)
-        gsub("eg|fg", "H", genos)
+        gsub("eg|fg", alias.het, genos)
       }))) # assume parent 1 is homozygous "ee"
 
   seg <- "<hkxhk>"
@@ -951,7 +955,7 @@ joinMap2CarthaGene <- function(x, verbose=1){
       t(matrix(apply(p1[idx.p1, -1, drop=FALSE], 2, function(genos){
         genos <- gsub("hh", "A", genos)
         genos <- gsub("hk", "-", genos)
-        gsub("kk", "H", genos)
+        gsub("kk", alias.het, genos)
       }))) # "hk" as "-" because phase is unknown
   idx.p2 <- which(p2[,"seg"] == seg)
   if(length(idx.p2) > 0)
@@ -959,7 +963,7 @@ joinMap2CarthaGene <- function(x, verbose=1){
       t(matrix(apply(p2[idx.p2, -1, drop=FALSE], 2, function(genos){
         genos <- gsub("hh", "A", genos)
         genos <- gsub("hk", "-", genos)
-        gsub("kk", "H", genos)
+        gsub("kk", alias.het, genos)
       }))) # "hk" as "-" because phase is unknown
 
   seg <- "<lmxll>"
@@ -968,7 +972,7 @@ joinMap2CarthaGene <- function(x, verbose=1){
     p1[idx.p1, -1] <-
       t(matrix(apply(p1[idx.p1, -1, drop=FALSE], 2, function(genos){
         genos <- gsub("ll", "A", genos)
-        gsub("lm", "H", genos)
+        gsub("lm", alias.het, genos)
       })))
 
   seg <- "<nnxnp>"
@@ -977,7 +981,7 @@ joinMap2CarthaGene <- function(x, verbose=1){
     p2[idx.p2, -1] <-
       t(matrix(apply(p2[idx.p2, -1, drop=FALSE], 2, function(genos){
         genos <- gsub("nn", "A", genos)
-        gsub("np", "H", genos)
+        gsub("np", alias.het, genos)
       })))
 
   if(verbose > 0){
@@ -992,8 +996,8 @@ joinMap2CarthaGene <- function(x, verbose=1){
   p1 <- p1[, -1]
   p1.m <- apply(p1, 2, function(genos){
     genos <- gsub("A", "Z", genos)
-    genos <- gsub("H", "A", genos)
-    gsub("Z", "H", genos)
+    genos <- gsub(alias.het, "A", genos)
+    gsub("Z", alias.het, genos)
   })
   rownames(p1.m) <- paste0(rownames(p1), "_m")
   out$parent1 <- rbind(p1, p1.m)
@@ -1004,8 +1008,8 @@ joinMap2CarthaGene <- function(x, verbose=1){
   p2 <- p2[, -1]
   p2.m <- apply(p2, 2, function(genos){
     genos <- gsub("A", "Z", genos)
-    genos <- gsub("H", "A", genos)
-    gsub("Z", "H", genos)
+    genos <- gsub(alias.het, "A", genos)
+    gsub("Z", alias.het, genos)
   })
   rownames(p2.m) <- paste0(rownames(p2), "_m")
   out$parent2 <- rbind(p2, p2.m)
