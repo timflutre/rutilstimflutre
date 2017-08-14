@@ -102,9 +102,9 @@ parseCgMrkinfo <- function(out.mrkinfo){
     stop(msg)
   }
 
-  tmp <- strsplit(out.mrkinfo[-c(1:idx)], " |:")
+  tmp <- strsplit(out.mrkinfo[-c(1:idx)], " ")
   tmp <- lapply(tmp, function(x){
-    x[! x == ""]
+    x[! x %in% c("", ":")]
   })
   if(unique(sapply(tmp, length)) != 3){
     msg <- paste0("can't parse CarthaGene's output;",
