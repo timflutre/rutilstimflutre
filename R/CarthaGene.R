@@ -163,6 +163,40 @@ parseCgGroup <- function(out.group, mrk.info=NULL){
   return(out)
 }
 
+##' Parse CarthaGene's output
+##'
+##' Parse the output of CarthaGene's command "heaprint".
+##' @param out.heaprint vector of character output from \code{\link{runCarthagene}} corresponding to "heaprint"
+##' @return data frame with one row per map in the heap
+##' @author Timothee Flutre
+##' @export
+parseCgHeaprint <- function(out.heaprint){
+  stopifnot(is.character(out.heaprint))
+
+  out <- NULL
+
+  ptn <- "^Map[ -]+[0-9] : log10-likelihood ="
+  idx <- grep(pattern=ptn, x=out.heaprint, perl=TRUE)
+  if(length(idx) == 0){
+    msg <- paste0("can't parse CarthaGene's output;",
+                  " does it correspond to the 'heaprint' command?")
+    stop(msg)
+  }
+
+  lines.log10lik <- out.heaprint[idx]
+  out <- data.frame(id=rep(NA, length(lines.log10lik)),
+                    log10.lik=NA,
+                    stringsAsFactors=FALSE)
+  ptn <- "^Map[ ]+([-]?[0-9]+).*$"
+  out$id <- as.numeric(gsub(pattern=ptn, replacement="\\1",
+                            lines.log10lik))
+  ptn <- "^.*=[ ]+([-]?[0-9]+[\\.]]?[0-9]+)$"
+  out$log10.lik <- as.numeric(gsub(pattern=ptn, replacement="\\1",
+                                   lines.log10lik))
+
+  return(out)
+}
+
 ##' Close CarthaGene
 ##'
 ##' Close FIFO used to interact with CarthaGene.
