@@ -162,6 +162,49 @@ test_that("seqIdStartEnd2GRanges", {
   }
 })
 
+test_that("readBcftoolsCounts", {
+
+  tmpd <- tempdir()
+
+  input.files <- c(paste0(tmpd, "/stdout_bcftools_counts_1.txt"),
+                   paste0(tmpd, "/stdout_bcftools_counts_2.txt"))
+  txt <- "Number of samples: 100"
+  txt <- paste0(txt, "\nNumber of SNPs:    1000")
+  txt <- paste0(txt, "\nNumber of INDELs:  300")
+  txt <- paste0(txt, "\nNumber of MNPs:    0")
+  txt <- paste0(txt, "\nNumber of others:  13")
+  txt <- paste0(txt, "\nNumber of sites:   1230")
+  txt <- paste0(txt, "\n")
+  cat(txt, file=input.files[1])
+  txt <- "WARNING: bcftools version mismatch .. "
+  txt <- paste0(txt, "\nNumber of samples: 50")
+  txt <- paste0(txt, "\nNumber of SNPs:    500")
+  txt <- paste0(txt, "\nNumber of INDELs:  170")
+  txt <- paste0(txt, "\nNumber of MNPs:    0")
+  txt <- paste0(txt, "\nNumber of others:  3")
+  txt <- paste0(txt, "\nNumber of sites:   638")
+  txt <- paste0(txt, "\n")
+  cat(txt, file=input.files[2])
+
+  expected <- data.frame(samples=c(100L, 50L),
+                         SNPs=c(1000L, 500L),
+                         INDELs=c(300L, 170L),
+                         MNPs=c(0L, 0L),
+                         others=c(13L, 3L),
+                         sites=c(1230L, 638L),
+                         stringsAsFactors=FALSE)
+  rownames(expected) <- input.files
+  expected <- as.matrix(expected)
+
+  observed <- readBcftoolsCounts(files=input.files)
+
+  expect_equal(observed, expected)
+
+  for(f in input.files)
+    if(file.exists(f))
+      file.remove(f)
+})
+
 .expect_equal_VCFfile <- function(observed, expected){
   ## see https://support.bioconductor.org/p/74013/
   expect_equal(VariantAnnotation::info(observed),

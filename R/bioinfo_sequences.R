@@ -962,6 +962,34 @@ readSamDict <- function(file){
   return(out)
 }
 
+##' Read output from bcftools counts
+##'
+##' Reads the output from "bcftools plugin counts"
+##' @param files vector of file names to read
+##' @return data frame
+##' @author Timothee Flutre
+##' @export
+readBcftoolsCounts <- function(files){
+  stopifnot(all(file.exists(files)),
+            ! anyDuplicated(files))
+
+  out <- lapply(files, function(f){
+    lines <- readLines(con=f)
+    idx <- grep("WARNING", lines)
+    skip <- ifelse(length(idx) == 0, 0, idx)
+    tmp <- utils::read.table(file=f, header=FALSE, sep=":", skip=skip,
+                             stringsAsFactors=FALSE)
+    stats::setNames(object=tmp[,2],
+                    nm=sapply(strsplit(tmp[,1], " "), function(x){
+                      x[length(x)]
+                    }))
+  })
+  names(out) <- files
+  out <- do.call(rbind, out)
+
+  return(out)
+}
+
 ##' VCF dimensions
 ##'
 ##' Return the dimensions of a VCF file, i.e. the number of sites (rows) and samples (columns)
