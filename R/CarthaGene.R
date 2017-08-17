@@ -197,6 +197,83 @@ parseCgHeaprint <- function(out.heaprint){
   return(out)
 }
 
+##' Parse CarthaGene's output
+##'
+##' Parse the output of CarthaGene's command "maprintd" and "bestmaprintd", and add the cumulative Kosambi distance.
+##' @param out.maprintd vector of character output from \code{\link{runCarthagene}} corresponding to "maprintd" or "bestmaprintd"
+##' @return data frame corresponding to the given linkage group
+##' @author Timothee Flutre
+##' @export
+parseCgMaprintd <- function(out.maprintd){
+  stopifnot(is.character(out.maprintd))
+
+  out <- NULL
+
+  ## remove empty lines
+  out.maprintd <- out.maprintd[- which(out.maprintd == "")]
+
+  ## find the index of the first row of the table
+  ptn <- "^Pos[ ]+Id[ ]+name"
+  idx <- grep(pattern=ptn, x=out.maprintd, perl=TRUE)
+  if(length(idx) == 0){
+    msg <- paste0("can't parse CarthaGene's output;",
+                  " does it correspond to the 'maprintd' command?")
+    stop(msg)
+  }
+  idx.first <- idx + 1
+
+  ## find the index of the last two rows of the table
+  ptn <- "^[ ]+[0-9]+[ ]markers, log10-likelihood ="
+  idx <- grep(pattern=ptn, x=out.maprintd, perl=TRUE)
+  if(length(idx) == 0){
+    msg <- paste0("can't parse CarthaGene's output;",
+                  " does it correspond to the 'maprintd' command?")
+    stop(msg)
+  }
+  idx.last <- idx - 1
+  stopifnot(idx.last > idx.first)
+
+  ## parse each row of the table
+  tmp <- strsplit(out.maprintd[idx.last + 1], " ")[[1]]
+  tmp <- tmp[- which(tmp == "")]
+  nb.markers <- as.numeric(tmp[1])
+  out <- data.frame(id=rep(NA, nb.markers),
+                    name=NA,
+                    dist.haldane=NA,
+                    cum.dist.haldane=NA,
+                    dist.kosambi=NA,
+                    rec.ratio=NA,
+                    lod.2pt=NA,
+                    stringsAsFactors=FALSE)
+  for(i in idx.first:(idx.last - 2)){
+    tokens <- strsplit(out.maprintd[i], "\\s")[[1]]
+    tokens <- tokens[- which(tokens == "")]
+    out[i - idx.first + 1,] <- tokens[c(2, 3, 4, 6, 8, 10, 12)]
+  }
+  tokens <- strsplit(out.maprintd[idx.last - 1], "\\s")[[1]]
+  tokens <- tokens[- which(tokens == "")]
+  out[nb.markers, 1:2] <- tokens[2:3]
+  tokens <- strsplit(out.maprintd[idx.last], "\\s")[[1]]
+  tokens <- tokens[- which(tokens == "")]
+  out[nb.markers, 4] <- tokens[1]
+
+  ## convert to int/num when appropriate
+  out$id <- as.integer(out$id)
+  out$dist.haldane <- as.numeric(out$dist.haldane)
+  out$cum.dist.haldane <- as.numeric(out$cum.dist.haldane)
+  out$dist.kosambi <- as.numeric(out$dist.kosambi)
+  out$rec.ratio <- as.numeric(out$rec.ratio)
+  out$lod.2pt <- as.numeric(out$lod.2pt)
+
+  ## add the cumulative Kosambi distance
+  out$cum.dist.kosambi <- NA
+  out$cum.dist.kosambi[1] <- 0.0
+  out$cum.dist.kosambi[2:nrow(out)] <- cumsum(out$dist.kosambi[-nrow(out)])
+  out <- out[, c(1,2,3,4,5,8,6,7)] # re-order columns
+
+  return(out)
+}
+
 ##' Close CarthaGene
 ##'
 ##' Close FIFO used to interact with CarthaGene.

@@ -53,60 +53,17 @@ Set the seed:
 set.seed(1859)
 ```
 
-<!--
-Simulate haplotypes and genotypes in a single population with a bottleneck:
-```{r simul_haplos_genos}
-nb.genos <- 1*10^3
-nb.chrs <- 2
-chrom.len <- 1*10^6     # in base pairs
-mu <- 10^(-8)           # neutral mutation rate in events / base / generation
-u <- mu * chrom.len     #  in events / chrom / gen
-c.rec <- 10^(-8)        # recomb rate in events / base / gen
-r <- c.rec * chrom.len  #  in events / chrom / gen
-##                             _____
-##                            /
-##       ____________________/      Nec
-##                       _Neb_
-##                       |    \_____
-##            Nea        |
-##                       |
-##                       |
-##       ________________|
-##                       2   1      0
-## time  <---------------+---+------+
-Nea <- 5 * 10^4         # ancestral
-Neb <- 10 * 10^2        # bottleneck
-Nec <- Ne0 <- 5 * 10^3  # current
-theta <- 4 * Ne0 * u    # scaled neutral mutation rate in events / chrom
-rho <- 4 * Ne0 * r      # scaled recomb rate in events / chrom
-T1 <- 8000
-T2 <- T1 + 2000
-alpha <- - (4 * Ne0) / T1 * log(Neb / Ne0) # exp growth rate from Nec to Neb
-cmd <- paste0("-eG ", T1/(4*Ne0), " ", alpha,
-              " -eN ", T2/(4*Ne0), " ", Nea/Ne0)
-genomes <- simulCoalescent(nb.inds=nb.genos,
-                           nb.reps=nb.chrs,
-                           pop.mut.rate=theta,
-                           pop.recomb.rate=rho,
-                           chrom.len=chrom.len,
-                           other=cmd,
-                           get.alleles=TRUE)
-afs.pop <- estimSnpAf(X=genomes$genos)
-mafs.pop <- estimSnpMaf(afs=afs.pop)
-```
--->
-
 Simulate haplotypes and genotypes in two populations:
 ```{r}
-nb.genos <- 1*10^3
+nb.genos <- 5 * 10^2
 nb.chrs <- 2
-chr.len.phy <- 10^6     # chromosome physical length in base pairs
+chr.len.phy <- 10^5     # chromosome physical length in base pairs
 mu <- 10^(-8)           # neutral mutation rate in events / base / generation
 u <- mu * chr.len.phy   #  in events / chrom / gen
 chr.len.gen <- 10^(-1)  # chromosome genetic length in Morgans
 c.r <- chr.len.gen / chr.len.phy # recomb rate in events / base / gen
 r <- c.r * chr.len.phy  #  in events / chrom / gen
-m <- 10^(-5)            # fraction of a pop replaced from other pops each gen
+m <- 10^(-4)            # fraction of a pop replaced from other pops each gen
 Ne <- 10^4              # effective population size
 theta <- 4 * Ne * u     # scaled neutral mutation rate in events / chrom
 rho <- 4 * Ne * r       # scaled recomb rate in events / chrom
@@ -122,13 +79,13 @@ genomes <- simulCoalescent(nb.inds=nb.genos,
 table(inds.per.pop <- kmeans(genomes$genos, 2)$cluster)
 afs.pop <- estimSnpAf(X=genomes$genos)
 mafs.pop <- estimSnpMaf(afs=afs.pop)
+A.vr.pop <- estimGenRel(X=genomes$genos, afs=afs.pop, method="vanraden1")
 ```
 
 Look at some visual checks:
 ```{r}
 plotHistAllelFreq(afs=afs.pop, main="Allele frequencies")
 plotHistMinAllelFreq(mafs=mafs.pop, main="Minor allele frequencies")
-A.vr.pop <- estimGenRel(X=genomes$genos, afs=afs.pop, method="vanraden1")
 imageWithScale(A.vr.pop, main="Additive genetic relationships")
 summary(diag(A.vr.pop))
 hist(diag(A.vr.pop), col="grey", border="white")
@@ -224,7 +181,8 @@ genos.classes <- genoDoses2genoClasses(tX=genos.doses,
 genos.jm <- genoClasses2JoinMap(genos.classes)
 genos.cg <- joinMap2CarthaGene(genos.jm[, -c(1:8)])
 sapply(genos.cg, dim)
-file.par1 <- "genos_carthagene_parent1.txt"
+table(genomes$snp.coords[rownames(genos.cg$parent1), "chr"])
+file.par1 <- paste0("genos_carthagene_parent1-", colnames(genos.jm)[1], ".txt")
 writeCartagene(genos.cg$parent1, file.par1)
 ```
 
@@ -238,9 +196,9 @@ dim(mrk.info <- parseCgMrkinfo(out.mrkinfo))
 (out <- runCarthagene(cg, "heapsizeget"))
 ```
 
-Determine the linkage groups:
+Determine the linkage groups, by specifying a distance threshold and a LOD threshold (two markers are put in the same group if their Haldane distance and two-points LOD are below the thresholds):
 ```{r}
-cmd <- "group 0.3 5" # params chosen by trial and error
+cmd <- "group 0.2 1.5" # params chosen by trial and error
 out.group <- runCarthagene(cg, cmd)
 linkgroups <- parseCgGroup(out.group, mrk.info)
 sapply(linkgroups, nrow)
@@ -249,33 +207,74 @@ head(linkgroups[[1]])
 
 Check that all markers put in the same linkage group belong to the same chromosome:
 ```{r}
-sapply(linkgroups, function(lg){
+(lg2chr <- lapply(linkgroups, function(lg){
   table(genomes$snp.coords[gsub("_m", "", lg$name), "chr"])
-})
+}))
 ```
 
-Determine the marker order for the first group, by building a "framework" map:
+Look at double markers:
+```{r, eval=FALSE}
+out.mrkdbl <- runCarthagene(cg, "mrkdouble")
+head(out.mrkdbl)
+```
+
+Determine the marker order for the first chromosome, by building a "framework" map:
 ```{r, eval=FALSE}
 runCarthagene(cg, "mrkselset [groupget 1]")
 system.time(
     out.buildfw <- runCarthagene(cg, "buildfw 3 3 {} 1"))
+length(out.buildfw)
 ```
 
 Check its reliability:
 ```{r, eval=FALSE}
+out.heaprint <- runCarthagene(cg, "heaprint")
+(maps.info <- parseCgHeaprint(out.heaprint))
 system.time(
-    out.flips <- runCarthagene(cg, "flips 4 3 0"))
-out.flips
+    out.flips <- runCarthagene(cg, "flips 4 3 1"))
+length(out.flips)
+system.time(
+    out.polish <- runCarthagene(cg, "polish"))
+length(out.polish)
+system.time(
+    out.squeeze <- runCarthagene(cg, "squeeze 20"))
+out.squeeze
 ```
 
 Get the maps (best is last):
 ```{r, eval=FALSE}
 out.heaprint <- runCarthagene(cg, "heaprint")
-out.bestprint <- runCarthagene(cg, "bestprint")
+(maps.info <- parseCgHeaprint(out.heaprint))
+cmd <- paste0("maprintd ", maps.info$id[which.max(maps.info$log10.lik)])
+out.maprintd <- runCarthagene(cg, cmd)
+map.group1 <- parseCgMaprintd(out.maprintd)
 out.bestprintd <- runCarthagene(cg, "bestprintd")
+bestmap.group1 <- parseCgMaprintd(out.bestprintd)
+head(bestmap.group1)
 ```
 
-TODO: parse the output of bestprintd
+Do the same for the other chromosome:
+```{r, eval=FALSE}
+runCarthagene(cg, "mrkselset [groupget 3]")
+system.time(
+    out.buildfw <- runCarthagene(cg, "buildfw 3 3 {} 1"))
+length(out.buildfw)
+out.heaprint <- runCarthagene(cg, "heaprint")
+(maps.info <- parseCgHeaprint(out.heaprint))
+system.time(
+    out.flips <- runCarthagene(cg, "flips 4 3 1"))
+length(out.flips)
+system.time(
+    out.polish <- runCarthagene(cg, "polish"))
+length(out.polish)
+system.time(
+    out.squeeze <- runCarthagene(cg, "squeeze 20"))
+out.squeeze
+out.heaprint <- runCarthagene(cg, "heaprint")
+(maps.info <- parseCgHeaprint(out.heaprint))
+out.bestprintd <- runCarthagene(cg, "bestprintd")
+bestmap.group3 <- parseCgMaprintd(out.bestprintd)
+```
 
 Save CarthaGene's state:
 ```{r, eval=FALSE}
@@ -283,7 +282,7 @@ file.cgsave <- "cgsave.tcl"
 (out <- runCarthagene(cg, paste("cgsave", file.cgsave)))
 file.export <- "cg_map.txt"
 (out <- runCarthagene(cg, paste("cgexport", file.export,
-                                "FruitSelgen_SxG", "chr2")))
+                                "tuto-genmap", names(lg2chr[[3]]))))
 ```
 
 Clean:
@@ -291,6 +290,30 @@ Clean:
 closeCarthagene(cg, file=file.par1)
 file.remove(file.par1)
 ```
+
+Save the whole map:
+```{r, eval=FALSE}
+bestmap <- rbind(data.frame(linkage.group=rep(names(lg2chr[[1]]),
+                                              nrow(bestmap.group1)),
+                            locus=bestmap.group1$name,
+                            genetic.distance=bestmap.group1$cum.dist.kosambi,
+                            stringsAsFactors=FALSE),
+                 data.frame(linkage.group=rep(names(lg2chr[[3]]),
+                                              nrow(bestmap.group3)),
+                            locus=bestmap.group3$name,
+                            genetic.distance=bestmap.group3$cum.dist.kosambi,
+                            stringsAsFactors=FALSE))
+file.bestmap <- paste0("bestmap_carthagene_parent1-",
+                       colnames(genos.jm)[1], ".txt")
+## write.table(x=bestmap, file=file.bestmap, quote=FALSE, sep="\t",
+##             row.names=FALSE)
+```
+
+TODO: make a `qtl::cross` object from such a data frame
+
+This map can be used to search for QTLs belonging to the first parent.
+
+The same procedure can be done for the second parent.
 
 
 # Build genetic map with ASMap
