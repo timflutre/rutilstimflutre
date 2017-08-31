@@ -1392,6 +1392,49 @@ infoVariantCalls <- function(x, type="SNP", thresh.qual=20, thresh.qd=2,
   return(tmp)
 }
 
+##' Plot information on variant-level calls
+##'
+##' Plot histograms of QUAL, DP, BaseQRankSum, MQRankSum, ReadPosRankSum and ClippingRankSum over 2 rows and 3 columns.
+##' @param x data frame, e.g. from "bcftools query --format '\%CHROM\\t\%POS\\t\%TYPE\\t...'"
+##' @param main main title
+##' @return nothing
+##' @author Timothee Flutre
+##' @seealso \code{\link{infoVariantCalls}}
+##' @export
+plotInfoVariantCalls <- function(x, main=""){
+  stopifnot(is.data.frame(x),
+            all(c("type", "qual", "dp", "bqrs", "mqrs", "rprs", "crs") %in%
+                colnames(x)))
+
+  def.par <- graphics::par(mfrow=c(2,3), oma=c(0,0,2,0))
+
+  graphics::hist(log10(x[x$type == "SNP", "qual"]), breaks="Sturges",
+                 main="log10(QUAL)",
+                 xlab=paste(sum(! is.na(x[x$type == "SNP", "qual"])), "SNPs"))
+  graphics::hist(log10(x[x$type == "SNP", "dp"]), breaks="Sturges",
+                 main="log10(DP)",
+                 xlab=paste(sum(! is.na(x[x$type == "SNP", "dp"])), "SNPs"))
+  graphics::hist(x[x$type == "SNP", "bqrs"], breaks="Sturges",
+                 main="BaseQRankSum",
+                 xlab=paste(sum(! is.na(x[x$type == "SNP", "bqrs"])), "SNPs"))
+  graphics::abline(v=c(-2,2), col="red")
+  graphics::hist(x[x$type == "SNP", "mqrs"], breaks="Sturges",
+                 main="MQRankSum",
+                 xlab=paste(sum(! is.na(x[x$type == "SNP", "mqrs"])), "SNPs"))
+  graphics::abline(v=c(-2,2), col="red")
+  graphics::hist(x[x$type == "SNP", "rprs"], breaks="Sturges",
+                 main="ReadPosRankSum",
+                 xlab=paste(sum(! is.na(x[x$type == "SNP", "rprs"])), "SNPs"))
+  graphics::abline(v=c(-2,2), col="red")
+  graphics::hist(x[x$type == "SNP", "crs"], breaks="Sturges",
+                 main="ClippingRankSum",
+                 xlab=paste(sum(! is.na(x[x$type == "SNP", "crs"])), "SNPs"))
+  graphics::abline(v=c(-2,2), col="red")
+  graphics::title(main=main, outer=TRUE)
+
+  on.exit(graphics::par(def.par))
+}
+
 ##' Confidence in one variant's genotypes
 ##'
 ##' Provide measure of confidence in the genotypes at a given variant.
