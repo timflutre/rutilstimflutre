@@ -7,7 +7,7 @@
 writeCartagene(x, file, type = "f2 backcross", aliases = NULL)
 }
 \arguments{
-\item{x}{matrix of characters containing marker genotypes in the CarthaGene format, for instance from \code{\link{joinMap2CarthaGene}}; row names should correspond to marker names}
+\item{x}{matrix of characters containing marker genotypes in the CarthaGene format, for instance from \code{\link{joinMap2backcross}}; row names should correspond to marker names}
 
 \item{file}{path to the file to which the data will be written}
 
@@ -22,7 +22,7 @@ nothing
 Write marker genotypes formatted for CarthaGene in a file.
 }
 \seealso{
-\code{\link{joinMap2CarthaGene}}
+\code{\link{joinMap2backcross}}
 }
 \author{
 Timothee Flutre

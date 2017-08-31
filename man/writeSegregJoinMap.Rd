@@ -30,7 +30,7 @@ writeSegregJoinMap(pop.name, pop.type = "CP", locus, segregs, genos,
 nothing
 }
 \description{
-Write "segregation" data into a "loc" file in the \href{https://www.kyazma.nl/index.php/JoinMap/}{JoinMap/MapQTL} format.
+Write genotype data in the \href{https://www.kyazma.nl/index.php/JoinMap/}{JoinMap} format into a "loc" file used by this software.
 }
 \examples{
 \dontrun{## make fake data

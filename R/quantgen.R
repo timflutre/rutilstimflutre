@@ -620,11 +620,11 @@ filterSegreg <- function(x, thresh.pval=0.05, return.counts=FALSE, verbose=1){
 
 ##' JoinMap/MapQTL to R/qtl
 ##'
-##' Return the correspondence in terms of genotype coding between the "segregation" format used by \href{https://www.kyazma.nl/index.php/JoinMap/}{JoinMap} and the one used by \href{https://cran.r-project.org/package=qtl}{qtl}.
-##' @return data.frame
+##' Return the correspondence in terms of genotype coding between the format used by \href{https://www.kyazma.nl/index.php/JoinMap/}{JoinMap} and the one used by \href{https://cran.r-project.org/package=qtl}{qtl}.
+##' @return data frame
 ##' @author Timothee Flutre
 ##' @export
-segregJoinMap2Qtl <- function(){
+correspondenceJoinMap2qtl <- function(){
   out <- data.frame(
       segreg=c(rep("lmxll", 2),
                rep("nnxnp", 2),
@@ -691,9 +691,317 @@ segregJoinMap2Qtl <- function(){
   return(out)
 }
 
+##' Genotype coding
+##'
+##' Convert genotypes encoded in the \href{https://www.kyazma.nl/index.php/JoinMap/}{JoinMap} format for cross type "CP" with known parental phases into the format used by the \href{https://cran.r-project.org/package=qtl}{qtl} package.
+##' @param x data frame in the JoinMap format, for instance from \code{\link{genoClasses2JoinMap}}; any column named "clas" will be discarded from the start; columns named "seg" and "phase" should be present; a column named "locus" should be present unless row names are given; all other columns are supposed to correspond to genotypes
+##' @param verbose verbosity level (0/1/2)
+##' @return matrix in the "qtl" format
+##' @author Timothee Flutre
+##' @seealso \code{\link{correspondenceJoinMap2qtl}}, \code{\link{updateJoinMap}}
+##' @export
+phasedJoinMapCP2qtl <- function(x, verbose=1){
+  seg.types <- c("<abxcd>", "<efxeg>", "<hkxhk>", "<lmxll>", "<nnxnp>")
+  phase.types <- c("{00}", "{01}", "{10}", "{11}",
+                   "{0-}", "{1-}", "{-0}", "{-1}")
+  geno.types <- c("ac", "ad", "bc", "bd", "ee", "eg", "ef", "fg",
+                  "hh", "hk", "kk", "h-", "k-", "lm", "ll", "nn", "np")
+  stopifnot(is.data.frame(x),
+            ! is.null(colnames(x)),
+            all(c("seg", "phase") %in% colnames(x)),
+            all(x$seg %in% c(seg.types, NA)),
+            all(x$phase %in% c(phase.types, NA)))
+
+  if(verbose > 0){
+    msg <- paste0("convert genotypes encoded in the JoinMap format",
+                  " for cross type \"CP\" with known parental phases",
+                  " into the format used by the 'qtl' package")
+    write(msg, stdout())
+  }
+
+  ## reformat the input data frame
+  x <- convertFactorColumnsToCharacter(x)
+  if("clas" %in% colnames(x))
+    x <- x[, - which(colnames(x) == "clas")]
+  if("locus" %in% colnames(x)){
+    rownames(x) <- x$locus
+    x <- x[, - which(colnames(x) == "locus")]
+  }
+  tmp <- x[! is.na(x$seg), - which(colnames(x) %in% c("seg", "phase"))]
+  stopifnot(all(unlist(tmp) %in% c(geno.types, NA)))
+  is.seg.NA <- is.na(x$seg)
+  if(any(is.seg.NA))
+    x$phase[which(is.seg.NA)] <- NA
+  is.phase.NA <- is.na(x$phase)
+  if(any(is.phase.NA))
+    x$seg[which(is.phase.NA)] <- NA
+
+  ## make the empty output matrix
+  locus.names <- rownames(x)
+  nb.locus <- length(locus.names)
+  geno.names <- colnames(x)[! colnames(x) %in% c("seg", "phase")]
+  nb.genos <- length(geno.names)
+  out <- matrix(data=NA, nrow=nb.locus, ncol=nb.genos,
+                dimnames=list(locus.names, geno.names))
+
+  ## fill the output matrix per seg-phase
+  ## parent 1 (mother): AB
+  ## parent 2 (father): CD
+  ## offspring (F1): AC or AD or BC or BD
+  ## https://github.com/kbroman/qtl/blob/master/R/read.cross.mq.R#L301
+  pairs.seg.phase <- paste(x$seg, x$phase, sep="_")
+  for(seph in unique(pairs.seg.phase)){
+    if(seph == "NA_NA")
+      next
+    idx.rows <- which(pairs.seg.phase == seph)
+    seg <- x$seg[idx.rows[1]]
+    phase <- x$phase[idx.rows[1]]
+
+    if(phase == "{0-}"){
+      if(seg == "<lmxll>"){ # AB=lm ; CD=ll
+        idx <- which(x[idx.rows, geno.names] == "ll")
+        if(length(idx) > 0)
+          out[idx.rows,][idx] <- 5
+        idx <- which(x[idx.rows, geno.names] == "lm")
+        if(length(idx) > 0)
+          out[idx.rows,][idx] <- 6
+      } else{
+        msg <- paste("unrecognized segregation", seg, "with phase", phase)
+        stop(msg)
+      }
+    } else if(phase == "{1-}"){
+      if(seg == "<lmxll>"){ # AB=ml ; CD=ll
+        idx <- which(x[idx.rows, geno.names] == "ll")
+        if(length(idx) > 0)
+          out[idx.rows,][idx] <- 6
+        idx <- which(x[idx.rows, geno.names] == "lm")
+        if(length(idx) > 0)
+          out[idx.rows,][idx] <- 5
+      } else{
+        msg <- paste("unrecognized segregation", seg, "with phase", phase)
+        stop(msg)
+      }
+    } else if(phase == "{-0}"){
+      if(seg == "<nnxnp>"){ # AB=nn ; CD=np
+        idx <- which(x[idx.rows, geno.names] == "nn")
+        if(length(idx) > 0)
+          out[idx.rows,][idx] <- 7
+        idx <- which(x[idx.rows, geno.names] == "np")
+        if(length(idx) > 0)
+          out[idx.rows,][idx] <- 8
+      } else{
+        msg <- paste("unrecognized segregation", seg, "with phase", phase)
+        stop(msg)
+      }
+    } else if(phase == "{-1}"){
+      if(seg == "<nnxnp>"){ # AB=nn ; CD=pn
+        idx <- which(x[idx.rows, geno.names] == "nn")
+        if(length(idx) > 0)
+          out[idx.rows,][idx] <- 8
+        idx <- which(x[idx.rows, geno.names] == "np")
+        if(length(idx) > 0)
+          out[idx.rows,][idx] <- 7
+      } else{
+        msg <- paste("unrecognized segregation", seg, "with phase", phase)
+        stop(msg)
+      }
+    } else if(phase == "{00}"){
+      if(seg == "<abxcd>"){
+        idx <- which(x[idx.rows, geno.names] == "ac") # AC
+        if(length(idx) > 0)
+          out[idx.rows,][idx] <- 1
+        idx <- which(x[idx.rows, geno.names] == "ad") # AD
+        if(length(idx) > 0)
+          out[idx.rows,][idx] <- 3
+        idx <- which(x[idx.rows, geno.names] == "bc") # BC
+        if(length(idx) > 0)
+          out[idx.rows,][idx] <- 2
+        idx <- which(x[idx.rows, geno.names] == "bd") # BD
+        if(length(idx) > 0)
+          out[idx.rows,][idx] <- 4
+      } else if(seg == "<efxeg>"){
+        idx <- which(x[idx.rows, geno.names] == "ee") # AC
+        if(length(idx) > 0)
+          out[idx.rows,][idx] <- 1
+        idx <- which(x[idx.rows, geno.names] == "eg") # AD
+        if(length(idx) > 0)
+          out[idx.rows,][idx] <- 3
+        idx <- which(x[idx.rows, geno.names] == "ef") # BC
+        if(length(idx) > 0)
+          out[idx.rows,][idx] <- 2
+        idx <- which(x[idx.rows, geno.names] == "fg") # BD
+        if(length(idx) > 0)
+          out[idx.rows,][idx] <- 4
+      } else if(seg == "<hkxhk>"){
+        idx <- which(x[idx.rows, geno.names] == "hh") # AC
+        if(length(idx) > 0)
+          out[idx.rows,][idx] <- 1
+        idx <- which(x[idx.rows, geno.names] == "hk") # AD or BC
+        if(length(idx) > 0)
+          out[idx.rows,][idx] <- 10
+        idx <- which(x[idx.rows, geno.names] == "kk") # BD
+        if(length(idx) > 0)
+          out[idx.rows,][idx] <- 4
+        idx <- which(x[idx.rows, geno.names] == "h-") # not BD
+        if(length(idx) > 0)
+          out[idx.rows,][idx] <- 14
+        idx <- which(x[idx.rows, geno.names] == "k-") # not AC
+        if(length(idx) > 0)
+          out[idx.rows,][idx] <- 11
+      } else{
+        msg <- paste("unrecognized segregation", seg, "with phase", phase)
+        stop(msg)
+      }
+    } else if(phase == "{01}"){
+      if(seg == "<abxcd>"){
+        idx <- which(x[idx.rows, geno.names] == "ad") # AC
+        if(length(idx) > 0)
+          out[idx.rows,][idx] <- 1
+        idx <- which(x[idx.rows, geno.names] == "ac") # AD
+        if(length(idx) > 0)
+          out[idx.rows,][idx] <- 3
+        idx <- which(x[idx.rows, geno.names] == "bd") # BC
+        if(length(idx) > 0)
+          out[idx.rows,][idx] <- 2
+        idx <- which(x[idx.rows, geno.names] == "bc") # BD
+        if(length(idx) > 0)
+          out[idx.rows,][idx] <- 4
+      } else if(seg == "<efxeg>"){
+        idx <- which(x[idx.rows, geno.names] == "eg") # AC
+        if(length(idx) > 0)
+          out[idx.rows,][idx] <- 1
+        idx <- which(x[idx.rows, geno.names] == "ee") # AD
+        if(length(idx) > 0)
+          out[idx.rows,][idx] <- 3
+        idx <- which(x[idx.rows, geno.names] == "fg") # BC
+        if(length(idx) > 0)
+          out[idx.rows,][idx] <- 2
+        idx <- which(x[idx.rows, geno.names] == "ef") # BD
+        if(length(idx) > 0)
+          out[idx.rows,][idx] <- 4
+      } else if(seg == "<hkxhk>"){
+        idx <- which(x[idx.rows, geno.names] == "hk") # AC or BD
+        if(length(idx) > 0)
+          out[idx.rows,][idx] <- 9
+        idx <- which(x[idx.rows, geno.names] == "hh") # AD
+        if(length(idx) > 0)
+          out[idx.rows,][idx] <- 3
+        idx <- which(x[idx.rows, geno.names] == "kk") # BC
+        if(length(idx) > 0)
+          out[idx.rows,][idx] <- 2
+        idx <- which(x[idx.rows, geno.names] == "h-") # not BC
+        if(length(idx) > 0)
+          out[idx.rows,][idx] <- 12
+        idx <- which(x[idx.rows, geno.names] == "k-") # not AD
+        if(length(idx) > 0)
+          out[idx.rows,][idx] <- 13
+      } else{
+        msg <- paste("unrecognized segregation", seg, "with phase", phase)
+        stop(msg)
+      }
+    } else if(phase == "{10}"){
+      if(seg == "<abxcd>"){
+        idx <- which(x[idx.rows, geno.names] == "bc") # AC
+        if(length(idx) > 0)
+          out[idx.rows,][idx] <- 1
+        idx <- which(x[idx.rows, geno.names] == "bd") # AD
+        if(length(idx) > 0)
+          out[idx.rows,][idx] <- 3
+        idx <- which(x[idx.rows, geno.names] == "ac") # BC
+        if(length(idx) > 0)
+          out[idx.rows,][idx] <- 2
+        idx <- which(x[idx.rows, geno.names] == "ad") # BD
+        if(length(idx) > 0)
+          out[idx.rows,][idx] <- 4
+      } else if(seg == "<efxeg>"){
+        idx <- which(x[idx.rows, geno.names] == "ef") # AC
+        if(length(idx) > 0)
+          out[idx.rows,][idx] <- 1
+        idx <- which(x[idx.rows, geno.names] == "fg") # AD
+        if(length(idx) > 0)
+          out[idx.rows,][idx] <- 3
+        idx <- which(x[idx.rows, geno.names] == "ee") # BC
+        if(length(idx) > 0)
+          out[idx.rows,][idx] <- 2
+        idx <- which(x[idx.rows, geno.names] == "eg") # BD
+        if(length(idx) > 0)
+          out[idx.rows,][idx] <- 4
+      } else if(seg == "<hkxhk>"){
+        idx <- which(x[idx.rows, geno.names] == "hk") # AC or BD
+        if(length(idx) > 0)
+          out[idx.rows,][idx] <- 9
+        idx <- which(x[idx.rows, geno.names] == "kk") # AD
+        if(length(idx) > 0)
+          out[idx.rows,][idx] <- 3
+        idx <- which(x[idx.rows, geno.names] == "hh") # BC
+        if(length(idx) > 0)
+          out[idx.rows,][idx] <- 2
+        idx <- which(x[idx.rows, geno.names] == "h-") # not AD
+        if(length(idx) > 0)
+          out[idx.rows,][idx] <- 13
+        idx <- which(x[idx.rows, geno.names] == "k-") # not BC
+        if(length(idx) > 0)
+          out[idx.rows,][idx] <- 12
+      } else{
+        msg <- paste("unrecognized segregation", seg, "with phase", phase)
+        stop(msg)
+      }
+    } else if(phase == "{11}"){
+      if(seg == "<abxcd>"){
+        idx <- which(x[idx.rows, geno.names] == "bd") # AC
+        if(length(idx) > 0)
+          out[idx.rows,][idx] <- 1
+        idx <- which(x[idx.rows, geno.names] == "bc") # AD
+        if(length(idx) > 0)
+          out[idx.rows,][idx] <- 3
+        idx <- which(x[idx.rows, geno.names] == "ad") # BC
+        if(length(idx) > 0)
+          out[idx.rows,][idx] <- 2
+        idx <- which(x[idx.rows, geno.names] == "ac") # BD
+        if(length(idx) > 0)
+          out[idx.rows,][idx] <- 4
+      } else if(seg == "<efxeg>"){
+        idx <- which(x[idx.rows, geno.names] == "fg") # AC
+        if(length(idx) > 0)
+          out[idx.rows,][idx] <- 1
+        idx <- which(x[idx.rows, geno.names] == "ef") # AD
+        if(length(idx) > 0)
+          out[idx.rows,][idx] <- 3
+        idx <- which(x[idx.rows, geno.names] == "eg") # BC
+        if(length(idx) > 0)
+          out[idx.rows,][idx] <- 2
+        idx <- which(x[idx.rows, geno.names] == "ee") # BD
+        if(length(idx) > 0)
+          out[idx.rows,][idx] <- 4
+      } else if(seg == "<hkxhk>"){
+        idx <- which(x[idx.rows, geno.names] == "kk") # AC
+        if(length(idx) > 0)
+          out[idx.rows,][idx] <- 1
+        idx <- which(x[idx.rows, geno.names] == "hk") # AD or BC
+        if(length(idx) > 0)
+          out[idx.rows,][idx] <- 10
+        idx <- which(x[idx.rows, geno.names] == "hh") # BD
+        if(length(idx) > 0)
+          out[idx.rows,][idx] <- 4
+        idx <- which(x[idx.rows, geno.names] == "h-") # not AC
+        if(length(idx) > 0)
+          out[idx.rows,][idx] <- 11
+        idx <- which(x[idx.rows, geno.names] == "k-") # not BD
+        if(length(idx) > 0)
+          out[idx.rows,][idx] <- 14
+      } else{
+        msg <- paste("unrecognized segregation", seg, "with phase", phase)
+        stop(msg)
+      }
+    }
+  }
+
+  return(out)
+}
+
 ##' Write genotypes
 ##'
-##' Write "segregation" data into a "loc" file in the \href{https://www.kyazma.nl/index.php/JoinMap/}{JoinMap/MapQTL} format.
+##' Write genotype data in the \href{https://www.kyazma.nl/index.php/JoinMap/}{JoinMap} format into a "loc" file used by this software.
 ##' @param pop.name name of the population
 ##' @param pop.type type of the population
 ##' @param locus vector of locus names (should be shorter or equal to 20 characters, otherwise a warning will be issued)
@@ -800,13 +1108,13 @@ writeSegregJoinMap <- function(pop.name, pop.type="CP",
 ##' Genotype coding
 ##'
 ##' Write marker genotypes formatted for CarthaGene in a file.
-##' @param x matrix of characters containing marker genotypes in the CarthaGene format, for instance from \code{\link{joinMap2CarthaGene}}; row names should correspond to marker names
+##' @param x matrix of characters containing marker genotypes in the CarthaGene format, for instance from \code{\link{joinMap2backcross}}; row names should correspond to marker names
 ##' @param file path to the file to which the data will be written
 ##' @param type type of the data ("f2 backcross")
 ##' @param aliases aliases
 ##' @return nothing
 ##' @author Timothee Flutre
-##' @seealso \code{\link{joinMap2CarthaGene}}
+##' @seealso \code{\link{joinMap2backcross}}
 ##' @export
 writeCartagene <- function(x, file, type="f2 backcross", aliases=NULL){
   stopifnot(is.matrix(x),
@@ -844,31 +1152,53 @@ writeCartagene <- function(x, file, type="f2 backcross", aliases=NULL){
 
 ##' Genotype coding
 ##'
-##' Convert genotypes encoded in the \href{https://www.kyazma.nl/index.php/JoinMap/}{JoinMap} format into the \href{http://www7.inra.fr/mia/T/CarthaGene/}{CarthaGene} format.
-##' Genotypes are assumed to come from a bi-parental family with heterozygous parents (population type CP in JoinMap) and the goal is to build two parental genetic maps via a pseudo-test-cross strategy (Grattapaglia and Sederoff, 1994).
-##' This function hence encodes genotypes as two backcrosses, one per parent, with "A" for "homozygous" and "H" for "heterozygous".
+##' Convert unphased genotypes encoded in the \href{https://www.kyazma.nl/index.php/JoinMap/}{JoinMap} format into the backcross configuration according to the \href{http://www7.inra.fr/mia/T/CarthaGene/}{CarthaGene} or R/qtl formats.
+##' Genotypes are assumed to come from a bi-parental cross with outbred parents (population type "CP" in JoinMap) and the goal is to build two parental genetic maps via a pseudo-test-cross strategy (Grattapaglia and Sederoff, 1994).
+##' This function hence encodes genotypes as two backcrosses, one per parent.
 ##' All locus will be duplicated and the suffix "_m" (for "mirror") added to their identifiers.
-##' @param x data frame in the JoinMap format, for instance from \code{\link{genoClasses2JoinMap}}; columns named "phase" and "clas" will be discarded from the start; a column named "seg" should be present; a column named "locus" should be present unless row names are given; all other columns are supposed to correspond to genotypes
-##' @param alias.het alias to specify heterozygotes, "Z" being forbidden
+##' @param x data frame in the JoinMap format, for instance from \code{\link{genoClasses2JoinMap}}; any column named "phase" or "clas" will be discarded from the start; a column named "seg" should be present (markers with missing segregation will be discarded); a column named "locus" should be present unless row names are given; all other columns are supposed to correspond to genotypes
+##' @param alias.hom alias to specify homozygotes ("A" for CarthaGene, 1 for R/qtl); should be different from alias.dup
+##' @param alias.het alias to specify heterozygotes ("H" for CarthaGene, 2 for R/qtl); should be different from alias.dup
+##' @param alias.dup alias used when duplicating the locus; should be different from both alias.hom and alias.het, but should be of the same mode (i.e. character or numeric)
+##' @param alias.miss alias to specify missing values
+##' @param parent.names vector containing the names of the parents
 ##' @param verbose verbosity level (0/1/2)
 ##' @return list of two matrices, one per parent
 ##' @author Timothee Flutre [aut], Agnes Doligez [ctb]
-##' @seealso \code{\link{genoClasses2JoinMap}}
+##' @seealso \code{\link{genoClasses2JoinMap}}, \code{\link{openCarthagene}}, \code{\link{setJoinMapPhasesFromParentalLinkGroups}}
 ##' @export
-joinMap2CarthaGene <- function(x, alias.het="H", verbose=1){
+joinMap2backcross <- function(x, alias.hom="A", alias.het="H", alias.dup="Z",
+                              alias.miss="-", parent.names=c("parent1", "parent2"),
+                              verbose=1){
   seg.types <- c("<abxcd>", "<efxeg>", "<hkxhk>", "<lmxll>", "<nnxnp>")
   stopifnot(is.data.frame(x),
             ncol(x) >= 5,
             ! is.null(colnames(x)),
             "seg" %in% colnames(x),
             all(x$seg %in% c(seg.types, NA)),
-            is.character(alias.het),
+            is.vector(alias.hom),
+            mode(alias.hom) %in% c("character", "numeric"),
+            length(alias.hom) == 1,
+            is.vector(alias.het),
+            mode(alias.het) %in% c("character", "numeric"),
             length(alias.het) == 1,
-            alias.het != "Z")
+            is.vector(alias.dup),
+            mode(alias.dup) %in% c("character", "numeric"),
+            length(alias.dup) == 1,
+            alias.hom != alias.dup,
+            alias.het != alias.dup,
+            all(c(mode(alias.hom), mode(alias.dup)) == mode(alias.dup)),
+            is.vector(alias.miss),
+            length(alias.miss) == 1,
+            is.character(parent.names),
+            length(parent.names) == 2)
   if(! "locus" %in% colnames(x))
     stopifnot(! is.null(rownames(x)))
 
-  out <- list()
+  if(verbose > 0){
+    msg <- "convert unphased genotypes from JoinMap into the backcross\n(i.e. \"parental\") configuration..."
+    write(msg, stdout())
+  }
 
   ## reformat the input
   x <- convertFactorColumnsToCharacter(x)
@@ -894,10 +1224,8 @@ joinMap2CarthaGene <- function(x, alias.het="H", verbose=1){
     }
     x <- x[! miss.segreg,]
   }
-
   if(verbose > 0){
-    msg <- paste0("convert genotypes at ", nrow(x), " locus",
-                  " from JoinMap to CarthaGene...")
+    msg <- paste0("convert ", nrow(x), " locus...")
     write(msg, stdout())
   }
 
@@ -921,14 +1249,14 @@ joinMap2CarthaGene <- function(x, alias.het="H", verbose=1){
   if(length(idx.p1) > 0)
     p1[idx.p1, -1] <-
       t(matrix(apply(p1[idx.p1, -1, drop=FALSE], 2, function(genos){
-        genos <- gsub("ac|ad", "A", genos)
+        genos <- gsub("ac|ad", alias.hom, genos)
         gsub("bc|bd", alias.het, genos)
       }))) # assume parent 2 is homozygous "aa"
   idx.p2 <- which(p2[,"seg"] == seg)
   if(length(idx.p2) > 0)
     p2[idx.p2, -1] <-
       t(matrix(apply(p2[idx.p2, -1, drop=FALSE], 2, function(genos){
-        genos <- gsub("ac|bc", "A", genos)
+        genos <- gsub("ac|bc", alias.hom, genos)
         gsub("ad|bd", alias.het, genos)
       }))) # assume parent 1 is homozygous "cc"
 
@@ -937,14 +1265,14 @@ joinMap2CarthaGene <- function(x, alias.het="H", verbose=1){
   if(length(idx.p1) > 0)
     p1[idx.p1, -1] <-
       t(matrix(apply(p1[idx.p1, -1, drop=FALSE], 2, function(genos){
-        genos <- gsub("ee|eg", "A", genos)
+        genos <- gsub("ee|eg", alias.hom, genos)
         gsub("ef|fg", alias.het, genos)
       }))) # assume parent 2 is homozygous "ee"
   idx.p2 <- which(p2[,"seg"] == seg)
   if(length(idx.p2) > 0)
     p2[idx.p2, -1] <-
       t(matrix(apply(p2[idx.p2, -1, drop=FALSE], 2, function(genos){
-        genos <- gsub("ee|ef", "A", genos)
+        genos <- gsub("ee|ef", alias.hom, genos)
         gsub("eg|fg", alias.het, genos)
       }))) # assume parent 1 is homozygous "ee"
 
@@ -953,25 +1281,25 @@ joinMap2CarthaGene <- function(x, alias.het="H", verbose=1){
   if(length(idx.p1) > 0)
     p1[idx.p1, -1] <-
       t(matrix(apply(p1[idx.p1, -1, drop=FALSE], 2, function(genos){
-        genos <- gsub("hh", "A", genos)
-        genos <- gsub("hk", "-", genos)
+        genos <- gsub("hh", alias.hom, genos)
+        genos <- gsub("hk", alias.miss, genos)
         gsub("kk", alias.het, genos)
-      }))) # "hk" as "-" because phase is unknown
+      }))) # "hk" as missing because phase is unknown
   idx.p2 <- which(p2[,"seg"] == seg)
   if(length(idx.p2) > 0)
     p2[idx.p2, -1] <-
       t(matrix(apply(p2[idx.p2, -1, drop=FALSE], 2, function(genos){
-        genos <- gsub("hh", "A", genos)
-        genos <- gsub("hk", "-", genos)
+        genos <- gsub("hh", alias.hom, genos)
+        genos <- gsub("hk", alias.miss, genos)
         gsub("kk", alias.het, genos)
-      }))) # "hk" as "-" because phase is unknown
+      }))) # "hk" as missing because phase is unknown
 
   seg <- "<lmxll>"
   idx.p1 <- which(p1[,"seg"] == seg)
   if(length(idx.p1) > 0)
     p1[idx.p1, -1] <-
       t(matrix(apply(p1[idx.p1, -1, drop=FALSE], 2, function(genos){
-        genos <- gsub("ll", "A", genos)
+        genos <- gsub("ll", alias.hom, genos)
         gsub("lm", alias.het, genos)
       })))
 
@@ -980,12 +1308,13 @@ joinMap2CarthaGene <- function(x, alias.het="H", verbose=1){
   if(length(idx.p2) > 0)
     p2[idx.p2, -1] <-
       t(matrix(apply(p2[idx.p2, -1, drop=FALSE], 2, function(genos){
-        genos <- gsub("nn", "A", genos)
+        genos <- gsub("nn", alias.hom, genos)
         gsub("np", alias.het, genos)
       })))
 
   if(verbose > 0){
-    msg <- paste0("nb of locus: parent1=", nrow(p1), " parent2=", nrow(p2))
+    msg <- paste0("nb of locus: ", parent.names[1], "=", nrow(p1),
+                  " ", parent.names[2], "=", nrow(p2))
     write(msg, stdout())
   }
 
@@ -993,31 +1322,109 @@ joinMap2CarthaGene <- function(x, alias.het="H", verbose=1){
     msg <- "duplicate all locus and invert the coding..."
     write(msg, stdout())
   }
-  p1 <- p1[, -1]
+  p1 <- p1[, - which(colnames(p1) == "seg")]
   p1.m <- apply(p1, 2, function(genos){
-    genos <- gsub("A", "Z", genos)
-    genos <- gsub(alias.het, "A", genos)
-    gsub("Z", alias.het, genos)
+    genos <- gsub(alias.hom, alias.dup, genos)
+    genos <- gsub(alias.het, alias.hom, genos)
+    gsub(alias.dup, alias.het, genos)
   })
   rownames(p1.m) <- paste0(rownames(p1), "_m")
-  out$parent1 <- rbind(p1, p1.m)
-  idx.na <- which(is.na(out$parent1))
-  if(length(idx.na) > 0)
-    out$parent1[idx.na] <- "-"
 
-  p2 <- p2[, -1]
+  p2 <- p2[, - which(colnames(p2) == "seg")]
   p2.m <- apply(p2, 2, function(genos){
-    genos <- gsub("A", "Z", genos)
-    genos <- gsub(alias.het, "A", genos)
-    gsub("Z", alias.het, genos)
+    genos <- gsub(alias.hom, alias.dup, genos)
+    genos <- gsub(alias.het, alias.hom, genos)
+    gsub(alias.dup, alias.het, genos)
   })
   rownames(p2.m) <- paste0(rownames(p2), "_m")
-  out$parent2 <- rbind(p2, p2.m)
-  idx.na <- which(is.na(out$parent2))
-  if(length(idx.na) > 0)
-    out$parent2[idx.na] <- "-"
+
+  ## make the output
+  out <- list()
+  out[[1]] <- rbind(p1, p1.m)
+  if(mode(out[[1]]) != mode(alias.hom))
+    mode(out[[1]]) <- mode(alias.hom)
+  if(! is.na(alias.miss)){
+    idx.na <- which(is.na(out[[1]]))
+    if(length(idx.na) > 0)
+      out[[1]][idx.na] <- alias.miss
+  }
+  out[[2]] <- rbind(p2, p2.m)
+  if(mode(out[[2]]) != mode(alias.hom))
+    mode(out[[2]]) <- mode(alias.hom)
+  if(! is.na(alias.miss)){
+    idx.na <- which(is.na(out[[2]]))
+    if(length(idx.na) > 0)
+      out[[2]][idx.na] <- alias.miss
+  }
+  names(out) <- parent.names
 
   return(out)
+}
+
+##' Genotype coding
+##'
+##' Set linkage phases in the \href{https://www.kyazma.nl/index.php/JoinMap/}{JoinMap} format from two sets of parental linkage groups.
+##' This function is tested only for segregation types <hkxhk>, <lmxll> and <nnxnp>, that is, in the case of bi-allelic SNPs segregating in a cross of outbred parents.
+##' @param x data frame in the JoinMap format, for instance from \code{\link{genoClasses2JoinMap}}; row names should contain locus names; the first column should be "seg"; any column(s) "phase" or "clas" already existing will be discarded; other columns should contain genotype data
+##' @param lg.par1 linkage groups of the first parent (usually the mother) as a data frame with one row per marker and at least two columns named "linkage.group" and "locus"; "mirror" markers should have suffix "_m" as done by \code{\link{joinMap2backcross}}
+##' @param lg.par2 linkage groups of the second parent (usually the father) as a data frame with one row per marker and at least two columns named "linkage.group" and "locus"; "mirror" markers should have suffix "_m" as done by \code{\link{joinMap2backcross}}
+##' @return data frame in the JoinMap format with a "phase" column
+##' @author Timothee Flutre
+##' @export
+setJoinMapPhasesFromParentalLinkGroups <- function(x, lg.par1, lg.par2){
+  stopifnot(is.data.frame(x),
+            ! is.null(rownames(x)),
+            "seg" %in% colnames(x),
+            is.data.frame(lg.par1),
+            ncol(lg.par1) >= 2,
+            all(c("linkage.group", "locus") %in% colnames(lg.par1)),
+            is.data.frame(lg.par2),
+            ncol(lg.par2) >= 2,
+            all(c("linkage.group", "locus") %in% colnames(lg.par2)))
+  if(any(! x$seg %in% c("<hkxhk>", "<lmxll>", "<nnxnp>", NA)))
+    warning("some segregation types are not in <hkxhk>, <lmxll> or <nnxnp>")
+
+  ## reformat the inputs
+  lg.par1 <- convertFactorColumnsToCharacter(lg.par1)
+  lg.par2 <- convertFactorColumnsToCharacter(lg.par2)
+  stopifnot(all(unique(lg.par1$linkage.group) %in%
+                unique(lg.par2$linkage.group)),
+            all(unique(lg.par2$linkage.group) %in%
+                unique(lg.par1$linkage.group)))
+  x <- convertFactorColumnsToCharacter(x)
+  if("phase" %in% colnames(x))
+    x <- x[, - which(colnames(x) == "phase")]
+  if("clas" %in% colnames(x))
+    x <- x[, - which(colnames(x) == "clas")]
+
+  ## add phases for each parent
+  addPhase <- function(lg, par.num){
+    lg$locus.init <- gsub("_m", "", lg$locus)
+    lg[[paste0("phase.par", par.num)]] <- 0
+    lg[[paste0("phase.par", par.num)]][grepl("_m", lg$locus)] <- 1
+    return(lg)
+  }
+  lg.par1 <- addPhase(lg.par1, 1)
+  lg.par2 <- addPhase(lg.par2, 2)
+
+  ## merge parental phases
+  lg <- merge(lg.par1, lg.par2, by="locus.init", all.x=TRUE,
+              all.y=TRUE) # column "locus.init" will be sorted
+  lg$phase.par1[is.na(lg$phase.par1)] <- "-"
+  lg$phase.par2[is.na(lg$phase.par2)] <- "-"
+  lg$phase <- paste0("{", lg$phase.par1, lg$phase.par2, "}")
+
+  ## add phases to the JoinMap data frame
+  x.phased <- merge(cbind(locus.init=rownames(x), x),
+                    lg[, c("locus.init", "phase")],
+                    by="locus.init", all.x=TRUE, all.y=TRUE)
+  rownames(x.phased) <- x.phased$locus.init
+  x.phased <- cbind(seg=x.phased$seg,
+                    phase=x.phased$phase,
+                    x.phased[, -c(1,2,ncol(x.phased))])
+  x.phased <- convertFactorColumnsToCharacter(x.phased)
+
+  return(x.phased)
 }
 
 ##' Genotype coding
@@ -1314,6 +1721,104 @@ genoDoses2ASMap <- function(X=NULL, tX=NULL){
   return(out)
 }
 
+##' Set-up a R/qtl "cross" object
+##'
+##' Set up a "cross" object from the \href{https://cran.r-project.org/package=qtl}{qtl} package.
+##' @param gendat genotype data in the qtl format as a matrix with genotypes in rows and markers in columns; if genmap is provided, only the markers also on the map will be kept
+##' @param cross.type type of cross ("bc" for a backcross, "4way" for a cross between two outbred parents)
+##' @param genmap genetic map as a data frame with one row per marker and at least two columns named "linkage.group" and "locus"; if a third one, "genetic.distance", is absent, it will be created and filled with fake, incremental values; if NULL, a fake genetic map will be created with all markers in the same linkage group; it is assumed that all linkage groups correspond to autosomes
+##' @param phenos data frame containing the phenotypes; if not NULL, the genotype identifiers should be in a column named "Genotype" or as row names; otherwise, will be created with such a column
+##' @return object of class "cross" as defined in the qtl package
+##' @author Timothee Flutre
+##' @seealso \code{\link{joinMap2backcross}}
+##' @export
+setupQtlCrossObject <- function(gendat, cross.type, genmap=NULL, phenos=NULL){
+  stopifnot(is.matrix(gendat),
+            ! is.null(colnames(gendat)),
+            ! is.null(rownames(gendat)),
+            cross.type %in% c("bc", "4way"))
+  if(! is.null(genmap))
+    stopifnot(is.data.frame(genmap),
+              ncol(genmap) >= 2,
+              all(c("linkage.group", "locus") %in% colnames(genmap)))
+  if(! is.null(phenos))
+    stopifnot(is.data.frame(phenos),
+              any("Genotype" %in% colnames(phenos),
+                  ! is.null(rownames(phenos))))
+
+  out <- list()
+  class(out) <- c(cross.type, "cross")
+
+  ## reformat input genetic map
+  if(is.null(genmap)){
+    marker.names <- colnames(gendat)
+    genmap <- data.frame(linkage.group=rep(1, length(marker.names)),
+                         locus=marker.names)
+  }
+  if(! "genetic.distance" %in% colnames(genmap))
+    genmap$genetic.distance <-
+      unlist(tapply(genmap$locus, factor(genmap$linkage.group), function(x){
+        seq(0.0, 100, length.out=length(x))
+      }))
+  genmap <- convertFactorColumnsToCharacter(genmap)
+  if(! is.character(genmap$linkage.group))
+    genmap$linkage.group <- as.character(genmap$linkage.group)
+  if(requireNamespace("gtools"))
+    genmap <- genmap[gtools::mixedorder(genmap$linkage.group),]
+  lg.names <- unique(as.character(genmap$linkage.group))
+  genmap.list <- lapply(lg.names, function(lg.name){
+    tmp <- genmap[genmap$linkage.group == lg.name, "genetic.distance"]
+    names(tmp) <- genmap[genmap$linkage.group == lg.name, "locus"]
+    tmp
+  })
+  names(genmap.list) <- lg.names
+  lg2loc <- lapply(genmap.list, names)
+
+  ## reformat input genotype data
+  is.marker.on.map <- colnames(gendat) %in% genmap$locus
+  if(! all(is.marker.on.map)){
+    if(all(! is.marker.on.map)){
+      msg <- "all markers are absent from the provided map"
+      stop(msg)
+    }
+    msg <- paste0("keep only the ", sum(is.marker.on.map),
+                  " markers also present on the genetic map")
+    warning(msg)
+    gendat <- gendat[, is.marker.on.map]
+  }
+  gendat.list <- lapply(lg.names, function(lg.name){
+    gendat[, lg2loc[[lg.name]]]
+  })
+  names(gendat.list) <- lg.names
+
+  ## set up the "geno" component
+  out$geno <- lapply(lg.names, function(lg.name){
+    list(data=gendat.list[[lg.name]],
+         map=genmap.list[[lg.name]])
+  })
+  names(out$geno) <- lg.names
+  for(lg.name in lg.names)
+    class(out$geno[[lg.name]]) <- "A"
+
+  ## set up the "pheno" component
+  if(is.null(phenos)){
+    out$pheno <- data.frame(Genotype=rownames(gendat))
+  } else{
+    stopifnot(nrow(phenos) == nrow(gendat))
+    geno.ids.from.phenos <- NULL
+    if("Genotype" %in% colnames(phenos)){
+      stopifnot(! anyDuplicated(phenos$Genotype))
+      geno.ids.from.phenos <- phenos$Genotype
+    } else
+      geno.ids.from.phenos <- rownames(phenos)
+    stopifnot(length(geno.ids.from.phenos) == nrow(gendat),
+              all(sort(geno.ids.from.phenos) == sort(rownames(gendat))))
+    out$pheno <- phenos
+  }
+
+  return(out)
+}
+
 ##' Haplotypes
 ##'
 ##' Check that the input is a valid list of matrices of bi-allelic marker haplotypes.
@@ -1398,7 +1903,8 @@ stopIfNotValidGenosDose <- function(X, check.hasColNames=TRUE,
 ##' @author Timothee Flutre
 ##' @seealso \code{link{genoClasses2genoDoses}}
 ##' @export
-genoDoses2genoClasses <- function(X=NULL, tX=NULL, alleles, na.string="--", verbose=1){
+genoDoses2genoClasses <- function(X=NULL, tX=NULL, alleles, na.string="--",
+                                  verbose=1){
   stopifnot(xor(is.null(X), is.null(tX)),
             is.data.frame(alleles),
             ncol(alleles) == 2,
@@ -1411,9 +1917,17 @@ genoDoses2genoClasses <- function(X=NULL, tX=NULL, alleles, na.string="--", verb
   stopifnot(all(rownames(alleles) %in% rownames(tX)))
   alleles <- convertFactorColumnsToCharacter(alleles)
 
+  if(verbose > 0){
+    msg <- paste0("convert ", nrow(tX), " SNPs for ",
+                  ncol(tX), " genotypes...")
+    write(msg, stdout())
+    idx.rows <- 1:nrow(tX)
+    pb <- utils::txtProgressBar(min=0, max=length(idx.rows), style=3)
+    tmp <- stats::setNames(object=cut(x=idx.rows, breaks=10, labels=FALSE),
+                           nm=idx.rows) # to update pb no more than 10 times
+  }
+
   out <- as.data.frame(tX, row.names=rownames(tX), col.names=colnames(tX))
-  if(verbose > 0)
-    pb <- utils::txtProgressBar(min=0, max=nrow(tX), style=3)
 
   ## for each SNP
   for(i in 1:nrow(tX)){
@@ -1438,8 +1952,11 @@ genoDoses2genoClasses <- function(X=NULL, tX=NULL, alleles, na.string="--", verb
     if(length(idx) > 0)
       out[i, idx] <- na.string
 
-    if(verbose > 0)
-      utils::setTxtProgressBar(pb, i)
+    if(verbose > 0){
+      ## utils::setTxtProgressBar(pb, i) # update pb at each loop iteration
+      if(i %in% as.numeric(names(tmp)[cumsum(table(tmp))]))
+        utils::setTxtProgressBar(pb, which(idx.rows == i))
+    }
   }
   if(verbose > 0)
     close(pb)

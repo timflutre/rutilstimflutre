@@ -4,10 +4,12 @@
 \alias{openCarthagene}
 \title{Open CarthaGene}
 \usage{
-openCarthagene(file = NULL)
+openCarthagene(file = NULL, task.id = NULL)
 }
 \arguments{
 \item{file}{path to the file containing the dataset (will be loaded if not NULL)}
+
+\item{task.id}{identifier of the task (used in FIFO names)}
 }
 \value{
 list

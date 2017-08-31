@@ -12,7 +12,7 @@ parseCgGroup(out.group, mrk.info = NULL)
 \item{mrk.info}{data frame output from \code{\link{parseCgMrkinfo}} (optional; useful to have the marker names instead of only the marker identifiers)}
 }
 \value{
-list with one data frame per linkage group
+data frame with at least two columns, "linkage.group" and "id", and a third, "locus", if marker information is provided
 }
 \description{
 Parse the output of CarthaGene's command "group".

@@ -6,20 +6,35 @@
 ##'
 ##' Open FIFOs to interact with CarthaGene.
 ##' @param file path to the file containing the dataset (will be loaded if not NULL)
+##' @param task.id identifier of the task (used in FIFO names)
 ##' @return list
 ##' @author Matthieu Falque [aut], Timothee Flutre [ctb]
 ##' @export
-openCarthagene <- function(file=NULL){
+openCarthagene <- function(file=NULL, task.id=NULL){
   exe.name <- "carthagene"
   stopifnot(file.exists(Sys.which(exe.name)),
             capabilities()["fifo"])
-  if(! is.null(file))
+  if(! is.null(file)){
     stopifnot(file.exists(file))
+    file.2pt <- paste0(file, ".2pt")
+    if(file.exists(file.2pt)){
+      msg <- paste0("file '", file.2pt, "' created by CarthaGene",
+                    " already exists\nyou may want to remove it first",
+                    " to let CarthaGene recreate it")
+      warning(msg)
+    }
+  }
+  if(! is.null(task.id))
+    stopifnot(is.character(task.id))
 
   out <- list()
 
   name.fifo.in <- "CGfifoIn"
+  if(! is.null(task.id))
+    name.fifo.in <- paste0(name.fifo.in, "_", task.id)
   name.fifo.out <- "CGfifoOut"
+  if(! is.null(task.id))
+    name.fifo.out <- paste0(name.fifo.out, "_", task.id)
   if(file.exists(name.fifo.in))
     file.remove(name.fifo.in)
   if(file.exists(name.fifo.out))
@@ -123,7 +138,7 @@ parseCgMrkinfo <- function(out.mrkinfo){
 ##' Parse the output of CarthaGene's command "group".
 ##' @param out.group vector of character output from \code{\link{runCarthagene}} corresponding to "group"
 ##' @param mrk.info data frame output from \code{\link{parseCgMrkinfo}} (optional; useful to have the marker names instead of only the marker identifiers)
-##' @return list with one data frame per linkage group
+##' @return data frame with at least two columns, "linkage.group" and "id", and a third, "locus", if marker information is provided
 ##' @author Timothee Flutre
 ##' @export
 parseCgGroup <- function(out.group, mrk.info=NULL){
@@ -133,8 +148,6 @@ parseCgGroup <- function(out.group, mrk.info=NULL){
               ncol(mrk.info) >= 2,
               all(c("id", "name") %in% colnames(mrk.info)))
 
-  out <- list()
-
   idx <- grep("Group ID : Marker ID List ..", out.group)
   if(length(idx) == 0){
     msg <- paste0("can't parse CarthaGene's output;",
@@ -142,6 +155,7 @@ parseCgGroup <- function(out.group, mrk.info=NULL){
     stop(msg)
   }
 
+  out <- list()
   nb.linkgroups <- as.integer(out.group[length(out.group)])
   for(lg in 1:nb.linkgroups){
     tmp <- strsplit(out.group[idx + lg], ":")[[1]]
@@ -153,12 +167,12 @@ parseCgGroup <- function(out.group, mrk.info=NULL){
                             stringsAsFactors=FALSE)
   }
 
-  if(! is.null(mrk.info)){
-    out <- lapply(out, function(lg){
-      lg$name <- mrk.info$name[match(lg$id, mrk.info$id)]
-      lg
-    })
-  }
+  out <- cbind(linkage.group=rep(1:nb.linkgroups,
+                                 sapply(out, nrow)),
+               do.call(rbind, out))
+
+  if(! is.null(mrk.info))
+    out$locus <- mrk.info$name[match(out$id, mrk.info$id)]
 
   return(out)
 }

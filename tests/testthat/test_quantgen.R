@@ -112,7 +112,55 @@ test_that("genoClasses2JoinMap", {
   expect_equal(observed, expected)
 })
 
-test_that("joinMap2carthaGene", {
+test_that("joinMap2backcross_qtl", {
+  nb.locus <- 6
+  nb.genos <- 4
+  jm <- data.frame(seg=c("<abxcd>", "<efxeg>", "<hkxhk>", "<lmxll>", "<nnxnp>",
+                         NA),
+                   phase=rep(NA, nb.locus),
+                   clas=rep(NA, nb.locus),
+                   geno1=c("ac", "ee", "hh", "ll", "nn", NA),
+                   geno2=c("ad", "eg", "hk", "ll", "np", NA),
+                   geno3=c("bc", "ef", "hk", "lm", "nn", NA),
+                   geno4=c("bd", "fg", "kk", "lm", NA, NA),
+                   row.names=paste0("loc", 1:nb.locus),
+                   stringsAsFactors=FALSE)
+
+  expected <- list(par1=matrix(data=NA, nrow=2 * (nb.locus - 2),
+                               ncol=nb.genos),
+                   par2=matrix(data=NA, nrow=2 * (nb.locus - 2),
+                               ncol=nb.genos))
+  rownames(expected$par1) <- c("loc1", "loc2", "loc3", "loc4",
+                               "loc1_m", "loc2_m", "loc3_m", "loc4_m")
+  colnames(expected$par1) <- paste0("geno", 1:nb.genos)
+  expected$par1["loc1",] <- c(1, 1, 2, 2)
+  expected$par1["loc2",] <- c(1, 1, 2, 2)
+  expected$par1["loc3",] <- c(1, NA, NA, 2)
+  expected$par1["loc4",] <- c(1, 1, 2, 2)
+  expected$par1["loc1_m",] <- c(2, 2, 1, 1)
+  expected$par1["loc2_m",] <- c(2, 2, 1, 1)
+  expected$par1["loc3_m",] <- c(2, NA, NA, 1)
+  expected$par1["loc4_m",] <- c(2, 2, 1, 1)
+  rownames(expected$par2) <- c("loc1", "loc2", "loc3", "loc5",
+                               "loc1_m", "loc2_m", "loc3_m", "loc5_m")
+  colnames(expected$par2) <- paste0("geno", 1:nb.genos)
+  expected$par2["loc1",] <- c(1, 2, 1, 2)
+  expected$par2["loc2",] <- c(1, 2, 1, 2)
+  expected$par2["loc3",] <- c(1, NA, NA, 2)
+  expected$par2["loc5",] <- c(1, 2, 1, NA)
+  expected$par2["loc1_m",] <- c(2, 1, 2, 1)
+  expected$par2["loc2_m",] <- c(2, 1, 2, 1)
+  expected$par2["loc3_m",] <- c(2, NA, NA, 1)
+  expected$par2["loc5_m",] <- c(2, 1, 2, NA)
+
+  observed <- joinMap2backcross(x=jm, alias.hom=1, alias.het=2, alias.dup=0,
+                                alias.miss=NA, parent.names=c("par1", "par2"),
+                                verbose=0)
+
+  expect_equal(observed, expected)
+})
+
+test_that("joinMap2backcross_CarthaGene", {
   nb.locus <- 6
   nb.genos <- 4
   jm <- data.frame(locus=paste0("loc", 1:nb.locus),
@@ -126,38 +174,165 @@ test_that("joinMap2carthaGene", {
                    geno4=c("bd", "fg", "kk", "lm", NA, ""),
                    stringsAsFactors=FALSE)
 
-  expected <- list(parent1=data.frame(geno1=c("A", "A", "A", "A"),
-                                      geno2=c("A", "A", "-", "A"),
-                                      geno3=c("H", "H", "-", "H"),
-                                      geno4=c("H", "H", "H", "H"),
-                                      row.names=paste0("loc", c(1,2,3,4)),
-                                      stringsAsFactors=FALSE),
-                   parent2=data.frame(geno1=c("A", "A", "A", "A"),
-                                      geno2=c("H", "H", "-", "H"),
-                                      geno3=c("A", "A", "-", "A"),
-                                      geno4=c("H", "H", "H", "-"),
-                                      row.names=paste0("loc", c(1,2,3,5)),
-                                      stringsAsFactors=FALSE))
-  expected$parent1 <- rbind(expected$parent1,
+  expected <- list(ind088=data.frame(geno1=c("A", "A", "A", "A"),
+                                     geno2=c("A", "A", "-", "A"),
+                                     geno3=c("H", "H", "-", "H"),
+                                     geno4=c("H", "H", "H", "H"),
+                                     row.names=paste0("loc", c(1,2,3,4)),
+                                     stringsAsFactors=FALSE),
+                   ind284=data.frame(geno1=c("A", "A", "A", "A"),
+                                     geno2=c("H", "H", "-", "H"),
+                                     geno3=c("A", "A", "-", "A"),
+                                     geno4=c("H", "H", "H", "-"),
+                                     row.names=paste0("loc", c(1,2,3,5)),
+                                     stringsAsFactors=FALSE))
+  expected$ind088 <- rbind(expected$ind088,
                             data.frame(geno1=c("H", "H", "H", "H"),
                                        geno2=c("H", "H", "-", "H"),
                                        geno3=c("A", "A", "-", "A"),
                                        geno4=c("A", "A", "A", "A"),
-                                       row.names=paste0(rownames(expected$parent1),
+                                       row.names=paste0(rownames(expected$ind088),
                                                         "_m"),
                                        stringsAsFactors=FALSE))
-  expected$parent2 <- rbind(expected$parent2,
+  expected$ind284 <- rbind(expected$ind284,
                             data.frame(geno1=c("H", "H", "H", "H"),
                                        geno2=c("A", "A", "-", "A"),
                                        geno3=c("H", "H", "-", "H"),
                                        geno4=c("A", "A", "A", "-"),
-                                       row.names=paste0(rownames(expected$parent2),
+                                       row.names=paste0(rownames(expected$ind284),
                                                         "_m"),
                                        stringsAsFactors=FALSE))
-  expected$parent1 <- as.matrix(expected$parent1)
-  expected$parent2 <- as.matrix(expected$parent2)
+  expected$ind088 <- as.matrix(expected$ind088)
+  expected$ind284 <- as.matrix(expected$ind284)
 
-  observed <- joinMap2CarthaGene(x=jm, verbose=0)
+  observed <- joinMap2backcross(x=jm, alias.hom="A", alias.het="H",
+                                parent.names=c("ind088", "ind284"),
+                                verbose=0)
+
+  expect_equal(observed, expected)
+})
+
+test_that("setJoinMapPhasesFromParentalLinkGroups", {
+  nb.locus <- 9 # one of them (loc8) is NA
+  ## 2 chromosomes:
+  ## chr1: 4 locus, genetically ordered as:
+  ##  loc5 (lmxll) <- only informative for parent 1
+  ##  loc6 (nnxnp) <- only informative for parent 2
+  ##  loc4 (hkxhk) <- informative for both parents
+  ##  loc9 (lmxll) <- only informative for parent 1
+  ## chr2: 4 locus, genetically ordered as:
+  ##  loc1 (nnxnp) <- only informative for parent 2
+  ##  loc7 (hkxhk) <- informative for both parents
+  ##  loc3 (lmxll) <- only informative for parent 1
+  ##  loc2 (nnxnp) <- only informative for parent 2
+  ## no inversion between parent 1 and parent 2
+  nb.genos <- 3
+  jm <- data.frame(seg=c("<nnxnp>", "<nnxnp>", "<lmxll>", "<hkxhk>", "<lmxll>",
+                         "<nnxnp>", "<hkxhk>", NA, "<lmxll>"),
+                   geno1=c("nn", "np", "lm", "hk", "ll", "np", "kk", NA, "lm"),
+                   geno2=c("np", "np", "ll", "hk", "ll", "np", "hk", NA, "ll"),
+                   geno3=c("np", "nn", "ll", "hh", "lm", "np", "hk", NA, "lm"))
+  rownames(jm) <- paste0("loc", 1:nb.locus)
+  gm1 <- data.frame(linkage.group=c(rep("chr2", 2),
+                                    rep("chr1", 3)),
+                    locus=c("loc7", "loc3_m",
+                            "loc5", "loc4_m", "loc9"),
+                    genetic.distance=c(0.0, 8.1,
+                                       0.0, 1.5, 3.9))
+  gm2 <- data.frame(linkage.group=c(rep("chr1", 2),
+                                    rep("chr2", 3)),
+                    locus=c("loc6", "loc4_m",
+                            "loc1_m", "loc7_m", "loc2"),
+                    genetic.distance=c(0.0, 7.3,
+                                       0.0, 4.2, 5.1))
+
+  expected <- data.frame(seg=jm$seg,
+                         phase=c("{-1}", "{-0}", "{1-}", "{11}", "{0-}",
+                                 "{-0}", "{01}", NA, "{0-}"),
+                         geno1=jm$geno1,
+                         geno2=jm$geno2,
+                         geno3=jm$geno3)
+  rownames(expected) <- rownames(jm)
+  expected <- convertFactorColumnsToCharacter(expected)
+
+  observed <- setJoinMapPhasesFromParentalLinkGroups(x=jm,
+                                                     lg.par1=gm1,
+                                                     lg.par2=gm2)
+
+  expect_equal(observed, expected)
+})
+
+test_that("phasedJoinMapCP2qtl", {
+  nb.locus <- 17
+  nb.genos <- 4
+  jm <- data.frame(locus=paste0("loc", 1:nb.locus),
+                   seg=c("<abxcd>", "<abxcd>", "<abxcd>", "<abxcd>",
+                         "<efxeg>", "<efxeg>", "<efxeg>", "<efxeg>",
+                         "<hkxhk>", "<hkxhk>", "<hkxhk>", "<hkxhk>",
+                         "<lmxll>", "<lmxll>",
+                         "<nnxnp>", "<nnxnp>",
+                         NA),
+                   phase=c("{00}", "{01}","{10}","{11}",
+                           "{00}", "{01}","{10}","{11}",
+                           "{00}", "{01}","{10}","{11}",
+                           "{0-}", "{1-}",
+                           "{-0}", "{-1}",
+                           NA),
+                   clas=rep(NA, nb.locus),
+                   geno1=c("ac", "ad", "bc", "bd",
+                           "ee", "eg", "ef", "fg",
+                           "hh", "hk", "hk", "kk",
+                           "ll", "lm",
+                           "nn", "np",
+                           NA),
+                   geno2=c("ad", "ac", "bd", "bc",
+                           "eg", "ee", "fg", "ef",
+                           "hk", "hh", "kk", "hk",
+                           "ll", "lm",
+                           "np", "nn",
+                           NA),
+                   geno3=c("bc", "bd", "ac", "ad",
+                           "ef", "fg", "ee", "eg",
+                           "hk", "kk", "hh", "hk",
+                           "lm", "ll",
+                           "nn", "np",
+                           NA),
+                   geno4=c("bd", "bc", "ad", "ac",
+                           "fg", "ef", "eg", "ee",
+                           "kk", "hk", "hk", "hh",
+                           "lm", "ll",
+                           "np", "nn",
+                           NA),
+                   stringsAsFactors=FALSE)
+
+  expected <- matrix(data=NA, nrow=nb.locus, ncol=nb.genos,
+                     dimnames=list(paste0("loc", 1:nb.locus),
+                                   paste0("geno", 1:nb.genos)))
+  ## abxcd
+  expected[1,] <- c(1, 3, 2, 4)
+  expected[2,] <- c(1, 3, 2, 4)
+  expected[3,] <- c(1, 3, 2, 4)
+  expected[4,] <- c(1, 3, 2, 4)
+  ## efxeg
+  expected[5,] <- c(1, 3, 2, 4)
+  expected[6,] <- c(1, 3, 2, 4)
+  expected[7,] <- c(1, 3, 2, 4)
+  expected[8,] <- c(1, 3, 2, 4)
+  ## hkxhk
+  expected[9,] <- c(1, 10, 10, 4)
+  expected[10,] <- c(9, 3, 2, 9)
+  expected[11,] <- c(9, 3, 2, 9)
+  expected[12,] <- c(1, 10, 10, 4)
+  ## lmxll
+  expected[13,] <- c(5, 5, 6, 6)
+  expected[14,] <- c(5, 5, 6, 6)
+  ## nnxnp
+  expected[15,] <- c(7, 8, 7, 8)
+  expected[16,] <- c(7, 8, 7, 8)
+  ## missing
+  expected[17,] <- rep(NA, nb.genos)
+
+  observed <- phasedJoinMapCP2qtl(x=jm, verbose=0)
 
   expect_equal(observed, expected)
 })
