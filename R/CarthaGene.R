@@ -104,10 +104,11 @@ runCarthagene <- function(cg, cmd){
 ##'
 ##' Parse the output of CarthaGene's command "mrkinfo".
 ##' @param out.mrkinfo vector of character output from \code{\link{runCarthagene}} corresponding to "mrkinfo"
+##' @param verbose verbosity level (0/1)
 ##' @return data frame with one row per marker and columns "id", "name", etc
 ##' @author Timothee Flutre
 ##' @export
-parseCgMrkinfo <- function(out.mrkinfo){
+parseCgMrkinfo <- function(out.mrkinfo, verbose=1){
   stopifnot(is.character(out.mrkinfo))
 
   idx <- grep("Num                Names : Sets Merges", out.mrkinfo)
@@ -127,8 +128,14 @@ parseCgMrkinfo <- function(out.mrkinfo){
     stop(msg)
   }
   out <- as.data.frame(do.call(rbind, tmp), stringsAsFactors=FALSE)
-  colnames(out) <- c("id", "name", "datasets")
+  colnames(out) <- c("id", "name", "dataset")
   out$id <- as.integer(out$id)
+
+  if(verbose > 0){
+    msg <- paste0("nb of data set(s): ", length(unique(out$dataset)),
+                  "\ntotal nb of markers: ", nrow(out))
+    write(msg, stdout())
+  }
 
   return(out)
 }
@@ -138,15 +145,20 @@ parseCgMrkinfo <- function(out.mrkinfo){
 ##' Parse the output of CarthaGene's command "group".
 ##' @param out.group vector of character output from \code{\link{runCarthagene}} corresponding to "group"
 ##' @param mrk.info data frame output from \code{\link{parseCgMrkinfo}} (optional; useful to have the marker names instead of only the marker identifiers)
-##' @return data frame with at least two columns, "linkage.group" and "id", and a third, "locus", if marker information is provided
+##' @param mrk2chr named vector which values are markers and names are chromosomes
+##' @param verbose verbosity level (0/1)
+##' @return data frame with at least two columns, "linkage.group" and "id", another column, "locus", if mrk.info is provided, and another column, "chr", if mrk2chr is provided
 ##' @author Timothee Flutre
 ##' @export
-parseCgGroup <- function(out.group, mrk.info=NULL){
+parseCgGroup <- function(out.group, mrk.info=NULL, mrk2chr=NULL, verbose=1){
   stopifnot(is.character(out.group))
   if(! is.null(mrk.info))
     stopifnot(is.data.frame(mrk.info),
               ncol(mrk.info) >= 2,
               all(c("id", "name") %in% colnames(mrk.info)))
+  if(! is.null(mrk2chr))
+    stopifnot(is.character(mrk2chr),
+              ! is.null(names(mrk2chr)))
 
   idx <- grep("Group ID : Marker ID List ..", out.group)
   if(length(idx) == 0){
@@ -171,8 +183,46 @@ parseCgGroup <- function(out.group, mrk.info=NULL){
                                  sapply(out, nrow)),
                do.call(rbind, out))
 
+  if(verbose > 0){
+    msg <- paste0("nb of linkage groups: ", length(unique(out$linkage.group)),
+                  "\nnb of markers per linkage group:")
+    write(msg, stdout())
+    print(table(out$linkage.group))
+  }
+
   if(! is.null(mrk.info))
     out$locus <- mrk.info$name[match(out$id, mrk.info$id)]
+
+  if(! is.null(mrk2chr)){
+    out$chr <- NA
+    idx <- which(out$locus %in% names(mrk2chr))
+    out$chr[idx] <- mrk2chr[out$locus[idx]]
+    if(any(is.na(out$chr))){
+      msg <- paste0("nb of markers with no chromosome information: ",
+                    sum(is.na(out$chr)))
+      warning(msg)
+    }
+    if(verbose > 0){
+      msg <- "nb of markers per chromosome in each linkage group:"
+      write(msg, stdout())
+      lg2chr <- tapply(1:nrow(out), factor(out$linkage.group), function(idx){
+        setNames(out$chr[idx], out$locus[idx])
+      })
+      table.lg2chr <- lapply(lg2chr, table, useNA="always")
+      print(table.lg2chr)
+
+      msg <- "nb of markers per linkage group for each chromosome:"
+      write(msg, stdout())
+      chr2lg <- list()
+      chr.names <- unique(out$chr)
+      for(chr in chr.names){
+        idx <- which(out$chr == chr)
+        chr2lg[[chr]] <- setNames(out$linkage.group[idx], out$locus[idx])
+      }
+      table.chr2lg <- lapply(chr2lg, table, useNA="always")
+      print(table.chr2lg)
+    }
+  }
 
   return(out)
 }
@@ -335,4 +385,48 @@ closeCarthagene <- function(cg, file=NULL){
       }
     }
   }
+}
+
+##' Define linkage groups with CarthaGene
+##'
+##' Defines linkage groups with CarthaGene ("group" command), so that two markers whose 2-point Haldane distance is below the given distance threshold, and 2-point LOD is above the LOD threshold, will be put in the same linkage group.
+##' Choose these thresholds by trial and error until it makes sense given the ploidy of the species of interest.
+##' @param file path to the file containing the dataset (used if cg is NULL)
+##' @param task.id identifier of the task (used if cg is NULL)
+##' @param cg list returned by \code{\link{openCarthagene}} (used if file and task.id are NULL)
+##' @param dist.thresh distance threshold
+##' @param lod.thresh LOD threshold
+##' @param mrk2chr named vector which values are markers and names are chromosomes
+##' @param close.cg if TRUE, the connection to CarthaGene will be closed and the temporary file removed
+##' @param verbose verbosity level (0/1)
+##' @return data frame
+##' @author Timothee Flutre
+##' @seealso \code{\link{openCarthagene}}, \code{\link{runCarthagene}}, \code{\link{parseCgMrkinfo}}, \code{\link{parseCgGroup}}, \code{\link{closeCarthagene}}
+##' @export
+defLinkgroupsWithCarthagene <- function(file=NULL, task.id=NULL, cg=NULL,
+                                        dist.thresh=0.3, lod.thresh=3,
+                                        mrk2chr=NULL,
+                                        close.cg=FALSE, verbose=1){
+  stopifnot(xor(all(is.null(file), is.null(task.id)), is.null(cg)),
+            is.numeric(dist.thresh),
+            is.numeric(lod.thresh))
+
+  if(is.null(cg))
+    cg <- openCarthagene(file=file, task.id=task.id)
+  if(FALSE){ # for debug purposes
+    out <- runCarthagene(cg, "cgversion")
+    out <- runCarthagene(cg, "dsinfo")
+  }
+
+  out.mrkinfo <- runCarthagene(cg, "mrkinfo")
+  mrk.info <- parseCgMrkinfo(out.mrkinfo, verbose)
+
+  cmd <- paste("group", dist.thresh, lod.thresh)
+  out.group <- runCarthagene(cg, cmd)
+  linkgroups <- parseCgGroup(out.group, mrk.info, mrk2chr, verbose)
+
+  if(close.cg)
+    closeCarthagene(cg, file)
+
+  return(linkgroups)
 }

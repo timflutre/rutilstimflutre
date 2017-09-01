@@ -4,15 +4,19 @@
 \alias{parseCgGroup}
 \title{Parse CarthaGene's output}
 \usage{
-parseCgGroup(out.group, mrk.info = NULL)
+parseCgGroup(out.group, mrk.info = NULL, mrk2chr = NULL, verbose = 1)
 }
 \arguments{
 \item{out.group}{vector of character output from \code{\link{runCarthagene}} corresponding to "group"}
 
 \item{mrk.info}{data frame output from \code{\link{parseCgMrkinfo}} (optional; useful to have the marker names instead of only the marker identifiers)}
+
+\item{mrk2chr}{named vector which values are markers and names are chromosomes}
+
+\item{verbose}{verbosity level (0/1)}
 }
 \value{
-data frame with at least two columns, "linkage.group" and "id", and a third, "locus", if marker information is provided
+data frame with at least two columns, "linkage.group" and "id", another column, "locus", if mrk.info is provided, and another column, "chr", if mrk2chr is provided
 }
 \description{
 Parse the output of CarthaGene's command "group".

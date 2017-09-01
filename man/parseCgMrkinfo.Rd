@@ -4,10 +4,12 @@
 \alias{parseCgMrkinfo}
 \title{Parse CarthaGene's output}
 \usage{
-parseCgMrkinfo(out.mrkinfo)
+parseCgMrkinfo(out.mrkinfo, verbose = 1)
 }
 \arguments{
 \item{out.mrkinfo}{vector of character output from \code{\link{runCarthagene}} corresponding to "mrkinfo"}
+
+\item{verbose}{verbosity level (0/1)}
 }
 \value{
 data frame with one row per marker and columns "id", "name", etc
