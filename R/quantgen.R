@@ -1361,6 +1361,47 @@ joinMap2backcross <- function(x, alias.hom="A", alias.het="H", alias.dup="Z",
   return(out)
 }
 
+##' Plot physical versus genetic distances
+##'
+##' Plots physical versus genetic distances
+##' @param x data frame with markers in rows and at least three columns named "chr", "physical.distance", "genetic.distance"
+##' @param chrs chromosome(s) to plot (all if NULL); will be sorted by mixedsort if the "gtools" package is available; if several chromosomes are to be plotted, there will be one plot per chromosome, with two plots per row as specified to \code{\link[graphics]{par}}
+##' @param type type of plot to draw (see \code{\link[graphics]{plot}})
+##' @param las style of axis labels (see \code{\link[graphics]{par}})
+##' @param xlab title for the x axis
+##' @param ylab title for the y axis
+##' @param ... arguments to be passed to \code{\link[graphics]{plot}}, except "x" (will be the physical distance), "y" (will be the genetic distance), "main" (will be the chromosome identifier), "type", "las", "xlab" and "ylab"
+##' @return nothing
+##' @author Timothee Flutre
+##' @export
+plotPhyVsGenDistances <- function(x, chrs=NULL, type="b", las=1,
+                                  xlab="physical distance (in bp)",
+                                  ylab="genetic distance (in cM)",
+                                  ...){
+  stopifnot(is.data.frame(x),
+            all(c("chr", "physical.distance", "genetic.distance") %in%
+                colnames(x)))
+  if(! is.null(chrs))
+    stopifnot(all(chrs %in% unique(x$chr)))
+
+  if(is.null(chrs))
+    chrs <- unique(x$chr)
+  if(requireNamespace("gtools"))
+    chrs <- gtools::mixedsort(chrs)
+
+  def.par <- graphics::par(mfrow=c(1,1))
+  if(length(chrs) > 1)
+    def.par <- graphics::par(mfrow=c(length(chrs) / 2,2))
+
+  for(chr in chrs){
+    idx <- which(x$chr == chr)
+    graphics::plot(x$physical.distance[idx], x$genetic.distance[idx],
+                   main=chr, type=type, las=las, xlab=xlab, ylab=ylab, ...)
+  }
+
+  on.exit(graphics::par(def.par))
+}
+
 ##' Genotype coding
 ##'
 ##' Set linkage phases in the \href{https://www.kyazma.nl/index.php/JoinMap/}{JoinMap} format from two sets of parental linkage groups.

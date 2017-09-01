@@ -206,7 +206,7 @@ parseCgGroup <- function(out.group, mrk.info=NULL, mrk2chr=NULL, verbose=1){
       msg <- "nb of markers per chromosome in each linkage group:"
       write(msg, stdout())
       lg2chr <- tapply(1:nrow(out), factor(out$linkage.group), function(idx){
-        setNames(out$chr[idx], out$locus[idx])
+        stats::setNames(out$chr[idx], out$locus[idx])
       })
       table.lg2chr <- lapply(lg2chr, table, useNA="always")
       print(table.lg2chr)
@@ -217,7 +217,8 @@ parseCgGroup <- function(out.group, mrk.info=NULL, mrk2chr=NULL, verbose=1){
       chr.names <- unique(out$chr)
       for(chr in chr.names){
         idx <- which(out$chr == chr)
-        chr2lg[[chr]] <- setNames(out$linkage.group[idx], out$locus[idx])
+        chr2lg[[chr]] <- stats::setNames(out$linkage.group[idx],
+                                         out$locus[idx])
       }
       table.chr2lg <- lapply(chr2lg, table, useNA="always")
       print(table.chr2lg)
