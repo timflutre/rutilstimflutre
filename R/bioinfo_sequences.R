@@ -1626,17 +1626,17 @@ filterVariantCalls <- function(vcf.file, genome="", out.file,
   out.file <- sub("\\.gz$", "", out.file)
   out.file <- sub("\\.bgz$", "", out.file)
 
-  ##' @return TRUE if in subset of variants to keep
+  ## return TRUE if in subset of variants to keep
   filterVariantsToKeep <- function(x, vtk=variants.tokeep){
     (names(SummarizedExperiment::rowRanges(x)) %in% vtk)
   }
 
-  ##' @return TRUE if SNV (single nucleotide variant)
+  ## return TRUE if SNV (single nucleotide variant)
   filterSnv <- function(x){
     (VariantAnnotation::isSNV(x))
   }
 
-  ##' @return TRUE if at most one alternate allele
+  ## return TRUE if at most one alternate allele
   filterBiall <- function(x){
     if(utils::compareVersion(as.character(BiocInstaller::biocVersion()),
                              "3.4") < 0){
@@ -1645,7 +1645,7 @@ filterVariantCalls <- function(vcf.file, genome="", out.file,
       (S4Vectors::elementNROWS(VariantAnnotation::alt(x)) <= 1)
   }
 
-  ##' @return TRUE if variant-level DP inside of given range
+  ## return TRUE if variant-level DP inside of given range
   filterVariantDp <- function(x, min.dp=min.var.dp, max.dp=max.var.dp){
     if(nrow(x) == 0){
       logical(0)
@@ -1655,7 +1655,7 @@ filterVariantCalls <- function(vcf.file, genome="", out.file,
     }
   }
 
-  ##' @return TRUE if allele frequency inside of given range
+  ## return TRUE if allele frequency inside of given range
   filterAf <- function(x, min.af=min.alt.af, max.af=max.alt.af){
     if(nrow(x) == 0){
       logical(0)
@@ -1665,7 +1665,7 @@ filterVariantCalls <- function(vcf.file, genome="", out.file,
     }
   }
 
-  ##' @return TRUE if high-enough percentage of samples with DP above threshold
+  ## return TRUE if high-enough percentage of samples with DP above threshold
   filterSampleDp <- function(x, min.dp=min.spl.dp,
                              min.perc.dp=min.perc.spl.dp){
     if(nrow(x) == 0){
@@ -1676,7 +1676,7 @@ filterVariantCalls <- function(vcf.file, genome="", out.file,
     }
   }
 
-  ##' @return TRUE if high-enough percentage of samples with GQ above threshold
+  ## return TRUE if high-enough percentage of samples with GQ above threshold
   filterSampleGq <- function(x, min.gq=min.spl.gq,
                              min.perc.gq=min.perc.spl.gq){
     if(nrow(x) == 0){
@@ -1687,7 +1687,7 @@ filterVariantCalls <- function(vcf.file, genome="", out.file,
     }
   }
 
-  ##' @return TRUE if high-enough number of samples without missing genotypes
+  ## return TRUE if high-enough number of samples without missing genotypes
   filterGtNb <- function(x, max.nb.gt.na=max.var.nb.gt.na){
     if(nrow(x) == 0){
       logical(0)
@@ -1698,7 +1698,7 @@ filterVariantCalls <- function(vcf.file, genome="", out.file,
     }
   }
 
-  ##' @return TRUE if high-enough percentage of samples without missing genotypes
+  ## return TRUE if high-enough percentage of samples without missing genotypes
   filterGtPerc <- function(x, max.perc.gt.na=max.var.perc.gt.na){
     if(nrow(x) == 0){
       logical(0)

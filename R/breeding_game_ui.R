@@ -13,19 +13,19 @@ library(shiny)
 
 shinyUI(
     navbarPage(
-        title="Joue au sélectionneur !",
+        title="Joue au s\u00e9lectionneur !",
 
         tabPanel(title="Introduction",
                  sidebarLayout(
                      sidebarPanel(
-                         p("Viens jouer à sélectionner de nouvelles variétés de plantes !")
+                         p("Viens jouer \u00e0 s\u00e9lectionner de nouvelles vari\u00e9t\u00e9s de plantes !")
                      ),
                      mainPanel(
                          h1("Informations biologiques"),
-                         h2("Apimeta simulans, une espèce pleine d’avenir"),
-                         p("Découverte récemment aux confins de la vallée supérieure de l’Aghromonpe, Apimeta simulans appartient au genre des Statisticeae. Elle produit des fleurs qui contiennent un composé alcaloïde, la sepmetine, consommée par les étudiants pour éviter les maux de tête lors des efforts intellectuels trop intenses. Le marché est donc très important et se développe rapidement. Apimeta peut être sensible à quelques maladies, dont la redoutable rouille fluorescente, Putrida psychedelica. Les producteurs sont payés à la quantité produite (les rendements sont de l’ordre de 40 kg de fleurs par ha), mais les transformateurs ont réussi à exiger que la teneur moyenne en sepmetine des lots commerciaux soit au dessus de 14 pour mille."),
-                         h2("Biologie de l’espèce"),
-                         p("Apimeta simulans est hermaphrodite et autogame. Elle est produite sous forme de lignées pures, et se croise facilement. On peut produire en serre jusqu’à deux générations par an pour accélerer la fixation et le retour à l’homozygotie. Il est également possible de produire des haploides doublés. Le taux de multiplication de l’espèce est très élevé, chaque plante étant capable de produire plus de 1000 graines."),
+                         h2("Apimeta simulans, une esp\u00e8ce pleine d'avenir"),
+                         p("D\u00e9couverte r\u00e9cemment aux confins de la vall\u00e9e sup\u00e9rieure de l'Aghromonpe, Apimeta simulans appartient au genre des Statisticeae. Elle produit des fleurs qui contiennent un compos\u00e9 alcalo\u00efde, la sepmetine, consomm\u00e9e par les \u00e9tudiants pour \u00e9viter les maux de t\u00eate lors des efforts intellectuels trop intenses. Le march\u00e9 est donc tr\u00e8s important et se d\u00e9veloppe rapidement. Apimeta peut \u00eatre sensible \u00e0 quelques maladies, dont la redoutable rouille fluorescente, Putrida psychedelica. Les producteurs sont pay\u00e9s \u00e0 la quantit\u00e9 produite (les rendements sont de l'ordre de 40 kg de fleurs par ha), mais les transformateurs ont r\u00e9ussi \u00e0 exiger que la teneur moyenne en sepmetine des lots commerciaux soit au dessus de 14 pour mille."),
+                         h2("Biologie de l'esp\u00e8ce"),
+                         p("Apimeta simulans est hermaphrodite et autogame. Elle est produite sous forme de lign\u00e9es pures, et se croise facilement. On peut produire en serre jusqu'\u00e0 deux g\u00e9n\u00e9rations par an pour acc\u00e9lerer la fixation et le retour \u00e0 l'homozygotie. Il est \u00e9galement possible de produire des haploides doubl\u00e9s. Le taux de multiplication de l'esp\u00e8ce est tr\u00e8s \u00e9lev\u00e9, chaque plante \u00e9tant capable de produire plus de 1000 graines."),
                          h2("...")
                      )
                  )),
@@ -41,12 +41,12 @@ shinyUI(
                 ),
                 mainPanel(
                     tabsetPanel(type="tabs",
-                                tabPanel("vérif",
+                                tabPanel("v\u00e9rif",
                                          verbatimTextOutput("plmatUploaded")),
-                                tabPanel("résumé",
+                                tabPanel("r\u00e9sum\u00e9",
                                          verbatimTextOutput("plmatSmy"),
                                          verbatimTextOutput("plmatStr")),
-                                tabPanel("données",
+                                tabPanel("donn\u00e9es",
                                          tableOutput(outputId="qryPlmat")),
                                 tabPanel("sortie", p("RAS"))
                                 )
@@ -54,7 +54,7 @@ shinyUI(
             )),
 
         tabPanel(
-            title="Phénotyper",
+            title="Ph\u00e9notyper",
             sidebarLayout(
                 sidebarPanel(
                     fileInput(inputId="file.pheno",
@@ -64,18 +64,18 @@ shinyUI(
                 ),
                 mainPanel(
                     tabsetPanel(
-                        tabPanel("vérif",
+                        tabPanel("v\u00e9rif",
                                  verbatimTextOutput("phenoUploaded")),
-                        tabPanel("résumé",
+                        tabPanel("r\u00e9sum\u00e9",
                                  p("TODO")),
-                        tabPanel("données", tableOutput(outputId="qryPheno")),
+                        tabPanel("donn\u00e9es", tableOutput(outputId="qryPheno")),
                         tabPanel("sortie", downloadButton("dwnlPheno",
-                                                          "Télécharger")))
+                                                          "T\u00e9l\u00e9charger")))
                 )
             )),
 
         tabPanel(
-            title="Génotyper",
+            title="G\u00e9notyper",
             sidebarLayout(
                 sidebarPanel(
                     fileInput(inputId="file.geno",
@@ -91,16 +91,16 @@ shinyUI(
         tabPanel(title="A propos",
                  sidebarLayout(
                      sidebarPanel(
-                         p("Auteurs: Timothée Flutre, Jacques David"),
+                         p("Auteurs: Timoth\u00e9e Flutre, Jacques David"),
                          p("Copyright 2014-2017 INRA, Montpellier SupAgro")
                      ),
                      mainPanel(
-                         p("L’accès au génome permet de produire de nombreuses données de génotypage sur un nombre important d’individus qui peuvent être phénotypés à des caractères d'intérêt agronomique. L’association entre marqueurs et caractères fait souvent l’impasse sur les gènes ayant de faibles effets, ceux-ci pouvant pourtant déterminer une part importante de la variation d'origine génétique, et donc du  progrès génétique envisageable. La prédiction génomique des valeurs des plantes, puis l’utilisation de ces prédictions dans un programme de sélection, est donc un des enjeux majeurs."),
+                         p("L'acc\u00e8s au g\u00e9nome permet de produire de nombreuses donn\u00e9es de g\u00e9notypage sur un nombre important d'individus qui peuvent \u00eatre ph\u00e9notyp\u00e9s \u00e0 des caract\u00e8res d'int\u00e9r\u00eat agronomique. L'association entre marqueurs et caract\u00e8res fait souvent l'impasse sur les g\u00e8nes ayant de faibles effets, ceux-ci pouvant pourtant d\u00e9terminer une part importante de la variation d'origine g\u00e9n\u00e9tique, et donc du  progr\u00e8s g\u00e9n\u00e9tique envisageable. La pr\u00e9diction g\u00e9nomique des valeurs des plantes, puis l'utilisation de ces pr\u00e9dictions dans un programme de s\u00e9lection, est donc un des enjeux majeurs."),
                          br(),
-                         p("Il n’est pas facile d’enseigner ces nouveaux aspects car, d’une part, d'importants pré-requis sont nécessaires, et d’autre part, il n’existe pas de méthodologie définitive valable pour tous modèles biologiques, avec des enjeux variables en terme de programmation de progrès génétique et de sortie variétale. C’est un domaine très actif de recherche avec de nombreuses innovations en statistique et génétique."),
-                         p(" Notre ambition est de confronter les étudiants à certains aspects théoriques et pratiques dans une dynamique d’apprentissage actif basée sur la prise en main pratique d’outils et sur l’utilisation d’un \"jeu sérieux\"."),
+                         p("Il n'est pas facile d'enseigner ces nouveaux aspects car, d'une part, d'importants pr\u00e9-requis sont n\u00e9cessaires, et d'autre part, il n'existe pas de m\u00e9thodologie d\u00e9finitive valable pour tous mod\u00e8les biologiques, avec des enjeux variables en terme de programmation de progr\u00e8s g\u00e9n\u00e9tique et de sortie vari\u00e9tale. C'est un domaine tr\u00e8s actif de recherche avec de nombreuses innovations en statistique et g\u00e9n\u00e9tique."),
+                         p(" Notre ambition est de confronter les \u00e9tudiants \u00e0 certains aspects th\u00e9oriques et pratiques dans une dynamique d'apprentissage actif bas\u00e9e sur la prise en main pratique d'outils et sur l'utilisation d'un \"jeu s\u00e9rieux\"."),
                          br(),
-                         p("Les documents pédagogiques sont disponibles sur ",
+                         p("Les documents p\u00e9dagogiques sont disponibles sur ",
                            a("GitHub.",
                              href="https://github.com/timflutre/atelier-prediction-genomique"))
                      )

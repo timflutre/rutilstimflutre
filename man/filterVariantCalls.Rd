@@ -59,24 +59,6 @@ filterVariantCalls(vcf.file, genome = "", out.file, yieldSize = NA_integer_,
 }
 \value{
 the destination file path as a character(1)
-
-TRUE if in subset of variants to keep
-
-TRUE if SNV (single nucleotide variant)
-
-TRUE if at most one alternate allele
-
-TRUE if variant-level DP inside of given range
-
-TRUE if allele frequency inside of given range
-
-TRUE if high-enough percentage of samples with DP above threshold
-
-TRUE if high-enough percentage of samples with GQ above threshold
-
-TRUE if high-enough number of samples without missing genotypes
-
-TRUE if high-enough percentage of samples without missing genotypes
 }
 \description{
 Filter out variant calls from VCF file according to several criteria (bi-allelic, single nucleotide variant, proper amount of missing genotypes, overall depth and allele frequency).
