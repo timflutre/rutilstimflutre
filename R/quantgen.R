@@ -1395,7 +1395,9 @@ plotPhyVsGenDistances <- function(x, chrs=NULL, type="b", las=1,
 
   for(chr in chrs){
     idx <- which(x$chr == chr)
-    graphics::plot(x$physical.distance[idx], x$genetic.distance[idx],
+    tmp <- x[idx,]
+    tmp <- tmp[order(tmp$physical.distance),]
+    graphics::plot(tmp$physical.distance, tmp$genetic.distance,
                    main=chr, type=type, las=las, xlab=xlab, ylab=ylab, ...)
   }
 

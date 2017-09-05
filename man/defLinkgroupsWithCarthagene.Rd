@@ -26,7 +26,7 @@ defLinkgroupsWithCarthagene(file = NULL, task.id = NULL, cg = NULL,
 \item{verbose}{verbosity level (0/1)}
 }
 \value{
-data frame
+data frame returned by \code{\link{parseCgGroup}}, with at least three columns, "linkage.group", "id" and "locus", and another column, "chr", if mrk2chr is provided
 }
 \description{
 Defines linkage groups with CarthaGene ("group" command), so that two markers whose 2-point Haldane distance is below the given distance threshold, and 2-point LOD is above the LOD threshold, will be put in the same linkage group.

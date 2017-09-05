@@ -11,7 +11,7 @@ parseCgGroup(out.group, mrk.info = NULL, mrk2chr = NULL, verbose = 1)
 
 \item{mrk.info}{data frame output from \code{\link{parseCgMrkinfo}} (optional; useful to have the marker names instead of only the marker identifiers)}
 
-\item{mrk2chr}{named vector which values are markers and names are chromosomes}
+\item{mrk2chr}{named vector which values are markers and names are chromosomes; before usage, marker names ending in "_m" (an indication of parental coding) will be edited to remove such a suffix}
 
 \item{verbose}{verbosity level (0/1)}
 }

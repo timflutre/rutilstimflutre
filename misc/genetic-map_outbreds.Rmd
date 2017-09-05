@@ -1,5 +1,5 @@
 ---
-title: "Genetic map"
+title: "Building genetic maps between outbreds"
 author: "Timothée Flutre (INRA)"
 date: "`r format(Sys.time(), '%d/%m/%Y %H:%M:%S')`"
 colorlinks: true
@@ -32,19 +32,22 @@ opts_chunk$set(echo=TRUE, warning=TRUE, message=TRUE, cache=FALSE, fig.align="ce
 
 # Overview
 
-This document aims at presenting how to build genetic maps for any cross between two outbred parents.
+This document aims at presenting how to build genetic maps for any cross between two outbred parents using a pseudo-tescross strategy.
 The seminal article is from [Grattapaglia and Sederoff (1994)](http://www.genetics.org/content/137/4/1121.abstract).
+First, a map is built for each parent from genotypes coded as in a backcross.
+Second, both maps are used to deduce parental phases.
+Third, a consensus map is built for both parents from genotypes coded as in a F2 intercross.
 
 This document requires external packages to be available:
 ```{r load_pkg}
-suppressPackageStartupMessages(library(rutilstimflutre))
-stopifnot(compareVersion("0.139.0",
-                         as.character(packageVersion("rutilstimflutre")))
-          != 1)
 suppressPackageStartupMessages(library(scrm))
 suppressPackageStartupMessages(library(qtl))
-suppressPackageStartupMessages(library(ASMap))
 stopifnot(file.exists(Sys.which("carthagene")))
+suppressPackageStartupMessages(library(ASMap))
+suppressPackageStartupMessages(library(rutilstimflutre))
+stopifnot(compareVersion("0.142.0",
+                         as.character(packageVersion("rutilstimflutre")))
+          != 1)
 ```
 
 This R chunk is used to assess how much time it takes to execute the R code in this document until the end:
@@ -53,15 +56,15 @@ t0 <- proc.time()
 ```
 
 
-# Simulate genetic data at HWE
+# Simulate genetic data
 
 Set the seed:
-```{r, set_seed}
+```{r set_seed}
 set.seed(1859)
 ```
 
 Simulate haplotypes and genotypes in two populations:
-```{r, simul_haplos_genos}
+```{r simul_haplos_genos}
 nb.genos <- 5 * 10^2
 nb.chrs <- 2
 chr.len.phy <- 10^5     # chromosome physical length in base pairs
@@ -87,10 +90,11 @@ table(inds.per.pop <- kmeans(genomes$genos, 2)$cluster)
 afs.pop <- estimSnpAf(X=genomes$genos)
 mafs.pop <- estimSnpMaf(afs=afs.pop)
 A.vr.pop <- estimGenRel(X=genomes$genos, afs=afs.pop, method="vanraden1")
+mrk2chr <- setNames(genomes$snp.coords$chr, rownames(genomes$snp.coords))
 ```
 
 Look at some visual checks:
-```{r, check_simul_genos}
+```{r check_simul_genos}
 plotHistAllelFreq(afs=afs.pop, main="Allele frequencies")
 plotHistMinAllelFreq(mafs=mafs.pop, main="Minor allele frequencies")
 imageWithScale(A.vr.pop, main="Additive genetic relationships")
@@ -104,7 +108,7 @@ hist(A.vr.pop[upper.tri(A.vr.pop)], col="grey", border="white")
 # Perform controlled crosses
 
 Choose two individuals as parents (one per population):
-```{r, choose_parents}
+```{r choose_parents}
 (idx.parents <- c(sample(x=names(inds.per.pop)[inds.per.pop == 1], size=1),
                   sample(x=names(inds.per.pop)[inds.per.pop == 2], size=1)))
 A.vr.pop[idx.parents, idx.parents]
@@ -115,7 +119,7 @@ haplos.parents <- getHaplosInds(haplos=genomes$haplos,
 ```
 
 Cross them several times to make offsprings:
-```{r, crosse_to_make_offsprings}
+```{r crosse_to_make_offsprings}
 nb.offs <- 200
 names.offs <- paste0("off-",
                      sprintf(fmt=paste0("%0", floor(log10(nb.offs))+1, "i"),
@@ -142,7 +146,7 @@ genos.jm[1:3, 1:14]
 ```
 
 Plot pedigree:
-```{r, plot_ped}
+```{r plot_ped}
 ped <- data.frame(ind=c(names.parents,
                         crosses.off$child),
                   mother=c(rep(NA, length(names.parents)),
@@ -161,7 +165,7 @@ plotPedigree(inds=ped.tmp$ind, mothers=ped.tmp$mother, fathers=ped.tmp$father,
 ```
 
 Check additive genetic relationships:
-```{r, add_gen_rel}
+```{r add_gen_rel}
 A.vr.cross <- estimGenRel(X=genos.doses, afs=afs.pop, method="vanraden1")
 A.t.cross <- estimGenRel(X=genos.doses, afs=afs.pop, method="toro2011_eq10")
 cor(c(A.vr.cross), c(A.t.cross))
@@ -187,7 +191,7 @@ This section is partly inspired by the document "Genetic map construction with R
 
 ## Prepare the input data
 
-```{r, qtl_prep_inputs}
+```{r qtl_prep_inputs}
 genos.qtl <- joinMap2backcross(x=genos.jm[, -c(1:8)], alias.hom=1,
                                alias.het=2, alias.dup=0, alias.miss=NA,
                                parent.names=colnames(genos.jm)[1:2])
@@ -199,13 +203,13 @@ table(genomes$snp.coords[rownames(genos.qtl[[2]]), "chr"])
 ## Build a map for parent 1 (detailed)
 
 Set up the input object:
-```{r, qtl_par1_setup}
+```{r qtl_par1_setup}
 cross.par1 <- setupQtlCrossObject(gendat=t(genos.qtl[[1]]), cross.type="bc")
 summary(cross.par1)
 ```
 
 Look at missing data:
-```{r, qtl_par1_miss_dat}
+```{r qtl_par1_miss_dat}
 plotMissing(cross.par1)
 par(mfrow=c(1,2), las=1)
 plot(ntyped(cross.par1), ylab="nb of typed markers",
@@ -215,7 +219,7 @@ plot(ntyped(cross.par1, "mar"), ylab="nb of typed genotypes",
 ```
 
 Identify duplicate individuals:
-```{r, qtl_par1_dup_inds}
+```{r qtl_par1_dup_inds}
 cg <- comparegeno(cross.par1)
 hist(cg[lower.tri(cg)], breaks=seq(0, 1, len=101),
      xlab="nb of matching marker between genotypes", main="")
@@ -228,19 +232,19 @@ table(g[11,], g[37,])
 ```
 
 Identify duplicate markers:
-```{r, qtl_par1_dup_mrks}
+```{r qtl_par1_dup_mrks}
 length(dup <- findDupMarkers(cross.par1, exact.only=FALSE))
 head(dup)
 ```
 
 Look for markers with distorted segregation patterns:
-```{r, qtl_par1_distort}
+```{r qtl_par1_distort}
 gt <- geno.table(cross.par1)
 gt[gt$P.value < 0.05/totmar(cross.par1),]
 ```
 
 Define the linkage groups (two markers will be placed in the same linkage groups if they have estimated recombination fraction <= `max.rf` and LOD score >= `min.lod`):
-```{r, qtl_linkgroups}
+```{r qtl_linkgroups}
 cross.par1 <- est.rf(cross.par1) # see also markerlrt()
 checkAlleles(cross.par1, threshold=5) # to check markers with switched alleles
 rf <- pull.rf(cross.par1)
@@ -267,7 +271,7 @@ plot(lod, mrk, bandcol="gray70")
 ```
 
 Determine the marker order and inter-marker distances for the linkage groups corresponding to the two distinct chromosomes:
-```{r qtl_par1_genmap, eval=TRUE}
+```{r qtl_par1_genmap}
 system.time(
     map.par1 <- est.map(cross.par1, chr=c(1,3), map.function="kosambi",
                         verbose=TRUE))
@@ -299,6 +303,11 @@ file.map.par1.qtl <- paste0("bestmap_qtl_parent1-",
                             colnames(genos.jm)[1], ".txt")
 write.table(x=map.par1.qtl, file=file.map.par1.qtl, quote=FALSE, sep="\t",
             row.names=FALSE)
+```
+
+Clean:
+```{r qtl_par1_clean}
+file.remove(file.map.par1.qtl)
 ```
 
 ## Build a map for parent 2 (brief)
@@ -345,9 +354,15 @@ write.table(x=map.par2.qtl, file=file.map.par2.qtl, quote=FALSE, sep="\t",
             row.names=FALSE)
 ```
 
+Clean:
+```{r qtl_par2_clean}
+file.remove(file.map.par2.qtl)
+```
 
 
 # Build genetic maps with CarthaGene
+
+See [de Givry et al (2005)](http://dx.doi.org/10.1093/bioinformatics/bti222).
 
 ## Prepare the input data
 
@@ -404,7 +419,7 @@ head(out.mrkdbl, n=10)
 ```
 
 Determine the marker order and inter-marker distances for the first linkage group, by building a "framework" map:
-```{r cg_par1_buildfw, eval=TRUE}
+```{r cg_par1_buildfw}
 runCarthagene(cg, "mrkselset [groupget 1]")
 system.time(
     out.buildfw <- runCarthagene(cg, "buildfw 3 3 {} 1"))
@@ -412,7 +427,7 @@ length(out.buildfw)
 ```
 
 Check its reliability:
-```{r cg_par1_reliable, eval=TRUE}
+```{r cg_par1_reliable}
 out.heaprint <- runCarthagene(cg, "heaprint")
 (maps.info <- parseCgHeaprint(out.heaprint))
 system.time(
@@ -429,7 +444,7 @@ out.heaprint <- runCarthagene(cg, "heaprint")
 ```
 
 Get the maps (best is last):
-```{r cg_par1_getmap, eval=TRUE}
+```{r cg_par1_getmap}
 cmd <- paste0("maprintd ", maps.info$id[which.max(maps.info$log10.lik)])
 out.maprintd <- runCarthagene(cg, cmd)
 map.group1 <- parseCgMaprintd(out.maprintd)
@@ -441,7 +456,7 @@ head(bestmap.group1)
 ```
 
 Do the same for a linkage group corresponding to the other chromosome:
-```{r cg_par1_2nd_chr, eval=TRUE}
+```{r cg_par1_2nd_chr}
 runCarthagene(cg, "mrkselset [groupget 3]")
 system.time(
     out.buildfw <- runCarthagene(cg, "buildfw 3 3 {} 1"))
@@ -460,16 +475,16 @@ bestmap.group3 <- parseCgMaprintd(out.bestprintd)
 ```
 
 Save the whole map:
-```{r cg_par1_save_genmap, eval=TRUE}
+```{r cg_par1_save_genmap}
 map.par1.cg <-
-  rbind(data.frame(linkage.group=rep(unique(lg2chr[[1]][bestmap.group1$name]),
+  rbind(data.frame(linkage.group=rep(unique(lg2chr[[1]][bestmap.group1$locus]),
                                      nrow(bestmap.group1)),
-                   locus=bestmap.group1$name,
+                   locus=bestmap.group1$locus,
                    genetic.distance=bestmap.group1$cum.dist.kosambi,
                    stringsAsFactors=FALSE),
-        data.frame(linkage.group=rep(unique(lg2chr[[3]][bestmap.group3$name]),
+        data.frame(linkage.group=rep(unique(lg2chr[[3]][bestmap.group3$locus]),
                                      nrow(bestmap.group3)),
-                   locus=bestmap.group3$name,
+                   locus=bestmap.group3$locus,
                    genetic.distance=bestmap.group3$cum.dist.kosambi,
                    stringsAsFactors=FALSE))
 tapply(map.par1.cg$genetic.distance, factor(map.par1.cg$linkage.group), max)
@@ -485,13 +500,14 @@ Save CarthaGene's state:
 file.cgsave <- "cgsave.tcl"
 (out <- runCarthagene(cg, paste("cgsave", file.cgsave)))
 file.export <- "cg_map.txt"
-(out <- runCarthagene(cg, paste("cgexport", file.export, "tuto-genmap")))
+(out <- runCarthagene(cg, paste("cgexport", file.export, "tuto-genmap-outbreds")))
 ```
 
 Close and clean:
 ```{r cg_par1_close_clean}
 closeCarthagene(cg, file=file.par1)
 file.remove(file.par1)
+file.remove(file.map.par1.cg)
 ```
 
 
@@ -506,71 +522,44 @@ cg <- openCarthagene(file.par2, "par2")
 
 Define linkage groups:
 ```{r cg_par2_group}
-out.mrkinfo <- runCarthagene(cg, "mrkinfo")
-mrk.info <- parseCgMrkinfo(out.mrkinfo)
-out.group <- runCarthagene(cg, "group 0.2 1.5")
-linkgroups.par2 <- parseCgGroup(out.group, mrk.info)
-table(linkgroups.par2$linkage.group)
-lg2chr <- tapply(linkgroups.par2$locus, factor(linkgroups.par2$linkage.group),
-                 function(locus){
-                   setNames(genomes$snp.coords[gsub("_m", "", locus), "chr"],
-                            locus)
-                 })
-lapply(lg2chr, table)
+linkgroups.par2 <-
+  defLinkgroupsWithCarthagene(cg=cg, dist.thresh=0.3, lod.thresh=5,
+                              mrk2chr=mrk2chr)
 ```
 
 Build the map for the first group:
-```{r cg_par2_buildfw}
-runCarthagene(cg, "mrkselset [groupget 1]")
-system.time(
-    out.buildfw <- runCarthagene(cg, "buildfw 3 3 {} 1"))
-out.heaprint <- runCarthagene(cg, "heaprint")
-(maps.info <- parseCgHeaprint(out.heaprint))
-system.time(
-    out.flips <- runCarthagene(cg, "flips 4 3 1"))
-system.time(
-    out.polish <- runCarthagene(cg, "polish"))
-system.time(
-    out.squeeze <- runCarthagene(cg, "squeeze 20"))
-out.heaprint <- runCarthagene(cg, "heaprint")
-(maps.info <- parseCgHeaprint(out.heaprint))
-out.bestprintd <- runCarthagene(cg, "bestprintd")
-bestmap.group1 <- parseCgMaprintd(out.bestprintd)
+```{r cg_par2_1st_chr}
+mrk2phy <- setNames(genomes$snp.coords$pos, rownames(genomes$snp.coords))
+bestmap.lg1 <- estMrkOrderGenDistsWithCarthagene(cg, linkgroups.par2, lg.id=1,
+                                                 keep.thresh=3, add.thresh=3,
+                                                 mrk2phy=mrk2phy)
 ```
 
 Do the same for the other chromosome:
-```{r cg_par2_2nd_chr, eval=TRUE}
-runCarthagene(cg, "mrkselset [groupget 3]")
-system.time(
-    out.buildfw <- runCarthagene(cg, "buildfw 3 3 {} 1"))
-out.heaprint <- runCarthagene(cg, "heaprint")
-(maps.info <- parseCgHeaprint(out.heaprint))
-system.time(
-    out.flips <- runCarthagene(cg, "flips 4 3 1"))
-system.time(
-    out.polish <- runCarthagene(cg, "polish"))
-system.time(
-    out.squeeze <- runCarthagene(cg, "squeeze 20"))
-out.heaprint <- runCarthagene(cg, "heaprint")
-(maps.info <- parseCgHeaprint(out.heaprint))
-out.bestprintd <- runCarthagene(cg, "bestprintd")
-bestmap.group3 <- parseCgMaprintd(out.bestprintd)
+```{r cg_par2_2nd_chr}
+bestmap.lg3 <- estMrkOrderGenDistsWithCarthagene(cg, linkgroups.par2, lg.id=3,
+                                                 keep.thresh=3, add.thresh=3,
+                                                 mrk2phy=mrk2phy)
 ```
 
+For data sets of a bigger size, the [batchtools](https://cran.r-project.org/package=batchtools) package can be used to launch the function `estMrkOrderGenDistsWithCarthagene()` on each linkage group in parallel.
+
 Save the whole map:
-```{r cg_par2_save_genmap, eval=TRUE}
+```{r cg_par2_save_genmap}
 map.par2.cg <-
-  rbind(data.frame(linkage.group=rep(unique(lg2chr[[1]][bestmap.group1$name]),
-                                     nrow(bestmap.group1)),
-                   locus=bestmap.group1$name,
-                   genetic.distance=bestmap.group1$cum.dist.kosambi,
+  rbind(data.frame(linkage.group=rep(1, nrow(bestmap.lg1)),
+                   chr="chr2",
+                   locus=bestmap.lg1$locus,
+                   genetic.distance=bestmap.lg1$cum.dist.kosambi,
+                   physical.distance=bestmap.lg1$physical.distance,
                    stringsAsFactors=FALSE),
-        data.frame(linkage.group=rep(unique(lg2chr[[3]][bestmap.group3$name]),
-                                     nrow(bestmap.group3)),
-                   locus=bestmap.group3$name,
-                   genetic.distance=bestmap.group3$cum.dist.kosambi,
+        data.frame(linkage.group=rep(3, nrow(bestmap.lg3)),
+                   chr="chr1",
+                   locus=bestmap.lg3$locus,
+                   genetic.distance=bestmap.lg3$cum.dist.kosambi,
+                   physical.distance=bestmap.lg3$physical.distance,
                    stringsAsFactors=FALSE))
-tapply(map.par2.cg$genetic.distance, factor(map.par2.cg$linkage.group), max)
+tapply(map.par2.cg$genetic.distance, factor(map.par2.cg$chr), max)
 file.map.par2.cg <- paste0("bestmap_carthagene_parent2-",
                            colnames(genos.jm)[2], ".txt")
 write.table(x=map.par2.cg, file=file.map.par2.cg, quote=FALSE, sep="\t",
@@ -579,22 +568,38 @@ write.table(x=map.par2.cg, file=file.map.par2.cg, quote=FALSE, sep="\t",
 ```
 
 Close and clean:
-```{r cg_par2_close_clean, eval=TRUE}
+```{r cg_par2_close_clean}
 closeCarthagene(cg, file=file.par2)
 file.remove(file.par2)
+file.remove(file.map.par2.cg)
 ```
 
 
 ## Use R/qtl to explore parental maps
 
 Make a `qtl::cross` object for the first parent, and look at it:
-```{r, eval=TRUE}
+```{r cg_qtl_cross_par1}
 cross.cg.par1 <- setupQtlCrossObject(gendat=t(genos.qtl[[1]]), cross.type="bc",
                                      genmap=map.par1.cg)
 summary(cross.cg.par1)
 sum(duplicated(map.par1.cg$genetic.distance[map.par1.cg$linkage.group == "chr2"]))
 summaryMap(cross.cg.par1)
 plotMap(cross.cg.par1)
+```
+
+Make a `qtl::cross` object for the second parent, and look at it:
+```{r cg_qtl_cross_par2}
+cross.cg.par2 <- setupQtlCrossObject(gendat=t(genos.qtl[[2]]), cross.type="bc",
+                                     genmap=map.par2.cg)
+summary(cross.cg.par2)
+sum(duplicated(map.par2.cg$genetic.distance[map.par2.cg$linkage.group == 1]))
+summaryMap(cross.cg.par2)
+plotMap(cross.cg.par2)
+```
+
+Plot physical vs genetic distances:
+```{r cg_phy_vs_gen}
+plotPhyVsGenDistances(map.par2.cg, xlim=c(0, chr.len.phy))
 ```
 
 
@@ -655,11 +660,11 @@ head(cross.mst.par1$geno$L7$map)
 head(cross.mst.par1$geno$L8$map)
 ```
 
-```{r asmap_profile_mrk, fig.width=12, eval=TRUE}
+```{r asmap_profile_mrk, fig.width=12}
 profileMark(cross.mst.par1, crit.val="bonf")
 ```
 
-```{r asmap_check_clones, eval=TRUE}
+```{r asmap_check_clones}
 clones <- genClones(cross.mst.par1)
 clones$cgd
 (pair1 <- c(as.character(clones$cgd[1,1]),
@@ -684,7 +689,7 @@ map.c <- combineMap(cross.mst.par1, cross.mst.par2)
 ```
 
 Clean:
-```{r}
+```{r asmap_clean}
 if(file.exists("MSToutput.txt"))
   file.remove("MSToutput.txt")
 ```

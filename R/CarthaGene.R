@@ -145,7 +145,7 @@ parseCgMrkinfo <- function(out.mrkinfo, verbose=1){
 ##' Parse the output of CarthaGene's command "group".
 ##' @param out.group vector of character output from \code{\link{runCarthagene}} corresponding to "group"
 ##' @param mrk.info data frame output from \code{\link{parseCgMrkinfo}} (optional; useful to have the marker names instead of only the marker identifiers)
-##' @param mrk2chr named vector which values are markers and names are chromosomes
+##' @param mrk2chr named vector which values are markers and names are chromosomes; before usage, marker names ending in "_m" (an indication of parental coding) will be edited to remove such a suffix
 ##' @param verbose verbosity level (0/1)
 ##' @return data frame with at least two columns, "linkage.group" and "id", another column, "locus", if mrk.info is provided, and another column, "chr", if mrk2chr is provided
 ##' @author Timothee Flutre
@@ -195,8 +195,9 @@ parseCgGroup <- function(out.group, mrk.info=NULL, mrk2chr=NULL, verbose=1){
 
   if(! is.null(mrk2chr)){
     out$chr <- NA
-    idx <- which(out$locus %in% names(mrk2chr))
-    out$chr[idx] <- mrk2chr[out$locus[idx]]
+    out.locus <- gsub("_m$", "", out$locus)
+    idx <- which(out.locus %in% names(mrk2chr))
+    out$chr[idx] <- mrk2chr[out.locus[idx]]
     if(any(is.na(out$chr))){
       msg <- paste0("nb of markers with no chromosome information: ",
                     sum(is.na(out$chr)))
@@ -303,7 +304,7 @@ parseCgMaprintd <- function(out.maprintd){
   tmp <- tmp[- which(tmp == "")]
   nb.markers <- as.numeric(tmp[1])
   out <- data.frame(id=rep(NA, nb.markers),
-                    name=NA,
+                    locus=NA,
                     dist.haldane=NA,
                     cum.dist.haldane=NA,
                     dist.kosambi=NA,
@@ -400,7 +401,7 @@ closeCarthagene <- function(cg, file=NULL){
 ##' @param mrk2chr named vector which values are markers and names are chromosomes
 ##' @param close.cg if TRUE, the connection to CarthaGene will be closed and the temporary file removed
 ##' @param verbose verbosity level (0/1)
-##' @return data frame
+##' @return data frame returned by \code{\link{parseCgGroup}}, with at least three columns, "linkage.group", "id" and "locus", and another column, "chr", if mrk2chr is provided
 ##' @author Timothee Flutre
 ##' @seealso \code{\link{openCarthagene}}, \code{\link{runCarthagene}}, \code{\link{parseCgMrkinfo}}, \code{\link{parseCgGroup}}, \code{\link{closeCarthagene}}
 ##' @export
@@ -414,7 +415,7 @@ defLinkgroupsWithCarthagene <- function(file=NULL, task.id=NULL, cg=NULL,
 
   if(is.null(cg))
     cg <- openCarthagene(file=file, task.id=task.id)
-  if(FALSE){ # for debug purposes
+  if(FALSE){ # for debugging purposes
     out <- runCarthagene(cg, "cgversion")
     out <- runCarthagene(cg, "dsinfo")
   }
@@ -430,4 +431,130 @@ defLinkgroupsWithCarthagene <- function(file=NULL, task.id=NULL, cg=NULL,
     closeCarthagene(cg, file)
 
   return(linkgroups)
+}
+
+##' Estimate marker order and genetic distances with CarthaGene
+##'
+##' Estimates marker order and genetic distances for a given linkage group with CarthaGene (commands "buildfw", "flips", polish" and "squeeze").
+##' @param cg list returned by \code{\link{openCarthagene}}
+##' @param linkgroups data frame returned by \code{\link{defLinkgroupsWithCarthagene}}, towhich a column of logicals named "todrop" may have been added, indicating which marker(s) to drop via "mrkdel" before executing "buildfw"
+##' @param lg.id identifier of the linkage group of interest
+##' @param keep.thresh the minimum difference in log-likelihood between the best insertion point and the second best insertion point required for the map to be considered in the future
+##' @param add.thresh the minimum difference in log-likelihood between the best insertion point and the second best insertion point required for a locus to be insertable; this threshold is also used to filter out the differences in log-likelihood reported by the post-processing option (only differences lower than the threshold will be reported)
+##' @param init.order if not NULL, vector containing at least three marker identifiers in a given order to start from
+##' @param postprocessing if 0, only framework mapping is performed; if 1, post-processing is also applied (see "add.thresh"); if 2, post-processing is applied only to markers in "mrk.list"
+##' @param flips.size size of the sliding window for the "flips" command (cannot exceed 9)
+##' @param flips.lod.thresh maximum difference of log-likelihood with the best map so that "flips" reports the permutation
+##' @param flips.iter if 1, "flips" will be iterated as long as a new, improved map has been found; specify O, otherwise
+##' @param squeeze.thresh distance threshold in cMorgan (Haldane distance) for genetics data or cRay for Radiation Hybrids data used by "squeeze" to expunge non-reliable locus from the map
+##' @param mrk2phy named vector which names are the locus and values are the physical distances on the chromosome corresponding to the linkage group of interest
+##' @param verbose verbosity level (0/1)
+##' @return data frame returned by \code{\link{parseCgMaprintd}} containing the best map for the given linkage group according to CarthaGene, and possibly a column "physical.distance"
+##' @author Timothee Flutre
+##' @seealso \code{\link{openCarthagene}}, \code{\link{runCarthagene}}, \code{\link{defLinkgroupsWithCarthagene}}, \code{\link{parseCgMaprintd}}, \code{\link{closeCarthagene}}
+##' @export
+estMrkOrderGenDistsWithCarthagene <- function(cg, linkgroups, lg.id,
+                                              keep.thresh=3, add.thresh=3,
+                                              init.order=NULL, postprocessing=1,
+                                              flips.size=4, flips.lod.thresh=3,
+                                              flips.iter=1, squeeze.thresh=20,
+                                              mrk2phy=NULL, verbose=1){
+  stopifnot(is.list(cg),
+            is.data.frame(linkgroups),
+            all(c("linkage.group", "id", "locus") %in% colnames(linkgroups)),
+            lg.id %in% linkgroups$linkage.group,
+            is.numeric(keep.thresh),
+            is.numeric(add.thresh),
+            is.numeric(flips.size),
+            flips.size <= 9,
+            is.numeric(flips.lod.thresh),
+            flips.iter %in% c(0,1),
+            is.numeric(squeeze.thresh))
+  if("todel" %in% colnames(linkgroups))
+    stopifnot(is.logical(linkgroups$todel))
+  if(! is.null(init.order))
+    stopifnot(is.vector(init.order),
+              length(init.order) >= 3,
+              all(init.order %in% linkgroups$id))
+  if(! is.null(mrk2phy))
+    stopifnot(is.vector(mrk2phy),
+              is.numeric(mrk2phy),
+              ! is.null(names(mrk2phy)))
+
+  cmd <- paste0("mrkselset [groupget ", lg.id, "]")
+  runCarthagene(cg, cmd)
+  is.lg.todel <- linkgroups$linkage.group == lg.id & linkgroups$todel
+  if(any(is.lg.todel)){
+    for(mrk.name in linkgroups$locus[is.lg.todel])
+      runCarthagene(cg, paste0("mrkdel ", mrk.name))
+  }
+
+  if(verbose > 0){
+    msg <- "execute 'buildfw'..."
+    write(msg, stdout())
+  }
+  if(is.null(init.order)){
+    init.order <- "{}"
+  } else
+    init.order <- paste("{", paste(init.order, collapse=" "), "}")
+  cmd <- paste("buildfw", keep.thresh, add.thresh, init.order, postprocessing)
+  st <- system.time(
+      out.buildfw <- runCarthagene(cg, cmd))
+  if(verbose > 0)
+    print(st)
+
+  if(verbose > 0){
+    out.heaprint <- runCarthagene(cg, "heaprint")
+    print(maps.info <- parseCgHeaprint(out.heaprint))
+  }
+
+  if(verbose > 0){
+    msg <- "execute 'flips'..."
+    write(msg, stdout())
+  }
+  cmd <- paste("flips", flips.size, flips.lod.thresh, flips.iter)
+  st <- system.time(
+      out.flips <- runCarthagene(cg, cmd))
+  if(verbose > 0)
+    print(st)
+
+  if(verbose > 0){
+    msg <- "execute 'polish'..."
+    write(msg, stdout())
+  }
+  st <- system.time(
+      out.polish <- runCarthagene(cg, "polish"))
+  if(verbose > 0)
+    print(st)
+
+  if(verbose > 0){
+    msg <- "execute 'squeeze'..."
+    write(msg, stdout())
+  }
+  cmd <- paste("squeeze", squeeze.thresh)
+  st <- system.time(
+      out.squeeze <- runCarthagene(cg, cmd))
+  if(verbose > 0)
+    print(st)
+
+  if(verbose > 0){
+    out.heaprint <- runCarthagene(cg, "heaprint")
+    print(maps.info <- parseCgHeaprint(out.heaprint))
+  }
+
+  if(verbose > 0){
+    msg <- "execute 'bestprintd'..."
+    write(msg, stdout())
+  }
+  out.bestprintd <- runCarthagene(cg, "bestprintd")
+  bestmap <- parseCgMaprintd(out.bestprintd)
+  if(! is.null(mrk2phy)){
+    bestmap$physical.distance <- NA
+    locus.init <- gsub("_m$", "", bestmap$locus)
+    has.phy <- locus.init %in% names(mrk2phy)
+    if(any(has.phy))
+      bestmap$physical.distance[has.phy] <- mrk2phy[locus.init[has.phy]]
+  }
+
+  return(bestmap)
 }
