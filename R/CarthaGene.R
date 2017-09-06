@@ -483,7 +483,9 @@ estMrkOrderGenDistsWithCarthagene <- function(cg, linkgroups, lg.id,
 
   cmd <- paste0("mrkselset [groupget ", lg.id, "]")
   runCarthagene(cg, cmd)
-  is.lg.todel <- linkgroups$linkage.group == lg.id & linkgroups$todel
+  is.lg.todel <- FALSE
+  if("todel" %in% colnames(linkgroups))
+    is.lg.todel <- linkgroups$linkage.group == lg.id & linkgroups$todel
   if(any(is.lg.todel)){
     for(mrk.name in linkgroups$locus[is.lg.todel])
       runCarthagene(cg, paste0("mrkdel ", mrk.name))
