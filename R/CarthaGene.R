@@ -111,6 +111,12 @@ runCarthagene <- function(cg, cmd){
 parseCgMrkinfo <- function(out.mrkinfo, verbose=1){
   stopifnot(is.character(out.mrkinfo))
 
+  if(verbose > 0){
+    msg <- "parse the output of 'mrkinfo'..."
+    write(msg, stdout())
+    utils::flush.console()
+  }
+
   idx <- grep("Num                Names : Sets Merges", out.mrkinfo)
   if(length(idx) == 0){
     msg <- paste0("can't parse CarthaGene's output;",
@@ -159,6 +165,12 @@ parseCgGroup <- function(out.group, mrk.info=NULL, mrk2chr=NULL, verbose=1){
   if(! is.null(mrk2chr))
     stopifnot(is.character(mrk2chr),
               ! is.null(names(mrk2chr)))
+
+  if(verbose > 0){
+    msg <- "parse the output of 'group'..."
+    write(msg, stdout())
+    utils::flush.console()
+  }
 
   idx <- grep("Group ID : Marker ID List ..", out.group)
   if(length(idx) == 0){
@@ -424,7 +436,15 @@ defLinkgroupsWithCarthagene <- function(file=NULL, task.id=NULL, cg=NULL,
   mrk.info <- parseCgMrkinfo(out.mrkinfo, verbose)
 
   cmd <- paste("group", dist.thresh, lod.thresh)
-  out.group <- runCarthagene(cg, cmd)
+  if(verbose > 0){
+    msg <- paste0("execute '", cmd, "'...")
+    write(msg, stdout())
+    utils::flush.console()
+  }
+  st <- system.time(
+      out.group <- runCarthagene(cg, cmd))
+  if(verbose > 0)
+    print(st)
   linkgroups <- parseCgGroup(out.group, mrk.info, mrk2chr, verbose)
 
   if(close.cg)
@@ -490,16 +510,16 @@ estMrkOrderGenDistsWithCarthagene <- function(cg, linkgroups, lg.id,
     for(mrk.name in linkgroups$locus[is.lg.todel])
       runCarthagene(cg, paste0("mrkdel ", mrk.name))
   }
-
-  if(verbose > 0){
-    msg <- "execute 'buildfw'..."
-    write(msg, stdout())
-  }
   if(is.null(init.order)){
     init.order <- "{}"
   } else
     init.order <- paste("{", paste(init.order, collapse=" "), "}")
   cmd <- paste("buildfw", keep.thresh, add.thresh, init.order, postprocessing)
+  if(verbose > 0){
+    msg <- paste0("execute '", cmd, "'...")
+    write(msg, stdout())
+    utils::flush.console()
+  }
   st <- system.time(
       out.buildfw <- runCarthagene(cg, cmd))
   if(verbose > 0)
@@ -510,11 +530,12 @@ estMrkOrderGenDistsWithCarthagene <- function(cg, linkgroups, lg.id,
     print(maps.info <- parseCgHeaprint(out.heaprint))
   }
 
-  if(verbose > 0){
-    msg <- "execute 'flips'..."
-    write(msg, stdout())
-  }
   cmd <- paste("flips", flips.size, flips.lod.thresh, flips.iter)
+  if(verbose > 0){
+    msg <- paste0("execute '", cmd, "'...")
+    write(msg, stdout())
+    utils::flush.console()
+  }
   st <- system.time(
       out.flips <- runCarthagene(cg, cmd))
   if(verbose > 0)
@@ -523,17 +544,19 @@ estMrkOrderGenDistsWithCarthagene <- function(cg, linkgroups, lg.id,
   if(verbose > 0){
     msg <- "execute 'polish'..."
     write(msg, stdout())
+    utils::flush.console()
   }
   st <- system.time(
       out.polish <- runCarthagene(cg, "polish"))
   if(verbose > 0)
     print(st)
 
-  if(verbose > 0){
-    msg <- "execute 'squeeze'..."
-    write(msg, stdout())
-  }
   cmd <- paste("squeeze", squeeze.thresh)
+  if(verbose > 0){
+    msg <- paste0("execute '", cmd, "'...")
+    write(msg, stdout())
+    utils::flush.console()
+  }
   st <- system.time(
       out.squeeze <- runCarthagene(cg, cmd))
   if(verbose > 0)
@@ -547,6 +570,7 @@ estMrkOrderGenDistsWithCarthagene <- function(cg, linkgroups, lg.id,
   if(verbose > 0){
     msg <- "execute 'bestprintd'..."
     write(msg, stdout())
+    utils::flush.console()
   }
   out.bestprintd <- runCarthagene(cg, "bestprintd")
   bestmap <- parseCgMaprintd(out.bestprintd)
