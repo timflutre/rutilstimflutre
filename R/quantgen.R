@@ -999,7 +999,7 @@ phasedJoinMapCP2qtl <- function(x, verbose=1){
   return(out)
 }
 
-##' Write genotypes
+##' Write genotypes for JoinMap/MapQTL
 ##'
 ##' Write genotype data in the \href{https://www.kyazma.nl/index.php/JoinMap/}{JoinMap} format into a "loc" file used by this software.
 ##' @param pop.name name of the population
@@ -1011,6 +1011,7 @@ phasedJoinMapCP2qtl <- function(x, verbose=1){
 ##' @param classifs vector of classification types (optional)
 ##' @param file name of the file in which the data will be saved (will be compressed if ends with ".gz" and "gzip" is available in the PATH)
 ##' @param save.ind.names if TRUE, individual names will be saved at the end of the file
+##' @param verbose verbosity level (0/1)
 ##' @return nothing
 ##' @author Timothee Flutre
 ##' @seealso \code{\link{genoClasses2JoinMap}}
@@ -1033,7 +1034,7 @@ phasedJoinMapCP2qtl <- function(x, verbose=1){
 ##' @export
 writeSegregJoinMap <- function(pop.name, pop.type="CP",
                                locus, segregs, genos, phases=NULL, classifs=NULL,
-                               file, save.ind.names=TRUE){
+                               file, save.ind.names=TRUE, verbose=1){
   requireNamespace("tools")
   stopifnot(is.character(pop.name),
             is.character(pop.type),
@@ -1042,6 +1043,7 @@ writeSegregJoinMap <- function(pop.name, pop.type="CP",
             is.character(locus),
             is.character(segregs),
             is.data.frame(genos),
+            all(! c("locus", "seg", "phase", "clas") %in% colnames(genos)),
             nrow(genos) == length(locus),
             nrow(genos) == length(segregs),
             is.character(file),
@@ -1058,6 +1060,12 @@ writeSegregJoinMap <- function(pop.name, pop.type="CP",
                   ifelse(sum(locus.ids.too.long) > 1, "s", ""),
                   " longer than 20 characters")
     warning(msg)
+  }
+  if(verbose > 0){
+    msg <- paste0("write locus genotypes in the JoinMap/MapQTL format...",
+                  "\nnb of locus: ", nrow(genos),
+                  "\nnb of individuals: ", ncol(genos))
+    write(msg, stdout())
   }
 
   file.ext <- tools::file_ext(file)
@@ -1082,9 +1090,9 @@ writeSegregJoinMap <- function(pop.name, pop.type="CP",
   if(! is.null(classifs))
     tmp <- cbind(tmp, classifs)
   tmp <- cbind(tmp, genos)
-  utils::write.table(x=tmp, file=con, append=TRUE, quote=FALSE, sep="\t",
-                     row.names=FALSE,
-                     col.names=FALSE)
+  suppressWarnings(utils::write.table(x=tmp, file=con, append=TRUE,
+                                      quote=FALSE, sep="\t",
+                                      row.names=FALSE, col.names=FALSE))
 
   if(save.ind.names){
     stopifnot(all(nchar(colnames(genos)) <= 20))
@@ -1103,6 +1111,97 @@ writeSegregJoinMap <- function(pop.name, pop.type="CP",
         system(command=paste("gzip", file))
     }
   }
+}
+
+##' Write genetic map for JoinMap/MapQTL
+##'
+##' Writes the given genetic map in the JoinMap/MapQTL format.
+##' @param genmap data frame with at least three columns named "linkage.group", "locus" and "genetic.distance", and one row per locus
+##' @param file name of the file in which the data will be saved
+##' @param verbose verbosity level (0/1)
+##' @return nothing
+##' @author Timothee Flutre
+##' @export
+writeGenMapJoinMap <- function(genmap, file, verbose=1){
+  stopifnot(is.data.frame(genmap),
+            all(c("linkage.group", "locus", "genetic.distance") %in% colnames(genmap)),
+            all(nchar(genmap$linkage.group) <= 20),
+            is.numeric(genmap$genetic.distance),
+            is.character(file))
+
+  genmap <- convertFactorColumnsToCharacter(genmap)
+  linkgroups <- unique(genmap$linkage.group)
+  nb.linkgroups <- length(linkgroups)
+  if(verbose > 0){
+    msg <- paste0("write genetic map in the JoinMap/MapQTL format...",
+                  "\nnb of linkage groups: ", nb.linkgroups,
+                  "\nnb of locus: ", nrow(genmap))
+    write(msg, stdout())
+  }
+
+  con <- file(description=file, open="w")
+
+  txt <- c("; written by the `writeGenMapJoinMap` function",
+           paste0("; from the `rutilstimflutre` package version ",
+                  utils::packageVersion("rutilstimflutre")))
+  writeLines(text=txt, con=con)
+
+  for(lg in linkgroups){
+    txt <- c("",
+             paste("group", lg, sep="\t"))
+    idx <- which(genmap$linkage.group == lg)
+    tmp <- genmap[idx,]
+    tmp <- tmp[order(tmp$genetic.distance),]
+    txt <- c(txt,
+             paste(tmp$locus, tmp$genetic.distance, sep="\t"))
+    writeLines(text=txt, con=con)
+  }
+
+  close(con)
+}
+
+##' Write phenotypes for JoinMap/MapQTL
+##'
+##' Writes the given phenotypes in the JoinMap/MapQTL format.
+##' @param phenos data frame with one genotype per row and traits in columns (one colun can contain the genotype identifiers)
+##' @param file name of the file in which the data will be saved
+##' @param alias.miss alias used to replace missing values (which should be encoded as NA in "genmap")
+##' @param verbose verbosity level (0/1)
+##' @return nothing
+##' @author Timothee Flutre
+##' @export
+writePhenoJoinMap <- function(phenos, file, alias.miss=".", verbose=1){
+  stopifnot(is.data.frame(phenos),
+            is.character(file))
+
+  phenos <- convertFactorColumnsToCharacter(phenos)
+  if(verbose > 0){
+    msg <- paste0("write phenotypes in the JoinMap/MapQTL format...",
+                  "\nnb of traits: ", ncol(phenos),
+                  "\nnb of individuals: ", nrow(phenos))
+    write(msg, stdout())
+  }
+
+  con <- file(description=file, open="w")
+
+  txt <- c("; written by the `writePhenoJoinMap` function",
+           paste0("; from the `rutilstimflutre` package version ",
+                  utils::packageVersion("rutilstimflutre")),
+           "",
+           paste0("ntrt = ", ncol(phenos)),
+           paste0("nind = ", nrow(phenos)),
+           paste0("miss = ", alias.miss),
+           "")
+  writeLines(text=txt, con=con)
+
+  tmp <- phenos
+  if(any(is.na(tmp)))
+    tmp[is.na(tmp)] <- alias.miss
+  suppressWarnings(utils::write.table(x=tmp, file=con, append=TRUE,
+                                      quote=FALSE, sep="\t",
+                                      row.names=FALSE, col.names=TRUE))
+
+  close(con)
 }
 
 ##' Genotype coding
