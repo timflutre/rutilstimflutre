@@ -531,6 +531,7 @@ precMatAR1 <- function(n, rho, sigma2){
 ##' @param col a colour to be used to fill the bars (see \code{\link[graphics]{hist}})
 ##' @param border the color of the border around the bars (see \code{\link[graphics]{hist}})
 ##' @param pi0 estimate of the proportion of null hypotheses
+##' @param ylim optional limits for the y-axis (only if freq=TRUE)
 ##' @param verbose verbosity level (0/1)
 ##' @return invisible output of \code{\link[graphics]{hist}}
 ##' @seealso \code{\link{qqplotPval}}
@@ -557,10 +558,14 @@ precMatAR1 <- function(n, rho, sigma2){
 ##' @export
 plotHistPval <- function(pvalues, breaks=seq(0, 1, 0.05), freq=FALSE,
                          main=NULL, col="grey", border="white", pi0=NULL,
-                         verbose=1){
+                         ylim=NULL, verbose=1){
   stopifnot(is.numeric(pvalues),
             is.vector(pvalues),
             is.vector(breaks))
+  if(! is.null(ylim))
+    stopifnot(is.vector(ylim),
+              length(ylim) == 2,
+              freq == TRUE)
 
   isna <- is.na(pvalues)
   if(any(isna)){
@@ -574,10 +579,12 @@ plotHistPval <- function(pvalues, breaks=seq(0, 1, 0.05), freq=FALSE,
   if(is.null(main))
     main <- paste0("Histogram of ", length(pvalues), " p values")
 
-  out <- graphics::hist(pvalues, breaks=breaks, xlim=c(0,1), freq=freq, las=1,
-              xlab=expression(italic(p)~values), main=main,
-              ## ylab=ifelse(freq, "Frequency", "Density"),
-              col=col, border=border)
+  out <- graphics::hist(pvalues, breaks=breaks,
+                        xlim=c(0,1), ylim=ylim,
+                        freq=freq, las=1,
+                        xlab=expression(italic(p)~values), main=main,
+                        ## ylab=ifelse(freq, "Frequency", "Density"),
+                        col=col, border=border)
 
   ## height one would expect if all tested hypotheses were null
   if(freq){
