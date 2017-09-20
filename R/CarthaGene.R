@@ -148,6 +148,103 @@ parseCgMrkinfo <- function(out.mrkinfo, verbose=1){
 
 ##' Parse CarthaGene's output
 ##'
+##' Parse the output of CarthaGene's commands "mrkfr2p" or "mrklod2p" or "mrkdist2p".
+##' @param out vector of character output from \code{\link{runCarthagene}} corresponding to "mrkfr2p" or "mrklod2p" or "mrkdist2p"
+##' @param cmd "mrkfr2p" or "mrklod2p" or "mrkdist2p"
+##' @param mrk.info data frame output from \code{\link{parseCgMrkinfo}} (optional; useful to have the marker names as row and column names in the returned matrix)
+##' @return matrix
+##' @param verbose verbosity level (0/1)
+##' @author Timothee Flutre
+##' @export
+parseCgPwMatrix <- function(out, cmd="mrkfr2p", mrk.info=NULL, verbose=1){
+  stopifnot(is.character(out),
+            cmd %in% c("mrkfr2p", "mrklod2p", "mrkdist2p"))
+  if(! is.null(mrk.info))
+    stopifnot(is.data.frame(mrk.info),
+              ncol(mrk.info) >= 2,
+              all(c("id", "name") %in% colnames(mrk.info)))
+
+  if(verbose > 0){
+    msg <- paste0("parse the output of '", cmd, "'...")
+    write(msg, stdout())
+    utils::flush.console()
+  }
+
+  ## find the first row of the matrix
+  ptn <- "^[ a-zA-Z0-9]+ \\|[-]+"
+  idx <- grep(pattern=ptn, x=out, perl=TRUE)
+  if(length(idx) > 1){
+    if(cmd == "mrkdist2p"){
+      warning("with the 'mrkdist2p' command, only the first data set is parsed")
+      idx <- idx[1]
+    }
+  }
+  if(length(idx) == 0 || length(idx) > 1){
+    msg <- paste0("can't parse CarthaGene's output (first row);",
+                  " does it correspond to the '", cmd, "' command?")
+    stop(msg)
+  }
+
+  ## check the last row
+  tmp <- tail(out, 1)
+  tmp <- rev(strsplit(tmp, "")[[1]])
+  if(! all(tmp[1] == "-", tmp[2] == "-", tmp[3] == "-")){
+    msg <- paste0("can't parse CarthaGene's output (last row);",
+                  " does it correspond to the '", cmd, "' command?")
+    stop(msg)
+  }
+
+  ## reformat the whole matrix
+  nb.snps <- length(idx:length(out))
+  dat <- strsplit(out[idx:length(out)], "\\s")
+  dat <- lapply(dat, function(x){
+    x <- x[! x %in% c("", "|")]
+    x <- gsub("\\|", "", x)
+    if("------" %in% x){
+      x2 <- x
+    } else{
+      idx <- grep("------", x)
+      if(length(idx) != 1){
+        x2 <- x
+      } else{
+        x2 <- c(x[1:(idx-1)], "------", gsub("------", "", x[idx]))
+        if(idx < nb.snps)
+          x2 <- c(x2, x[(idx+1):length(x)])
+      }
+    }
+    x2
+  })
+  table(sapply(dat, length))
+  if(! all(sapply(dat, length) == nb.snps + 1)){
+    msg <- paste0("can't parse CarthaGene's output (row lengths);",
+                  " does it correspond to the '", cmd, "' command?")
+    stop(msg)
+  }
+  dat <- do.call(rbind, dat)
+  ## if(! anyDuplicated(dat[,1]))
+  ##   rownames(dat) <- dat[,1]
+  dat <- dat[,-1]
+  ## if(! anyDuplicated(rownames(dat)))
+  ##   colnames(dat) <- rownames(dat)
+  if(! is.null(mrk.info)){
+    if(nrow(dat) == nrow(mrk.info)){
+      mrk.info <- mrk.info[order(mrk.info$id),]
+      dimnames(dat) <- list(mrk.info$name, mrk.info$name)
+    }
+  }
+  if(! all(grepl("------", diag(dat)))){
+    msg <- paste0("can't parse CarthaGene's output (diagonal);",
+                  " does it correspond to the '", cmd, "' command?")
+    stop(msg)
+  }
+  diag(dat) <- 0
+  mode(dat) <- "numeric"
+
+  return(dat)
+}
+
+##' Parse CarthaGene's output
+##'
 ##' Parse the output of CarthaGene's command "group".
 ##' @param out.group vector of character output from \code{\link{runCarthagene}} corresponding to "group"
 ##' @param mrk.info data frame output from \code{\link{parseCgMrkinfo}} (optional; useful to have the marker names instead of only the marker identifiers)

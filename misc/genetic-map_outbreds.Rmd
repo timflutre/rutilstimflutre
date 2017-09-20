@@ -40,12 +40,13 @@ Third, a consensus map is built for both parents from genotypes coded as in a F2
 
 This document requires external packages to be available:
 ```{r load_pkg}
-suppressPackageStartupMessages(library(scrm))
-suppressPackageStartupMessages(library(qtl))
-stopifnot(file.exists(Sys.which("carthagene")))
-suppressPackageStartupMessages(library(ASMap))
-suppressPackageStartupMessages(library(rutilstimflutre))
-stopifnot(compareVersion("0.142.0",
+suppressPackageStartupMessages(library(scrm)) # on the CRAN
+suppressPackageStartupMessages(library(seriation)) # on the CRAN
+suppressPackageStartupMessages(library(qtl)) # on the CRAN
+stopifnot(file.exists(Sys.which("carthagene"))) # http://www7.inra.fr/mia/T/CarthaGene/
+suppressPackageStartupMessages(library(ASMap)) # on the CRAN
+suppressPackageStartupMessages(library(rutilstimflutre)) # on GitHub
+stopifnot(compareVersion("0.144.0",
                          as.character(packageVersion("rutilstimflutre")))
           != 1)
 ```
@@ -143,7 +144,33 @@ genos.classes <- genoDoses2genoClasses(X=genos.doses,
                                        alleles=genomes$alleles)
 genos.jm <- genoClasses2JoinMap(x=genos.classes)
 genos.jm[1:3, 1:14]
+tests.seg <- filterSegreg(genos.jm[,-c(1:8)], return.counts=TRUE)
 ```
+
+The JoinMap format will be used to encode genotypes from both parents and offsprings as it allows to specify segregation types and phases, and can be natively read by the R qtl package.
+
+Everything is explained in detail in the JoinMap manual, available [online](https://www.kyazma.nl/index.php/JoinMap/Manual/).
+Below is a brief summary.
+
+At each locus, parental alleles are labelled as A and B for the first parent, and C and D for the second parent.
+Interesting locus must segregate in the progeny, meaning that A, B, C and D shouldn't all correspond to the same allele.
+Several segregation types exist, depending on the parental genotypes and their alleles:
+
+* $A \ne B \ne C \ne D$: segregation type named `<abxcd>` by JoinMap (version $\ge$ 3, if necessary the `updateJoinMap` function can be used);
+
+* $A = C \ne B \ne D$: segregation type `<efxeg>`;
+
+* $A = C \ne B = D$: segregation type `<hkxhk>`;
+
+* $A = C = D \ne B$: segregation type `<lmxll>`;
+
+* $A = B = C \ne D$: segregation type `<nnxnp>`.
+
+Moreover, when considering several locus belonging to the same linkage group, their alleles can belong to the same physical chromosome, hence allowing to define linkage phases (haplotypes).
+In a given parent, two alleles at different locus are said to be "in coupling" when they came from the same grand-parent.
+Otherwise, they are said to be "in repulsion".
+
+For instance, if a locus $l_1$ is of segregation type `<hkxhk>` and phase type `{00}` and another locus $l_2$ is of segregation type `<abxcd>` and phase type `{01}`, this means that, in the first parent, the `h`-allele of $l_1$ and the `a`-allele of $l_2$ are in coupling (and thus also their `k`- and `b`-alleles), and that, in the second parent, the `h`-allele of $l_1$ is in repulsion with the `c`-allele of $l_2$ (and thus in coupling with the `d`-allele of $l_2$).
 
 Plot pedigree:
 ```{r plot_ped}
@@ -251,6 +278,8 @@ rf <- pull.rf(cross.par1)
 lod <- pull.rf(cross.par1, what="lod")
 plot(as.numeric(rf), as.numeric(lod), xlab="recombination fraction",
      ylab="LOD score")
+## different curves due to different amount of missing data btw marker pairs
+## see the CartaGene section below where this plot is reproduced with colors
 lg <- formLinkageGroups(cross.par1, max.rf=0.2, min.lod=1.5)
 table(lg[,"LG"])
 tapply(rownames(lg), factor(lg$LG),
@@ -388,6 +417,88 @@ out.mrkinfo <- runCarthagene(cg, "mrkinfo")
 dim(mrk.info <- parseCgMrkinfo(out.mrkinfo))
 head(mrk.info)
 (out <- runCarthagene(cg, "heapsizeget"))
+```
+
+Look at the pairwise matrices of recombination fraction, LOD and genetic distances:
+```{r cg_par1_pairwise_matrices}
+out.2rf <- runCarthagene(cg, "mrkfr2p")
+out.2lod <- runCarthagene(cg, "mrklod2p")
+out.2dist <- runCarthagene(cg, "mrkdist2p k")
+pwrf <- parseCgPwMatrix(out.2rf, "mrkfr2p", mrk.info)
+pwlod <- parseCgPwMatrix(out.2lod, "mrklod2p", mrk.info)
+pwdist <- parseCgPwMatrix(out.2dist, "mrkdist2p", mrk.info)
+plot(pwrf[upper.tri(pwrf)], pwlod[upper.tri(pwlod)],
+     xlab="recombination fraction", ylab="LOD score")
+plot(pwrf[upper.tri(pwrf)], pwdist[upper.tri(pwdist)],
+     xlab="recombination fraction", ylab="genetic distance (Kosambi)")
+pimage(pwrf, main="pairwise recombination fractions")
+ord.rf <- seriate(pwrf)
+pimage(pwrf, ord.rf, main="pairwise recombination fractions")
+```
+
+Show the cause between the different LOD curves by coloring the plot of recombination fractions versus LOD scores:
+```{r cg_par1_rf_vs_lod}
+pws <- rbind(rf=pwrf[upper.tri(pwrf)], lod=pwlod[upper.tri(pwlod)])
+names.per.col <- matrix(rownames(pwrf), nrow=nrow(pwrf), ncol=ncol(pwrf), byrow=FALSE)
+names.per.row <- matrix(rownames(pwrf), nrow=nrow(pwrf), ncol=ncol(pwrf), byrow=TRUE)
+npc.up <- names.per.col[upper.tri(names.per.col)]
+npr.up <- names.per.row[upper.tri(names.per.row)]
+colnames(pws) <- paste0(npc.up, "-", npr.up)
+
+## recompute rec frac and LOD for a subset of SNP pairs
+idx <- sample.int(n=ncol(pws), size=1000)
+pairs <- as.data.frame(cbind(colnames(pws)[idx],
+                             do.call(rbind, strsplit(colnames(pws)[idx], "-"))),
+                       stringsAsFactors=FALSE)
+colnames(pairs) <- c("pair", "mrk1", "mrk2")
+pairs$nb.offs <- NA
+pairs$nb.rec <- NA
+pairs[,c("nb.offs", "nb.rec")] <- do.call(rbind, lapply(1:nrow(pairs), function(i){
+  tmp <- genos.cg[[1]][unlist(pairs[i,c("mrk1","mrk2")]),]
+  tmp.noNA <- tmp[, apply(tmp, 2, function(x){! any(x == "-")})]
+  if(all(dim(table(tmp.noNA[1,], tmp.noNA[2,])) == c(2,2))){
+    c(ncol(tmp.noNA), table(tmp.noNA[1,], tmp.noNA[2,])[1,2] +
+                      table(tmp.noNA[1,], tmp.noNA[2,])[2,1])
+  } else
+    c(ncol(tmp.noNA), NA)
+}))
+pairs$rec.frac <- pairs[,"nb.rec"] / pairs[,"nb.offs"]
+pairs[,"lod"] <- lodLinkage(pairs$rec.frac, pairs$nb.offs - pairs$nb.rec,
+                            pairs$nb.rec)
+plot(pairs$rec.frac, pairs$lod, col=ifelse(pairs$nb.offs == 200, "black", "red"))
+legend("top", legend=c("n = 200", "n < 200"), col=c("black", "red"), pch=1, bty="n")
+table(pairs$nb.offs)
+## different LOD curves depending on the amount of NA's in marker pairs
+
+## compare these recomputed LODs with CarthaGene's LODs
+plot(pairs$lod, pws["lod", pairs$pair], xlab="recomputed LOD scores",
+     ylab="CarthaGene's LOD scores", las=1)
+pairs.above <- pairs$pair[pairs$rec.frac > 0.5]
+summary(pws["lod", pairs.above[! is.na(pairs.above)]])
+## differences seem to come from marker pairs with recomb frac above 0.5
+
+## pairs of markers with no recomb btw them but a very small CarthaGene's LOD
+idx <- which(apply(pws, 2, function(x){
+  all(x[1] < 0.05, x[2] < 5)
+}))
+pws[, idx]
+tmp <- as.data.frame(cbind(colnames(pws)[idx],
+                           do.call(rbind, strsplit(colnames(pws)[idx], "-"))),
+                     stringsAsFactors=FALSE)
+colnames(tmp) <- c("pair", "mrk1", "mrk2")
+tmp$nb.offs <- NA
+tmp$nb.rec <- NA
+tmp[, c("nb.offs", "nb.rec")] <- do.call(rbind, lapply(1:nrow(tmp), function(i){
+  tmp.NA <- genos.cg[[1]][unlist(tmp[i,c("mrk1","mrk2")]),]
+  tmp.noNA <- tmp.NA[, apply(tmp.NA, 2, function(x){! any(x == "-")}), drop=FALSE]
+  if(all(dim(table(tmp.noNA[1,], tmp.noNA[2,])) == c(2,2))){
+    c(ncol(tmp.noNA), table(tmp.noNA[1,], tmp.noNA[2,])[1,2] +
+                      table(tmp.noNA[1,], tmp.noNA[2,])[2,1])
+  } else
+    c(ncol(tmp.noNA), NA)
+}))
+tmp
+## seems to be marker pairs with too many NA's
 ```
 
 Determine the linkage groups, by specifying a distance threshold and a LOD threshold (two markers are put in the same group if their Haldane distance and two-points LOD are below the thresholds):

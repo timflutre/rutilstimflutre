@@ -618,6 +618,67 @@ filterSegreg <- function(x, thresh.pval=0.05, return.counts=FALSE, verbose=1){
   return(output[, idx])
 }
 
+##' Test for linkage
+##'
+##' Computes the LOD score(s) given recombination fraction(s) as well as number of non-recombinants and recombinants, testing for "ref.frac = 0".
+##' @param rec.frac vector of recombination fraction(s); if above 0.5, will use 1 - rec.frac; will be recycled to match nb.nonrec and nb.rec
+##' @param nb.nonrec vector of number(s) of non-recombinant offsprings; will be recycled to match rec.frac
+##' @param nb.rec vector of number(s) of recombinant offsprings; will be recycled to match rec.frac
+##' @return vector of LOD score(s)
+##' @author Timothee Flutre
+##' @examples
+##' \dontrun{## from "Genetic map construction with R/qtl" by Karl Broman (2012)
+##' ## page 10: http://www.rqtl.org/tutorials/geneticmaps.pdf
+##' n <- 300
+##' nb.rec <- 27 + 27
+##' nb.nonrec <- 300 - nb.rec
+##' (est.rec.frac <- nb.rec / n) # estimator for a backcross; 0.18
+##' lodLinkage(est.rec.frac, nb.nonrec, nb.rec) # ~28.9
+##'
+##' ## show how input rec.frac is recycled
+##' lodLinkage(seq(0, 0.5, 0.05), nb.nonrec, nb.rec)
+##' plot(lodLinkage(seq(0, 0.5, 0.05), nb.nonrec, nb.rec), type="b",
+##'      xlab="recombination fraction", ylab="LOD score", las=1)
+##'
+##' ## show how inputs nb.nonrec and nb.rec are recycled
+##' lodLinkage(est.rec.frac, n - 60, 60)
+##' lodLinkage(est.rec.frac, c(n - 54, n - 60), c(54, 60))
+##' }
+##' @export
+lodLinkage <- function(rec.frac, nb.nonrec, nb.rec){
+  stopifnot(is.numeric(rec.frac),
+            is.numeric(nb.nonrec),
+            is.numeric(nb.rec),
+            length(nb.nonrec) == length(nb.rec))
+
+  lod <- rep(NA, max(c(length(rec.frac), length(nb.nonrec), length(nb.rec))))
+
+  ## handle rec.frac
+  is.not.NA <- ! is.na(rec.frac)
+  stopifnot(rec.frac[is.not.NA] >= 0,
+            rec.frac[is.not.NA] <= 1)
+
+  ## handle nb.nonrec and nb.rec
+  if(any(! is.not.NA)){
+    if(length(nb.nonrec) == 1){
+      nb.nonrec <- rep(nb.nonrec, sum(is.not.NA))
+      nb.rec <- rep(nb.rec, sum(is.not.NA))
+    } else if(length(nb.nonrec) == length(rec.frac)){
+      nb.nonrec <- nb.nonrec[is.not.NA]
+      nb.rec <- nb.rec[is.not.NA]
+    } else{
+      msg <- "can't handle ref.frac with NA's and length(nb.nonrec) != length(rec.frac)"
+      stop(msg)
+    }
+  }
+
+  lod[is.not.NA] <- nb.nonrec * log10(1 - rec.frac[is.not.NA]) +
+    nb.rec * log10(rec.frac[is.not.NA]) +
+    (nb.nonrec + nb.rec) * log10(2)
+
+  return(lod)
+}
+
 ##' JoinMap/MapQTL to R/qtl
 ##'
 ##' Return the correspondence in terms of genotype coding between the format used by \href{https://www.kyazma.nl/index.php/JoinMap/}{JoinMap} and the one used by \href{https://cran.r-project.org/package=qtl}{qtl}.
