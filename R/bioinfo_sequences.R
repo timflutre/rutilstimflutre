@@ -2223,8 +2223,8 @@ gtVcf2genoClasses <- function(vcf, na.string=NA, single.alt=TRUE){
 ##' Convert genotypes at SNPs from a VCF file into genotypic classes.
 ##' @param vcf.file path to the VCF file (if the bgzip index doesn't exist in the same directory, it will be created)
 ##' @param genome genome identifier (e.g. "VITVI_12x2")
-##' @param gclasses.file path to the output file to record genotypes into genotypic classes (will be gzipped)
-##' @param ca.file path to the output file to record SNP 1-based coordinates and alleles (will be gzipped)
+##' @param gclasses.file path to the output file to record genotypes into genotypic classes (will be gzipped if suffix is ".gz")
+##' @param ca.file path to the output file to record SNP 1-based coordinates and alleles (will be gzipped if suffix is ".gz")
 ##' @param yieldSize number of records to yield each time the file is read from (see \code{?TabixFile}) if seq.id is NULL
 ##' @param dict.file path to the SAM dict file (see \url{https://broadinstitute.github.io/picard/command-line-overview.html#CreateSequenceDictionary}) if seq.id is specified with no start/end
 ##' @param seq.id see \code{\link{seqIdStartEnd2GRanges}}
@@ -2257,7 +2257,9 @@ vcf2genoClasses <- function(vcf.file, genome="", gclasses.file, ca.file,
   for(out.file in c(gclasses.file, ca.file))
     if(file.exists(out.file))
       file.remove(out.file)
+  gzip.gclasses <- ifelse(grepl("\\.gz$", gclasses.file), TRUE, FALSE)
   gclasses.file <- sub("\\.gz$", "", gclasses.file)
+  gzip.ca <- ifelse(grepl("\\.gz$", ca.file), TRUE, FALSE)
   ca.file <- sub("\\.gz$", "", ca.file)
   gclasses.con <- file(gclasses.file, open="a")
   ca.con <- file(ca.file, open="a")
@@ -2322,8 +2324,10 @@ vcf2genoClasses <- function(vcf.file, genome="", gclasses.file, ca.file,
     if(file.exists(gz.out.file))
       file.remove(gz.out.file)
   if(file.exists(Sys.which("gzip"))){ # should work on Linux and Mac OS
-    system(command=paste("gzip", gclasses.file))
-    system(command=paste("gzip", ca.file))
+    if(gzip.gclasses)
+      system(command=paste("gzip", gclasses.file))
+    if(gzip.ca)
+      system(command=paste("gzip", ca.file))
   } else{
     warning("'gzip' not available on this computer")
   }

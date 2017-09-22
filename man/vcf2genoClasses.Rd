@@ -14,9 +14,9 @@ vcf2genoClasses(vcf.file, genome = "", gclasses.file, ca.file,
 
 \item{genome}{genome identifier (e.g. "VITVI_12x2")}
 
-\item{gclasses.file}{path to the output file to record genotypes into genotypic classes (will be gzipped)}
+\item{gclasses.file}{path to the output file to record genotypes into genotypic classes (will be gzipped if suffix is ".gz")}
 
-\item{ca.file}{path to the output file to record SNP 1-based coordinates and alleles (will be gzipped)}
+\item{ca.file}{path to the output file to record SNP 1-based coordinates and alleles (will be gzipped if suffix is ".gz")}
 
 \item{yieldSize}{number of records to yield each time the file is read from (see \code{?TabixFile}) if seq.id is NULL}
 
