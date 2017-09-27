@@ -250,7 +250,7 @@ tmp <- cbind(dat, scaled.residuals, y.hat)
 AIC(fit.gls)
 ```
 
-```{r gls_cv}
+```{r gls_cv, eval=FALSE}
 fit.gls.cv <- cvFit(gls, data=dat, y=dat$y, cost=rmspe, folds=cvf)
 fit.gls.cv
 glsMeth <- list(label="Generalized least squares",
