@@ -32,13 +32,14 @@ opts_chunk$set(echo=TRUE, warning=TRUE, message=TRUE, cache=FALSE, fig.align="ce
 
 # Overview
 
-This document aims at estimating heritability (borad or narrow sense).
+This document aims at estimating heritability (broad or narrow sense).
 
 This document requires external packages to be available:
 ```{r load_pkg}
 suppressPackageStartupMessages(library(mvtnorm)) # on the CRAN
 suppressPackageStartupMessages(library(lme4)) # on the CRAN
 suppressPackageStartupMessages(library(INLA)) # online
+nb.threads <- 3 # 1
 ```
 
 This R chunk is used to assess how much time it takes to execute the R code in this document until the end:
@@ -47,9 +48,9 @@ t0 <- proc.time()
 ```
 
 
-# Statistical model
+# Model
 
-Let's take the example of a perennial species:
+Let's take as an example multiple genotypes phenotyped several years in a row:
 
 * $I$: number of genotypes
 
@@ -60,17 +61,17 @@ Let's take the example of a perennial species:
 Likelihood:
 
 \[
-\forall q \in \{1,\ldots,Q\}, i \in \{1,\ldots,I\}, \; y_{qi} = \beta_0 + \beta_q + g_i + \epsilon_{qi}
+\forall q \in \{1,\ldots,Q\}, i \in \{1,\ldots,I\}, \; y_{qi} = \beta_q + g_i + \epsilon_{qi}
 \]
 
 with the $\beta$'s being modeled as fixed effects, $\boldsymbol{g} \sim \mathcal{N}(\boldsymbol{0}, \sigma_g^2 \text{Id}_I)$ and $\boldsymbol{\epsilon} \sim \mathcal{N}(\boldsymbol{0}, \sigma_\epsilon^2 \text{Id}_N)$
 
 It can also be rewritten as $\boldsymbol{y} = X \boldsymbol{\beta} + Z \boldsymbol{g} + \boldsymbol{\epsilon}$ where $X$ and $Z$ are incidence matrices.
 
-The main goal is to estimate the heritability $H^2 = \frac{\sigma_g^2}{\sigma_g^2 + \sigma_\^epsilon^2}$ and quantify its uncertainty.
+The main goal here is to estimate the (broad-sense) heritability $H^2 = \frac{\sigma_g^2}{\sigma_g^2 + \sigma_\epsilon^2}$ and quantify its uncertainty.
 
 
-# Simulate data
+# Simulation
 
 Set the seed:
 ```{r set_seed}
@@ -89,7 +90,7 @@ sigma.g^2 / (sigma.g^2 + sigma.epsilon^2)
 
 Simulate the explanatory and error variables:
 ```{r simul_var}
-beta <- matrix(c(50, rmvnorm(n=1, mean=rep(0, Q-1), sigma=10 * diag(Q-1))))
+beta <- matrix(c(50, rmvnorm(n=1, mean=rep(0, Q-1), sigma=20 * diag(Q-1))))
 g <- t(rmvnorm(n=1, mean=rep(0, I), sigma=sigma.g^2 * diag(I)))
 epsilon <- t(rmvnorm(n=1, mean=rep(0, N), sigma=sigma.epsilon^2 * diag(N)))
 ```
@@ -116,6 +117,20 @@ str(dat)
 ```
 
 
+# Data exploration
+
+```{r}
+tapply(dat$pheno, list(dat$year), summary)
+```
+
+```{r}
+boxplot(pheno ~ year, data=dat, las=1, varwidth=TRUE,
+        xlab="years", ylab="phenotypes",
+        main="Simulated data")
+abline(h=mean(dat$pheno), lty=2)
+```
+
+
 # Inference
 
 ## With lme4
@@ -124,9 +139,11 @@ str(dat)
 
 ```{r lmer_fit}
 system.time(
-    fit.lmer.g <- lmer(formula=pheno ~ 1 + (1|geno), data=dat, REML=TRUE))
+    fit.lmer.g <- lmer(formula=pheno ~ 1 + (1|geno),
+                       data=dat, REML=TRUE))
 system.time(
-    fit.lmer.y.g <- lmer(formula=pheno ~ 1 + year + (1|geno), data=dat, REML=TRUE))
+    fit.lmer.y.g <- lmer(formula=pheno ~ 1 + year + (1|geno),
+                         data=dat, REML=TRUE))
 ```
 
 ### Model comparison and selection
@@ -195,77 +212,223 @@ Confidence interval on heritability:
 
 ## With INLA
 
+### Model formulations
+
+See [Holand *et al* (2013)](http://dx.doi.org/10.1534/g3.113.006700).
+
+* model formulation 1 (MF1): used to compare and select models, and estimate $\sigma_\epsilon^2$
+
+    1. likelihood: $y_{qi} | \eta_{qi} \sim \mathcal{N}(\eta_{qi}, \sigma_\epsilon^2)$
+    
+    2. latent field: $\eta_{qi} = \beta_q + g_i + e_{qi}$ with $\boldsymbol{\beta} \sim \mathcal{N}(\boldsymbol{0}, \sigma_\beta^2 \text{Id}_Q)$, $\boldsymbol{g} \sim \mathcal{N}(\boldsymbol{0}, \sigma_g^2 \text{Id}_I)$, and $\boldsymbol{e} \sim \mathcal{N}(\boldsymbol{0}, \sigma_e^2 \text{Id}_N)$
+    
+    3. prior on hyperparameters: $\sigma_\beta^2$ is fixed at a large value ($2.2 \times 10^4 \approx 1/\exp(-10)$), $\sigma_e^2$ is fixed at a small value ($4.5 \times 10^{-5} \approx 1/\exp(10)$), $\sigma_g^2 \text{ and } \sigma_\epsilon^2 \sim \mathcal{IG}(0.5, 0.5)$
+    
+* model formulation 2 (MF2): used to estimate heritability
+
+    1. likelihood: $y_{qi} | \eta_{qi} \sim \mathcal{N}(\eta_{qi}, \sigma_e^2)$
+    
+    2. latent field: $\eta_{qi} = \beta_q + g_i + \epsilon_{qi}$ with $\boldsymbol{\beta} \sim \mathcal{N}(\boldsymbol{0}, \sigma_\beta^2 \text{Id}_Q)$, $\boldsymbol{g} \sim \mathcal{N}(\boldsymbol{0}, \sigma_g^2 \text{Id}_I)$, and $\boldsymbol{\epsilon} \sim \mathcal{N}(\boldsymbol{0}, \sigma_\epsilon^2 \text{Id}_N)$
+    
+    3. prior on hyperparameters: same as MF1
+    
+
 ### Model fitting
 
-```{r inla_fit}
+```{r inla_fit_prep_dat}
+dat.inla <- cbind(dat, obs.id=paste(dat$geno, dat$year, sep="-"))
+```
+
+#### MF1
+
+```{r inla_fit_MF1}
 system.time(
-    fit.inla.g <- inla(formula=pheno ~ 1 + f(geno, model="iid"),
-                       family="gaussian", data=dat,
-                       control.compute=list(waic=TRUE)))
+    fit.inla.MF1.g <- inla(
+        formula=pheno ~ 1 +
+          f(geno, model="iid", constr=TRUE,
+            hyper=list(theta=list(param=c(0.5, 0.5)))) +
+          f(obs.id, model="iid", constr=TRUE,
+            hyper=list(theta=list(initial=10, fixed=TRUE))),
+        family="gaussian",
+        control.family=list(hyper=list(theta=list(param=c(0.5, 0.5)))),
+        data=dat.inla,
+        control.compute=list(waic=TRUE),
+        num.threads=nb.threads))
 system.time(
-    fit.inla.y.g <- inla(formula=pheno ~ 1 + year + f(geno, model="iid"),
-                         family="gaussian", data=dat,
-                         control.compute=list(waic=TRUE)))
+    fit.inla.MF1.y.g <- inla(
+        formula=pheno ~ 1 +
+          year +
+          ## f(year, model="iid", constr=TRUE,
+          ##   hyper=list(theta=list(initial=-10, fixed=TRUE))) +
+          f(geno, model="iid", constr=TRUE,
+            hyper=list(theta=list(param=c(0.5, 0.5)))) +
+          f(obs.id, model="iid", constr=TRUE,
+            hyper=list(theta=list(initial=10, fixed=TRUE))),
+        family="gaussian",
+        control.family=list(hyper=list(theta=list(param=c(0.5, 0.5)))),
+        data=dat.inla,
+        control.compute=list(waic=TRUE),
+        num.threads=nb.threads))
+```
+
+#### MF2
+
+```{r inla_fit_MF2}
+system.time(
+    fit.inla.MF2.g <- inla(
+        formula=pheno ~ 1 +
+          f(geno, model="iid", constr=TRUE,
+            hyper=list(theta=list(param=c(0.5, 0.5)))) +
+          f(obs.id, model="iid", constr=TRUE,
+            hyper=list(theta=list(param=c(0.5, 0.5)))),
+        family="gaussian",
+        control.family=list(hyper=list(theta=list(initial=10, fixed=TRUE))),
+        data=dat.inla,
+        control.compute=list(waic=TRUE),
+        num.threads=nb.threads))
+system.time(
+    fit.inla.MF2.y.g <- inla(
+        formula=pheno ~ 1 +
+          year +
+          ## f(year, model="iid", constr=TRUE,
+          ##   hyper=list(theta=list(initial=-10, fixed=TRUE))) +
+          f(geno, model="iid", constr=TRUE,
+            hyper=list(theta=list(param=c(0.5, 0.5)))) +
+          f(obs.id, model="iid", constr=TRUE,
+            hyper=list(theta=list(param=c(0.5, 0.5)))),
+        family="gaussian",
+        control.family=list(hyper=list(theta=list(initial=10, fixed=TRUE))),
+        data=dat.inla,
+        control.compute=list(waic=TRUE),
+        num.threads=nb.threads))
 ```
 
 ### Model comparison and selection
 
-```{r inla_select}
-c(fit.inla.g$waic$p.eff, fit.inla.g$waic$waic)
-c(fit.inla.y.g$waic$p.eff, fit.inla.y.g$waic$waic)
-fit.inla <- fit.inla.y.g
+Posterior predictive checks: see Held, Schrödle and Rue (2010), and use `inla.pmarginal()`?
+
+#### MF1
+
+```{r inla_select_MF1}
+c(fit.inla.MF1.g$waic$p.eff, fit.inla.MF1.g$waic$waic)
+c(fit.inla.MF1.y.g$waic$p.eff, fit.inla.MF1.y.g$waic$waic)
+fit.inla.MF1 <- fit.inla.MF1.y.g
 ```
 
-Posterior predictive checks: see Held, Schrödle and Rue (2010), and use `inla.pmarginal()`?
+#### MF2
+
+As expected, using MF2 to compare models via likelihood-based metrics doesn't work:
+```{r inla_select_MF2, eval=TRUE}
+c(fit.inla.MF2.g$waic$p.eff, fit.inla.MF2.g$waic$waic)
+c(fit.inla.MF2.y.g$waic$p.eff, fit.inla.MF2.y.g$waic$waic)
+fit.inla.MF2 <- fit.inla.MF2.y.g
+```
 
 ### Diagnostics
 
-```{r inla_orga}
-beta.hat.inla <- fit.inla$summary.fixed[,"mean"]
-g.hat.inla <- setNames(fit.inla$summary.random$geno[,"mean"],
-                       fit.inla$summary.random$geno[,"ID"])
-sigma.epsilon.hat.inla <- 1 / sqrt(fit.inla$summary.hyperpar[1, "mean"])
-sigma.g.hat.inla <- 1 / sqrt(fit.inla$summary.hyperpar[2, "mean"])
-fit.inla.all <- cbind(dat,
-                      fitted=fit.inla$summary.linear.predictor[,"mean"],
-                      cond.res=NA,
-                      scl.cond.res=NA)
-fit.inla.all$cond.res <- dat$pheno - fit.inla.all$fitted
-fit.inla.all$scl.cond.res <- fit.inla.all$cond.res / rep(sigma.g.hat.inla, N)
-str(fit.inla.all, give.attr=FALSE)
+#### MF1
+
+```{r inla_orga_MF1}
+beta.hat.inla.MF1 <- setNames(fit.inla.MF1$summary.fixed[,"mean"],
+                              rownames(fit.inla.MF1$summary.fixed))
+g.hat.inla.MF1 <- setNames(fit.inla.MF1$summary.random$geno[,"mean"],
+                           fit.inla.MF1$summary.random$geno[,"ID"])
+idx <- grep("Gaussian observations", rownames(fit.inla.MF1$summary.hyperpar))
+sigma.epsilon.hat.inla.MF1 <- 1 / sqrt(fit.inla.MF1$summary.hyperpar[idx, "mean"])
+idx <- grep("geno", rownames(fit.inla.MF1$summary.hyperpar))
+sigma.g.hat.inla.MF1 <- 1 / sqrt(fit.inla.MF1$summary.hyperpar[idx, "mean"])
+fit.inla.MF1.all <- cbind(dat,
+                          fitted=fit.inla.MF1$summary.linear.predictor[,"mean"],
+                          cond.res=NA,
+                          scl.cond.res=NA)
+fit.inla.MF1.all$cond.res <- dat$pheno - fit.inla.MF1.all$fitted
+fit.inla.MF1.all$scl.cond.res <- fit.inla.MF1.all$cond.res / rep(sigma.g.hat.inla.MF1, N)
+str(fit.inla.MF1.all, give.attr=FALSE)
 ```
 
-```{r inla_check}
+```{r inla_check_MF1}
 (low.bound.norm.95 <- qnorm(p=0.025, mean=0, sd=1, lower.tail=TRUE))
-x.lim <- max(abs(fit.inla.all$scl.cond.res), na.rm=TRUE)
-plot(x=fit.inla.all$scl.cond.res, y=fit.inla.all$fitted, las=1,
+x.lim <- max(abs(fit.inla.MF1.all$scl.cond.res), na.rm=TRUE)
+plot(x=fit.inla.MF1.all$scl.cond.res, y=fit.inla.MF1.all$fitted, las=1,
      xlim=c(-x.lim, x.lim))
 abline(v=0, lty=2)
 abline(v=c(low.bound.norm.95, abs(low.bound.norm.95)), lty=3)
-shapiro.test(fit.inla.all$scl.cond.res)
-qqnorm(y=fit.inla.all$scl.cond.res, main="Normal Q-Q plot of scl.cond.res")
-qqline(y=fit.inla.all$scl.cond.res, col="red")
-x.lim <- max(abs(g.hat.inla))
+shapiro.test(fit.inla.MF1.all$scl.cond.res)
+qqnorm(y=fit.inla.MF1.all$scl.cond.res, main="Normal Q-Q plot of scl.cond.res")
+qqline(y=fit.inla.MF1.all$scl.cond.res, col="red")
+x.lim <- max(abs(g.hat.inla.MF1))
 par(mar=c(5,6,4,1))
-plot(x=g.hat.inla, y=1:length(g.hat.inla),
+plot(x=g.hat.inla.MF1, y=1:length(g.hat.inla.MF1),
      xlim=c(-x.lim, x.lim),
      yaxt="n", ylab="")
-axis(side=2, at=1:length(g.hat.inla), labels=names(g.hat.inla),
+axis(side=2, at=1:length(g.hat.inla.MF1), labels=names(g.hat.inla.MF1),
+     las=1)
+abline(v=0, lty=2)
+```
+
+#### MF2
+
+```{r inla_orga_MF2}
+beta.hat.inla.MF2 <- setNames(fit.inla.MF2$summary.fixed[,"mean"],
+                              rownames(fit.inla.MF2$summary.fixed))
+g.hat.inla.MF2 <- setNames(fit.inla.MF2$summary.random$geno[,"mean"],
+                           fit.inla.MF2$summary.random$geno[,"ID"])
+idx <- grep("obs.id", rownames(fit.inla.MF2$summary.hyperpar))
+sigma.epsilon.hat.inla.MF2 <- 1 / sqrt(fit.inla.MF2$summary.hyperpar[idx, "mean"])
+idx <- grep("geno", rownames(fit.inla.MF2$summary.hyperpar))
+sigma.g.hat.inla.MF2 <- 1 / sqrt(fit.inla.MF2$summary.hyperpar[idx, "mean"])
+fit.inla.MF2.all <- cbind(dat,
+                          fitted=fit.inla.MF2$summary.linear.predictor[,"mean"],
+                          cond.res=NA,
+                          scl.cond.res=NA)
+fit.inla.MF2.all$cond.res <- dat$pheno - fit.inla.MF2.all$fitted
+fit.inla.MF2.all$scl.cond.res <- fit.inla.MF2.all$cond.res / rep(sigma.g.hat.inla.MF2, N)
+str(fit.inla.MF2.all, give.attr=FALSE)
+```
+
+```{r inla_check_MF2}
+(low.bound.norm.95 <- qnorm(p=0.025, mean=0, sd=1, lower.tail=TRUE))
+x.lim <- max(abs(fit.inla.MF2.all$scl.cond.res), na.rm=TRUE)
+plot(x=fit.inla.MF2.all$scl.cond.res, y=fit.inla.MF2.all$fitted, las=1,
+     xlim=c(-x.lim, x.lim))
+abline(v=0, lty=2)
+abline(v=c(low.bound.norm.95, abs(low.bound.norm.95)), lty=3)
+shapiro.test(fit.inla.MF2.all$scl.cond.res)
+qqnorm(y=fit.inla.MF2.all$scl.cond.res, main="Normal Q-Q plot of scl.cond.res")
+qqline(y=fit.inla.MF2.all$scl.cond.res, col="red")
+x.lim <- max(abs(g.hat.inla.MF2))
+par(mar=c(5,6,4,1))
+plot(x=g.hat.inla.MF2, y=1:length(g.hat.inla.MF2),
+     xlim=c(-x.lim, x.lim),
+     yaxt="n", ylab="")
+axis(side=2, at=1:length(g.hat.inla.MF2), labels=names(g.hat.inla.MF2),
      las=1)
 abline(v=0, lty=2)
 ```
 
 ### Inference
 
-```{r inla_res}
-summary(fit.inla)
-cbind(beta, beta.hat.inla)
-cor(g, g.hat.inla)
-c(sigma.epsilon, sigma.epsilon.hat.inla)
-c(sigma.g, sigma.g.hat.inla)
+#### MF1
+
+```{r inla_res_MF1}
+summary(fit.inla.MF1)
+cbind(beta, beta.hat.inla.MF1)
+cor(g, g.hat.inla.MF1)
+c(sigma.epsilon, sigma.epsilon.hat.inla.MF1)
+c(sigma.g, sigma.g.hat.inla.MF1)
 ```
 
-TODO: understand how AnimalINLA provides intervals for heritability
+#### MF2
+
+```{r inla_res_MF2}
+summary(fit.inla.MF2)
+cbind(beta, beta.hat.inla.MF2)
+cor(g, g.hat.inla.MF2)
+c(sigma.epsilon, sigma.epsilon.hat.inla.MF2)
+c(sigma.g, sigma.g.hat.inla.MF2)
+```
+
+TODO: retrieve inference results for heritability
 
 
 ## With MCMCglmm
