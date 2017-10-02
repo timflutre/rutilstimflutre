@@ -504,10 +504,10 @@ test_that("genoDoses2genoClasses", {
   P <- 4 # SNPs
   X <- matrix(c(1,1, NA,0, 2,1, 1,NA), nrow=N, ncol=P,
               dimnames=list(paste0("ind", 1:N), paste0("snp", 1:P)))
-  alleles <- data.frame(first=c("T","T","A","C"),
-                        second=c("A","A","T","G"),
+  alleles <- data.frame(first=c("T","T","A","C","C"),
+                        second=c("A","A","T","G","G"),
                         stringsAsFactors=FALSE)
-  rownames(alleles) <- colnames(X)
+  rownames(alleles) <- c(colnames(X), paste0("snp", P+1))
 
   expected <- data.frame(ind1=c("TA", "??", "TT", "CG"),
                          ind2=c("TA", "TT", "AT", "??"),

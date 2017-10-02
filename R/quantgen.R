@@ -2114,11 +2114,10 @@ genoDoses2genoClasses <- function(X=NULL, tX=NULL, alleles, na.string="--",
             ! is.null(row.names(alleles)))
   if(! is.null(X)){
     stopIfNotValidGenosDose(X=X, check.noNA=FALSE)
-    stopifnot(all(rownames(alleles) %in% colnames(X)))
     tX <- t(X)
   }
-  stopifnot(all(rownames(alleles) %in% rownames(tX)))
   alleles <- convertFactorColumnsToCharacter(alleles)
+  alleles <- alleles[rownames(tX),]
 
   if(verbose > 0){
     msg <- paste0("convert ", nrow(tX), " SNPs for ",
