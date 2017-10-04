@@ -1114,6 +1114,170 @@ phasedJoinMapCP2qtl <- function(x, verbose=1){
   return(out)
 }
 
+##' Read genotypes for JoinMap/MapQTL
+##'
+##' Read genotype data from a file in the \href{https://www.kyazma.nl/index.php/JoinMap/}{JoinMap} format ("loc").
+##' @param file name of the file from which the data will be read (can be compressed with gzip)
+##' @param na.string a character to be interpreted as NA values
+##' @param verbose verbosity level (0/1)
+##' @return data frame in the JoinMap format
+##' @author Timothee Flutre
+##' @seealso \code{\link{writeSegregJoinMap}}
+##' @note the code is heavily inspired from the "read.cross.mq.loc" function in the "qtl" package, which I also wrote
+##' @export
+readSegregJoinMap <- function(file, na.string="--", verbose=1){
+  stopifnot(file.exists(file))
+
+  if(verbose > 0){
+    msg <- paste0("read genotypes from JoinMap file '",
+                  file, "'...")
+    write(msg, stdout())
+  }
+
+  lines <- readLines(con=file, warn=FALSE)
+
+  ## drop comments
+  lines <- vapply(strsplit(lines, ";"), "[", "", 1)
+
+  ## drop empty lines
+  lines <- lines[!is.na(lines)]
+  blank <- grep("^\\s*$", lines)
+  if(length(blank) > 0)
+    lines <- lines[-blank]
+
+  grab.param <- function(lines, param, longname, filetype){
+    ## stuff for error message
+    if(missing(filetype)) filetype <- ""
+    else filetype <- paste(" in", filetype, "file")
+    if(missing(longname)) longname <- param
+
+    g <- grep(param, lines)
+    if(length(g) == 0)
+      stop("Cannot find ", longname, " in ", filetype)
+
+    ## remove white space
+    line <- gsub("\\s+", "", lines[g])
+
+    result <- strsplit(line, "=")[[1]][2]
+
+    return(list(result, g)) # g is the line number
+  }
+
+  ## extract the population name
+  res <- grab.param(lines, "^name", "population name", "loc")
+  pop.name <- res[[1]]
+  todrop <- res[[2]]
+  if(verbose > 0){
+    msg <- paste0("population name: ", pop.name)
+    write(msg, stdout())
+  }
+
+  ## extract the population type
+  res <- grab.param(lines, "^popt", "population type", "loc")
+  pop.type <- res[[1]]
+  todrop <- c(todrop, res[[2]])
+  pop.types <- c("BC1","F2","RIx","DH","DH1","DH2","HAP","HAP1","CP","BCpxFy",
+                 "IMxFy")
+  if(! pop.type %in% pop.types){
+    msg <- paste("unknown population type", pop.type)
+    stop(msg, call.=FALSE)
+  }
+  if(verbose > 0){
+    msg <- paste0("population type: ", pop.type)
+    write(msg, stdout())
+  }
+
+  ## extract the number of loci
+  res <- grab.param(lines, "^nloc", "Number of loci", "loc")
+  nb.loci <- as.numeric(res[[1]])
+  todrop <- c(todrop, res[[2]])
+  if(verbose > 0){
+    msg <- paste0("nb of loci: ", nb.loci)
+    write(msg, stdout())
+  }
+  seg <- rep(NA, nb.loci)
+  phase <- rep(NA, nb.loci)
+  classif <- rep(NA, nb.loci)
+
+  ## extract the number of individuals
+  res <- grab.param(lines, "^nind", "Number of individuals", "loc")
+  nb.inds <- as.numeric(res[[1]])
+  todrop <- c(todrop, res[[2]])
+  if(verbose > 0){
+    msg <- paste0("nb of individuals: ", nb.inds)
+    write(msg, stdout())
+  }
+
+  genotypes <- matrix(NA, nrow=nb.loci, ncol=nb.inds)
+
+  ## extract the individual names (if any)
+  idx <- grep("individual names:", lines)
+  if(length(idx) > 0){
+    range.idx <- (idx+1):(idx+nb.inds)
+    if(any(range.idx > length(lines))){
+      msg <- "can't retrieve the individual names"
+      stop(msg)
+    }
+    ind.names <- lines[range.idx]
+    stopifnot(! anyDuplicated(ind.names))
+    colnames(genotypes) <- ind.names
+    todrop <- c(todrop, c(idx, range.idx))
+  } else if(length(idx) > 1){
+    msg <- "individual names defined multiple times"
+    stop(msg)
+  }
+
+  lines <- lines[-todrop]
+  if(length(lines) != nb.loci){
+    msg <- paste0("the number of loci indicated in the header (", nb.loci,
+                  " seems to be wrong")
+    stop(msg)
+  }
+  spl <- strsplit(lines, "\\s+")
+  spl.lengths <- vapply(spl, length, 1)
+  if(any(spl.lengths > nb.inds+4))
+    stop("lines should have no more than ", nb.inds+4, " columns\n",
+         "Problems in lines", seq(along=spl.lengths)[spl.lengths > nb.inds+4])
+
+  rownames(genotypes) <- vapply(spl, "[", "", 1)
+
+  for(line.id in 1:length(lines)){
+    tokens <- spl[[line.id]]
+
+    if(length(tokens) > nb.inds + 1){
+      for(i in 2:(length(tokens)-nb.inds)){
+        if(length(grep(pattern="\\{", x=tokens[i])) > 0){
+          phase[line.id] <- tokens[i]
+        } else if(length(grep(pattern="\\(", x=tokens[i])) > 0){
+          classif[line.id] <- tokens[i]
+        } else if(length(grep(pattern="<", x=tokens[i])) > 0){
+          seg[line.id] <- tokens[i]
+        }
+      }
+    }
+
+    genotypes[line.id,] <- tokens[(length(tokens)-nb.inds+1):length(tokens)]
+  }
+
+  ## convert all missing data to NA
+  is.miss <- genotypes == na.string
+  if(any(is.miss, na.rm=TRUE))
+    genotypes[which(is.miss)] <- NA
+
+  out <- data.frame(dummy=rep(NA, nrow(genotypes)))
+  if(! all(is.na(seg)))
+    out <- cbind(out, seg=seg)
+  if(! all(is.na(phase)))
+    out <- cbind(out, phase=phase)
+  if(! all(is.na(classif)))
+    out <- cbind(out, classif=classif)
+  out <- cbind(out, as.data.frame(genotypes))
+  out <- out[,-1]
+  out <- convertFactorColumnsToCharacter(out)
+
+  return(out)
+}
+
 ##' Write genotypes for JoinMap/MapQTL
 ##'
 ##' Write genotype data in the \href{https://www.kyazma.nl/index.php/JoinMap/}{JoinMap} format into a "loc" file used by this software.
@@ -1126,10 +1290,11 @@ phasedJoinMapCP2qtl <- function(x, verbose=1){
 ##' @param classifs vector of classification types (optional)
 ##' @param file name of the file in which the data will be saved (will be compressed if ends with ".gz" and "gzip" is available in the PATH)
 ##' @param save.ind.names if TRUE, individual names will be saved at the end of the file
+##' @param na.string character to replace NA's in "genos"
 ##' @param verbose verbosity level (0/1)
 ##' @return nothing
 ##' @author Timothee Flutre
-##' @seealso \code{\link{genoClasses2JoinMap}}
+##' @seealso \code{\link{genoClasses2JoinMap}}, \code{\link{readSegregJoinMap}}
 ##' @examples
 ##' \dontrun{## make fake data
 ##' nb.snps <- 6
@@ -1148,8 +1313,10 @@ phasedJoinMapCP2qtl <- function(x, verbose=1){
 ##' }
 ##' @export
 writeSegregJoinMap <- function(pop.name, pop.type="CP",
-                               locus, segregs, genos, phases=NULL, classifs=NULL,
-                               file, save.ind.names=TRUE, verbose=1){
+                               locus, segregs, genos,
+                               phases=NULL, classifs=NULL,
+                               file, save.ind.names=TRUE, na.string="--",
+                               verbose=1){
   requireNamespace("tools")
   stopifnot(is.character(pop.name),
             is.character(pop.type),
@@ -1162,7 +1329,8 @@ writeSegregJoinMap <- function(pop.name, pop.type="CP",
             nrow(genos) == length(locus),
             nrow(genos) == length(segregs),
             is.character(file),
-            is.logical(save.ind.names))
+            is.logical(save.ind.names),
+            is.character(na.string))
   if(! is.null(phases))
     stopifnot(is.character(phases),
               nrow(genos) == length(phases))
@@ -1204,6 +1372,7 @@ writeSegregJoinMap <- function(pop.name, pop.type="CP",
     tmp <- cbind(tmp, phases)
   if(! is.null(classifs))
     tmp <- cbind(tmp, classifs)
+  genos[is.na(genos)] <- na.string
   tmp <- cbind(tmp, genos)
   suppressWarnings(utils::write.table(x=tmp, file=con, append=TRUE,
                                       quote=FALSE, sep="\t",

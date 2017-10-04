@@ -112,6 +112,38 @@ test_that("genoClasses2JoinMap", {
   expect_equal(observed, expected)
 })
 
+test_that("readSegregJoinMap", {
+  tmpd <- tempdir()
+
+  jm.file <- paste0(tmpd, "/genos.loc")
+
+  nb.locus <- 6
+  nb.genos <- 4
+  jm <- data.frame(seg=c("<abxcd>", "<efxeg>", "<hkxhk>", "<lmxll>", "<nnxnp>",
+                         NA),
+                   phase=rep("{??}", nb.locus),
+                   geno1=c("ac", "ee", "hh", "ll", "nn", NA),
+                   geno2=c("ad", "eg", "hk", "ll", "np", NA),
+                   geno3=c("bc", "ef", "hk", "lm", "nn", NA),
+                   geno4=c("bd", "fg", "kk", "lm", NA, NA),
+                   row.names=paste0("loc", 1:nb.locus),
+                   stringsAsFactors=FALSE)
+  writeSegregJoinMap(pop.name="test", pop.type="CP",
+                     locus=rownames(jm), segregs=jm$seg,
+                     genos=jm[,-c(1:2)], phases=jm$phase,
+                     file=jm.file, save.ind.names=TRUE,
+                     na.string="--", verbose=0)
+
+  expected <- jm
+
+  observed <- readSegregJoinMap(file=jm.file, na.string="--", verbose=0)
+
+  expect_equal(observed, expected)
+
+  if(file.exists(jm.file))
+    file.remove(jm.file)
+})
+
 test_that("joinMap2backcross_qtl", {
   nb.locus <- 6
   nb.genos <- 4
