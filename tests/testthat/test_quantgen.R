@@ -78,31 +78,31 @@ test_that("updateJoinMap", {
 test_that("genoClasses2JoinMap", {
   nb.offs <- 4 # offsprings
   N <- 2 + nb.offs
-  P <- 6 # SNPs
-  x <- data.frame(par1=c("AA", "GC", "CG", "AT", NA, "AA"),
-                  par2=c("AT", "GC", "GG", "AT", "AT", "AT"),
-                  off1=c("AA", "GG", "CG", "AA", "AA", "AT"),
-                  off2=c("AT", "GG", "CG", "AT", "AT", "AA"),
-                  off3=c("AT", "GG", "GG", "TT", "TT", NA),
-                  off4=c(NA, NA, NA, NA, NA, NA),
+  P <- 8 # SNPs
+  x <- data.frame(par1=c("AA", "GC", "CG", "AT", NA, "AA", "AA", "GG"),
+                  par2=c("AT", "GC", "GG", "AT", "AT", "AT", "TT", "GG"),
+                  off1=c("AA", "GG", "CG", "AA", "AA", "AT", "AT", "GG"),
+                  off2=c("AT", "GG", "CG", "AT", "AT", "AA", "AT", "GG"),
+                  off3=c("AT", "GG", "GG", "TT", "TT", NA, "AT", "GG"),
+                  off4=c(NA, NA, NA, NA, NA, NA, NA, NA),
                   row.names=paste0("snp", 1:P),
                   stringsAsFactors=FALSE)
 
-  expected <- data.frame(par1=c("nn", "CG", "lm", "hk", NA, "AA"),
-                         par2=c("np", "CG", "ll", "hk", "AT", "AT"),
-                         p1.A=c("A", "C", "C", "A", NA, "A"),
-                         p1.B=c("A", "G", "G", "T", NA, "A"),
-                         p2.C=c("A", "C", "G", "A", "A", "A"),
-                         p2.D=c("T", "G", "G", "T", "T", "T"),
+  expected <- data.frame(par1=c("nn", "CG", "lm", "hk", NA, "AA", "AA", "GG"),
+                         par2=c("np", "CG", "ll", "hk", "AT", "AT", "TT", "GG"),
+                         p1.A=c("A", "C", "C", "A", NA, "A", "A", "G"),
+                         p1.B=c("A", "G", "G", "T", NA, "A", "A", "G"),
+                         p2.C=c("A", "C", "G", "A", "A", "A", "T", "G"),
+                         p2.D=c("T", "G", "G", "T", "T", "T", "T", "G"),
                          seg.pars=c("<nnxnp>", "<hkxhk>", "<lmxll>", "<hkxhk>",
-                                    NA, "<nnxnp>"),
+                                    NA, "<nnxnp>", NA, NA),
                          seg.offs=c("<lmxll>_<nnxnp>", NA, "<lmxll>_<nnxnp>",
-                                    "<hkxhk>", "<hkxhk>", NA),
-                         seg=c("<nnxnp>", NA, "<lmxll>", "<hkxhk>", NA, NA),
-                         off1=c("nn", "GG", "lm", "hh", "AA", "AT"),
-                         off2=c("np", "GG", "lm", "hk", "AT", "AA"),
-                         off3=c("np", "GG", "ll", "kk", "TT", NA),
-                         off4=as.character(c(NA, NA, NA, NA, NA, NA)),
+                                    "<hkxhk>", "<hkxhk>", NA, NA, NA),
+                         seg=c("<nnxnp>", NA, "<lmxll>", "<hkxhk>", NA, NA, NA, NA),
+                         off1=c("nn", "GG", "lm", "hh", "AA", "AT", "AT", "GG"),
+                         off2=c("np", "GG", "lm", "hk", "AT", "AA", "AT", "GG"),
+                         off3=c("np", "GG", "ll", "kk", "TT", NA, "AT", "GG"),
+                         off4=as.character(c(NA, NA, NA, NA, NA, NA, NA, NA)),
                          row.names=rownames(x),
                          stringsAsFactors=FALSE)
 
@@ -456,31 +456,33 @@ test_that("getSegregatingLocusPerParent", {
 test_that("filterSegreg", {
   nb.offs <- 6 # offsprings
   N <- 2 + nb.offs
-  P <- 4 # SNPs
-  x <- data.frame(seg=c("<nnxnp>", NA, "<lmxll>", "<hkxhk>"),
-                  off1=c("nn", "GG", "lm", "hh"),
-                  off2=c("np", "GG", "lm", "hk"),
-                  off3=c("np", "GG", "ll", "kk"),
-                  off4=c("np", "GG", "ll", "kk"),
-                  off5=c("nn", "GG", "ll", "hk"),
-                  off6=c("np", NA, NA, "hk"),
+  P <- 5 # SNPs
+  x <- data.frame(seg=c("<nnxnp>", NA, "<lmxll>", "<hkxhk>", "<nnxnp>"),
+                  off1=c("nn", "GG", "lm", "hh", "np"),
+                  off2=c("np", "GG", "lm", "hk", "np"),
+                  off3=c("np", "GG", "ll", "kk", "np"),
+                  off4=c("np", "GG", "ll", "kk", "np"),
+                  off5=c("nn", "GG", "ll", "hk", NA),
+                  off6=c("np", NA, NA, "hk", "np"),
                   row.names=paste0("snp", 1:P),
                   stringsAsFactors=FALSE)
 
-  tmp <- data.frame(nb.classes=c(2, NA, 2, 3),
-                    class1=c("nn", NA, "ll", "hh"),
-                    class2=c("np", NA, "lm", "hk"),
-                    class3=c(NA, NA, NA, "kk"),
-                    class4=c(NA, NA, NA, NA),
-                    obs1=c(2, NA, 3, 1),
-                    obs2=c(4, NA, 2, 3),
-                    obs3=c(NA, NA, NA, 2),
-                    obs4=c(NA, NA, NA, NA),
-                    exp1=c(0.5*6, NA, 0.5*5, 0.25*6),
-                    exp2=c(0.5*6, NA, 0.5*5, 0.5*6),
-                    exp3=c(NA, NA, NA, 0.25*6),
-                    exp4=c(NA, NA, NA, NA),
-                    row.names=rownames(x))
+  tmp <- data.frame(seg=x$seg,
+                    nb.classes=c(2, NA, 2, 3, 2),
+                    class1=c("nn", NA, "ll", "hh", "nn"),
+                    class2=c("np", NA, "lm", "hk", "np"),
+                    class3=c(NA, NA, NA, "kk", NA),
+                    class4=c(NA, NA, NA, NA, NA),
+                    obs1=c(2, NA, 3, 1, 0),
+                    obs2=c(4, NA, 2, 3, 5),
+                    obs3=c(NA, NA, NA, 2, NA),
+                    obs4=c(NA, NA, NA, NA, NA),
+                    exp1=c(0.5*6, NA, 0.5*5, 0.25*6, 0.5*5),
+                    exp2=c(0.5*6, NA, 0.5*5, 0.5*6, 0.5*5),
+                    exp3=c(NA, NA, NA, 0.25*6, NA),
+                    exp4=c(NA, NA, NA, NA, NA),
+                    row.names=rownames(x),
+                    stringsAsFactors=FALSE)
   tmp$chi2 <- c((tmp$obs1[1] - tmp$exp1[1])^2 / tmp$exp1[1] +
                 (tmp$obs2[1] - tmp$exp2[1])^2 / tmp$exp2[1],
                 NA,
@@ -488,14 +490,23 @@ test_that("filterSegreg", {
                 (tmp$obs2[3] - tmp$exp2[3])^2 / tmp$exp2[3],
                 (tmp$obs1[4] - tmp$exp1[4])^2 / tmp$exp1[4] +
                 (tmp$obs2[4] - tmp$exp2[4])^2 / tmp$exp2[4] +
-                (tmp$obs3[4] - tmp$exp3[4])^2 / tmp$exp3[4])
+                (tmp$obs3[4] - tmp$exp3[4])^2 / tmp$exp3[4],
+                (tmp$obs1[5] - tmp$exp1[5])^2 / tmp$exp1[5] +
+                (tmp$obs2[5] - tmp$exp2[5])^2 / tmp$exp2[5])
   tmp$pvalue <- pchisq(q=tmp$chi2, df=tmp$nb.classes - 1, lower.tail=FALSE)
   tmp$pvalue.bonf <- stats::p.adjust(p=tmp$pvalue, method="bonferroni")
   tmp$pvalue.bh <- stats::p.adjust(p=tmp$pvalue, method="BH")
+
   expected <- tmp[, c("chi2", "pvalue", "pvalue.bonf", "pvalue.bh")]
-
   observed <- filterSegreg(x=x, verbose=0)
+  expect_equal(observed, expected)
 
+  expected <- tmp
+  observed <- filterSegreg(x=x, return.counts=TRUE, verbose=0)
+  expect_equal(observed, expected)
+
+  expected <- tmp
+  observed <- filterSegreg(x=x, return.counts=TRUE, nb.cores=2, verbose=0)
   expect_equal(observed, expected)
 })
 
@@ -513,10 +524,14 @@ test_that("genoDoses2genoClasses", {
                          ind2=c("TA", "TT", "AT", "??"),
                          stringsAsFactors=FALSE)
   rownames(expected) <- colnames(X)
+  expected <- as.matrix(expected)
+
+  observed <- genoDoses2genoClasses(X=X, alleles=alleles, na.string="??",
+                                    verbose=0)
+  expect_equal(observed, expected)
 
   observed <- genoDoses2genoClasses(tX=t(X), alleles=alleles, na.string="??",
-                                    verbose=0)
-
+                                    nb.cores=2, verbose=0)
   expect_equal(observed, expected)
 })
 

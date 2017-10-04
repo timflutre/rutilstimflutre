@@ -128,7 +128,7 @@ writeInputsFimpute <- function(ctl.file,
 		vcf2dosage(vcf.file=vcf.file, yieldSize=yieldSize,
 							 gdose.file=paste0(file.prefix, "_gdose.txt.gz"),
 							 ca.file=paste0(file.prefix, "_ca.txt.gz"),
-							 verbose=verbose)
+							 verbose=verbose - 1)
 		X <- t(as.matrix(
 				utils::read.table(file=paste0(file.prefix, "_gdose.txt.gz"),
 													check.names=FALSE)))
@@ -186,6 +186,15 @@ writeInputsFimpute <- function(ctl.file,
     stop("support for 'parentage.test' not yet implemented")
   if(! is.null(ped.depth))
     stopifnot(is.numeric(ped.depth))
+
+  if(verbose > 0){
+    msg <- paste0("nb of genotypes: ", nrow(X),
+                  "\nnb of SNPs: ", ncol(X),
+                  "\nmissing SNP genotypes: ",
+                  format(100 * sum(is.na(X)) / length(X), digits=3),
+                  "%")
+    write(msg, stdout())
+  }
 
   txt <- paste0("title=\"", title, "\";\n")
   cat(txt, file=ctl.file)
@@ -529,7 +538,7 @@ runFimpute <- function(X=NULL, chips=NULL, snp.coords=NULL,
                      save.hap.lib=params.fimpute$save.hap.lib,
                      random.fill=params.fimpute$random.fill,
                      nb.jobs=params.fimpute$nb.jobs,
-                     verbose=verbose-1)
+                     verbose=verbose)
 
   if(verbose > 0){
     msg <- paste0("run ", exe.name, "...")
@@ -554,6 +563,11 @@ runFimpute <- function(X=NULL, chips=NULL, snp.coords=NULL,
       write(msg, stdout())
     }
     out <- readOutputsFimpute(out.dir)
+    if(verbose > 0){
+      msg <- paste0("nb of SNPs with no Mendelian errors after imputation: ",
+                    sum(out$stats.snps.imp$MendelianErr == 0))
+      write(msg, stdout())
+    }
 	}
 
 	if(file.exists(tmp.files["stdouterr"]))

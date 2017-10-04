@@ -4,7 +4,7 @@
 ##'
 ##' Reformat bi-allelic SNP genotypes encoded in genotypic classes to ease subsequent manipulations.
 ##' @param file the name of the file which the data are to be read from, with a header line, columns separated by a tabulation, and row names as the first column
-##' @param x if \code{file=NULL}, data.frame of bi-allelic SNP genotypes encoded in genotypic classes, i.e. in {AA,AB or BA,BB}, with SNPs in rows and genotypes in columns
+##' @param x if \code{file=NULL}, data.frame of bi-allelic SNP genotypes encoded in genotypic classes, i.e. in {AA,AB or BA,BB}, with SNPs in rows and genotypes in columns; if it is a matrix, it will be silently transformed into a data frame
 ##' @param na.string a character to be interpreted as NA values
 ##' @param verbose verbosity level (0/1)
 ##' @return matrix with SNPs in rows and genotypes in columns
@@ -16,8 +16,11 @@ reformatGenoClasses <- function(file=NULL, x=NULL, na.string="--", verbose=1){
   if(! is.null(file)){
     stopifnot(is.character(file),
               file.exists(file))
-  } else if(! is.null(x))
+  } else if(! is.null(x)){
+    if(is.matrix(x))
+      x <- as.data.frame(x)
     stopifnot(is.data.frame(x))
+  }
 
   if(! is.null(file))
     x <- utils::read.table(file=file, header=TRUE, sep="\t", row.names=1)
@@ -247,7 +250,7 @@ updateJoinMap <- function(x, verbose=1){
 ##'
 ##' Convert SNP genotypes of a bi-parental cross from genotypic classes into the \href{https://www.kyazma.nl/index.php/JoinMap/}{JoinMap} format.
 ##' For the moment, missing genotypes in parents result in the SNP being ignored, but we could imagine using genotypes in offsprings to impute such cases.
-##' @param x data.frame of bi-allelic SNP genotypes, with SNPs in rows and genotypes in columns; row names should contain SNP identifiers, the first column should contain the SNP genotypes of the first parent (traditionnaly the mother), the second column should contain the SNP genotypes of the second parent (traditionnaly the father), and the remaining columns should contain the SNP genotypes of the offsprings (full siblings)
+##' @param x data.frame of bi-allelic SNP genotypes, with SNPs in rows and genotypes in columns; row names should contain SNP identifiers, the first column should contain the SNP genotypes of the first parent (traditionnaly the mother), the second column should contain the SNP genotypes of the second parent (traditionnaly the father), and the remaining columns should contain the SNP genotypes of the offsprings (full siblings); if it is a matrix, it will be silently transformed into a data frame
 ##' @param reformat.input if TRUE, the function \code{\link{reformatGenoClasses}} will be used
 ##' @param na.string a character to be interpreted as NA values by \code{\link{reformatGenoClasses}}
 ##' @param thresh.counts threshold (per SNP) on the number of offsprings having a particular genotypic class, below which counts are converted into \code{NA}
@@ -283,9 +286,12 @@ genoClasses2JoinMap <- function(x, reformat.input=TRUE, na.string="--",
   if(reformat.input){
     x <- as.data.frame(reformatGenoClasses(x=x, na.string=na.string,
                                            verbose=verbose))
-  } else
+  } else{
+    if(is.matrix(x))
+      x <- as.data.frame(x)
     stopifnot(is.data.frame(x),
               ! is.null(rownames(x)))
+  }
   x <- convertFactorColumnsToCharacter(x)
   if(verbose > 0){
     msg <- paste0("nb of offsprings: ", ncol(x) - 2)
@@ -515,12 +521,14 @@ genoClasses2JoinMap <- function(x, reformat.input=TRUE, na.string="--",
 ##' @param x data.frame similar to the output from \code{\link{genoClasses2JoinMap}}, with locus in rows and where the first columns corresponding to parents are discarded, i.e. the first column should be named "seg" and the following should correspond to offsprings
 ##' @param thresh.pval significance threshold at which to control the FWER (Bonferroni-adjusted p values) and the FDR (Benjamini-Hochberg-adjusted p values); the number of non-rejected null hypotheses will be shown only if \code{verbose} is non-zero
 ##' @param return.counts if TRUE, counts used to calculate the chi2 statistic are returned
+##' @param nb.cores the number of cores to use, i.e. at most how many child processes will be run simultaneously (not on Windows)
 ##' @param verbose verbosity level (0/1)
 ##' @return data.frame with one row per locus and several columns (chi2, p value, Bonferroni-adjusted p value, Benjamini-Hochberg-adjusted p value), as well as counts (if \code{return.counts=TRUE})
 ##' @author Timothee Flutre
 ##' @seealso \code{\link{genoClasses2JoinMap}}, \code{\link{updateJoinMap}}, \code{\link{plotHistPval}}, \code{\link{qqplotPval}}
 ##' @export
-filterSegreg <- function(x, thresh.pval=0.05, return.counts=FALSE, verbose=1){
+filterSegreg <- function(x, thresh.pval=0.05, return.counts=FALSE, nb.cores=1,
+                         verbose=1){
   stopifnot(is.data.frame(x),
             colnames(x)[1] == "seg",
             all(x$seg %in% c("<nnxnp>", "<lmxll>", "<hkxhk>", "<efxeg>",
@@ -529,68 +537,114 @@ filterSegreg <- function(x, thresh.pval=0.05, return.counts=FALSE, verbose=1){
             length(thresh.pval) == 1,
             all(thresh.pval >= 0, thresh.pval <= 1))
 
-  output <- data.frame(nb.classes=rep(NA, nrow(x)),
-                       row.names=rownames(x))
-  for(cn in c(paste0("class", 1:4), paste0("obs", 1:4), paste0("exp", 1:4),
-              "chi2", "pvalue"))
-    output[[cn]] <- NA
-
   x <- convertFactorColumnsToCharacter(x)
-
-  ## -------------------------------------------------------
-  ## vectorized version:
-
-  ## TODO
-
-  ## -------------------------------------------------------
-  ## un-vectorized version:
 
   idx.rows <- (1:nrow(x))[! is.na(x$seg)]
   if(verbose > 0){
     msg <- paste0("nb of segregations to test: ", length(idx.rows))
     write(msg, stdout())
-    pb <- utils::txtProgressBar(min=0, max=length(idx.rows), style=3)
-    tmp <- stats::setNames(object=cut(x=idx.rows, breaks=10, labels=FALSE),
-                           nm=idx.rows) # to update pb no more than 10 times
   }
-  for(i in idx.rows){
-    obs.classes <- as.character(x[i,-1])
-    distinct.classes <- sort(unique(obs.classes))
-    counts <- table(obs.classes, useNA="no")
 
-    output[i, "nb.classes"] <- length(distinct.classes)
+  info.seg <- list("<nnxnp>"=list(classes=sort(c("nn", "np")),
+                                  exp=rep(0.5, 2)),
+                   "<lmxll>"=list(classes=sort(c("ll", "lm")),
+                                  exp=rep(0.5, 2)),
+                   "<hkxhk>"=list(classes=sort(c("hh", "hk", "kk")),
+                                  exp=c(0.25, 0.5, 0.25)),
+                   "<efxeg>"=list(classes=sort(c("ee", "eg", "ef", "fg")),
+                                  exp=rep(0.25, 4)),
+                   "<abxcd>"=list(classes=sort(c("ac", "ad", "bc", "bd")),
+                                  exp=rep(0.25, 4)))
+  info.seg<- info.seg[names(info.seg) %in% x$seg]
 
-    ## observed counts
-    for(j in seq_along(distinct.classes)){
-      output[i, 1+j] <- distinct.classes[j]
-      output[i, 1+4+j] <- counts[distinct.classes[j]]
-    }
+  output <- data.frame(seg=x$seg,
+                       nb.classes=NA,
+                       row.names=rownames(x),
+                       stringsAsFactors=FALSE)
+  for(cn in c(paste0("class", 1:4), paste0("obs", 1:4), paste0("exp", 1:4),
+              "chi2", "pvalue"))
+    output[[cn]] <- NA
 
-    ## expected counts assuming no segregation distortion
-    if(x$seg[i] %in% c("<nnxnp>", "<lmxll>")){
-      output[i, 1+4+4+(1:2)] <- rep(0.5 * sum(counts), 2)
-    } else if(x$seg[i] == "<hkxhk>"){
-      output[i, 1+4+4+(1:3)] <- c(0.25 * sum(counts),
-                                  0.5 * sum(counts),
-                                  0.25 * sum(counts))
-    } else if(x$seg[i] %in% c("<efxeg>", "<abxcd>"))
-      output[i, 1+4+4+(1:4)] <- c(0.25 * sum(counts),
-                                  0.25 * sum(counts),
-                                  0.25 * sum(counts),
-                                  0.25 * sum(counts))
+  ## -------------------------------------------------------
+  ## parallelized and vectorized version:
 
-    if(verbose > 0){
-      ## utils::setTxtProgressBar(pb, i) # update pb at each loop iteration
-      if(i %in% as.numeric(names(tmp)[cumsum(table(tmp))]))
-        utils::setTxtProgressBar(pb, which(idx.rows == i))
-    }
-  }
-  if(verbose > 0)
-    close(pb)
+  tmp.out <- do.call(rbind, parallel::mclapply(names(info.seg), function(seg){
+    idx.seg <- which(x$seg == seg)
+    nb.classes <- length(info.seg[[seg]]$classes)
+    output$nb.classes[idx.seg] <- nb.classes
+    output[idx.seg, 2+(1:nb.classes)] <- rep(info.seg[[seg]]$classes,
+                                             each=length(idx.seg))
+    obs.counts <- t(apply(x[idx.seg, -1, drop=FALSE], 1, function(obs.classes){
+      table(factor(obs.classes, levels=info.seg[[seg]]$classes), useNA="no")
+    }))
+    output[idx.seg, 2+4+(1:nb.classes)] <- obs.counts
+    exp.counts <- rep(info.seg[[seg]]$exp, each=length(idx.seg)) *
+      rowSums(obs.counts)
+    output[idx.seg, 2+4+4+(1:nb.classes)] <- exp.counts
+    output[idx.seg,]
+  }, mc.cores=nb.cores))
+  output <- rbind(tmp.out, output[is.na(x$seg),])
+  output <- output[rownames(x),]
+
+  ## -------------------------------------------------------
+  ## vectorized version:
+
+  ## zz <- lapply(names(info.seg), function(seg){
+  ##   idx.seg <- which(x$seg == seg)
+  ##   nb.classes <- length(info.seg[[seg]]$classes)
+  ##   output$nb.classes[idx.seg] <<- nb.classes
+  ##   output[idx.seg, 2+(1:nb.classes)] <<- rep(info.seg[[seg]]$classes,
+  ##                                             each=length(idx.seg))
+  ##   obs.counts <- t(apply(x[idx.seg, -1, drop=FALSE], 1, function(obs.classes){
+  ##     table(factor(obs.classes, levels=info.seg[[seg]]$classes), useNA="no")
+  ##   }))
+  ##   output[idx.seg, 2+4+(1:nb.classes)] <<- obs.counts
+  ##   exp.counts <- rep(info.seg[[seg]]$exp, each=length(idx.seg)) *
+  ##     rowSums(obs.counts)
+  ##   output[idx.seg, 2+4+4+(1:nb.classes)] <<- exp.counts
+  ## })
+
+  ## -------------------------------------------------------
+  ## un-vectorized version:
+
+  ## if(verbose > 0){
+  ##   pb <- utils::txtProgressBar(min=0, max=length(idx.rows), style=3)
+  ##   tmp <- stats::setNames(object=cut(x=idx.rows, breaks=10, labels=FALSE),
+  ##                          nm=idx.rows) # to update pb no more than 10 times
+  ## }
+  ## for(i in idx.rows){
+  ##   nb.classes <- length(seg2classes[[x$seg[i]]])
+  ##   output[i, "nb.classes"] <- nb.classes
+  ##   output[i, 2+(1:nb.classes)] <- seg2classes[[x$seg[i]]]
+  ##   obs.classes <- factor(x=x[i,-1], levels=seg2classes[[x$seg[i]]])
+  ##   counts <- table(obs.classes, useNA="no")
+  ##   output[i, 2+4+(1:nb.classes)] <- counts
+
+  ##   ## expected counts assuming no segregation distortion
+  ##   if(x$seg[i] %in% c("<nnxnp>", "<lmxll>")){
+  ##     output[i, 2+4+4+(1:2)] <- rep(0.5 * sum(counts), 2)
+  ##   } else if(x$seg[i] == "<hkxhk>"){
+  ##     output[i, 2+4+4+(1:3)] <- c(0.25 * sum(counts),
+  ##                                 0.5 * sum(counts),
+  ##                                 0.25 * sum(counts))
+  ##   } else if(x$seg[i] %in% c("<efxeg>", "<abxcd>"))
+  ##     output[i, 2+4+4+(1:4)] <- c(0.25 * sum(counts),
+  ##                                 0.25 * sum(counts),
+  ##                                 0.25 * sum(counts),
+  ##                                 0.25 * sum(counts))
+
+  ##   if(verbose > 0){
+  ##     ## utils::setTxtProgressBar(pb, i) # update pb at each loop iteration
+  ##     if(i %in% as.numeric(names(tmp)[cumsum(table(tmp))]))
+  ##       utils::setTxtProgressBar(pb, which(idx.rows == i))
+  ##   }
+  ## }
+  ## if(verbose > 0)
+  ##   close(pb)
 
   ## calculate chi2 and p value
-  output$chi2 <- rowSums((output[,1+4+(1:4)] - output[,1+4+4+(1:4)])^2 /
-                         output[,1+4+4+(1:4)], na.rm=TRUE)
+  output$chi2 <- rowSums((output[,2+4+(1:4)] - output[,2+4+4+(1:4)])^2 /
+                         output[,2+4+4+(1:4)], na.rm=TRUE)
   output$chi2[is.na(output$nb.classes)] <- NA
   output$pvalue <- stats::pchisq(q=output$chi2, df=output$nb.classes - 1,
                                  lower.tail=FALSE)
@@ -2099,19 +2153,22 @@ stopIfNotValidGenosDose <- function(X, check.hasColNames=TRUE,
 ##' The code is not particularly efficient, but at least it exists.
 ##' @param X matrix of bi-allelic SNP genotypes encoded, for each SNP, in number of copies of its second allele, i.e. as allele doses in {0,1,2}, with genotypes in rows and SNPs in columns; the "second" allele is arbitrary, it corresponds to the second column of \code{alleles}, which can be the minor or the major allele
 ##' @param tX matrix with SNPs in rows and genotypes in columns
-##' @param alleles data.frame with SNPs in rows (names as row names) and alleles in columns (exactly 2 columns are required); the second column should correspond to the allele which number of copies is counted at each SNP in \code{X}
+##' @param alleles data.frame with SNPs in rows (names as row names) and alleles in columns (exactly 2 columns are required); the second column should correspond to the allele which number of copies is counted at each SNP in \code{X}; only the rows corresponding to SNPs in X or tX will be kept
 ##' @param na.string character used to replace NA values
+##' @param nb.cores the number of cores to use, i.e. at most how many child processes will be run simultaneously (not on Windows)
 ##' @param verbose verbosity level (0/1)
 ##' @return data.frame with SNPs in rows and genotypes in columns
 ##' @author Timothee Flutre
 ##' @seealso \code{link{genoClasses2genoDoses}}
 ##' @export
 genoDoses2genoClasses <- function(X=NULL, tX=NULL, alleles, na.string="--",
-                                  verbose=1){
+                                  nb.cores=1, verbose=1){
   stopifnot(xor(is.null(X), is.null(tX)),
             is.data.frame(alleles),
             ncol(alleles) == 2,
-            ! is.null(row.names(alleles)))
+            ! is.null(row.names(alleles)),
+            all(! is.na(alleles[,1])),
+            all(! is.na(alleles[,2])))
   if(! is.null(X)){
     stopIfNotValidGenosDose(X=X, check.noNA=FALSE)
     tX <- t(X)
@@ -2123,45 +2180,96 @@ genoDoses2genoClasses <- function(X=NULL, tX=NULL, alleles, na.string="--",
     msg <- paste0("convert ", nrow(tX), " SNPs for ",
                   ncol(tX), " genotypes...")
     write(msg, stdout())
-    idx.rows <- 1:nrow(tX)
-    pb <- utils::txtProgressBar(min=0, max=length(idx.rows), style=3)
-    tmp <- stats::setNames(object=cut(x=idx.rows, breaks=10, labels=FALSE),
-                           nm=idx.rows) # to update pb no more than 10 times
   }
 
-  out <- as.data.frame(tX, row.names=rownames(tX), col.names=colnames(tX))
+  ## -------------------------------------------------------
+  ## vectorized version:
 
-  ## for each SNP
-  for(i in 1:nrow(tX)){
+  alleles$gclass <- paste0(alleles[,1], alleles[,2])
+  if(verbose > 1)
+    print(table(alleles$gclass))
+
+  out <- parallel::mclapply(unique(alleles$gclass), function(gclass){
+    idx.gclass <- which(alleles$gclass == gclass)
+    tmp <- c(tX[idx.gclass,]) # work with a vector
 
     ## convert homozygous for the first allele (AA or A1A1)
-    idx <- which(tX[i,] == 0)
+    idx <- which(tX[idx.gclass,] == 0)
     if(length(idx) > 0)
-      out[i, idx] <- paste0(alleles[i, 1], alleles[i, 1], collapse="")
+      tmp[idx] <- paste0(alleles[idx.gclass[1], 1],
+                         alleles[idx.gclass[1], 1], collapse="")
 
     ## convert heterozygous (AB or A1A2)
-    idx <- which(tX[i,] == 1)
+    idx <- which(tX[idx.gclass,] == 1)
     if(length(idx) > 0)
-      out[i, idx] <- paste0(alleles[i, 1], alleles[i, 2], collapse="")
+      tmp[idx] <- paste0(alleles[idx.gclass[1], 1],
+                         alleles[idx.gclass[1], 2], collapse="")
 
     ## convert homozygous for the second allele (BB or A2A2)
-    idx <- which(tX[i,] == 2)
+    idx <- which(tX[idx.gclass,] == 2)
     if(length(idx) > 0)
-      out[i, idx] <- paste0(alleles[i, 2], alleles[i, 2], collapse="")
+      tmp[idx] <- paste0(alleles[idx.gclass[1], 2],
+                         alleles[idx.gclass[1], 2], collapse="")
 
     ## convert missing (NA)
-    idx <- which(is.na(tX[i,]))
+    idx <- which(is.na(tX[idx.gclass,]))
     if(length(idx) > 0)
-      out[i, idx] <- na.string
+      tmp[idx] <- na.string
 
-    if(verbose > 0){
-      ## utils::setTxtProgressBar(pb, i) # update pb at each loop iteration
-      if(i %in% as.numeric(names(tmp)[cumsum(table(tmp))]))
-        utils::setTxtProgressBar(pb, which(idx.rows == i))
-    }
-  }
-  if(verbose > 0)
-    close(pb)
+    ## transform into a matrix
+    matrix(data=tmp,
+           nrow=nrow(tX[idx.gclass, , drop=FALSE]),
+           ncol=ncol(tX[idx.gclass, , drop=FALSE]),
+           dimnames=dimnames(tX[idx.gclass,, drop=FALSE]))
+  }, mc.cores=nb.cores)
+
+  ## reformat the output
+  out <- do.call(rbind, out)
+  out <- out[rownames(tX), colnames(tX)]
+
+  ## -------------------------------------------------------
+  ## un-vectorized version:
+
+  ## out <- as.data.frame(tX, row.names=rownames(tX), col.names=colnames(tX))
+
+  ## if(verbose > 0){
+  ##   idx.rows <- 1:nrow(tX)
+  ##   pb <- utils::txtProgressBar(min=0, max=length(idx.rows), style=3)
+  ##   tmp <- stats::setNames(object=cut(x=idx.rows, breaks=10, labels=FALSE),
+  ##                          nm=idx.rows) # to update pb no more than 10 times
+  ## }
+
+  ## ## for each SNP
+  ## for(i in 1:nrow(tX)){
+
+  ##   ## convert homozygous for the first allele (AA or A1A1)
+  ##   idx <- which(tX[i,] == 0)
+  ##   if(length(idx) > 0)
+  ##     out[i, idx] <- paste0(alleles[i, 1], alleles[i, 1], collapse="")
+
+  ##   ## convert heterozygous (AB or A1A2)
+  ##   idx <- which(tX[i,] == 1)
+  ##   if(length(idx) > 0)
+  ##     out[i, idx] <- paste0(alleles[i, 1], alleles[i, 2], collapse="")
+
+  ##   ## convert homozygous for the second allele (BB or A2A2)
+  ##   idx <- which(tX[i,] == 2)
+  ##   if(length(idx) > 0)
+  ##     out[i, idx] <- paste0(alleles[i, 2], alleles[i, 2], collapse="")
+
+  ##   ## convert missing (NA)
+  ##   idx <- which(is.na(tX[i,]))
+  ##   if(length(idx) > 0)
+  ##     out[i, idx] <- na.string
+
+  ##   if(verbose > 0){
+  ##     ## utils::setTxtProgressBar(pb, i) # update pb at each loop iteration
+  ##     if(i %in% as.numeric(names(tmp)[cumsum(table(tmp))]))
+  ##       utils::setTxtProgressBar(pb, which(idx.rows == i))
+  ##   }
+  ## }
+  ## if(verbose > 0)
+  ##   close(pb)
 
   return(out)
 }
