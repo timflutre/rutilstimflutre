@@ -55,7 +55,7 @@ writeSegregJoinMap(pop.name="test", pop.type="CP", locus=rownames(jm[idx,]),
 }
 }
 \seealso{
-\code{\link{genoClasses2JoinMap}}, \code{\link{readSegregJoinMap}}
+\code{\link{genoClasses2JoinMap}}, \code{\link{readSegregJoinMap}}, \code{link{writeGenMapJoinMap}}, \code{link{writePhenoJoinMap}}
 }
 \author{
 Timothee Flutre

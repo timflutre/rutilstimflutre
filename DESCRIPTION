@@ -1,6 +1,6 @@
 Package: rutilstimflutre
 Title: Timothee Flutre's personal R code
-Version: 0.146.0
+Version: 0.147.0
 Authors@R: c(
     person("Timothee", "Flutre", email="timothee.flutre@inra.fr", role=c("aut", "ctb", "cre")),
     person("Peter", "Carbonetto", role="aut", comment="function from varbvs example"),

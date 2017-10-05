@@ -1294,7 +1294,7 @@ readSegregJoinMap <- function(file, na.string="--", verbose=1){
 ##' @param verbose verbosity level (0/1)
 ##' @return nothing
 ##' @author Timothee Flutre
-##' @seealso \code{\link{genoClasses2JoinMap}}, \code{\link{readSegregJoinMap}}
+##' @seealso \code{\link{genoClasses2JoinMap}}, \code{\link{readSegregJoinMap}}, \code{link{writeGenMapJoinMap}}, \code{link{writePhenoJoinMap}}
 ##' @examples
 ##' \dontrun{## make fake data
 ##' nb.snps <- 6
@@ -1405,6 +1405,7 @@ writeSegregJoinMap <- function(pop.name, pop.type="CP",
 ##' @param verbose verbosity level (0/1)
 ##' @return nothing
 ##' @author Timothee Flutre
+##' @seealso \code{link{writePhenoJoinMap}}, \code{link{writeSegregJoinMap}}
 ##' @export
 writeGenMapJoinMap <- function(genmap, file, verbose=1){
   stopifnot(is.data.frame(genmap),
@@ -1453,6 +1454,7 @@ writeGenMapJoinMap <- function(genmap, file, verbose=1){
 ##' @param verbose verbosity level (0/1)
 ##' @return nothing
 ##' @author Timothee Flutre
+##' @seealso \code{link{writeGenMapJoinMap}}, \code{link{writeSegregJoinMap}}
 ##' @export
 writePhenoJoinMap <- function(phenos, file, alias.miss=".", verbose=1){
   stopifnot(is.data.frame(phenos),
@@ -1486,6 +1488,142 @@ writePhenoJoinMap <- function(phenos, file, alias.miss=".", verbose=1){
                                       row.names=FALSE, col.names=TRUE))
 
   close(con)
+}
+
+##' Info about a given genetic map
+##'
+##' Returns some information on a given genetic map, notably the relations between linkage groups and chromosomes.
+##' Beforehand, the genetic map can be filtered.
+##' @param genmap data frame with at least three columns named "linkage.group", "locus" and "chr", and one row per locus
+##' @param min.mrks.per.lg to filter the genetic map, any linkage group with strictly less than this threshold will be discarded
+##' @param min.mrks.per.chr.in.lg to filter the genetic map, for linkage groups with markers belonging to several chromosomes, any marker belonging to chromosomes with stricly less than this threshold will be discarded
+##' @param verbose verbosity level (0/1/2)
+##' @return list
+##' @author Timothee Flutre
+##' @export
+infoGeneticMap <- function(genmap, min.mrks.per.lg=0,
+                           min.mrks.per.chr.in.lg=0, verbose=1){
+  stopifnot(is.data.frame(genmap),
+            all(c("linkage.group", "locus", "chr") %in%
+                colnames(genmap)),
+            ! any(is.na(genmap$linkage.group)),
+            ! anyDuplicated(genmap$locus),
+            is.numeric(genmap$genetic.distance))
+
+  if(min.mrks.per.lg > 0){
+    if(verbose > 0){
+      msg <- paste0("discard linkage groups with strictly less than ",
+                    min.mrks.per.lg, " markers...")
+      write(msg, stdout())
+    }
+    tmp <- tapply(1:nrow(genmap), factor(genmap$linkage.group), length)
+    has.enough.mrks <- tmp >= min.mrks.per.lg
+    if(! all(has.enough.mrks)){
+      if(verbose > 0){
+        msg <- paste0("nb of remaining linkage groups: ", sum(has.enough.mrks))
+        write(msg, stdout())
+      }
+      genmap <- genmap[genmap$linkage.group %in% names(tmp)[has.enough.mrks],]
+    }
+  }
+
+  if(min.mrks.per.chr.in.lg > 0){
+    if(verbose > 0){
+      msg <- paste0("discard chromosomes in linkage groups if strictly less than ",
+                    min.mrks.per.chr.in.lg, " markers...")
+      write(msg, stdout())
+    }
+    tmp <- tapply(genmap$chr, factor(genmap$linkage.group), function(x){
+      tmp2 <- table(x)
+      names(tmp2[tmp2 >= min.mrks.per.chr.in.lg])
+    })
+    tmp[sapply(tmp, length) == 0] <- NULL
+    if(length(tmp) == 0)
+      stop("all data were filtered out!")
+    genmap <- do.call(rbind, lapply(names(tmp), function(lg){
+      genmap[genmap$linkage.group == lg & genmap$chr %in% tmp[[lg]],]
+    }))
+  }
+
+  chr.names <- unique(genmap$chr)
+  if(requireNamespace("gtools"))
+    chr.names <- gtools::mixedsort(chr.names)
+  nb.chrs <- length(chr.names)
+  lg.names <- unique(genmap$linkage.group)
+  if(requireNamespace("gtools"))
+    lg.names <- gtools::mixedsort(lg.names)
+  nb.lgs <- length(lg.names)
+  if(verbose > 0){
+    msg <- paste0("total nb of markers: ", nrow(genmap))
+    write(msg, stdout())
+  }
+
+  tab.chr <- table(genmap$chr, useNA="always")
+  tab.chr <- tab.chr[chr.names]
+  if(verbose > 0){
+    msg <- paste0("\nnb of chromosomes: ", nb.chrs,
+                  "\nnb of markers per chromosome:")
+    write(msg, stdout())
+    print(tab.chr)
+  }
+
+  tab.lg <- table(genmap$linkage.group, useNA="always")
+  tab.lg <- tab.lg[order(tab.lg, decreasing=TRUE)]
+  if(verbose > 0){
+    msg <- paste0("\nnb of linkage groups: ", nb.lgs,
+                  "\nnb of markers per linkage group:")
+    write(msg, stdout())
+    print(tab.lg)
+  }
+  ## tab.lg <- tab.lg[lg.names]
+
+  if(verbose > 1){
+    msg <- "\nnb of markers per chromosome in each linkage group:"
+    write(msg, stdout())
+  }
+  lg2chr <- tapply(1:nrow(genmap), factor(genmap$linkage.group),
+                   function(idx){
+                     stats::setNames(genmap$chr[idx], genmap$locus[idx])
+                   })
+  tab.lg2chr <- lapply(lg2chr, function(x){
+    table(factor(x, levels=chr.names))
+  })
+  ## tab.lg2chr <- tab.lg2chr[lg.names]
+  tab.lg2chr <- tab.lg2chr[names(tab.lg)[order(tab.lg, decreasing=TRUE)]
+                           [-length(tab.lg)]]
+  mat.lg2chr <- t(do.call(rbind, tab.lg2chr))
+  tab.lg2chr <- lapply(tab.lg2chr, function(x){
+    x <- x[order(x, decreasing=TRUE)]
+    x[x > 0]
+  })
+  if(verbose > 1)
+    print(tab.lg2chr)
+
+  if(verbose > 1){
+    msg <- "nb of markers per linkage group for each chromosome:"
+    write(msg, stdout())
+  }
+  chr2lg <- list()
+  for(chr in chr.names){
+    idx <- which(genmap$chr == chr)
+    chr2lg[[chr]] <- stats::setNames(genmap$linkage.group[idx],
+                                     genmap$locus[idx])
+  }
+  tab.chr2lg <- lapply(chr2lg, function(x){
+    table(factor(x, levels=lg.names))
+  })
+  tab.chr2lg <- tab.chr2lg[chr.names]
+  mat.chr2lg <- t(do.call(rbind, tab.chr2lg))
+  tab.chr2lg <- lapply(tab.chr2lg, function(x){
+    x <- x[order(x, decreasing=TRUE)]
+    x[x > 0]
+  })
+  if(verbose > 1)
+    print(tab.chr2lg)
+
+  return(list(tab.chr=tab.chr, tab.lg=tab.lg,
+              lg2chr=lg2chr, tab.lg2chr=tab.lg2chr, mat.lg2chr=mat.lg2chr,
+              chr2lg=chr2lg, tab.chr2lg=tab.chr2lg, mat.chr2lg=mat.chr2lg))
 }
 
 ##' Genotype coding
