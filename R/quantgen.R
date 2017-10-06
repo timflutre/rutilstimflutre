@@ -1497,18 +1497,31 @@ writePhenoJoinMap <- function(phenos, file, alias.miss=".", verbose=1){
 ##' @param genmap data frame with at least three columns named "linkage.group", "locus" and "chr", and one row per locus
 ##' @param min.mrks.per.lg to filter the genetic map, any linkage group with strictly less than this threshold will be discarded
 ##' @param min.mrks.per.chr.in.lg to filter the genetic map, for linkage groups with markers belonging to several chromosomes, any marker belonging to chromosomes with stricly less than this threshold will be discarded
+##' @param chrs.todrop optional vector of chromosome names to drop from the analysis
 ##' @param verbose verbosity level (0/1/2)
-##' @return list
+##' @return list with several summaries, as well as a clean version of the genetic map with one linkage group per chromosome (among the most represented)
 ##' @author Timothee Flutre
 ##' @export
 infoGeneticMap <- function(genmap, min.mrks.per.lg=0,
-                           min.mrks.per.chr.in.lg=0, verbose=1){
+                           min.mrks.per.chr.in.lg=0, chrs.todrop=NULL,
+                           verbose=1){
   stopifnot(is.data.frame(genmap),
             all(c("linkage.group", "locus", "chr") %in%
                 colnames(genmap)),
             ! any(is.na(genmap$linkage.group)),
             ! anyDuplicated(genmap$locus),
             is.numeric(genmap$genetic.distance))
+  if(! is.null(chrs.todrop))
+    stopifnot(is.character(chrs.todrop))
+
+  if(! is.null(chrs.todrop)){
+    if(verbose > 0){
+      msg <- paste0("discard ", length(chrs.todrop), " chromosome",
+                    ifelse(length(chrs.todrop) == 1, "", "s"), "...")
+      write(msg, stdout())
+    }
+    genmap <- genmap[! genmap$chr %in% chrs.todrop,]
+  }
 
   if(min.mrks.per.lg > 0){
     if(verbose > 0){
@@ -1519,10 +1532,6 @@ infoGeneticMap <- function(genmap, min.mrks.per.lg=0,
     tmp <- tapply(1:nrow(genmap), factor(genmap$linkage.group), length)
     has.enough.mrks <- tmp >= min.mrks.per.lg
     if(! all(has.enough.mrks)){
-      if(verbose > 0){
-        msg <- paste0("nb of remaining linkage groups: ", sum(has.enough.mrks))
-        write(msg, stdout())
-      }
       genmap <- genmap[genmap$linkage.group %in% names(tmp)[has.enough.mrks],]
     }
   }
@@ -1530,7 +1539,7 @@ infoGeneticMap <- function(genmap, min.mrks.per.lg=0,
   if(min.mrks.per.chr.in.lg > 0){
     if(verbose > 0){
       msg <- paste0("discard chromosomes in linkage groups if strictly less than ",
-                    min.mrks.per.chr.in.lg, " markers...")
+                    min.mrks.per.chr.in.lg, " markers...\n")
       write(msg, stdout())
     }
     tmp <- tapply(genmap$chr, factor(genmap$linkage.group), function(x){
@@ -1545,6 +1554,12 @@ infoGeneticMap <- function(genmap, min.mrks.per.lg=0,
     }))
   }
 
+  if(verbose > 0){
+    msg <- paste0("total nb of markers: ", nrow(genmap))
+    write(msg, stdout())
+  }
+
+  ## get chr and lg names, and sort them in natural order if possible
   chr.names <- unique(genmap$chr)
   if(requireNamespace("gtools"))
     chr.names <- gtools::mixedsort(chr.names)
@@ -1553,10 +1568,6 @@ infoGeneticMap <- function(genmap, min.mrks.per.lg=0,
   if(requireNamespace("gtools"))
     lg.names <- gtools::mixedsort(lg.names)
   nb.lgs <- length(lg.names)
-  if(verbose > 0){
-    msg <- paste0("total nb of markers: ", nrow(genmap))
-    write(msg, stdout())
-  }
 
   tab.chr <- table(genmap$chr, useNA="always")
   tab.chr <- tab.chr[chr.names]
@@ -1575,12 +1586,8 @@ infoGeneticMap <- function(genmap, min.mrks.per.lg=0,
     write(msg, stdout())
     print(tab.lg)
   }
-  ## tab.lg <- tab.lg[lg.names]
 
-  if(verbose > 1){
-    msg <- "\nnb of markers per chromosome in each linkage group:"
-    write(msg, stdout())
-  }
+  ## stats per lg
   lg2chr <- tapply(1:nrow(genmap), factor(genmap$linkage.group),
                    function(idx){
                      stats::setNames(genmap$chr[idx], genmap$locus[idx])
@@ -1588,7 +1595,6 @@ infoGeneticMap <- function(genmap, min.mrks.per.lg=0,
   tab.lg2chr <- lapply(lg2chr, function(x){
     table(factor(x, levels=chr.names))
   })
-  ## tab.lg2chr <- tab.lg2chr[lg.names]
   tab.lg2chr <- tab.lg2chr[names(tab.lg)[order(tab.lg, decreasing=TRUE)]
                            [-length(tab.lg)]]
   mat.lg2chr <- t(do.call(rbind, tab.lg2chr))
@@ -1596,13 +1602,9 @@ infoGeneticMap <- function(genmap, min.mrks.per.lg=0,
     x <- x[order(x, decreasing=TRUE)]
     x[x > 0]
   })
-  if(verbose > 1)
-    print(tab.lg2chr)
+  chrs.per.lg <- sapply(tab.lg2chr, length)
 
-  if(verbose > 1){
-    msg <- "nb of markers per linkage group for each chromosome:"
-    write(msg, stdout())
-  }
+  ## stats per chr
   chr2lg <- list()
   for(chr in chr.names){
     idx <- which(genmap$chr == chr)
@@ -1618,12 +1620,96 @@ infoGeneticMap <- function(genmap, min.mrks.per.lg=0,
     x <- x[order(x, decreasing=TRUE)]
     x[x > 0]
   })
-  if(verbose > 1)
-    print(tab.chr2lg)
+  lgs.per.chr <- sapply(tab.chr2lg, length)
 
-  return(list(tab.chr=tab.chr, tab.lg=tab.lg,
+  if(verbose > 0){
+    msg <- "\nnb of chromosomes per linkage group:"
+    write(msg, stdout())
+    print(chrs.per.lg)
+    msg <- "\nnb of linkage groups per chromosome:"
+    write(msg, stdout())
+    print(lgs.per.chr)
+    if(verbose > 1){
+      msg <- "\nnb of markers per chromosome in each linkage group:"
+      write(msg, stdout())
+      print(tab.lg2chr)
+      msg <- "\nnb of markers per linkage group for each chromosome:"
+      write(msg, stdout())
+      print(tab.chr2lg)
+    }
+  }
+
+  genmap.clean <- genmap[genmap$linkage.group %in%
+                         sapply(tab.chr2lg, function(x){
+                           names(x)[1]
+                         }),]
+  rownames(genmap.clean) <- NULL
+
+  return(list(clean=genmap.clean,
+              tab.chr=tab.chr, tab.lg=tab.lg,
               lg2chr=lg2chr, tab.lg2chr=tab.lg2chr, mat.lg2chr=mat.lg2chr,
               chr2lg=chr2lg, tab.chr2lg=tab.chr2lg, mat.chr2lg=mat.chr2lg))
+}
+
+##' Stacked barplot of markers
+##'
+##' Make a barplot of markers per linkage group (or chromosome), stacked per chromosome (or linkage group).
+##' @param counts matrix with the number of markers, with chromosomes in rows and linkage groups in columns, or vice-versa; should have row and column names
+##' @param las see \code{\link[graphics]{par}}
+##' @param border see \code{\link[graphics]{barplot}}
+##' @param col see \code{\link[graphics]{barplot}}
+##' @param leg.txt see \code{\link[graphics]{barplot}}; if NULL, the stack labels will appear in the middle of each bar
+##' @param args.leg see \code{\link[graphics]{barplot}}
+##' @param ... arguments to be passed to \code{\link[graphics]{barplot}}
+##' @return see \code{\link[graphics]{barplot}}
+##' @author Timothee Flutre
+##' @export
+barplotGeneticMap <- function(counts,
+                              las=1, border=NA,
+                              col=grDevices::rainbow(nrow(counts)),
+                              leg.txt=rownames(counts),
+                              args.leg=list(x="topright", bty="n", border=NA,
+                                            fill=rev(grDevices::rainbow(nrow(counts)))),
+                              ...){
+  stopifnot(is.matrix(counts),
+            ! is.null(rownames(counts)),
+            ! is.null(colnames(counts)))
+
+  bp.x <- graphics::barplot(counts, las=las, border=border,
+                            col=col,
+                            legend.text=leg.txt,
+                            args.legend=args.leg,
+                            xaxt="n",
+                            ...)
+  graphics::text(x=bp.x, y=graphics::par("usr")[3] - 1, srt=45, adj=1,
+                 labels=colnames(counts), xpd=TRUE)
+
+  ## add stack labels
+  if(is.null(leg.txt)){
+    nb.nonzeros <- apply(counts, 2, function(x){
+      sum(x != 0)
+    })
+    labs <- do.call(c, lapply(1:ncol(counts), function(j){
+      x <- counts[,j]
+      rownames(counts)[x != 0]
+    }))
+    txt.x <- rep(bp.x, nb.nonzeros)
+    txt.y <- do.call(c, lapply(1:ncol(counts), function(j){
+      x <- counts[,j]
+      is.nonzero <- x != 0
+      tmp <- rep(NA, sum(is.nonzero))
+      tmp[1] <- x[is.nonzero][1] / 2
+      i <- 2
+      while(i <= sum(is.nonzero)){
+        tmp[i] <- cumsum(x[is.nonzero][1:(i-1)]) + x[is.nonzero][i] / 2
+        i <- i + 1
+      }
+      tmp
+    }))
+    graphics::text(x=txt.x, y=txt.y, labels=labs, srt=45)
+  }
+
+  invisible(bp.x)
 }
 
 ##' Genotype coding

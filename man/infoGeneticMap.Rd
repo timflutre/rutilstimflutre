@@ -5,7 +5,7 @@
 \title{Info about a given genetic map}
 \usage{
 infoGeneticMap(genmap, min.mrks.per.lg = 0, min.mrks.per.chr.in.lg = 0,
-  verbose = 1)
+  chrs.todrop = NULL, verbose = 1)
 }
 \arguments{
 \item{genmap}{data frame with at least three columns named "linkage.group", "locus" and "chr", and one row per locus}
@@ -14,10 +14,12 @@ infoGeneticMap(genmap, min.mrks.per.lg = 0, min.mrks.per.chr.in.lg = 0,
 
 \item{min.mrks.per.chr.in.lg}{to filter the genetic map, for linkage groups with markers belonging to several chromosomes, any marker belonging to chromosomes with stricly less than this threshold will be discarded}
 
+\item{chrs.todrop}{optional vector of chromosome names to drop from the analysis}
+
 \item{verbose}{verbosity level (0/1/2)}
 }
 \value{
-list
+list with several summaries, as well as a clean version of the genetic map with one linkage group per chromosome (among the most represented)
 }
 \description{
 Returns some information on a given genetic map, notably the relations between linkage groups and chromosomes.
