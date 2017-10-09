@@ -2,12 +2,17 @@
 
 ##' Rename chromosomes
 ##'
-##' Rename chromosomes into integers.
+##' Rename chromosomes into integers, especially useful with FImpute.
 ##' @param x vector of chromosome names
 ##' @return data.frame with original and new names
 ##' @author Timothee Flutre
 ##' @examples
-##' \dontrun{chroms <- c("chr1", "chr1_random", "chr10", "chr10_random", "chrUn", "chr2")
+##' \dontrun{## example from grapevine
+##' chroms <- c("chr1", "chr1_random", "chr10", "chr10_random", "chrUn", "chr2")
+##' chromNames2integers(x=chroms)
+##'
+##' ## example from apple
+##' chroms <- c("Chr15", "Chr01", "Chr02", "Chr00", "Chr02")
 ##' chromNames2integers(x=chroms)
 ##' }
 ##' @export
@@ -19,7 +24,8 @@ chromNames2integers <- function(x){
                        renamed=NA,
                        stringsAsFactors=FALSE)
 
-  output$renamed <- suppressWarnings(as.integer(gsub("chr", "", x)))
+  output$renamed <- suppressWarnings(as.integer(gsub("chr", "", x,
+                                                     ignore.case=TRUE)))
 
   if(any(is.na(output$renamed))){
     max.chr.int <- max(output$renamed, na.rm=TRUE)
@@ -40,6 +46,11 @@ chromNames2integers <- function(x){
         output$renamed[tmp$idx[i]] <- 2 * max.chr.int + 1
       }
     }
+  }
+
+  if(any(output$renamed == 0)){
+    max.chr.int <- max(output$renamed, na.rm=TRUE)
+    output$renamed[output$renamed == 0] <- 2 * max.chr.int + 1
   }
 
   return(output)

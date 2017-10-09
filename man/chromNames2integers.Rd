@@ -13,10 +13,15 @@ chromNames2integers(x)
 data.frame with original and new names
 }
 \description{
-Rename chromosomes into integers.
+Rename chromosomes into integers, especially useful with FImpute.
 }
 \examples{
-\dontrun{chroms <- c("chr1", "chr1_random", "chr10", "chr10_random", "chrUn", "chr2")
+\dontrun{## example from grapevine
+chroms <- c("chr1", "chr1_random", "chr10", "chr10_random", "chrUn", "chr2")
+chromNames2integers(x=chroms)
+
+## example from apple
+chroms <- c("Chr15", "Chr01", "Chr02", "Chr00", "Chr02")
 chromNames2integers(x=chroms)
 }
 }
