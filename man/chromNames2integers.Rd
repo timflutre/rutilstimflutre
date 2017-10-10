@@ -4,10 +4,14 @@
 \alias{chromNames2integers}
 \title{Rename chromosomes}
 \usage{
-chromNames2integers(x)
+chromNames2integers(x, prefix = "chr", thresh.max.chr.int = +Inf)
 }
 \arguments{
 \item{x}{vector of chromosome names}
+
+\item{prefix}{characters to be removed at the start of each chromosome name (case will be ignored)}
+
+\item{thresh.max.chr.int}{threshold on the maximum chromosome integer, above which the renaming will simply be the sequence from 1 to the number of chromosomes}
 }
 \value{
 data.frame with original and new names
@@ -23,6 +27,10 @@ chromNames2integers(x=chroms)
 ## example from apple
 chroms <- c("Chr15", "Chr01", "Chr02", "Chr00", "Chr02")
 chromNames2integers(x=chroms)
+
+## example from cherry
+chroms <- c("Super-Scaffold_14", "Super-Scaffold_4374", "Super-Scaffold_27")
+chromNames2integers(x=chroms, prefix="Super-Scaffold_", thresh.max.chr.int=500)
 }
 }
 \author{
