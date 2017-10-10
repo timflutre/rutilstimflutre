@@ -514,14 +514,13 @@ runFimpute <- function(X=NULL, chips=NULL, snp.coords=NULL,
   tmp.files["snp.info"] <- paste0(task.id, "_input-snp-info.txt")
   tmp.files["ped"] <- paste0(task.id, "_input-ped.txt")
   if(is.null(params.fimpute))
-    params.fimpute <- list(hap.lib.file=NULL,
-                           turn.off.fam=FALSE,
-                           turn.off.pop=FALSE,
-                           save.partial=FALSE,
-                           save.genos=FALSE,
-                           save.hap.lib=FALSE,
-                           random.fill=FALSE,
-                           nb.jobs=1)
+    params.fimpute <- list()
+  for(x in c("turn.off.fam", "turn.off.pop", "save.partial", "save.genos",
+             "save.hap.lib", "random.fill"))
+    if(! x %in% names(params.fimpute))
+      params.fimpute[[x]] <- FALSE
+  if(! "nb.jobs" %in% names(params.fimpute))
+    params.fimpute$nb.jobs <- 1
 
   writeInputsFimpute(ctl.file=tmp.files["ctl"],
                      X=X, genos.file=tmp.files["genos"], chips=chips,
@@ -531,6 +530,7 @@ runFimpute <- function(X=NULL, chips=NULL, snp.coords=NULL,
                      ped=ped, ped.file=tmp.files["ped"],
                      out.dir=out.dir,
                      hap.lib.file=params.fimpute$hap.lib.file,
+                     add.ungen=params.fimpute$add.ungen,
                      turn.off.fam=params.fimpute$turn.off.fam,
                      turn.off.pop=params.fimpute$turn.off.pop,
                      save.partial=params.fimpute$save.partial,
