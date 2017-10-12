@@ -39,6 +39,7 @@ This document requires external packages to be available:
 suppressPackageStartupMessages(library(mvtnorm)) # on the CRAN
 suppressPackageStartupMessages(library(lme4)) # on the CRAN
 suppressPackageStartupMessages(library(INLA)) # online
+suppressPackageStartupMessages(library(breedR)) # on GitHub
 nb.threads <- 3 # 1
 ```
 
@@ -50,25 +51,47 @@ t0 <- proc.time()
 
 # Model
 
-Let's take as an example multiple genotypes phenotyped several years in a row:
+## Notations
 
-* $I$: number of genotypes
+Let's take as an example multiple genotypes phenotyped several years in a row (no intra-year replicate):
 
-* $Q$: number of years of phenotyping
+* $I$: number of genotypes;
 
-* $N = I \times Q$: number of phenotypic observations
+* $Q$: number of years of phenotyping;
+
+* $N = I \times Q$: number of phenotypic observations;
+
+* $y_{iq}$: phenotypic value of the $i$-th genotype the $q$-th year
+
+* $\beta_q$: effect of the $q$-th year, modeled as a fixed effect
+
+* $g_i$: genotypic value of the $i$-th genotype, modeled as a random variable such that $\boldsymbol{g} \sim \mathcal{N}(\boldsymbol{0}, \sigma_g^2 G)$
+
+* $\epsilon_{iq}$: error corresponding to the $i$-th genotype the $q$-th year, modeled as $\boldsymbol{\epsilon} \sim \mathcal{N}(\boldsymbol{0}, \sigma_\epsilon^2 \text{Id})$
+
+The main goal here is to estimate heritability $\frac{\sigma_g^2}{\sigma_g^2 + \sigma_\epsilon^2}$ and quantify its uncertainty.
+
+## Model 1
+
+Assume no covariance between years.
 
 Likelihood:
 
 \[
-\forall q \in \{1,\ldots,Q\}, i \in \{1,\ldots,I\}, \; y_{qi} = \beta_q + g_i + \epsilon_{qi}
+\mathcal{M}_1: \; \forall q \in \{1,\ldots,Q\}, i \in \{1,\ldots,I\}, \; y_{qi} = \beta_q + g_i + \epsilon_{qi}
 \]
 
-with the $\beta$'s being modeled as fixed effects, $\boldsymbol{g} \sim \mathcal{N}(\boldsymbol{0}, \sigma_g^2 \text{Id}_I)$ and $\boldsymbol{\epsilon} \sim \mathcal{N}(\boldsymbol{0}, \sigma_\epsilon^2 \text{Id}_N)$
+It can also be rewritten as $\boldsymbol{y} = X \boldsymbol{\beta} + Z \boldsymbol{g} + \boldsymbol{\epsilon}$ where $X$ and $Z$ are appropriate incidence matrices.
 
-It can also be rewritten as $\boldsymbol{y} = X \boldsymbol{\beta} + Z \boldsymbol{g} + \boldsymbol{\epsilon}$ where $X$ and $Z$ are incidence matrices.
+## Model 2
 
-The main goal here is to estimate the (broad-sense) heritability $H^2 = \frac{\sigma_g^2}{\sigma_g^2 + \sigma_\epsilon^2}$ and quantify its uncertainty.
+Take into account covariances between years.
+
+Likelihood:
+
+\[
+\mathcal{M}_2: \; Y = X B + Z G + E
+\]
 
 
 # Simulation
@@ -83,30 +106,35 @@ Set the constants:
 I <- 200
 Q <- 5
 N <- I * Q
+geno.names <- sprintf("geno%03i", 1:I)
+year.ids <- paste0("Y", 2011:(2011+Q-1))
 sigma.g <- 3
 sigma.epsilon <- 3
-sigma.g^2 / (sigma.g^2 + sigma.epsilon^2)
-```
-
-Simulate the explanatory and error variables:
-```{r simul_var}
-beta <- matrix(c(50, rmvnorm(n=1, mean=rep(0, Q-1), sigma=20 * diag(Q-1))))
-g <- t(rmvnorm(n=1, mean=rep(0, I), sigma=sigma.g^2 * diag(I)))
-epsilon <- t(rmvnorm(n=1, mean=rep(0, N), sigma=sigma.epsilon^2 * diag(N)))
+(h2 <- sigma.g^2 / (sigma.g^2 + sigma.epsilon^2))
 ```
 
 Make a data frame with the appropriate structure:
 ```{r make_df}
-geno.names <- sprintf("geno%03i", 1:I)
 dat <- data.frame(geno=rep(geno.names, Q),
-                  year=as.factor(rep(2010:(2010+Q-1), each=I)),
+                  year=rep(year.ids, each=I),
                   pheno=NA)
 ```
 
 Make the incidence matrices:
 ```{r}
 X <- model.matrix(~ 1 + year, data=dat)
+colnames(X) <- year.ids
 Z <- model.matrix(~ -1 + geno, data=dat)
+colnames(Z) <- geno.names
+```
+
+Simulate the explanatory and error variables, assuming for simplicity an identity matrix for $G$:
+```{r simul_var}
+beta <- matrix(c(50, rmvnorm(n=1, mean=rep(0, Q-1), sigma=20 * diag(Q-1))))
+G <- diag(I) # for simplicity
+dimnames(G) <- list(geno.names, geno.names)
+g <- t(rmvnorm(n=1, mean=rep(0, I), sigma=sigma.g^2 * G))
+epsilon <- t(rmvnorm(n=1, mean=rep(0, N), sigma=sigma.epsilon^2 * diag(N)))
 ```
 
 Make the phenotypes and fill the data frame:
@@ -130,10 +158,27 @@ boxplot(pheno ~ year, data=dat, las=1, varwidth=TRUE,
 abline(h=mean(dat$pheno), lty=2)
 ```
 
+```{r}
+mat <- do.call(cbind, lapply(unique(dat$year), function(year){
+  dat$pheno[dat$year == year]
+}))
+colnames(mat) <- unique(dat$year)
+rownames(mat) <- dat$geno[dat$year == unique(dat$year)[1]]
+pairs(x=mat)
+```
+
 
 # Inference
 
+```{r}
+(low.bound.norm.95 <- qnorm(p=0.025, mean=0, sd=1, lower.tail=TRUE))
+```
+
 ## With lme4
+
+* can't provide confidence interval for heritability
+
+* can handle genotype-year interactions
 
 ### Model fitting
 
@@ -144,6 +189,11 @@ system.time(
 system.time(
     fit.lmer.y.g <- lmer(formula=pheno ~ 1 + year + (1|geno),
                          data=dat, REML=TRUE))
+system.time(
+    fit.lmer.yg <- lmer(formula=pheno ~ 1 + year + (1|geno) + (1|geno:year),
+                        data=dat, REML=TRUE,
+                        control=lmerControl(check.nobs.vs.nlev="ignore",
+                                            check.nobs.vs.nRE="ignore")))
 ```
 
 ### Model comparison and selection
@@ -151,6 +201,7 @@ system.time(
 ```{r lmer_select}
 extractAIC(fit.lmer.g)
 extractAIC(fit.lmer.y.g)
+extractAIC(fit.lmer.yg)
 fit.lmer <- fit.lmer.y.g
 ```
 
@@ -171,7 +222,6 @@ str(fit.lmer.all, give.attr=FALSE)
 ```
 
 ```{r lmer_check}
-(low.bound.norm.95 <- qnorm(p=0.025, mean=0, sd=1, lower.tail=TRUE))
 x.lim <- max(abs(fit.lmer.all$scl.cond.res), na.rm=TRUE)
 plot(x=fit.lmer.all$scl.cond.res, y=fit.lmer.all$fitted, las=1,
      xlim=c(-x.lim, x.lim))
@@ -203,9 +253,9 @@ system.time(
 (ci.lmer <- confint(object=prof, level=0.95))
 ```
 
-Confidence interval on heritability:
+Confidence interval on heritability: it doesn't seem to currently be possible
 
-* see Table S2 from Bhatia et al (2014)
+* Bhatia et al (2014), in their Table S2, use an ad hoc procedure
 
 * how to implement the approach of Meyer and Houle (2013) with `lmer`?
 
@@ -236,7 +286,9 @@ See [Holand *et al* (2013)](http://dx.doi.org/10.1534/g3.113.006700).
 ### Model fitting
 
 ```{r inla_fit_prep_dat}
-dat.inla <- cbind(dat, obs.id=paste(dat$geno, dat$year, sep="-"))
+dat.inla <- cbind(dat,
+                  geno.id=as.numeric(gsub("geno", "", dat$geno)),
+                  obs.id=paste(dat$geno, dat$year, sep="-"))
 ```
 
 #### MF1
@@ -245,7 +297,10 @@ dat.inla <- cbind(dat, obs.id=paste(dat$geno, dat$year, sep="-"))
 system.time(
     fit.inla.MF1.g <- inla(
         formula=pheno ~ 1 +
-          f(geno, model="iid", constr=TRUE,
+          ## f(geno, model="iid", constr=TRUE,
+          ##   hyper=list(theta=list(param=c(0.5, 0.5)))) +
+          f(geno.id, model="generic0", constr=TRUE,
+            Cmatrix=solve(G),
             hyper=list(theta=list(param=c(0.5, 0.5)))) +
           f(obs.id, model="iid", constr=TRUE,
             hyper=list(theta=list(initial=10, fixed=TRUE))),
@@ -260,7 +315,10 @@ system.time(
           year +
           ## f(year, model="iid", constr=TRUE,
           ##   hyper=list(theta=list(initial=-10, fixed=TRUE))) +
-          f(geno, model="iid", constr=TRUE,
+          ## f(geno, model="iid", constr=TRUE,
+          ##   hyper=list(theta=list(param=c(0.5, 0.5)))) +
+          f(geno.id, model="generic0", constr=TRUE,
+            Cmatrix=G,
             hyper=list(theta=list(param=c(0.5, 0.5)))) +
           f(obs.id, model="iid", constr=TRUE,
             hyper=list(theta=list(initial=10, fixed=TRUE))),
@@ -277,14 +335,19 @@ system.time(
 system.time(
     fit.inla.MF2.g <- inla(
         formula=pheno ~ 1 +
-          f(geno, model="iid", constr=TRUE,
-            hyper=list(theta=list(param=c(0.5, 0.5)))) +
-          f(obs.id, model="iid", constr=TRUE,
-            hyper=list(theta=list(param=c(0.5, 0.5)))),
+          ## f(geno, model="iid", constr=TRUE,
+          ##   hyper=list(theta=list(param=c(0.5, 0.5)))) +
+          f(geno.id, model="generic2", constr=TRUE,
+            Cmatrix=G,
+            hyper=list(theta1=list(param=c(0.5, 0.5)),
+                       theta2=list(param=c(0.5, 0.5)))),# +
+          ## f(obs.id, model="iid", constr=TRUE,
+          ##   hyper=list(theta=list(param=c(0.5, 0.5)))),
         family="gaussian",
         control.family=list(hyper=list(theta=list(initial=10, fixed=TRUE))),
         data=dat.inla,
-        control.compute=list(waic=TRUE),
+        ## control.compute=list(waic=TRUE),
+        control.compute=list(waic=FALSE),
         num.threads=nb.threads))
 system.time(
     fit.inla.MF2.y.g <- inla(
@@ -292,10 +355,14 @@ system.time(
           year +
           ## f(year, model="iid", constr=TRUE,
           ##   hyper=list(theta=list(initial=-10, fixed=TRUE))) +
-          f(geno, model="iid", constr=TRUE,
-            hyper=list(theta=list(param=c(0.5, 0.5)))) +
-          f(obs.id, model="iid", constr=TRUE,
-            hyper=list(theta=list(param=c(0.5, 0.5)))),
+          ## f(geno, model="iid", constr=TRUE,
+          ##   hyper=list(theta=list(param=c(0.5, 0.5)))) +
+          f(geno.id, model="generic2", constr=TRUE,
+            Cmatrix=G,
+            hyper=list(theta1=list(param=c(0.5, 0.5)),
+                       theta2=list(param=c(0.5, 0.5)))),# +
+          ## f(obs.id, model="iid", constr=TRUE,
+          ##   hyper=list(theta=list(param=c(0.5, 0.5)))),
         family="gaussian",
         control.family=list(hyper=list(theta=list(initial=10, fixed=TRUE))),
         data=dat.inla,
@@ -347,7 +414,6 @@ str(fit.inla.MF1.all, give.attr=FALSE)
 ```
 
 ```{r inla_check_MF1}
-(low.bound.norm.95 <- qnorm(p=0.025, mean=0, sd=1, lower.tail=TRUE))
 x.lim <- max(abs(fit.inla.MF1.all$scl.cond.res), na.rm=TRUE)
 plot(x=fit.inla.MF1.all$scl.cond.res, y=fit.inla.MF1.all$fitted, las=1,
      xlim=c(-x.lim, x.lim))
@@ -371,12 +437,16 @@ abline(v=0, lty=2)
 ```{r inla_orga_MF2}
 beta.hat.inla.MF2 <- setNames(fit.inla.MF2$summary.fixed[,"mean"],
                               rownames(fit.inla.MF2$summary.fixed))
-g.hat.inla.MF2 <- setNames(fit.inla.MF2$summary.random$geno[,"mean"],
-                           fit.inla.MF2$summary.random$geno[,"ID"])
+g.hat.inla.MF2 <- setNames(fit.inla.MF2$summary.random$geno.id[,"mean"],
+                           fit.inla.MF2$summary.random$geno.id[,"ID"])
 idx <- grep("obs.id", rownames(fit.inla.MF2$summary.hyperpar))
 sigma.epsilon.hat.inla.MF2 <- 1 / sqrt(fit.inla.MF2$summary.hyperpar[idx, "mean"])
-idx <- grep("geno", rownames(fit.inla.MF2$summary.hyperpar))
+idx <- grep("Precision-cmatrix for geno.id",
+            rownames(fit.inla.MF2$summary.hyperpar))
 sigma.g.hat.inla.MF2 <- 1 / sqrt(fit.inla.MF2$summary.hyperpar[idx, "mean"])
+idx <- grep("h2 for geno.id",
+            rownames(fit.inla.MF2$summary.hyperpar))
+h2.hat.inla.MF2 <- fit.inla.MF2$summary.hyperpar[idx, "mean"]
 fit.inla.MF2.all <- cbind(dat,
                           fitted=fit.inla.MF2$summary.linear.predictor[,"mean"],
                           cond.res=NA,
@@ -387,7 +457,6 @@ str(fit.inla.MF2.all, give.attr=FALSE)
 ```
 
 ```{r inla_check_MF2}
-(low.bound.norm.95 <- qnorm(p=0.025, mean=0, sd=1, lower.tail=TRUE))
 x.lim <- max(abs(fit.inla.MF2.all$scl.cond.res), na.rm=TRUE)
 plot(x=fit.inla.MF2.all$scl.cond.res, y=fit.inla.MF2.all$fitted, las=1,
      xlim=c(-x.lim, x.lim))
@@ -423,17 +492,122 @@ c(sigma.g, sigma.g.hat.inla.MF1)
 ```{r inla_res_MF2}
 summary(fit.inla.MF2)
 cbind(beta, beta.hat.inla.MF2)
-cor(g, g.hat.inla.MF2)
+## cor(g, g.hat.inla.MF2)
 c(sigma.epsilon, sigma.epsilon.hat.inla.MF2)
 c(sigma.g, sigma.g.hat.inla.MF2)
+c(h2, h2.hat.inla.MF2)
 ```
 
-TODO: retrieve inference results for heritability
+
+## With breedR
+
+```{r breedR_fit_prep_dat}
+dat.breedR <- cbind(dat,
+                    gxy=factor(dat$geno:dat$year))
+str(dat.breedR)
+```
+
+### Model fitting
+
+```{r breedR_fit}
+system.time(
+    fit.breedR.g <- remlf90(
+        fixed=pheno ~ 1,
+        generic=list(geno=list(incidence=Z, covariance=G, var.ini=2)),
+        data=dat,
+        var.ini=list(resid=10),
+        progsf90.options=paste("se_covar_function h2",
+                               "G_2_2_1_1/(G_2_2_1_1+R_1_1)"),
+        method="ai"))
+system.time(
+    fit.breedR.y.g <- remlf90(
+        fixed=pheno ~ 1 + year,
+        generic=list(geno=list(incidence=Z, covariance=G, var.ini=2)),
+        data=dat,
+        var.ini=list(resid=10),
+        progsf90.options=paste("se_covar_function h2",
+                               "G_2_2_1_1/(G_2_2_1_1+R_1_1)"),
+        method="ai"))
+system.time(
+    fit.breedR.yg <- remlf90(
+        fixed=pheno ~ 1 + year,
+        generic=list(geno=list(incidence=Z, covariance=G, var.ini=2)),
+        data=dat,
+        var.ini=list(resid=10),
+        progsf90.options=paste("se_covar_function h2",
+                               "G_2_2_1_1/(G_2_2_1_1+R_1_1)"),
+        method="ai"))
+```
+
+### Model comparison and selection
+
+```{r breedR_select}
+extractAIC(fit.breedR.g)
+extractAIC(fit.breedR.y.g)
+extractAIC(fit.breedR.yg)
+fit.breedR <- fit.breedR.y.g
+```
+
+### Diagnostics
+
+```{r breedR_orga}
+beta.hat.breedR <- setNames(as.vector(fixef(fit.breedR)$year),
+                            names(fixef(fit.breedR)$year))
+g.hat.breedR <- setNames(as.vector(ranef(fit.breedR)$geno),
+                         names(ranef(fit.breedR)$geno))
+var.g.hat.breedR <- attr(ranef(fit.breedR)$geno, "se")^2
+sigma.epsilon.hat.breedR <- sqrt(fit.breedR$var["Residual",
+                                                "Estimated variances"])
+sigma.g.hat.breedR <- sqrt(fit.breedR$var["geno",
+                                          "Estimated variances"])
+h2.hat.breedR <- fit.breedR$funvars["sample mean", "h2"]
+h2.hat.low.breedR <- fit.breedR$funvars["sample mean", "h2"] -
+  abs(low.bound.norm.95) * fit.breedR$funvars["sample sd", "h2"]
+h2.hat.high.breedR <- fit.breedR$funvars["sample mean", "h2"] +
+  abs(low.bound.norm.95) * fit.breedR$funvars["sample sd", "h2"]
+fit.breedR.all <- cbind(dat,
+                        cond.res=residuals(fit.breedR),
+                        scl.cond.res=residuals(fit.breedR) /
+                          sigma.epsilon.hat.breedR,
+                        fitted=fitted(fit.breedR))
+str(fit.breedR.all, give.attr=FALSE)
+```
+
+```{r breedR_check}
+x.lim <- max(abs(fit.breedR.all$scl.cond.res), na.rm=TRUE)
+plot(x=fit.breedR.all$scl.cond.res, y=fit.breedR.all$fitted, las=1,
+     xlim=c(-x.lim, x.lim))
+abline(v=0, lty=2)
+abline(v=c(low.bound.norm.95, abs(low.bound.norm.95)), lty=3)
+shapiro.test(fit.breedR.all$scl.cond.res)
+qqnorm(y=fit.breedR.all$scl.cond.res, main="Normal Q-Q plot of scl.cond.res")
+qqline(y=fit.breedR.all$scl.cond.res, col="red")
+x.lim <- max(abs(g.hat.breedR))
+par(mar=c(5,6,4,1))
+plot(x=g.hat.breedR, y=1:length(g.hat.breedR),
+     xlim=c(-x.lim, x.lim),
+     yaxt="n", ylab="")
+axis(side=2, at=1:length(g.hat.breedR), labels=names(g.hat.breedR),
+     las=1)
+abline(v=0, lty=2)
+```
+
+### Inference
+
+```{r breedR_res}
+summary(fit.breedR)
+cbind(beta, beta.hat.breedR)
+cor(g, g.hat.breedR)
+c(sigma.epsilon, sigma.epsilon.hat.breedR)
+c(sigma.g, sigma.g.hat.breedR)
+fit.breedR$var[, "S.E."]
+c(h2, h2.hat.breedR, h2.hat.low.breedR, h2.hat.high.breedR)
+```
 
 
 ## With MCMCglmm
 
-TODO, but potentially much slower
+TODO, but potentially (much) slower
 
 
 
