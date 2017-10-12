@@ -6,7 +6,7 @@
 \usage{
 writeSegregJoinMap(pop.name, pop.type = "CP", locus, segregs, genos,
   phases = NULL, classifs = NULL, file, save.ind.names = TRUE,
-  verbose = 1)
+  na.string = "--", verbose = 1)
 }
 \arguments{
 \item{pop.name}{name of the population}
@@ -26,6 +26,8 @@ writeSegregJoinMap(pop.name, pop.type = "CP", locus, segregs, genos,
 \item{file}{name of the file in which the data will be saved (will be compressed if ends with ".gz" and "gzip" is available in the PATH)}
 
 \item{save.ind.names}{if TRUE, individual names will be saved at the end of the file}
+
+\item{na.string}{character to replace NA's in "genos"}
 
 \item{verbose}{verbosity level (0/1)}
 }
@@ -53,7 +55,7 @@ writeSegregJoinMap(pop.name="test", pop.type="CP", locus=rownames(jm[idx,]),
 }
 }
 \seealso{
-\code{\link{genoClasses2JoinMap}}
+\code{\link{genoClasses2JoinMap}}, \code{\link{readSegregJoinMap}}, \code{link{writeGenMapJoinMap}}, \code{link{writePhenoJoinMap}}
 }
 \author{
 Timothee Flutre

@@ -5,16 +5,18 @@
 \title{Convert genotypes}
 \usage{
 genoDoses2genoClasses(X = NULL, tX = NULL, alleles, na.string = "--",
-  verbose = 1)
+  nb.cores = 1, verbose = 1)
 }
 \arguments{
 \item{X}{matrix of bi-allelic SNP genotypes encoded, for each SNP, in number of copies of its second allele, i.e. as allele doses in {0,1,2}, with genotypes in rows and SNPs in columns; the "second" allele is arbitrary, it corresponds to the second column of \code{alleles}, which can be the minor or the major allele}
 
 \item{tX}{matrix with SNPs in rows and genotypes in columns}
 
-\item{alleles}{data.frame with SNPs in rows (names as row names) and alleles in columns (exactly 2 columns are required); the second column should correspond to the allele which number of copies is counted at each SNP in \code{X}}
+\item{alleles}{data.frame with SNPs in rows (names as row names) and alleles in columns (exactly 2 columns are required); the second column should correspond to the allele which number of copies is counted at each SNP in \code{X}; only the rows corresponding to SNPs in X or tX will be kept}
 
 \item{na.string}{character used to replace NA values}
+
+\item{nb.cores}{the number of cores to use, i.e. at most how many child processes will be run simultaneously (not on Windows)}
 
 \item{verbose}{verbosity level (0/1)}
 }

@@ -19,6 +19,9 @@ nothing
 \description{
 Writes the given genetic map in the JoinMap/MapQTL format.
 }
+\seealso{
+\code{link{writePhenoJoinMap}}, \code{link{writeSegregJoinMap}}
+}
 \author{
 Timothee Flutre
 }

@@ -2,34 +2,49 @@
 
 ##' Rename chromosomes
 ##'
-##' Rename chromosomes into integers.
+##' Rename chromosomes into integers, especially useful with FImpute.
 ##' @param x vector of chromosome names
+##' @param prefix characters to be removed at the start of each chromosome name (case will be ignored)
+##' @param thresh.max.chr.int threshold on the maximum chromosome integer, above which the renaming will simply be the sequence from 1 to the number of chromosomes
 ##' @return data.frame with original and new names
 ##' @author Timothee Flutre
 ##' @examples
-##' \dontrun{chroms <- c("chr1", "chr1_random", "chr10", "chr10_random", "chrUn", "chr2")
+##' \dontrun{## example from grapevine
+##' chroms <- c("chr1", "chr1_random", "chr10", "chr10_random", "chrUn", "chr2")
 ##' chromNames2integers(x=chroms)
+##'
+##' ## example from apple
+##' chroms <- c("Chr15", "Chr01", "Chr02", "Chr00", "Chr02")
+##' chromNames2integers(x=chroms)
+##'
+##' ## example from cherry
+##' chroms <- c("Super-Scaffold_14", "Super-Scaffold_4374", "Super-Scaffold_27")
+##' chromNames2integers(x=chroms, prefix="Super-Scaffold_", thresh.max.chr.int=500)
 ##' }
 ##' @export
-chromNames2integers <- function(x){
+chromNames2integers <- function(x, prefix="chr", thresh.max.chr.int=+Inf){
   stopifnot(is.character(x),
-            is.vector(x))
+            is.vector(x),
+            is.character(prefix),
+            is.numeric(thresh.max.chr.int),
+            length(unique(x)) <= thresh.max.chr.int)
 
   output <- data.frame(original=x,
                        renamed=NA,
                        stringsAsFactors=FALSE)
 
-  output$renamed <- suppressWarnings(as.integer(gsub("chr", "", x)))
+  output$renamed <- suppressWarnings(as.integer(gsub(prefix, "", x,
+                                                     ignore.case=TRUE)))
+
+  max.chr.int <- max(output$renamed, na.rm=TRUE)
 
   if(any(is.na(output$renamed))){
-    max.chr.int <- max(output$renamed, na.rm=TRUE)
-
     tmp <- data.frame(orig=x[is.na(output$renamed)],
                       idx=which(is.na(output$renamed)),
                       as.chr=NA,
                       as.int=NA,
                       stringsAsFactors=FALSE)
-    tmp$as.chr <- gsub("chr|_random", "", tmp$orig)
+    tmp$as.chr <- gsub(paste0(prefix, "|_random"), "", tmp$orig)
     tmp <- tmp[order(tmp$as.chr),]
 
     for(i in 1:nrow(tmp)){
@@ -39,6 +54,23 @@ chromNames2integers <- function(x){
       } else{ # e.g. chrUn
         output$renamed[tmp$idx[i]] <- 2 * max.chr.int + 1
       }
+    }
+  }
+
+  if(any(output$renamed == 0)){ # e.g. for MADOM-GoldenDelicious-dh-v1
+    output$renamed[output$renamed == 0] <- 2 * max.chr.int + 1
+  }
+
+  if(max.chr.int > thresh.max.chr.int){ # e.g. for PRUAV-Regina-v1 scaffolds
+    uniq.chr.names <- sort(unique(x))
+    if(requireNamespace("gtools")){
+      uniq.chr.names <- gtools::mixedsort(uniq.chr.names)
+    } else
+      uniq.chr.names <- sort(uniq.chr.names)
+    uniq.chr.ints <- 1:length(uniq.chr.names)
+    for(i in seq_along(uniq.chr.ints)){
+      idx <- which(output$original == uniq.chr.names[i])
+      output$renamed[idx] <- uniq.chr.ints[i]
     }
   }
 

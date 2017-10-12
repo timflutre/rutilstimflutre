@@ -4,7 +4,7 @@
 ##'
 ##' Reformat bi-allelic SNP genotypes encoded in genotypic classes to ease subsequent manipulations.
 ##' @param file the name of the file which the data are to be read from, with a header line, columns separated by a tabulation, and row names as the first column
-##' @param x if \code{file=NULL}, data.frame of bi-allelic SNP genotypes encoded in genotypic classes, i.e. in {AA,AB or BA,BB}, with SNPs in rows and genotypes in columns
+##' @param x if \code{file=NULL}, data.frame of bi-allelic SNP genotypes encoded in genotypic classes, i.e. in {AA,AB or BA,BB}, with SNPs in rows and genotypes in columns; if it is a matrix, it will be silently transformed into a data frame
 ##' @param na.string a character to be interpreted as NA values
 ##' @param verbose verbosity level (0/1)
 ##' @return matrix with SNPs in rows and genotypes in columns
@@ -16,8 +16,11 @@ reformatGenoClasses <- function(file=NULL, x=NULL, na.string="--", verbose=1){
   if(! is.null(file)){
     stopifnot(is.character(file),
               file.exists(file))
-  } else if(! is.null(x))
+  } else if(! is.null(x)){
+    if(is.matrix(x))
+      x <- as.data.frame(x)
     stopifnot(is.data.frame(x))
+  }
 
   if(! is.null(file))
     x <- utils::read.table(file=file, header=TRUE, sep="\t", row.names=1)
@@ -247,7 +250,7 @@ updateJoinMap <- function(x, verbose=1){
 ##'
 ##' Convert SNP genotypes of a bi-parental cross from genotypic classes into the \href{https://www.kyazma.nl/index.php/JoinMap/}{JoinMap} format.
 ##' For the moment, missing genotypes in parents result in the SNP being ignored, but we could imagine using genotypes in offsprings to impute such cases.
-##' @param x data.frame of bi-allelic SNP genotypes, with SNPs in rows and genotypes in columns; row names should contain SNP identifiers, the first column should contain the SNP genotypes of the first parent (traditionnaly the mother), the second column should contain the SNP genotypes of the second parent (traditionnaly the father), and the remaining columns should contain the SNP genotypes of the offsprings (full siblings)
+##' @param x data.frame of bi-allelic SNP genotypes, with SNPs in rows and genotypes in columns; row names should contain SNP identifiers, the first column should contain the SNP genotypes of the first parent (traditionnaly the mother), the second column should contain the SNP genotypes of the second parent (traditionnaly the father), and the remaining columns should contain the SNP genotypes of the offsprings (full siblings); if it is a matrix, it will be silently transformed into a data frame
 ##' @param reformat.input if TRUE, the function \code{\link{reformatGenoClasses}} will be used
 ##' @param na.string a character to be interpreted as NA values by \code{\link{reformatGenoClasses}}
 ##' @param thresh.counts threshold (per SNP) on the number of offsprings having a particular genotypic class, below which counts are converted into \code{NA}
@@ -283,9 +286,12 @@ genoClasses2JoinMap <- function(x, reformat.input=TRUE, na.string="--",
   if(reformat.input){
     x <- as.data.frame(reformatGenoClasses(x=x, na.string=na.string,
                                            verbose=verbose))
-  } else
+  } else{
+    if(is.matrix(x))
+      x <- as.data.frame(x)
     stopifnot(is.data.frame(x),
               ! is.null(rownames(x)))
+  }
   x <- convertFactorColumnsToCharacter(x)
   if(verbose > 0){
     msg <- paste0("nb of offsprings: ", ncol(x) - 2)
@@ -515,12 +521,14 @@ genoClasses2JoinMap <- function(x, reformat.input=TRUE, na.string="--",
 ##' @param x data.frame similar to the output from \code{\link{genoClasses2JoinMap}}, with locus in rows and where the first columns corresponding to parents are discarded, i.e. the first column should be named "seg" and the following should correspond to offsprings
 ##' @param thresh.pval significance threshold at which to control the FWER (Bonferroni-adjusted p values) and the FDR (Benjamini-Hochberg-adjusted p values); the number of non-rejected null hypotheses will be shown only if \code{verbose} is non-zero
 ##' @param return.counts if TRUE, counts used to calculate the chi2 statistic are returned
+##' @param nb.cores the number of cores to use, i.e. at most how many child processes will be run simultaneously (not on Windows)
 ##' @param verbose verbosity level (0/1)
 ##' @return data.frame with one row per locus and several columns (chi2, p value, Bonferroni-adjusted p value, Benjamini-Hochberg-adjusted p value), as well as counts (if \code{return.counts=TRUE})
 ##' @author Timothee Flutre
 ##' @seealso \code{\link{genoClasses2JoinMap}}, \code{\link{updateJoinMap}}, \code{\link{plotHistPval}}, \code{\link{qqplotPval}}
 ##' @export
-filterSegreg <- function(x, thresh.pval=0.05, return.counts=FALSE, verbose=1){
+filterSegreg <- function(x, thresh.pval=0.05, return.counts=FALSE, nb.cores=1,
+                         verbose=1){
   stopifnot(is.data.frame(x),
             colnames(x)[1] == "seg",
             all(x$seg %in% c("<nnxnp>", "<lmxll>", "<hkxhk>", "<efxeg>",
@@ -529,68 +537,114 @@ filterSegreg <- function(x, thresh.pval=0.05, return.counts=FALSE, verbose=1){
             length(thresh.pval) == 1,
             all(thresh.pval >= 0, thresh.pval <= 1))
 
-  output <- data.frame(nb.classes=rep(NA, nrow(x)),
-                       row.names=rownames(x))
-  for(cn in c(paste0("class", 1:4), paste0("obs", 1:4), paste0("exp", 1:4),
-              "chi2", "pvalue"))
-    output[[cn]] <- NA
-
   x <- convertFactorColumnsToCharacter(x)
-
-  ## -------------------------------------------------------
-  ## vectorized version:
-
-  ## TODO
-
-  ## -------------------------------------------------------
-  ## un-vectorized version:
 
   idx.rows <- (1:nrow(x))[! is.na(x$seg)]
   if(verbose > 0){
     msg <- paste0("nb of segregations to test: ", length(idx.rows))
     write(msg, stdout())
-    pb <- utils::txtProgressBar(min=0, max=length(idx.rows), style=3)
-    tmp <- stats::setNames(object=cut(x=idx.rows, breaks=10, labels=FALSE),
-                           nm=idx.rows) # to update pb no more than 10 times
   }
-  for(i in idx.rows){
-    obs.classes <- as.character(x[i,-1])
-    distinct.classes <- sort(unique(obs.classes))
-    counts <- table(obs.classes, useNA="no")
 
-    output[i, "nb.classes"] <- length(distinct.classes)
+  info.seg <- list("<nnxnp>"=list(classes=sort(c("nn", "np")),
+                                  exp=rep(0.5, 2)),
+                   "<lmxll>"=list(classes=sort(c("ll", "lm")),
+                                  exp=rep(0.5, 2)),
+                   "<hkxhk>"=list(classes=sort(c("hh", "hk", "kk")),
+                                  exp=c(0.25, 0.5, 0.25)),
+                   "<efxeg>"=list(classes=sort(c("ee", "eg", "ef", "fg")),
+                                  exp=rep(0.25, 4)),
+                   "<abxcd>"=list(classes=sort(c("ac", "ad", "bc", "bd")),
+                                  exp=rep(0.25, 4)))
+  info.seg<- info.seg[names(info.seg) %in% x$seg]
 
-    ## observed counts
-    for(j in seq_along(distinct.classes)){
-      output[i, 1+j] <- distinct.classes[j]
-      output[i, 1+4+j] <- counts[distinct.classes[j]]
-    }
+  output <- data.frame(seg=x$seg,
+                       nb.classes=NA,
+                       row.names=rownames(x),
+                       stringsAsFactors=FALSE)
+  for(cn in c(paste0("class", 1:4), paste0("obs", 1:4), paste0("exp", 1:4),
+              "chi2", "pvalue"))
+    output[[cn]] <- NA
 
-    ## expected counts assuming no segregation distortion
-    if(x$seg[i] %in% c("<nnxnp>", "<lmxll>")){
-      output[i, 1+4+4+(1:2)] <- rep(0.5 * sum(counts), 2)
-    } else if(x$seg[i] == "<hkxhk>"){
-      output[i, 1+4+4+(1:3)] <- c(0.25 * sum(counts),
-                                  0.5 * sum(counts),
-                                  0.25 * sum(counts))
-    } else if(x$seg[i] %in% c("<efxeg>", "<abxcd>"))
-      output[i, 1+4+4+(1:4)] <- c(0.25 * sum(counts),
-                                  0.25 * sum(counts),
-                                  0.25 * sum(counts),
-                                  0.25 * sum(counts))
+  ## -------------------------------------------------------
+  ## parallelized and vectorized version:
 
-    if(verbose > 0){
-      ## utils::setTxtProgressBar(pb, i) # update pb at each loop iteration
-      if(i %in% as.numeric(names(tmp)[cumsum(table(tmp))]))
-        utils::setTxtProgressBar(pb, which(idx.rows == i))
-    }
-  }
-  if(verbose > 0)
-    close(pb)
+  tmp.out <- do.call(rbind, parallel::mclapply(names(info.seg), function(seg){
+    idx.seg <- which(x$seg == seg)
+    nb.classes <- length(info.seg[[seg]]$classes)
+    output$nb.classes[idx.seg] <- nb.classes
+    output[idx.seg, 2+(1:nb.classes)] <- rep(info.seg[[seg]]$classes,
+                                             each=length(idx.seg))
+    obs.counts <- t(apply(x[idx.seg, -1, drop=FALSE], 1, function(obs.classes){
+      table(factor(obs.classes, levels=info.seg[[seg]]$classes), useNA="no")
+    }))
+    output[idx.seg, 2+4+(1:nb.classes)] <- obs.counts
+    exp.counts <- rep(info.seg[[seg]]$exp, each=length(idx.seg)) *
+      rowSums(obs.counts)
+    output[idx.seg, 2+4+4+(1:nb.classes)] <- exp.counts
+    output[idx.seg,]
+  }, mc.cores=nb.cores))
+  output <- rbind(tmp.out, output[is.na(x$seg),])
+  output <- output[rownames(x),]
+
+  ## -------------------------------------------------------
+  ## vectorized version:
+
+  ## zz <- lapply(names(info.seg), function(seg){
+  ##   idx.seg <- which(x$seg == seg)
+  ##   nb.classes <- length(info.seg[[seg]]$classes)
+  ##   output$nb.classes[idx.seg] <<- nb.classes
+  ##   output[idx.seg, 2+(1:nb.classes)] <<- rep(info.seg[[seg]]$classes,
+  ##                                             each=length(idx.seg))
+  ##   obs.counts <- t(apply(x[idx.seg, -1, drop=FALSE], 1, function(obs.classes){
+  ##     table(factor(obs.classes, levels=info.seg[[seg]]$classes), useNA="no")
+  ##   }))
+  ##   output[idx.seg, 2+4+(1:nb.classes)] <<- obs.counts
+  ##   exp.counts <- rep(info.seg[[seg]]$exp, each=length(idx.seg)) *
+  ##     rowSums(obs.counts)
+  ##   output[idx.seg, 2+4+4+(1:nb.classes)] <<- exp.counts
+  ## })
+
+  ## -------------------------------------------------------
+  ## un-vectorized version:
+
+  ## if(verbose > 0){
+  ##   pb <- utils::txtProgressBar(min=0, max=length(idx.rows), style=3)
+  ##   tmp <- stats::setNames(object=cut(x=idx.rows, breaks=10, labels=FALSE),
+  ##                          nm=idx.rows) # to update pb no more than 10 times
+  ## }
+  ## for(i in idx.rows){
+  ##   nb.classes <- length(seg2classes[[x$seg[i]]])
+  ##   output[i, "nb.classes"] <- nb.classes
+  ##   output[i, 2+(1:nb.classes)] <- seg2classes[[x$seg[i]]]
+  ##   obs.classes <- factor(x=x[i,-1], levels=seg2classes[[x$seg[i]]])
+  ##   counts <- table(obs.classes, useNA="no")
+  ##   output[i, 2+4+(1:nb.classes)] <- counts
+
+  ##   ## expected counts assuming no segregation distortion
+  ##   if(x$seg[i] %in% c("<nnxnp>", "<lmxll>")){
+  ##     output[i, 2+4+4+(1:2)] <- rep(0.5 * sum(counts), 2)
+  ##   } else if(x$seg[i] == "<hkxhk>"){
+  ##     output[i, 2+4+4+(1:3)] <- c(0.25 * sum(counts),
+  ##                                 0.5 * sum(counts),
+  ##                                 0.25 * sum(counts))
+  ##   } else if(x$seg[i] %in% c("<efxeg>", "<abxcd>"))
+  ##     output[i, 2+4+4+(1:4)] <- c(0.25 * sum(counts),
+  ##                                 0.25 * sum(counts),
+  ##                                 0.25 * sum(counts),
+  ##                                 0.25 * sum(counts))
+
+  ##   if(verbose > 0){
+  ##     ## utils::setTxtProgressBar(pb, i) # update pb at each loop iteration
+  ##     if(i %in% as.numeric(names(tmp)[cumsum(table(tmp))]))
+  ##       utils::setTxtProgressBar(pb, which(idx.rows == i))
+  ##   }
+  ## }
+  ## if(verbose > 0)
+  ##   close(pb)
 
   ## calculate chi2 and p value
-  output$chi2 <- rowSums((output[,1+4+(1:4)] - output[,1+4+4+(1:4)])^2 /
-                         output[,1+4+4+(1:4)], na.rm=TRUE)
+  output$chi2 <- rowSums((output[,2+4+(1:4)] - output[,2+4+4+(1:4)])^2 /
+                         output[,2+4+4+(1:4)], na.rm=TRUE)
   output$chi2[is.na(output$nb.classes)] <- NA
   output$pvalue <- stats::pchisq(q=output$chi2, df=output$nb.classes - 1,
                                  lower.tail=FALSE)
@@ -1060,6 +1114,170 @@ phasedJoinMapCP2qtl <- function(x, verbose=1){
   return(out)
 }
 
+##' Read genotypes for JoinMap/MapQTL
+##'
+##' Read genotype data from a file in the \href{https://www.kyazma.nl/index.php/JoinMap/}{JoinMap} format ("loc").
+##' @param file name of the file from which the data will be read (can be compressed with gzip)
+##' @param na.string a character to be interpreted as NA values
+##' @param verbose verbosity level (0/1)
+##' @return data frame in the JoinMap format
+##' @author Timothee Flutre
+##' @seealso \code{\link{writeSegregJoinMap}}
+##' @note the code is heavily inspired from the "read.cross.mq.loc" function in the "qtl" package, which I also wrote
+##' @export
+readSegregJoinMap <- function(file, na.string="--", verbose=1){
+  stopifnot(file.exists(file))
+
+  if(verbose > 0){
+    msg <- paste0("read genotypes from JoinMap file '",
+                  file, "'...")
+    write(msg, stdout())
+  }
+
+  lines <- readLines(con=file, warn=FALSE)
+
+  ## drop comments
+  lines <- vapply(strsplit(lines, ";"), "[", "", 1)
+
+  ## drop empty lines
+  lines <- lines[!is.na(lines)]
+  blank <- grep("^\\s*$", lines)
+  if(length(blank) > 0)
+    lines <- lines[-blank]
+
+  grab.param <- function(lines, param, longname, filetype){
+    ## stuff for error message
+    if(missing(filetype)) filetype <- ""
+    else filetype <- paste(" in", filetype, "file")
+    if(missing(longname)) longname <- param
+
+    g <- grep(param, lines)
+    if(length(g) == 0)
+      stop("Cannot find ", longname, " in ", filetype)
+
+    ## remove white space
+    line <- gsub("\\s+", "", lines[g])
+
+    result <- strsplit(line, "=")[[1]][2]
+
+    return(list(result, g)) # g is the line number
+  }
+
+  ## extract the population name
+  res <- grab.param(lines, "^name", "population name", "loc")
+  pop.name <- res[[1]]
+  todrop <- res[[2]]
+  if(verbose > 0){
+    msg <- paste0("population name: ", pop.name)
+    write(msg, stdout())
+  }
+
+  ## extract the population type
+  res <- grab.param(lines, "^popt", "population type", "loc")
+  pop.type <- res[[1]]
+  todrop <- c(todrop, res[[2]])
+  pop.types <- c("BC1","F2","RIx","DH","DH1","DH2","HAP","HAP1","CP","BCpxFy",
+                 "IMxFy")
+  if(! pop.type %in% pop.types){
+    msg <- paste("unknown population type", pop.type)
+    stop(msg, call.=FALSE)
+  }
+  if(verbose > 0){
+    msg <- paste0("population type: ", pop.type)
+    write(msg, stdout())
+  }
+
+  ## extract the number of loci
+  res <- grab.param(lines, "^nloc", "Number of loci", "loc")
+  nb.loci <- as.numeric(res[[1]])
+  todrop <- c(todrop, res[[2]])
+  if(verbose > 0){
+    msg <- paste0("nb of loci: ", nb.loci)
+    write(msg, stdout())
+  }
+  seg <- rep(NA, nb.loci)
+  phase <- rep(NA, nb.loci)
+  classif <- rep(NA, nb.loci)
+
+  ## extract the number of individuals
+  res <- grab.param(lines, "^nind", "Number of individuals", "loc")
+  nb.inds <- as.numeric(res[[1]])
+  todrop <- c(todrop, res[[2]])
+  if(verbose > 0){
+    msg <- paste0("nb of individuals: ", nb.inds)
+    write(msg, stdout())
+  }
+
+  genotypes <- matrix(NA, nrow=nb.loci, ncol=nb.inds)
+
+  ## extract the individual names (if any)
+  idx <- grep("individual names:", lines)
+  if(length(idx) > 0){
+    range.idx <- (idx+1):(idx+nb.inds)
+    if(any(range.idx > length(lines))){
+      msg <- "can't retrieve the individual names"
+      stop(msg)
+    }
+    ind.names <- lines[range.idx]
+    stopifnot(! anyDuplicated(ind.names))
+    colnames(genotypes) <- ind.names
+    todrop <- c(todrop, c(idx, range.idx))
+  } else if(length(idx) > 1){
+    msg <- "individual names defined multiple times"
+    stop(msg)
+  }
+
+  lines <- lines[-todrop]
+  if(length(lines) != nb.loci){
+    msg <- paste0("the number of loci indicated in the header (", nb.loci,
+                  " seems to be wrong")
+    stop(msg)
+  }
+  spl <- strsplit(lines, "\\s+")
+  spl.lengths <- vapply(spl, length, 1)
+  if(any(spl.lengths > nb.inds+4))
+    stop("lines should have no more than ", nb.inds+4, " columns\n",
+         "Problems in lines", seq(along=spl.lengths)[spl.lengths > nb.inds+4])
+
+  rownames(genotypes) <- vapply(spl, "[", "", 1)
+
+  for(line.id in 1:length(lines)){
+    tokens <- spl[[line.id]]
+
+    if(length(tokens) > nb.inds + 1){
+      for(i in 2:(length(tokens)-nb.inds)){
+        if(length(grep(pattern="\\{", x=tokens[i])) > 0){
+          phase[line.id] <- tokens[i]
+        } else if(length(grep(pattern="\\(", x=tokens[i])) > 0){
+          classif[line.id] <- tokens[i]
+        } else if(length(grep(pattern="<", x=tokens[i])) > 0){
+          seg[line.id] <- tokens[i]
+        }
+      }
+    }
+
+    genotypes[line.id,] <- tokens[(length(tokens)-nb.inds+1):length(tokens)]
+  }
+
+  ## convert all missing data to NA
+  is.miss <- genotypes == na.string
+  if(any(is.miss, na.rm=TRUE))
+    genotypes[which(is.miss)] <- NA
+
+  out <- data.frame(dummy=rep(NA, nrow(genotypes)))
+  if(! all(is.na(seg)))
+    out <- cbind(out, seg=seg)
+  if(! all(is.na(phase)))
+    out <- cbind(out, phase=phase)
+  if(! all(is.na(classif)))
+    out <- cbind(out, classif=classif)
+  out <- cbind(out, as.data.frame(genotypes))
+  out <- out[,-1]
+  out <- convertFactorColumnsToCharacter(out)
+
+  return(out)
+}
+
 ##' Write genotypes for JoinMap/MapQTL
 ##'
 ##' Write genotype data in the \href{https://www.kyazma.nl/index.php/JoinMap/}{JoinMap} format into a "loc" file used by this software.
@@ -1072,10 +1290,11 @@ phasedJoinMapCP2qtl <- function(x, verbose=1){
 ##' @param classifs vector of classification types (optional)
 ##' @param file name of the file in which the data will be saved (will be compressed if ends with ".gz" and "gzip" is available in the PATH)
 ##' @param save.ind.names if TRUE, individual names will be saved at the end of the file
+##' @param na.string character to replace NA's in "genos"
 ##' @param verbose verbosity level (0/1)
 ##' @return nothing
 ##' @author Timothee Flutre
-##' @seealso \code{\link{genoClasses2JoinMap}}
+##' @seealso \code{\link{genoClasses2JoinMap}}, \code{\link{readSegregJoinMap}}, \code{link{writeGenMapJoinMap}}, \code{link{writePhenoJoinMap}}
 ##' @examples
 ##' \dontrun{## make fake data
 ##' nb.snps <- 6
@@ -1094,8 +1313,10 @@ phasedJoinMapCP2qtl <- function(x, verbose=1){
 ##' }
 ##' @export
 writeSegregJoinMap <- function(pop.name, pop.type="CP",
-                               locus, segregs, genos, phases=NULL, classifs=NULL,
-                               file, save.ind.names=TRUE, verbose=1){
+                               locus, segregs, genos,
+                               phases=NULL, classifs=NULL,
+                               file, save.ind.names=TRUE, na.string="--",
+                               verbose=1){
   requireNamespace("tools")
   stopifnot(is.character(pop.name),
             is.character(pop.type),
@@ -1108,7 +1329,8 @@ writeSegregJoinMap <- function(pop.name, pop.type="CP",
             nrow(genos) == length(locus),
             nrow(genos) == length(segregs),
             is.character(file),
-            is.logical(save.ind.names))
+            is.logical(save.ind.names),
+            is.character(na.string))
   if(! is.null(phases))
     stopifnot(is.character(phases),
               nrow(genos) == length(phases))
@@ -1150,6 +1372,7 @@ writeSegregJoinMap <- function(pop.name, pop.type="CP",
     tmp <- cbind(tmp, phases)
   if(! is.null(classifs))
     tmp <- cbind(tmp, classifs)
+  genos[is.na(genos)] <- na.string
   tmp <- cbind(tmp, genos)
   suppressWarnings(utils::write.table(x=tmp, file=con, append=TRUE,
                                       quote=FALSE, sep="\t",
@@ -1182,6 +1405,7 @@ writeSegregJoinMap <- function(pop.name, pop.type="CP",
 ##' @param verbose verbosity level (0/1)
 ##' @return nothing
 ##' @author Timothee Flutre
+##' @seealso \code{link{writePhenoJoinMap}}, \code{link{writeSegregJoinMap}}
 ##' @export
 writeGenMapJoinMap <- function(genmap, file, verbose=1){
   stopifnot(is.data.frame(genmap),
@@ -1230,6 +1454,7 @@ writeGenMapJoinMap <- function(genmap, file, verbose=1){
 ##' @param verbose verbosity level (0/1)
 ##' @return nothing
 ##' @author Timothee Flutre
+##' @seealso \code{link{writeGenMapJoinMap}}, \code{link{writeSegregJoinMap}}
 ##' @export
 writePhenoJoinMap <- function(phenos, file, alias.miss=".", verbose=1){
   stopifnot(is.data.frame(phenos),
@@ -1263,6 +1488,228 @@ writePhenoJoinMap <- function(phenos, file, alias.miss=".", verbose=1){
                                       row.names=FALSE, col.names=TRUE))
 
   close(con)
+}
+
+##' Info about a given genetic map
+##'
+##' Returns some information on a given genetic map, notably the relations between linkage groups and chromosomes.
+##' Beforehand, the genetic map can be filtered.
+##' @param genmap data frame with at least three columns named "linkage.group", "locus" and "chr", and one row per locus
+##' @param min.mrks.per.lg to filter the genetic map, any linkage group with strictly less than this threshold will be discarded
+##' @param min.mrks.per.chr.in.lg to filter the genetic map, for linkage groups with markers belonging to several chromosomes, any marker belonging to chromosomes with stricly less than this threshold will be discarded
+##' @param chrs.todrop optional vector of chromosome names to drop from the analysis
+##' @param verbose verbosity level (0/1/2)
+##' @return list with several summaries, as well as a clean version of the genetic map with one linkage group per chromosome (among the most represented)
+##' @author Timothee Flutre
+##' @export
+infoGeneticMap <- function(genmap, min.mrks.per.lg=0,
+                           min.mrks.per.chr.in.lg=0, chrs.todrop=NULL,
+                           verbose=1){
+  stopifnot(is.data.frame(genmap),
+            all(c("linkage.group", "locus", "chr") %in%
+                colnames(genmap)),
+            ! any(is.na(genmap$linkage.group)),
+            ! anyDuplicated(genmap$locus),
+            is.numeric(genmap$genetic.distance))
+  if(! is.null(chrs.todrop))
+    stopifnot(is.character(chrs.todrop))
+
+  if(! is.null(chrs.todrop)){
+    if(verbose > 0){
+      msg <- paste0("discard ", length(chrs.todrop), " chromosome",
+                    ifelse(length(chrs.todrop) == 1, "", "s"), "...")
+      write(msg, stdout())
+    }
+    genmap <- genmap[! genmap$chr %in% chrs.todrop,]
+  }
+
+  if(min.mrks.per.lg > 0){
+    if(verbose > 0){
+      msg <- paste0("discard linkage groups with strictly less than ",
+                    min.mrks.per.lg, " markers...")
+      write(msg, stdout())
+    }
+    tmp <- tapply(1:nrow(genmap), factor(genmap$linkage.group), length)
+    has.enough.mrks <- tmp >= min.mrks.per.lg
+    if(! all(has.enough.mrks)){
+      genmap <- genmap[genmap$linkage.group %in% names(tmp)[has.enough.mrks],]
+    }
+  }
+
+  if(min.mrks.per.chr.in.lg > 0){
+    if(verbose > 0){
+      msg <- paste0("discard chromosomes in linkage groups if strictly less than ",
+                    min.mrks.per.chr.in.lg, " markers...\n")
+      write(msg, stdout())
+    }
+    tmp <- tapply(genmap$chr, factor(genmap$linkage.group), function(x){
+      tmp2 <- table(x)
+      names(tmp2[tmp2 >= min.mrks.per.chr.in.lg])
+    })
+    tmp[sapply(tmp, length) == 0] <- NULL
+    if(length(tmp) == 0)
+      stop("all data were filtered out!")
+    genmap <- do.call(rbind, lapply(names(tmp), function(lg){
+      genmap[genmap$linkage.group == lg & genmap$chr %in% tmp[[lg]],]
+    }))
+  }
+
+  if(verbose > 0){
+    msg <- paste0("total nb of markers: ", nrow(genmap))
+    write(msg, stdout())
+  }
+
+  ## get chr and lg names, and sort them in natural order if possible
+  chr.names <- unique(genmap$chr)
+  if(requireNamespace("gtools"))
+    chr.names <- gtools::mixedsort(chr.names)
+  nb.chrs <- length(chr.names)
+  lg.names <- unique(genmap$linkage.group)
+  if(requireNamespace("gtools"))
+    lg.names <- gtools::mixedsort(lg.names)
+  nb.lgs <- length(lg.names)
+
+  tab.chr <- table(genmap$chr, useNA="always")
+  tab.chr <- tab.chr[chr.names]
+  if(verbose > 0){
+    msg <- paste0("\nnb of chromosomes: ", nb.chrs,
+                  "\nnb of markers per chromosome:")
+    write(msg, stdout())
+    print(tab.chr)
+  }
+
+  tab.lg <- table(genmap$linkage.group, useNA="always")
+  tab.lg <- tab.lg[order(tab.lg, decreasing=TRUE)]
+  if(verbose > 0){
+    msg <- paste0("\nnb of linkage groups: ", nb.lgs,
+                  "\nnb of markers per linkage group:")
+    write(msg, stdout())
+    print(tab.lg)
+  }
+
+  ## stats per lg
+  lg2chr <- tapply(1:nrow(genmap), factor(genmap$linkage.group),
+                   function(idx){
+                     stats::setNames(genmap$chr[idx], genmap$locus[idx])
+                   })
+  tab.lg2chr <- lapply(lg2chr, function(x){
+    table(factor(x, levels=chr.names))
+  })
+  tab.lg2chr <- tab.lg2chr[names(tab.lg)[order(tab.lg, decreasing=TRUE)]
+                           [-length(tab.lg)]]
+  mat.lg2chr <- t(do.call(rbind, tab.lg2chr))
+  tab.lg2chr <- lapply(tab.lg2chr, function(x){
+    x <- x[order(x, decreasing=TRUE)]
+    x[x > 0]
+  })
+  chrs.per.lg <- sapply(tab.lg2chr, length)
+
+  ## stats per chr
+  chr2lg <- list()
+  for(chr in chr.names){
+    idx <- which(genmap$chr == chr)
+    chr2lg[[chr]] <- stats::setNames(genmap$linkage.group[idx],
+                                     genmap$locus[idx])
+  }
+  tab.chr2lg <- lapply(chr2lg, function(x){
+    table(factor(x, levels=lg.names))
+  })
+  tab.chr2lg <- tab.chr2lg[chr.names]
+  mat.chr2lg <- t(do.call(rbind, tab.chr2lg))
+  tab.chr2lg <- lapply(tab.chr2lg, function(x){
+    x <- x[order(x, decreasing=TRUE)]
+    x[x > 0]
+  })
+  lgs.per.chr <- sapply(tab.chr2lg, length)
+
+  if(verbose > 0){
+    msg <- "\nnb of chromosomes per linkage group:"
+    write(msg, stdout())
+    print(chrs.per.lg)
+    msg <- "\nnb of linkage groups per chromosome:"
+    write(msg, stdout())
+    print(lgs.per.chr)
+    if(verbose > 1){
+      msg <- "\nnb of markers per chromosome in each linkage group:"
+      write(msg, stdout())
+      print(tab.lg2chr)
+      msg <- "\nnb of markers per linkage group for each chromosome:"
+      write(msg, stdout())
+      print(tab.chr2lg)
+    }
+  }
+
+  genmap.clean <- genmap[genmap$linkage.group %in%
+                         sapply(tab.chr2lg, function(x){
+                           names(x)[1]
+                         }),]
+  rownames(genmap.clean) <- NULL
+
+  return(list(clean=genmap.clean,
+              tab.chr=tab.chr, tab.lg=tab.lg,
+              lg2chr=lg2chr, tab.lg2chr=tab.lg2chr, mat.lg2chr=mat.lg2chr,
+              chr2lg=chr2lg, tab.chr2lg=tab.chr2lg, mat.chr2lg=mat.chr2lg))
+}
+
+##' Stacked barplot of markers
+##'
+##' Make a barplot of markers per linkage group (or chromosome), stacked per chromosome (or linkage group).
+##' @param counts matrix with the number of markers, with chromosomes in rows and linkage groups in columns, or vice-versa; should have row and column names
+##' @param las see \code{\link[graphics]{par}}
+##' @param border see \code{\link[graphics]{barplot}}
+##' @param col see \code{\link[graphics]{barplot}}
+##' @param leg.txt see \code{\link[graphics]{barplot}}; if NULL, the stack labels will appear in the middle of each bar
+##' @param args.leg see \code{\link[graphics]{barplot}}
+##' @param ... arguments to be passed to \code{\link[graphics]{barplot}}
+##' @return see \code{\link[graphics]{barplot}}
+##' @author Timothee Flutre
+##' @export
+barplotGeneticMap <- function(counts,
+                              las=1, border=NA,
+                              col=grDevices::rainbow(nrow(counts)),
+                              leg.txt=rownames(counts),
+                              args.leg=list(x="topright", bty="n", border=NA,
+                                            fill=rev(grDevices::rainbow(nrow(counts)))),
+                              ...){
+  stopifnot(is.matrix(counts),
+            ! is.null(rownames(counts)),
+            ! is.null(colnames(counts)))
+
+  bp.x <- graphics::barplot(counts, las=las, border=border,
+                            col=col,
+                            legend.text=leg.txt,
+                            args.legend=args.leg,
+                            xaxt="n",
+                            ...)
+  graphics::text(x=bp.x, y=graphics::par("usr")[3] - 1, srt=45, adj=1,
+                 labels=colnames(counts), xpd=TRUE)
+
+  ## add stack labels
+  if(is.null(leg.txt)){
+    nb.nonzeros <- apply(counts, 2, function(x){
+      sum(x != 0)
+    })
+    labs <- do.call(c, lapply(1:ncol(counts), function(j){
+      x <- counts[,j]
+      rownames(counts)[x != 0]
+    }))
+    txt.x <- rep(bp.x, nb.nonzeros)
+    txt.y <- do.call(c, lapply(1:ncol(counts), function(j){
+      x <- counts[,j]
+      is.nonzero <- x != 0
+      tmp <- rep(NA, sum(is.nonzero))
+      tmp[1] <- x[is.nonzero][1] / 2
+      i <- 2
+      while(i <= sum(is.nonzero)){
+        tmp[i] <- cumsum(x[is.nonzero][1:(i-1)]) + x[is.nonzero][i] / 2
+        i <- i + 1
+      }
+      tmp
+    }))
+    graphics::text(x=txt.x, y=txt.y, labels=labs, srt=45)
+  }
+
+  invisible(bp.x)
 }
 
 ##' Genotype coding
@@ -2099,70 +2546,123 @@ stopIfNotValidGenosDose <- function(X, check.hasColNames=TRUE,
 ##' The code is not particularly efficient, but at least it exists.
 ##' @param X matrix of bi-allelic SNP genotypes encoded, for each SNP, in number of copies of its second allele, i.e. as allele doses in {0,1,2}, with genotypes in rows and SNPs in columns; the "second" allele is arbitrary, it corresponds to the second column of \code{alleles}, which can be the minor or the major allele
 ##' @param tX matrix with SNPs in rows and genotypes in columns
-##' @param alleles data.frame with SNPs in rows (names as row names) and alleles in columns (exactly 2 columns are required); the second column should correspond to the allele which number of copies is counted at each SNP in \code{X}
+##' @param alleles data.frame with SNPs in rows (names as row names) and alleles in columns (exactly 2 columns are required); the second column should correspond to the allele which number of copies is counted at each SNP in \code{X}; only the rows corresponding to SNPs in X or tX will be kept
 ##' @param na.string character used to replace NA values
+##' @param nb.cores the number of cores to use, i.e. at most how many child processes will be run simultaneously (not on Windows)
 ##' @param verbose verbosity level (0/1)
 ##' @return data.frame with SNPs in rows and genotypes in columns
 ##' @author Timothee Flutre
 ##' @seealso \code{link{genoClasses2genoDoses}}
 ##' @export
 genoDoses2genoClasses <- function(X=NULL, tX=NULL, alleles, na.string="--",
-                                  verbose=1){
+                                  nb.cores=1, verbose=1){
   stopifnot(xor(is.null(X), is.null(tX)),
             is.data.frame(alleles),
             ncol(alleles) == 2,
-            ! is.null(row.names(alleles)))
+            ! is.null(row.names(alleles)),
+            all(! is.na(alleles[,1])),
+            all(! is.na(alleles[,2])))
   if(! is.null(X)){
     stopIfNotValidGenosDose(X=X, check.noNA=FALSE)
-    stopifnot(all(rownames(alleles) %in% colnames(X)))
     tX <- t(X)
   }
-  stopifnot(all(rownames(alleles) %in% rownames(tX)))
   alleles <- convertFactorColumnsToCharacter(alleles)
+  alleles <- alleles[rownames(tX),]
 
   if(verbose > 0){
     msg <- paste0("convert ", nrow(tX), " SNPs for ",
                   ncol(tX), " genotypes...")
     write(msg, stdout())
-    idx.rows <- 1:nrow(tX)
-    pb <- utils::txtProgressBar(min=0, max=length(idx.rows), style=3)
-    tmp <- stats::setNames(object=cut(x=idx.rows, breaks=10, labels=FALSE),
-                           nm=idx.rows) # to update pb no more than 10 times
   }
 
-  out <- as.data.frame(tX, row.names=rownames(tX), col.names=colnames(tX))
+  ## -------------------------------------------------------
+  ## vectorized version:
 
-  ## for each SNP
-  for(i in 1:nrow(tX)){
+  alleles$gclass <- paste0(alleles[,1], alleles[,2])
+  if(verbose > 1)
+    print(table(alleles$gclass))
+
+  out <- parallel::mclapply(unique(alleles$gclass), function(gclass){
+    idx.gclass <- which(alleles$gclass == gclass)
+    tmp <- c(tX[idx.gclass,]) # work with a vector
 
     ## convert homozygous for the first allele (AA or A1A1)
-    idx <- which(tX[i,] == 0)
+    idx <- which(tX[idx.gclass,] == 0)
     if(length(idx) > 0)
-      out[i, idx] <- paste0(alleles[i, 1], alleles[i, 1], collapse="")
+      tmp[idx] <- paste0(alleles[idx.gclass[1], 1],
+                         alleles[idx.gclass[1], 1], collapse="")
 
     ## convert heterozygous (AB or A1A2)
-    idx <- which(tX[i,] == 1)
+    idx <- which(tX[idx.gclass,] == 1)
     if(length(idx) > 0)
-      out[i, idx] <- paste0(alleles[i, 1], alleles[i, 2], collapse="")
+      tmp[idx] <- paste0(alleles[idx.gclass[1], 1],
+                         alleles[idx.gclass[1], 2], collapse="")
 
     ## convert homozygous for the second allele (BB or A2A2)
-    idx <- which(tX[i,] == 2)
+    idx <- which(tX[idx.gclass,] == 2)
     if(length(idx) > 0)
-      out[i, idx] <- paste0(alleles[i, 2], alleles[i, 2], collapse="")
+      tmp[idx] <- paste0(alleles[idx.gclass[1], 2],
+                         alleles[idx.gclass[1], 2], collapse="")
 
     ## convert missing (NA)
-    idx <- which(is.na(tX[i,]))
+    idx <- which(is.na(tX[idx.gclass,]))
     if(length(idx) > 0)
-      out[i, idx] <- na.string
+      tmp[idx] <- na.string
 
-    if(verbose > 0){
-      ## utils::setTxtProgressBar(pb, i) # update pb at each loop iteration
-      if(i %in% as.numeric(names(tmp)[cumsum(table(tmp))]))
-        utils::setTxtProgressBar(pb, which(idx.rows == i))
-    }
-  }
-  if(verbose > 0)
-    close(pb)
+    ## transform into a matrix
+    matrix(data=tmp,
+           nrow=nrow(tX[idx.gclass, , drop=FALSE]),
+           ncol=ncol(tX[idx.gclass, , drop=FALSE]),
+           dimnames=dimnames(tX[idx.gclass,, drop=FALSE]))
+  }, mc.cores=nb.cores)
+
+  ## reformat the output
+  out <- do.call(rbind, out)
+  out <- out[rownames(tX), colnames(tX)]
+
+  ## -------------------------------------------------------
+  ## un-vectorized version:
+
+  ## out <- as.data.frame(tX, row.names=rownames(tX), col.names=colnames(tX))
+
+  ## if(verbose > 0){
+  ##   idx.rows <- 1:nrow(tX)
+  ##   pb <- utils::txtProgressBar(min=0, max=length(idx.rows), style=3)
+  ##   tmp <- stats::setNames(object=cut(x=idx.rows, breaks=10, labels=FALSE),
+  ##                          nm=idx.rows) # to update pb no more than 10 times
+  ## }
+
+  ## ## for each SNP
+  ## for(i in 1:nrow(tX)){
+
+  ##   ## convert homozygous for the first allele (AA or A1A1)
+  ##   idx <- which(tX[i,] == 0)
+  ##   if(length(idx) > 0)
+  ##     out[i, idx] <- paste0(alleles[i, 1], alleles[i, 1], collapse="")
+
+  ##   ## convert heterozygous (AB or A1A2)
+  ##   idx <- which(tX[i,] == 1)
+  ##   if(length(idx) > 0)
+  ##     out[i, idx] <- paste0(alleles[i, 1], alleles[i, 2], collapse="")
+
+  ##   ## convert homozygous for the second allele (BB or A2A2)
+  ##   idx <- which(tX[i,] == 2)
+  ##   if(length(idx) > 0)
+  ##     out[i, idx] <- paste0(alleles[i, 2], alleles[i, 2], collapse="")
+
+  ##   ## convert missing (NA)
+  ##   idx <- which(is.na(tX[i,]))
+  ##   if(length(idx) > 0)
+  ##     out[i, idx] <- na.string
+
+  ##   if(verbose > 0){
+  ##     ## utils::setTxtProgressBar(pb, i) # update pb at each loop iteration
+  ##     if(i %in% as.numeric(names(tmp)[cumsum(table(tmp))]))
+  ##       utils::setTxtProgressBar(pb, which(idx.rows == i))
+  ##   }
+  ## }
+  ## if(verbose > 0)
+  ##   close(pb)
 
   return(out)
 }

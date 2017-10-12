@@ -21,6 +21,9 @@ nothing
 \description{
 Writes the given phenotypes in the JoinMap/MapQTL format.
 }
+\seealso{
+\code{link{writeGenMapJoinMap}}, \code{link{writeSegregJoinMap}}
+}
 \author{
 Timothee Flutre
 }
