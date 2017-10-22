@@ -1,6 +1,6 @@
 Package: rutilstimflutre
 Title: Timothee Flutre's personal R code
-Version: 0.147.4
+Version: 0.148.0
 Authors@R: c(
     person("Timothee", "Flutre", email="timothee.flutre@inra.fr", role=c("aut", "ctb", "cre")),
     person("Peter", "Carbonetto", role="aut", comment="function from varbvs example"),
@@ -10,7 +10,8 @@ Authors@R: c(
     person("Bertrand", "Servin", role="aut", comment="function from article"),
     person("Eric", "Duchene", role="aut", comment="functions to filter SNP genotypes"),
     person("Gautier", "Sarah", role="aut", comment="functions to reformat SNP genotypes"),
-    person("Agnes", "Doligez", role="ctb", comment="help on joinMap2backcross()")
+    person("Agnes", "Doligez", role="ctb", comment="help on joinMap2backcross()"),
+    person("Gota", "Morota", email="morota@unl.edu", role="ctb", comment="variance components estimation")
     )
 Description: Timothee Flutre's personal R package (+ parts from other contributors).
 Depends:

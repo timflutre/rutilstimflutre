@@ -5098,6 +5098,139 @@ haplosAlleles2num <- function(haplos, alleles, nb.cores=1){
   return(out)
 }
 
+##' Compute the inverse of the additive relationship matrix using Quass algorithm
+##'
+##' Given the vectors of sire and dam, directly return inverse of additive relationship matrix 'A' without creating the 'A' itself.
+##' This is a modification of Henderson's method and unlike createAinv.r, this can be used in inbred populations.
+##' Reference:
+##' \itemize{
+##' \item Quass, R. L. 1976. Computing the Diagonal Elements and Inverse of a Large Numerator Relationship Matrix. Biometrics 32:949-953.
+##' }
+##' @param s vector of sires
+##' @param d vector of dams
+##' @return matrix
+##' @author Gota Morota
+##' @note Unknown parents should be coded as zero. Last modified by Morota on April 2, 2010.
+##' @export
+quass <- function(s, d){
+  stopifnot(is.vector(s),
+            is.vector(d),
+            length(s) == length(d))
+
+  n <- length(s)
+  N <- n
+  L <- matrix(0.0, ncol=N, nrow=N)
+
+  s <- (s == 0)*(N) + s
+  d <- (d == 0)*N + d
+
+  ## construct L
+	for(t in 1:n){
+
+		if (s[t] == N && d[t] == N){
+			L[t,t] <- 1.0
+			if(t!=1) {
+				for(j in 1:(t-1)){
+					L[t,j] <- 0
+				}
+			}
+		}
+
+		if (s[t] != N && d[t] == N){
+			for (j in 1:s[t]){
+				L[t,j] <- 0.5*L[s[t], j]
+			}
+			tmp <- 0.0
+			for(j in 1:s[t]){
+				tmp <- tmp + L[t,j]^2
+			}
+			L[t,t] <- sqrt(1- tmp)
+		}
+
+		if (s[t] == N && d[t] != N){
+			for (j in 1:d[t]){
+				L[t,j] <- 0.5*L[d[t], j]
+			}
+			tmp <- 0.0
+			for(j in 1:d[t]){
+				tmp <- tmp + L[t,j]^2
+			}
+			L[t,t] <- sqrt(1- tmp)
+		}
+
+		if (s[t] != N && d[t] != N ){
+			if (s[t] < d[t]){
+				p <- s[t]
+				q <- d[t]
+			}
+			else{
+				p <- d[t]
+				q <- s[t]
+			}
+
+			for(j in 1:t-1){
+				L[t,j] <- 0.5*(L[p,j] + L[q,j])
+			}
+
+			tmp <- 0.0
+			for (j in 1:p){
+				tmp <- tmp + L[p,j]*L[q,j]
+			}
+
+			tmp2 <- 0.0
+			for (j in 1:q){
+				tmp2 <- tmp2 + L[t,j]^2
+			}
+
+			L[t,t] <- 	sqrt(1+0.5*tmp - tmp2)
+		}
+
+	}
+
+
+  ## calculate inv(A) based on L
+	A <- matrix(0.0, ncol=N, nrow=N)
+
+	for(i in 1:n){
+
+		tmp <- 1/L[i,i]^2
+
+		if (s[i] != N && d[i] != N ){
+			A[i,i] <- A[i,i] + tmp
+			A[i, s[i]] <- A[i, s[i]] - tmp/2.0
+			A[s[i], i] <- A[s[i], i] - tmp/2.0
+			A[i,d[i]] <- A[i, d[i]] - tmp/2.0
+			A[d[i], i] <- A[d[i], i] - tmp/2.0
+
+			A[s[i], s[i]] <- A[s[i], s[i]] + tmp/4.0
+			A[s[i], d[i]] <- A[s[i], d[i]] + tmp/4.0
+			A[d[i], s[i]] <- A[d[i], s[i]] + tmp/4.0
+			A[d[i], d[i]] <- A[d[i], d[i]] + tmp/4.0
+		}
+
+		if (s[i] != N && d[i] == N){
+			A[i,i] <- A[i,i] + tmp
+			A[s[i], i] <- A[s[i], i] - tmp/2.0
+			A[i, s[i]] <- A[i, s[i]] - tmp/2.0
+			A[s[i], s[i]] <- A[s[i], s[i]] + tmp/4.0
+		}
+
+		if (s[i] == N && d[i] != N){
+			A[i,i] <- A[i,i] + tmp
+			A[d[i], i] <- A[d[i], i] - tmp/2.0
+			A[i, d[i]] <- A[i, d[i]] - tmp/2.0
+			A[d[i], d[i]] <- A[d[i], d[i]] + tmp/4.0
+		}
+
+		if (s[i] == N && d[i] == N){
+			A[i,i] <- A[i,i] + tmp
+		}
+
+	}
+
+  return(A)
+}
+
 ##' Animal model
 ##'
 ##' Given T traits, I genotypes, Q covariates and N=I*Q phenotypes per trait, simulate phenotypes via the following "animal model": \eqn{Y = W C + Z G_A + Z G_D + E}, where Y is N x T; W is N x Q; Z is N x I; G_A ~ Normal_IxT(0, A, V_{G_A}) with A being IxI and V_{G_A} being TxT; G_D ~ Normal_IxT(0, D, V_{G_D}) with D being IxI and V_{G_D} being TxT; E ~ Normal_NxT(0, Id_N, V_E) with Id_N being NxN and V_E being TxT. Note that using the matrix Normal (MN) is equivalent to using the multivariate Normal (MVN) via the vec operator and Kronecker product: \eqn{Y ~ MN(M, U, V) <=> vec(Y) ~ MVN(vec(M), V \otimes U)}. Spatial heterogeneity can be add (see \href{http://dx.doi.org/10.1139/x02-111}{Dutkowski et al (2002)}).
@@ -5413,6 +5546,72 @@ mme <- function(y, W, Z, sigma.A2, Ainv, V.E){
   theta.hat <- solve(lhs, rhs) # faster than solve(lhs) %*% rhs
 
   return(c(theta.hat))
+}
+
+##' Estimate variance components via REML using EM
+##'
+##' Given the MME components, estimate variance components by the EM algorithm.
+##' References are:
+##' \itemize{
+##' \item Suzuki, M. 2007. Applied Animal Breeding & Genetics. Course Notes. Obihiro University of Agriculture and Veterinary Medicine.
+##' \item Mrode, R.A. 2005. Linear Models for the Prediction of Animal Breeding Values. CAB International, Oxon, UK.
+##' }
+##' @param Ainv inverse of additive relationship matrix
+##' @param y vector of responses
+##' @param X incidence matrix for fixed effects
+##' @param Z incidence matrix for random effects
+##' @param initE initial value for the residual variance
+##' @param initU initial value for the additive genetic variance
+##' @param verbose verbosity level (0/1/2)
+##' @return vector
+##' @author Goto Morota
+##' @note Unknown parents should be coded as zero. Last modified by Morota on April 8, 2010.
+##' @export
+emreml <- function(Ainv, y, X, Z, initE, initU, verbose=0){
+  ## MME
+	n <- length(y)
+	Xpy <- t(X) %*% y
+	Zpy <- t(Z) %*% y
+	XpX <- t(X) %*% X
+	XpZ <- t(X) %*% Z
+	ZpX <- t(Z) %*% X
+	ZpZ <- t(Z) %*% Z
+	RHS <- c(Xpy, Zpy)
+	oldE <- initE
+	oldU <- initU
+	rankX <- qr(X, LAPACK=TRUE)$rank
+	rankA <- qr(Ainv, LAPACK=TRUE)$rank
+
+	lhsRow <- length(RHS)
+	z <- length(RHS) - dim(ZpZ)[1] + 1
+
+	diff1 <- 1
+	diff2 <- 1
+	i <- 0
+	while(diff1 > 10E-6 & diff2 > 10E-6){
+		i <- i + 1
+		alpha <- as.vector((oldE / oldU))
+		LHS <- rbind(cbind(XpX, XpZ), cbind(ZpX, ZpZ+Ainv*alpha))
+		B <- solve(LHS) %*% RHS
+		e <-  y - cbind(X,Z) %*% B
+		sig2E <- (t(e) %*% y) / (n - rankX)
+		c22 <- solve(LHS)[z:lhsRow, z:lhsRow]
+		u <- B[z:length(B)]
+		## sum(Ainv*c22) is same as sum(diag(Ainv%*%c22))
+		sig2U <- (t(u) %*% Ainv %*% u + sum(Ainv*c22)*oldE) / (rankA)
+		diff1 <- abs(sig2E - oldE)
+		diff2 <- abs(sig2U - oldU)
+		if(verbose > 0){
+      txt <- paste0("iteration ", i, ":",
+                    " sig2E=", format(sig2E, digits=5),
+                    " sig2U=", format(sig2U, digits=5))
+      write(txt, stdout())
+		}
+		oldE <- sig2E
+		oldU <- sig2U
+	}
+
+	return(c(varE=sig2E, varU=sig2U))
 }
 
 ##' Animal model
