@@ -5098,6 +5098,43 @@ haplosAlleles2num <- function(haplos, alleles, nb.cores=1){
   return(out)
 }
 
+##' Compute the inverse of the additive relationship matrix using Henderson algorithm
+##'
+##' Given the vectors of sire and dam, directly return the additive relationship matrix 'A' (tabular method).
+##' Reference:
+##' \itemize{
+##' \item Henderson, C. R. 1976. Simple Method for Computing the Inverse of a Numerator Relationship Matrix Used in Prediction of Breeding Values. Biometrics 32:69-83.
+##' }
+##' @param s vector of sires
+##' @param d vector of dams
+##' @return matrix
+##' @author Gota Morota
+##' @note Unknown parents should be coded as zero. Last modified by Morota on April 1, 2010.
+##' @export
+createA <- function(s, d){
+  stopifnot(is.vector(s),
+            is.vector(d),
+            length(s) == length(d))
+
+	n <- length(s)
+	N <- n + 1
+	A <- matrix(0, ncol=N, nrow=N)
+
+	s <- (s == 0)*(N) + s
+	d <- (d == 0)*N + d
+
+	for(i in 1:n){
+		A[i,i] <- 1 + A[s[i], d[i]]/2
+		for(j in (i+1):n){
+			if (j > n) break
+			A[i,j] <- ( A[i, s[j]] + A[i,d[j]] )/2
+      A[j,i] <- A[i,j]
+		}
+	}
+
+  return(A[1:n, 1:n])
+}
+
 ##' Compute the inverse of the additive relationship matrix using Quass algorithm
 ##'
 ##' Given the vectors of sire and dam, directly return inverse of additive relationship matrix 'A' without creating the 'A' itself.
@@ -5612,6 +5649,66 @@ emreml <- function(Ainv, y, X, Z, initE, initU, verbose=0){
 	}
 
 	return(c(varE=sig2E, varU=sig2U))
+}
+
+##' Estimate variance components via REML using AI
+##'
+##' Given the MME components, estimate variance components by the AI algorithm.
+##' References are:
+##' \itemize{
+##' \item Tsuruta, S. 2006. Estimation of Variance Components in Animal Breeding. The University of Georgia.
+##' \item Mrode, R.A. 2005. Linear Models for the Prediction of Animal Breeding Values. CAB International, Oxon, UK.
+##' }
+##' @param A dditive relationship matrix
+##' @param y vector of responses
+##' @param X incidence matrix for fixed effects
+##' @param Z incidence matrix for random effects
+##' @param initE initial value for the residual variance
+##' @param initU initial value for the additive genetic variance
+##' @param verbose verbosity level (0/1/2)
+##' @return vector
+##' @author Goto Morota
+##' @note Last modified by Morota on April 8, 2010.
+##' @export
+aireml <- function(A, y, X, Z, initE, initU, verbose=0){
+	N <- length(y)
+	Ze <- diag(N)
+	varcomps <- c(initU, initE)
+	AI <- matrix(0, ncol=2, nrow=2)
+	s <- matrix(0, ncol=1, nrow=2)
+	diff1 <- 10
+	diff2 <- 10
+
+	i <- 0
+	while (diff1 > 10e-7 & diff2 > 10e-7 ){
+		i <- i + 1
+
+		G <- A*varcomps[1]
+		R <- Ze%*%t(Ze)*varcomps[2]
+		V <- Z%*%G%*%t(Z) + R
+		Vinv <- solve(V)
+		P <- Vinv - Vinv%*%X%*%solve(t(X)%*%Vinv%*%X)%*%t(X)%*%Vinv
+
+		AI[1,1] <- sum(diag((t(y)%*%P%*%Z%*%t(Z)%*%P%*%Z%*%t(Z)%*%P%*%y )))
+		AI[1,2] <-  sum(diag((t(y)%*%P%*%Z%*%t(Z)%*%P%*%Ze%*%t(Ze)%*%P%*%y )))
+		AI[2,1] <- AI[1,2]
+		AI[2,2] <- sum(diag((t(y)%*%P%*%Ze%*%t(Ze)%*%P%*%Ze%*%t(Ze)%*%P%*%y )))
+		s[1,1] <- sum(diag((P%*%Z%*%t(Z) ))) - (t(y)%*%P%*%Z%*%t(Z)%*%P%*%y )
+		s[2,1] <- sum(diag((P%*%Ze%*%t(Ze) ))) - (t(y)%*%P%*%Ze%*%t(Ze)%*%P%*%y )
+
+		newvarcomps <- varcomps - solve(AI)%*%s
+		diff1 <- abs(varcomps[1] - newvarcomps[1])
+		diff2 <- abs(varcomps[2] - newvarcomps[2])
+		varcomps <- newvarcomps
+		if(verbose > 0){
+      txt <- paste0("iteration ", i, ":",
+                    " sig2E=", format(varcomps[1], digits=5),
+                    " sig2U=", format(varcomps[2], digits=5))
+      write(txt, stdout())
+		}
+	}
+
+	return(c(varE=varcomps[2], varU=varcomps[1]))
 }
 
 ##' Animal model
