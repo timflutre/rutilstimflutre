@@ -4,13 +4,18 @@
 \alias{plotPca}
 \title{Principal component analysis}
 \usage{
-plotPca(rotation, prop.vars, plot = "points", main = "PCA",
-  cols = rep("black", nrow(rotation)), pchs = rep(20, nrow(rotation)))
+plotPca(rotation, prop.vars, idx.x = 1, idx.y = 2, plot = "points",
+  main = "PCA", cols = rep("black", nrow(rotation)), pchs = rep(20,
+  nrow(rotation)))
 }
 \arguments{
 \item{rotation}{rotated matrix which columns corresponds to "principal components" (the first column will be plotted along the x-axis against the second column along the y-axis)}
 
 \item{prop.vars}{vector with the proportion of variance explained per PC}
+
+\item{idx.x}{index of the column from "rotation" that will be plotted along the x-axis}
+
+\item{idx.y}{index of the column from "rotation" that will be plotted along the y-axis}
 
 \item{plot}{use "points" to show a plot with \code{\link[graphics]{points}} of PC1 versus PC2, and "text" to use \code{\link[graphics]{text}} with row names of \code{rotation} as labels}
 

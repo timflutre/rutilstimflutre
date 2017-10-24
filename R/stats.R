@@ -241,10 +241,11 @@ mpInv <- function(x){
 ##' @param X data matrix with N rows and P columns (a data frame will be converted into a matrix)
 ##' @param ct use TRUE to center the columns of X (recommended), FALSE otherwise
 ##' @param sc use TRUE to scale the columns of X (if different units), FALSE otherwise
-##' @param plot if not NULL, use "points" to show a plot with \code{\link[graphics]{points}} of PC1 versus PC2, and "text" to use \code{\link[graphics]{text}} with row names of \code{X} as labels
+##' @param plot if not NULL, use "points" to show a plot with \code{\link[graphics]{points}} of PC1 versus PC2, and "text" to use \code{\link[graphics]{text}} with row names of \code{X} as labels (use \code{\link{plotPca}} to use other axes)
 ##' @param main main title of the plot
 ##' @param cols N-vector of colors
 ##' @param pchs N-vector of point symbols (used if \code{plot="points"})
+##' @param ES10 if TRUE, the Lambda and F matrix from \href{http://dx.doi.org/10.1371/journal.pgen.1001117}{Engelhart and Stephens (2010)} are also returned
 ##' @return list with the rotated matrix (= X V) which rows correspond to the original rows after translation towards the sample mean (if center=TRUE) and rotation onto the "principal components" (eigenvectors of the sample covariance matrix), and with the proportion of variance explained per PC
 ##' @author Timothee Flutre
 ##' @seealso \code{\link{plotPca}}
@@ -267,7 +268,8 @@ mpInv <- function(x){
 ##' }
 ##' @export
 pca <- function(X, ct=TRUE, sc=FALSE, plot=NULL, main="PCA",
-                cols=rep("black", nrow(X)), pchs=rep(20, nrow(X))){
+                cols=rep("black", nrow(X)), pchs=rep(20, nrow(X)),
+                ES10=FALSE){
   if(! is.matrix(X))
     X <- as.matrix(X)
   stopifnot(is.matrix(X),
@@ -278,23 +280,41 @@ pca <- function(X, ct=TRUE, sc=FALSE, plot=NULL, main="PCA",
               is.vector(cols),
               length(cols) == nrow(X))
 
+  output <- list()
+
   X <- scale(x=X, center=ct, scale=sc)
 
-  res.svd <- svd(x=X) # X = U D V^T
+  res.svd <- svd(x=X)
+  ## X = U D V^T
+  ##   X: n x p
+  ##   U: n x n
+  ##   D: n x n (diagonal)
+  ##   V: p x n
+  ## Lambda = U
+  ## F = D V'
+  ##   F: n x p
 
   rotation <- X %*% res.svd$v
   colnames(rotation) <- paste0("PC", 1:ncol(rotation))
+  output$rotation <- rotation
 
   prop.vars <- res.svd$d / sqrt(max(1, nrow(X) - 1))
   prop.vars <- prop.vars^2 / sum(prop.vars^2)
   names(prop.vars) <- colnames(rotation)
+  output$prop.vars <- prop.vars
 
   if(! is.null(plot))
     plotPca(rotation=rotation, prop.vars=prop.vars, plot=plot, main=main,
             cols=cols, pchs=pchs)
 
-  return(list(rotation=rotation,
-              prop.vars=prop.vars))
+  if(ES10){
+    output$Lambda <- res.svd$u
+    rownames(output$Lambda) <- rownames(X)
+    output$F <- diag(res.svd$d) %*% t(res.svd$v)
+    colnames(output$F) <- colnames(X)
+  }
+
+  return(output)
 }
 
 ##' Return the number of PCs that minimizes the average squared partial

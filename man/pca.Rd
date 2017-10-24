@@ -5,7 +5,7 @@
 \title{Principal component analysis}
 \usage{
 pca(X, ct = TRUE, sc = FALSE, plot = NULL, main = "PCA",
-  cols = rep("black", nrow(X)), pchs = rep(20, nrow(X)))
+  cols = rep("black", nrow(X)), pchs = rep(20, nrow(X)), ES10 = FALSE)
 }
 \arguments{
 \item{X}{data matrix with N rows and P columns (a data frame will be converted into a matrix)}
@@ -14,13 +14,15 @@ pca(X, ct = TRUE, sc = FALSE, plot = NULL, main = "PCA",
 
 \item{sc}{use TRUE to scale the columns of X (if different units), FALSE otherwise}
 
-\item{plot}{if not NULL, use "points" to show a plot with \code{\link[graphics]{points}} of PC1 versus PC2, and "text" to use \code{\link[graphics]{text}} with row names of \code{X} as labels}
+\item{plot}{if not NULL, use "points" to show a plot with \code{\link[graphics]{points}} of PC1 versus PC2, and "text" to use \code{\link[graphics]{text}} with row names of \code{X} as labels (use \code{\link{plotPca}} to use other axes)}
 
 \item{main}{main title of the plot}
 
 \item{cols}{N-vector of colors}
 
 \item{pchs}{N-vector of point symbols (used if \code{plot="points"})}
+
+\item{ES10}{if TRUE, the Lambda and F matrix from \href{http://dx.doi.org/10.1371/journal.pgen.1001117}{Engelhart and Stephens (2010)} are also returned}
 }
 \value{
 list with the rotated matrix (= X V) which rows correspond to the original rows after translation towards the sample mean (if center=TRUE) and rotation onto the "principal components" (eigenvectors of the sample covariance matrix), and with the proportion of variance explained per PC

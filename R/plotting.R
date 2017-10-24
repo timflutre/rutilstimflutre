@@ -336,6 +336,8 @@ imageWithScale <- function(z, main=NULL, idx.rownames=NULL, idx.colnames=NULL,
 ##' Plot the two first principal components from a PCA.
 ##' @param rotation rotated matrix which columns corresponds to "principal components" (the first column will be plotted along the x-axis against the second column along the y-axis)
 ##' @param prop.vars vector with the proportion of variance explained per PC
+##' @param idx.x index of the column from "rotation" that will be plotted along the x-axis
+##' @param idx.y index of the column from "rotation" that will be plotted along the y-axis
 ##' @param plot use "points" to show a plot with \code{\link[graphics]{points}} of PC1 versus PC2, and "text" to use \code{\link[graphics]{text}} with row names of \code{rotation} as labels
 ##' @param main main title of the plot
 ##' @param cols N-vector of colors
@@ -344,7 +346,9 @@ imageWithScale <- function(z, main=NULL, idx.rownames=NULL, idx.colnames=NULL,
 ##' @author Timothee Flutre
 ##' @seealso \code{\link{pca}}
 ##' @export
-plotPca <- function(rotation, prop.vars, plot="points", main="PCA",
+plotPca <- function(rotation, prop.vars,
+                    idx.x=1, idx.y=2,
+                    plot="points", main="PCA",
                     cols=rep("black", nrow(rotation)),
                     pchs=rep(20, nrow(rotation))){
   stopifnot(is.matrix(rotation),
@@ -352,22 +356,28 @@ plotPca <- function(rotation, prop.vars, plot="points", main="PCA",
             is.numeric(prop.vars),
             all(prop.vars >= 0),
             all(prop.vars <= 1),
+            idx.x %in% 1:ncol(rotation),
+            idx.y %in% 1:ncol(rotation),
+            idx.x != idx.y,
             plot %in% c("points", "text"),
             is.vector(cols),
             length(cols) == nrow(rotation),
             is.vector(pchs),
             length(pchs) == nrow(rotation))
 
-  graphics::plot(x=rotation[,1], y=rotation[,2], las=1,
-                 xlab=paste0("PC1 (", format(100 * prop.vars[1], digits=3), "%)"),
-                 ylab=paste0("PC2 (", format(100 * prop.vars[2], digits=3), "%)"),
+  graphics::plot(x=rotation[,idx.x], y=rotation[,idx.y], las=1,
+                 xlab=paste0("PC", idx.x, " (",
+                             format(100 * prop.vars[1], digits=3), "%)"),
+                 ylab=paste0("PC", idx.y, " (",
+                             format(100 * prop.vars[2], digits=3), "%)"),
                  main=main, type="n")
   graphics::abline(h=0, lty=2)
   graphics::abline(v=0, lty=2)
 
   if(plot == "points"){
-    graphics::points(x=rotation[,1], y=rotation[,2], col=cols, pch=pchs)
+    graphics::points(x=rotation[,idx.x], y=rotation[,idx.y], col=cols,
+                     pch=pchs)
   } else if(plot == "text")
-    graphics::text(x=rotation[,1], y=rotation[,2], labels=rownames(rotation),
-                   col=cols)
+    graphics::text(x=rotation[,idx.x], y=rotation[,idx.y], col=cols,
+                   labels=rownames(rotation))
 }
