@@ -3671,14 +3671,6 @@ simulCoalescent <- function(nb.inds=500,
   cmd <- paste0(nb.samples, " ", nb.reps)
   cmd <- paste0(cmd, " -t ", pop.mut.rate)
   cmd <- paste0(cmd, " -r ", pop.recomb.rate, " ", chrom.len)
-  if(! is.null(other))
-    cmd <- paste0(cmd, " ", other)
-  if(get.trees)
-    cmd <- paste0(cmd, " -T")
-  if(get.tmrca)
-    cmd <- paste0(cmd, " -L")
-  cmd <- paste0(cmd, " -SC abs") # absolute seq positions in bp
-  cmd <- paste0(cmd, " -oSFS") # print site freq spectrum, requires -t
   if(nb.pops > 1){
     cmd <- paste0(cmd, " -I ", nb.pops)
     nb.inds.per.pop <- rep(0, nb.pops)
@@ -3688,8 +3680,20 @@ simulCoalescent <- function(nb.inds=500,
     }
     nb.inds.per.pop[nb.pops] <- nb.inds - sum(nb.inds.per.pop)
     cmd <- paste0(cmd, " ", 2 * nb.inds.per.pop[nb.pops])
-    cmd <- paste0(cmd, " ", mig.rate)
+    ## cmd <- paste0(cmd, " ", mig.rate)
+    if(is.null(other)){
+      cmd <- paste0(cmd, " ", mig.rate)
+    } else if(! grepl("-m|-ma", other))
+      cmd <- paste0(cmd, " ", mig.rate)
   }
+  if(! is.null(other))
+    cmd <- paste0(cmd, " ", other)
+  if(get.trees)
+    cmd <- paste0(cmd, " -T")
+  if(get.tmrca)
+    cmd <- paste0(cmd, " -L")
+  cmd <- paste0(cmd, " -SC abs") # absolute seq positions in bp
+  cmd <- paste0(cmd, " -oSFS") # print site freq spectrum, requires -t
   if(verbose > 0){
     msg <- paste0("scrm ", cmd)
     write(msg, stdout())
