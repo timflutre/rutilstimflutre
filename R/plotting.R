@@ -334,7 +334,7 @@ imageWithScale <- function(z, main=NULL, idx.rownames=NULL, idx.colnames=NULL,
 ##' Principal component analysis
 ##'
 ##' Plot the two first principal components from a PCA.
-##' @param rotation rotated matrix which columns corresponds to "principal components" (the first column will be plotted along the x-axis against the second column along the y-axis)
+##' @param rotation matrix of rotated data which columns corresponds to "principal components" (the first column will be plotted along the x-axis against the second column along the y-axis)
 ##' @param prop.vars vector with the proportion of variance explained per PC
 ##' @param idx.x index of the column from "rotation" that will be plotted along the x-axis
 ##' @param idx.y index of the column from "rotation" that will be plotted along the y-axis
@@ -367,9 +367,9 @@ plotPca <- function(rotation, prop.vars,
 
   graphics::plot(x=rotation[,idx.x], y=rotation[,idx.y], las=1,
                  xlab=paste0("PC", idx.x, " (",
-                             format(100 * prop.vars[1], digits=3), "%)"),
+                             format(100 * prop.vars[idx.x], digits=3), "%)"),
                  ylab=paste0("PC", idx.y, " (",
-                             format(100 * prop.vars[2], digits=3), "%)"),
+                             format(100 * prop.vars[idx.y], digits=3), "%)"),
                  main=main, type="n")
   graphics::abline(h=0, lty=2)
   graphics::abline(v=0, lty=2)

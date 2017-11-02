@@ -2,19 +2,18 @@
 % Please edit documentation in R/stats.R
 \name{getNbPCsMinimAvgSqPartCor}
 \alias{getNbPCsMinimAvgSqPartCor}
-\title{Return the number of PCs that minimizes the average squared partial
-correlation}
+\title{Choose the number of PCs}
 \usage{
 getNbPCsMinimAvgSqPartCor(X)
 }
 \arguments{
-\item{X}{genotype matrix (0,1,2) with SNPs in rows and individuals in columns}
+\item{X}{matrix (e.g. genotypes in {0,1,2} with SNPs in rows and individuals in columns)}
 }
 \value{
 integer
 }
 \description{
-Shriner (Heredity, 2011)
+Return the number of PCs that minimizes the average squared partial correlation, from Shriner (Heredity, 2011).
 }
 \author{
 Daniel Shriner [aut], Timothee Flutre [cre]

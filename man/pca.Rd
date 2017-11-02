@@ -4,13 +4,16 @@
 \alias{pca}
 \title{Principal component analysis}
 \usage{
-pca(X, ct = TRUE, sc = FALSE, plot = NULL, main = "PCA",
-  cols = rep("black", nrow(X)), pchs = rep(20, nrow(X)), ES10 = FALSE)
+pca(X = NULL, S = NULL, ct = TRUE, sc = FALSE, plot = NULL,
+  main = "PCA", cols = rep("black", nrow(X)), pchs = rep(20, nrow(X)),
+  ES10 = FALSE)
 }
 \arguments{
-\item{X}{data matrix with N rows and P columns (a data frame will be converted into a matrix)}
+\item{X}{data matrix with N rows ("units") and P columns ("variables"); P can be equal to N but X shouldn't be symmetric; a data frame will be converted into a matrix; specify X or S}
 
-\item{ct}{use TRUE to center the columns of X (recommended), FALSE otherwise}
+\item{S}{symmetric matrix with N rows and columns; a data frame will be converted into a matrix; specify X or S}
+
+\item{ct}{use TRUE to center the columns of X (recommended), FALSE otherwise; a good reason to center the data matrix for PCA is given in \href{http://link.springer.com/10.1007/s11063-007-9069-2}{Miranda et al (2008)}}
 
 \item{sc}{use TRUE to scale the columns of X (if different units), FALSE otherwise}
 
@@ -22,30 +25,47 @@ pca(X, ct = TRUE, sc = FALSE, plot = NULL, main = "PCA",
 
 \item{pchs}{N-vector of point symbols (used if \code{plot="points"})}
 
-\item{ES10}{if TRUE, the Lambda and F matrix from \href{http://dx.doi.org/10.1371/journal.pgen.1001117}{Engelhart and Stephens (2010)} are also returned}
+\item{ES10}{if TRUE, the Lambda (= U) and F (= D V^T) matrices from \href{http://dx.doi.org/10.1371/journal.pgen.1001117}{Engelhart and Stephens (2010)} are also returned}
 }
 \value{
-list with the rotated matrix (= X V) which rows correspond to the original rows after translation towards the sample mean (if center=TRUE) and rotation onto the "principal components" (eigenvectors of the sample covariance matrix), and with the proportion of variance explained per PC
+list with, if X is given, the rotated data matrix (= X V) which rows correspond to the original rows after translation towards the sample mean (if center=TRUE) and rotation onto the "principal components" (eigenvectors of the sample covariance matrix), with the singular and eigen values, and with the proportion of variance explained per PC
 }
 \description{
-It is performed via the singular value decomposition (SVD) of the usually-centered data matrix, Xc = U D V^T. This is mostly for teaching purposes, see \code{\link[stats]{prcomp}} otherwise. A good reason to center the data matrix for PCA is given in \href{http://link.springer.com/10.1007/s11063-007-9069-2}{Miranda et al (2008)}.
+Given a data matrix X with N rows and P columns, principal component analysis can be performed using the singular value decomposition (SVD), X = U D V^T, where U is NxN, D is NxN and diagonal (singular values), and V is PxN.
+Another way to perform it, is to first compute a symmetric matrix, S (e.g. the scatter matrix X X^T, but not necessarily), and then to use the eigendecomposition (EVD) of it, S = Q Delta Q^-1, where Q is NxN and Delta is NxN and diagonal (eigenvalues).
 }
 \examples{
-\dontrun{set.seed(1859)
-genomes <- simulCoalescent(nb.inds=200, nb.pops=3, mig.rate=3)
+\dontrun{## simulate genotypes from 3 populations
+set.seed(1859)
+genomes <- simulCoalescent(nb.inds=300, nb.pops=3, mig.rate=3)
 X <- genomes$genos
+table(inds.per.pop <- kmeans(X, 3)$cluster)
 A <- estimGenRel(X)
 imageWithScale(A, main="Additive genetic relationships") # we clearly see 3 clusters
-out.prcomp <- prcomp(x=X, retx=TRUE, center=TRUE, scale.=FALSE) # uses SVD
+
+## prcomp() uses svd()
+out.prcomp <- prcomp(x=X, retx=TRUE, center=TRUE, scale.=FALSE)
 summary(out.prcomp)$importance[,1:4]
 out.prcomp$sdev[1:4]
 (out.prcomp$sdev^2 / sum(out.prcomp$sdev^2))[1:4]
-head(out.prcomp$rotation[, 1:4]) # first four PCs
-head(out.prcomp$x[, 1:4]) # rotated data
-out.princomp <- princomp(x=X) # uses EVD, and requires more units than variables
-out.pca <- pca(X=X, ct=TRUE, sc=FALSE)
-out.pca$prop.vars[1:4]
-head(out.pca$rotation[, 1:4]) # rotated data
+head(out.prcomp$rotation[, 1:4]) # first four PCs (i.e. eigenvectors)
+head(out.prcomp$x[, 1:4]) # rotated data (= data x rotation matrix)
+
+## princomp() uses eigen() and requires more units than variables
+out.princomp <- princomp(x=X)
+
+## this function fed with the data matrix
+out.pca.X <- pca(X=X, ct=TRUE, sc=FALSE)
+out.pca.X$sgl.values[1:4]
+out.pca.X$eigen.values[1:4]
+out.pca.X$prop.vars[1:4]
+head(out.pca.X$rot.dat[, 1:4]) # rotated data
+
+## this function fed with the scatter matrix
+out.pca.S <- pca(S=tcrossprod(scale(X, center=TRUE, scale=FALSE)))
+out.pca.S$eigen.values[1:4]
+out.pca.S$prop.vars[1:4]
+head(out.pca.S$rot.dat[, 1:4]) # rotated data
 }
 }
 \seealso{

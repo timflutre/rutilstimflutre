@@ -6480,7 +6480,10 @@ stanAM <- function(data, relmat, errors.Student=FALSE,
 ##' @param mu overall mean
 ##' @param mean.c mean of the prior on c[2:Q]
 ##' @param sd.c std dev of the prior on c[2:Q]
-##' @param X matrix of bi-allelic SNP genotypes encoded in allele doses in [0,2], with genotypes in rows and SNPs in columns (SNPs with missing values or low MAF should be discarded beforehand); will be used in the simulations as X_A which is the column-centered version of X when encoded in {-1,0,1}
+##' @param X matrix of bi-allelic SNP genotypes encoded in allele doses in [0,2], with genotypes in rows and SNPs in columns (SNPs with missing values or low MAF should be discarded beforehand)
+##' @param m1 if TRUE, 1 will be subtracted from each entry of X to make X_A
+##' @param ctr if TRUE, the columns of the X matrix will be centered to make X_A and X_D
+##' @param std if TRUE, the columns of the X matrix will also be standardized to make X_A and X_D
 ##' @param pi proportion of marker effects (a) that are non-zero; setting pi at 1 means simulating from the additive infinitesimal model (equivalent to ridge regression)
 ##' @param pve proportion of phenotypic variance explained by SNPs with non-zero effects ("heritability"); PVE = V[g] / V[y] where y = g + e and g = g_a + g_d (no epistasis); the magnitude of g_a (resp. g_d) depends on whether or not \code{sigma.a2} (resp. \code{sigma.d2}) is set to zero; a value for sigma^2 is then chosen
 ##' @param sigma.a2 prior variance of the non-zero additive effects
@@ -6596,11 +6599,15 @@ stanAM <- function(data, relmat, errors.Student=FALSE,
 ##' }
 ##' @export
 simulBvsr <- function(Q=3, mu=50, mean.c=5, sd.c=2,
-                      X, pi=1, pve=0.7, sigma.a2=1, sigma.d2=0,
+                      X, m1=TRUE, ctr=TRUE, std=FALSE,
+                      pi=1, pve=0.7, sigma.a2=1, sigma.d2=0,
                       min.maf=0, perc.NA=0, err.df=Inf, seed=NULL,
                       verbose=1){
   stopIfNotValidGenosDose(X)
   stopifnot(sd.c >= 0,
+            is.logical(m1),
+            is.logical(ctr),
+            is.logical(std),
             pi >= 0,
             pi <= 1,
             pve >= 0,
@@ -6616,6 +6623,7 @@ simulBvsr <- function(Q=3, mu=50, mean.c=5, sd.c=2,
   if(min.maf > 0)
     X <- discardSnpsLowMaf(X=X, thresh=min.maf, verbose=verbose)
 
+  ## determine the dimensions
   I <- nrow(X)
   P <- ncol(X)
   if(Q > 1){
@@ -6624,18 +6632,18 @@ simulBvsr <- function(Q=3, mu=50, mean.c=5, sd.c=2,
     N <- I
 
   ## incidence matrix of the non-genetic predictors having "fixed effects"
-  if(Q > 1){
-    levels.years <- as.character(seq(from=2010, to=2010+Q-1))
-    if(N %% Q == 0){
-      years <- rep(levels.years, each=N / Q)
-    } else
-      years <- sort(sample(x=levels.years, size=N, replace=TRUE))
-    years <- as.factor(years)
-    W <- stats::model.matrix(~ years)
+  levels.years <- as.character(seq(from=2010, to=2010+Q-1))
+  if(N %% Q == 0){
+    years <- rep(levels.years, each=N / Q)
   } else
-    W <- matrix(data=1, nrow=N, ncol=1)
-  if(Q == 1)
+    years <- sort(sample(x=levels.years, size=N, replace=TRUE))
+  years <- as.factor(years)
+  if(Q == 1){
+    W <- matrix(data=1, nrow=N, ncol=Q)
     rownames(W) <- rownames(X)
+  } else
+    W <- stats::model.matrix(~ years)
+  dat <- data.frame(year=years)
 
   ## "fixed effects"
   if(Q > 1){
@@ -6658,8 +6666,14 @@ simulBvsr <- function(Q=3, mu=50, mean.c=5, sd.c=2,
   Z <- stats::model.matrix(~ inds - 1)
   if(Q == 1)
     rownames(Z) <- rownames(X)
-  X.A <- scale(x=X - 1, center=TRUE, scale=FALSE)
-  X.D <- scale(x=recodeIntoDominant(X), center=TRUE, scale=FALSE)
+  if(m1){
+    X.A <- scale(x=X - 1, center=ctr, scale=std)
+  } else
+    X.A <- scale(x=X, center=ctr, scale=std)
+  X.D <- scale(x=recodeIntoDominant(X), center=ctr, scale=std)
+  if(std & any(is.na(X.D)))
+    stop("use min.maf to avoid NA with std=TRUE for X.D")
+  dat$geno <- inds
 
   ## incidence vector of the causal genetic predictors
   gamma <- stats::setNames(object=stats::rbinom(n=P, size=1, prob=pi),
@@ -6692,6 +6706,8 @@ simulBvsr <- function(Q=3, mu=50, mean.c=5, sd.c=2,
   }
   if(Q == 1)
     rownames(Y) <- rownames(X)
+  t <- 1
+  dat[[paste0("response", t)]] <- Y[,t]
 
   return(list(Y=Y,
               W=W, c=c,
@@ -6699,7 +6715,8 @@ simulBvsr <- function(Q=3, mu=50, mean.c=5, sd.c=2,
               pi=pi, gamma=gamma,
               sigma.a2=sigma.a2, sigma.d2=sigma.d2,
               pve=pve, sigma2=sigma2,
-              a=a, g.A=g.A, d=d, g.D=g.D))
+              a=a, g.A=g.A, d=d, g.D=g.D,
+              dat=dat))
 }
 
 ##' BSLMM

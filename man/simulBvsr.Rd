@@ -4,9 +4,10 @@
 \alias{simulBvsr}
 \title{BVSR}
 \usage{
-simulBvsr(Q = 3, mu = 50, mean.c = 5, sd.c = 2, X, pi = 1,
-  pve = 0.7, sigma.a2 = 1, sigma.d2 = 0, min.maf = 0, perc.NA = 0,
-  err.df = Inf, seed = NULL, verbose = 1)
+simulBvsr(Q = 3, mu = 50, mean.c = 5, sd.c = 2, X, m1 = TRUE,
+  ctr = TRUE, std = FALSE, pi = 1, pve = 0.7, sigma.a2 = 1,
+  sigma.d2 = 0, min.maf = 0, perc.NA = 0, err.df = Inf, seed = NULL,
+  verbose = 1)
 }
 \arguments{
 \item{Q}{number of fixed effects, i.e. the intercept plus the number of years during which genotypes are phenotyped (starting in 2010)}
@@ -17,7 +18,13 @@ simulBvsr(Q = 3, mu = 50, mean.c = 5, sd.c = 2, X, pi = 1,
 
 \item{sd.c}{std dev of the prior on c[2:Q]}
 
-\item{X}{matrix of bi-allelic SNP genotypes encoded in allele doses in [0,2], with genotypes in rows and SNPs in columns (SNPs with missing values or low MAF should be discarded beforehand); will be used in the simulations as X_A which is the column-centered version of X when encoded in {-1,0,1}}
+\item{X}{matrix of bi-allelic SNP genotypes encoded in allele doses in [0,2], with genotypes in rows and SNPs in columns (SNPs with missing values or low MAF should be discarded beforehand)}
+
+\item{m1}{if TRUE, 1 will be subtracted from each entry of X to make X_A}
+
+\item{ctr}{if TRUE, the columns of the X matrix will be centered to make X_A and X_D}
+
+\item{std}{if TRUE, the columns of the X matrix will also be standardized to make X_A and X_D}
 
 \item{pi}{proportion of marker effects (a) that are non-zero; setting pi at 1 means simulating from the additive infinitesimal model (equivalent to ridge regression)}
 

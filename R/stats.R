@@ -237,44 +237,71 @@ mpInv <- function(x){
 
 ##' Principal component analysis
 ##'
-##' It is performed via the singular value decomposition (SVD) of the usually-centered data matrix, Xc = U D V^T. This is mostly for teaching purposes, see \code{\link[stats]{prcomp}} otherwise. A good reason to center the data matrix for PCA is given in \href{http://link.springer.com/10.1007/s11063-007-9069-2}{Miranda et al (2008)}.
-##' @param X data matrix with N rows and P columns (a data frame will be converted into a matrix)
-##' @param ct use TRUE to center the columns of X (recommended), FALSE otherwise
+##' Given a data matrix X with N rows and P columns, principal component analysis can be performed using the singular value decomposition (SVD), X = U D V^T, where U is NxN, D is NxN and diagonal (singular values), and V is PxN.
+##' Another way to perform it, is to first compute a symmetric matrix, S (e.g. the scatter matrix X X^T, but not necessarily), and then to use the eigendecomposition (EVD) of it, S = Q Delta Q^-1, where Q is NxN and Delta is NxN and diagonal (eigenvalues).
+##' @param X data matrix with N rows ("units") and P columns ("variables"); P can be equal to N but X shouldn't be symmetric; a data frame will be converted into a matrix; specify X or S
+##' @param S symmetric matrix with N rows and columns; a data frame will be converted into a matrix; specify X or S
+##' @param ct use TRUE to center the columns of X (recommended), FALSE otherwise; a good reason to center the data matrix for PCA is given in \href{http://link.springer.com/10.1007/s11063-007-9069-2}{Miranda et al (2008)}
 ##' @param sc use TRUE to scale the columns of X (if different units), FALSE otherwise
 ##' @param plot if not NULL, use "points" to show a plot with \code{\link[graphics]{points}} of PC1 versus PC2, and "text" to use \code{\link[graphics]{text}} with row names of \code{X} as labels (use \code{\link{plotPca}} to use other axes)
 ##' @param main main title of the plot
 ##' @param cols N-vector of colors
 ##' @param pchs N-vector of point symbols (used if \code{plot="points"})
-##' @param ES10 if TRUE, the Lambda and F matrix from \href{http://dx.doi.org/10.1371/journal.pgen.1001117}{Engelhart and Stephens (2010)} are also returned
-##' @return list with the rotated matrix (= X V) which rows correspond to the original rows after translation towards the sample mean (if center=TRUE) and rotation onto the "principal components" (eigenvectors of the sample covariance matrix), and with the proportion of variance explained per PC
+##' @param ES10 if TRUE, the Lambda (= U) and F (= D V^T) matrices from \href{http://dx.doi.org/10.1371/journal.pgen.1001117}{Engelhart and Stephens (2010)} are also returned
+##' @return list with, if X is given, the rotated data matrix (= X V) which rows correspond to the original rows after translation towards the sample mean (if center=TRUE) and rotation onto the "principal components" (eigenvectors of the sample covariance matrix), with the singular and eigen values, and with the proportion of variance explained per PC
 ##' @author Timothee Flutre
 ##' @seealso \code{\link{plotPca}}
 ##' @examples
-##' \dontrun{set.seed(1859)
-##' genomes <- simulCoalescent(nb.inds=200, nb.pops=3, mig.rate=3)
+##' \dontrun{## simulate genotypes from 3 populations
+##' set.seed(1859)
+##' genomes <- simulCoalescent(nb.inds=300, nb.pops=3, mig.rate=3)
 ##' X <- genomes$genos
+##' table(inds.per.pop <- kmeans(X, 3)$cluster)
 ##' A <- estimGenRel(X)
 ##' imageWithScale(A, main="Additive genetic relationships") # we clearly see 3 clusters
-##' out.prcomp <- prcomp(x=X, retx=TRUE, center=TRUE, scale.=FALSE) # uses SVD
+##'
+##' ## prcomp() uses svd()
+##' out.prcomp <- prcomp(x=X, retx=TRUE, center=TRUE, scale.=FALSE)
 ##' summary(out.prcomp)$importance[,1:4]
 ##' out.prcomp$sdev[1:4]
 ##' (out.prcomp$sdev^2 / sum(out.prcomp$sdev^2))[1:4]
-##' head(out.prcomp$rotation[, 1:4]) # first four PCs
-##' head(out.prcomp$x[, 1:4]) # rotated data
-##' out.princomp <- princomp(x=X) # uses EVD, and requires more units than variables
-##' out.pca <- pca(X=X, ct=TRUE, sc=FALSE)
-##' out.pca$prop.vars[1:4]
-##' head(out.pca$rotation[, 1:4]) # rotated data
+##' head(out.prcomp$rotation[, 1:4]) # first four PCs (i.e. eigenvectors)
+##' head(out.prcomp$x[, 1:4]) # rotated data (= data x rotation matrix)
+##'
+##' ## princomp() uses eigen() and requires more units than variables
+##' out.princomp <- princomp(x=X)
+##'
+##' ## this function fed with the data matrix
+##' out.pca.X <- pca(X=X, ct=TRUE, sc=FALSE)
+##' out.pca.X$sgl.values[1:4]
+##' out.pca.X$eigen.values[1:4]
+##' out.pca.X$prop.vars[1:4]
+##' head(out.pca.X$rot.dat[, 1:4]) # rotated data
+##'
+##' ## this function fed with the scatter matrix
+##' out.pca.S <- pca(S=tcrossprod(scale(X, center=TRUE, scale=FALSE)))
+##' out.pca.S$eigen.values[1:4]
+##' out.pca.S$prop.vars[1:4]
+##' head(out.pca.S$rot.dat[, 1:4]) # rotated data
 ##' }
 ##' @export
-pca <- function(X, ct=TRUE, sc=FALSE, plot=NULL, main="PCA",
+pca <- function(X=NULL, S=NULL, ct=TRUE, sc=FALSE, plot=NULL, main="PCA",
                 cols=rep("black", nrow(X)), pchs=rep(20, nrow(X)),
                 ES10=FALSE){
-  if(! is.matrix(X))
-    X <- as.matrix(X)
-  stopifnot(is.matrix(X),
-            is.logical(ct),
-            is.logical(sc))
+  stopifnot(xor(! is.null(X), ! is.null(S)))
+  if(! is.null(X)){
+    if(! is.matrix(X))
+      X <- as.matrix(X)
+    stopifnot(is.matrix(X),
+              ! isSymmetric(X),
+              is.logical(ct),
+              is.logical(sc))
+  } else if(! is.null(S)){
+    if(! is.matrix(S))
+      S <- as.matrix(S)
+    stopifnot(is.matrix(S),
+              isSymmetric(S))
+  }
   if(! is.null(plot))
     stopifnot(plot %in% c("points", "text"),
               is.vector(cols),
@@ -282,32 +309,36 @@ pca <- function(X, ct=TRUE, sc=FALSE, plot=NULL, main="PCA",
 
   output <- list()
 
-  X <- scale(x=X, center=ct, scale=sc)
+  if(! is.null(X)){
+    X <- scale(x=X, center=ct, scale=sc)
+    res.svd <- svd(x=X)
+    sgl.values <- res.svd$d
+    eigen.values <- sgl.values^2
+    rot.dat <- X %*% res.svd$v
+  } else if(! is.null(S)){
+    sgl.values <- NULL
+    evd.S <- eigen(S)
+    eigen.values <- evd.S$values
+    rot.dat <- evd.S$vectors
+    rownames(rot.dat) <- rownames(S)
+  }
 
-  res.svd <- svd(x=X)
-  ## X = U D V^T
-  ##   X: n x p
-  ##   U: n x n
-  ##   D: n x n (diagonal)
-  ##   V: p x n
-  ## Lambda = U
-  ## F = D V'
-  ##   F: n x p
+  colnames(rot.dat) <- paste0("PC", 1:ncol(rot.dat))
+  prop.vars <- eigen.values / sum(eigen.values)
+  names(prop.vars) <- colnames(rot.dat)
 
-  rotation <- X %*% res.svd$v
-  colnames(rotation) <- paste0("PC", 1:ncol(rotation))
-  output$rotation <- rotation
-
-  prop.vars <- res.svd$d / sqrt(max(1, nrow(X) - 1))
-  prop.vars <- prop.vars^2 / sum(prop.vars^2)
-  names(prop.vars) <- colnames(rotation)
+  output$sgl.values <- sgl.values
+  output$eigen.values <- eigen.values
   output$prop.vars <- prop.vars
+  output$rot.dat <- rot.dat
 
   if(! is.null(plot))
-    plotPca(rotation=rotation, prop.vars=prop.vars, plot=plot, main=main,
+    plotPca(rotation=rot.dat, prop.vars=prop.vars, plot=plot, main=main,
             cols=cols, pchs=pchs)
 
   if(ES10){
+    ## Lambda = U
+    ## F = D V' and is N x P
     output$Lambda <- res.svd$u
     rownames(output$Lambda) <- rownames(X)
     output$F <- diag(res.svd$d) %*% t(res.svd$v)
@@ -317,32 +348,32 @@ pca <- function(X, ct=TRUE, sc=FALSE, plot=NULL, main="PCA",
   return(output)
 }
 
-##' Return the number of PCs that minimizes the average squared partial
-##' correlation
+##' Choose the number of PCs
 ##'
-##' Shriner (Heredity, 2011)
-##' @param X genotype matrix (0,1,2) with SNPs in rows and individuals in columns
+##' Return the number of PCs that minimizes the average squared partial correlation, from Shriner (Heredity, 2011).
+##' @param X matrix (e.g. genotypes in {0,1,2} with SNPs in rows and individuals in columns)
 ##' @return integer
 ##' @author Daniel Shriner [aut], Timothee Flutre [cre]
 ##' @export
 getNbPCsMinimAvgSqPartCor <- function(X){
-  if(nrow(X) < ncol(X))
-    warning("input matrix doesn't seem to have genes/snps in rows and samples in columns")
+  stopifnot(is.matrix(X))
+
   mu <- apply(X, 1, mean, na.rm=TRUE)
   X <- X - mu
   X2 <- stats::cor(X, use="complete.obs")
   a <- eigen(X2)
-  a$values[a$values<0] <- 0
+  a$values[a$values < 0] <- 0
   b <- diag(a$values, nrow=length(a$values))
   loadings <- a$vectors %*% sqrt(b)
-  partial <- function(x) {
-    c <- loadings[,1:x]
+
+  partial <- function(x){
+    c <- loadings[, 1:x]
     partcov <- X2 - (c %*% t(c))
     d <- diag(partcov)
     if(any(is.element(NaN,d), is.element(0,d), length(d[d<0])!=0)) {
       map <- 1
     } else {
-      d <- 1/(sqrt(d))
+      d <- 1 / sqrt(d)
       e <- diag(d, nrow=length(d))
       pr <- e %*% partcov %*% e
       map <- (sum(pr^2) - ncol(X2)) / (ncol(X2) * (ncol(X2) - 1))
@@ -350,7 +381,8 @@ getNbPCsMinimAvgSqPartCor <- function(X){
     return(map)
   }
   fm <- sapply(1:(ncol(X2) - 1), partial)
-  fm <- c((sum(X2^2) - ncol(X2))/(ncol(X2) * (ncol(X2) - 1)), fm)
+  fm <- c((sum(X2^2) - ncol(X2)) / (ncol(X2) * (ncol(X2) - 1)), fm)
+
   return(max(1, which.min(fm) - 1))
 }
 
