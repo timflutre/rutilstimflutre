@@ -239,16 +239,16 @@ mpInv <- function(x){
 ##'
 ##' Given a data matrix X with N rows and P columns, principal component analysis can be performed using the singular value decomposition (SVD), X = U D V^T, where U is NxN, D is NxN and diagonal (singular values), and V is PxN.
 ##' Another way to perform it, is to first compute a symmetric matrix, S (e.g. the scatter matrix X X^T, but not necessarily), and then to use the eigendecomposition (EVD) of it, S = Q Delta Q^-1, where Q is NxN and Delta is NxN and diagonal (eigenvalues).
-##' @param X data matrix with N rows ("units") and P columns ("variables"); P can be equal to N but X shouldn't be symmetric; a data frame will be converted into a matrix; specify X or S
-##' @param S symmetric matrix with N rows and columns; a data frame will be converted into a matrix; specify X or S
-##' @param ct use TRUE to center the columns of X (recommended), FALSE otherwise; a good reason to center the data matrix for PCA is given in \href{http://link.springer.com/10.1007/s11063-007-9069-2}{Miranda et al (2008)}
-##' @param sc use TRUE to scale the columns of X (if different units), FALSE otherwise
+##' @param X data matrix with N rows ("units") and P columns ("variables"); P can be equal to N but X shouldn't be symmetric; a data frame will be converted into a matrix; specify X or S, but not both
+##' @param S symmetric matrix with N rows and columns; a data frame will be converted into a matrix; specify X or S, but not both
+##' @param ct if TRUE, the columns of X will be centered (recommended); a good reason to center the data matrix for PCA is given in \href{http://link.springer.com/10.1007/s11063-007-9069-2}{Miranda et al (2008)}
+##' @param sc if TRUE, the columns of X will be scaled/standardized (if different units)
 ##' @param plot if not NULL, use "points" to show a plot with \code{\link[graphics]{points}} of PC1 versus PC2, and "text" to use \code{\link[graphics]{text}} with row names of \code{X} as labels (use \code{\link{plotPca}} to use other axes)
 ##' @param main main title of the plot
 ##' @param cols N-vector of colors
 ##' @param pchs N-vector of point symbols (used if \code{plot="points"})
-##' @param ES10 if TRUE, the Lambda (= U) and F (= D V^T) matrices from \href{http://dx.doi.org/10.1371/journal.pgen.1001117}{Engelhart and Stephens (2010)} are also returned
-##' @return list with, if X is given, the rotated data matrix (= X V) which rows correspond to the original rows after translation towards the sample mean (if center=TRUE) and rotation onto the "principal components" (eigenvectors of the sample covariance matrix), with the singular and eigen values, and with the proportion of variance explained per PC
+##' @param ES10 if TRUE (and X is specified), the Lambda (= U) and F (= D V^T) matrices from \href{http://dx.doi.org/10.1371/journal.pgen.1001117}{Engelhart and Stephens (2010)} are also returned
+##' @return list with (1) if X is given, the rotated data matrix (= X V) which rows correspond to the original rows after translation towards the sample mean (if center=TRUE) and rotation onto the "principal components" (eigenvectors of the sample covariance matrix), (2) if X is given, the singular values, (3) the eigen values, and (4) the proportions of variance explained per PC
 ##' @author Timothee Flutre
 ##' @seealso \code{\link{plotPca}}
 ##' @examples
@@ -279,7 +279,8 @@ mpInv <- function(x){
 ##' head(out.pca.X$rot.dat[, 1:4]) # rotated data
 ##'
 ##' ## this function fed with the scatter matrix
-##' out.pca.S <- pca(S=tcrossprod(scale(X, center=TRUE, scale=FALSE)))
+##' S <- tcrossprod(scale(X, center=TRUE, scale=FALSE))
+##' out.pca.S <- pca(S=S)
 ##' out.pca.S$eigen.values[1:4]
 ##' out.pca.S$prop.vars[1:4]
 ##' head(out.pca.S$rot.dat[, 1:4]) # rotated data
@@ -295,7 +296,8 @@ pca <- function(X=NULL, S=NULL, ct=TRUE, sc=FALSE, plot=NULL, main="PCA",
     stopifnot(is.matrix(X),
               ! isSymmetric(X),
               is.logical(ct),
-              is.logical(sc))
+              is.logical(sc),
+              is.logical(ES10))
   } else if(! is.null(S)){
     if(! is.matrix(S))
       S <- as.matrix(S)
@@ -311,10 +313,10 @@ pca <- function(X=NULL, S=NULL, ct=TRUE, sc=FALSE, plot=NULL, main="PCA",
 
   if(! is.null(X)){
     X <- scale(x=X, center=ct, scale=sc)
-    res.svd <- svd(x=X)
-    sgl.values <- res.svd$d
+    svd.X <- svd(x=X)
+    sgl.values <- svd.X$d
     eigen.values <- sgl.values^2
-    rot.dat <- X %*% res.svd$v
+    rot.dat <- X %*% svd.X$v
   } else if(! is.null(S)){
     sgl.values <- NULL
     evd.S <- eigen(S)
@@ -336,12 +338,12 @@ pca <- function(X=NULL, S=NULL, ct=TRUE, sc=FALSE, plot=NULL, main="PCA",
     plotPca(rotation=rot.dat, prop.vars=prop.vars, plot=plot, main=main,
             cols=cols, pchs=pchs)
 
-  if(ES10){
+  if(! is.null(X) & ES10){
     ## Lambda = U
     ## F = D V' and is N x P
-    output$Lambda <- res.svd$u
+    output$Lambda <- svd.X$u
     rownames(output$Lambda) <- rownames(X)
-    output$F <- diag(res.svd$d) %*% t(res.svd$v)
+    output$F <- diag(svd.X$d) %*% t(svd.X$v)
     colnames(output$F) <- colnames(X)
   }
 

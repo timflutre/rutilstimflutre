@@ -9,13 +9,13 @@ pca(X = NULL, S = NULL, ct = TRUE, sc = FALSE, plot = NULL,
   ES10 = FALSE)
 }
 \arguments{
-\item{X}{data matrix with N rows ("units") and P columns ("variables"); P can be equal to N but X shouldn't be symmetric; a data frame will be converted into a matrix; specify X or S}
+\item{X}{data matrix with N rows ("units") and P columns ("variables"); P can be equal to N but X shouldn't be symmetric; a data frame will be converted into a matrix; specify X or S, but not both}
 
-\item{S}{symmetric matrix with N rows and columns; a data frame will be converted into a matrix; specify X or S}
+\item{S}{symmetric matrix with N rows and columns; a data frame will be converted into a matrix; specify X or S, but not both}
 
-\item{ct}{use TRUE to center the columns of X (recommended), FALSE otherwise; a good reason to center the data matrix for PCA is given in \href{http://link.springer.com/10.1007/s11063-007-9069-2}{Miranda et al (2008)}}
+\item{ct}{if TRUE, the columns of X will be centered (recommended); a good reason to center the data matrix for PCA is given in \href{http://link.springer.com/10.1007/s11063-007-9069-2}{Miranda et al (2008)}}
 
-\item{sc}{use TRUE to scale the columns of X (if different units), FALSE otherwise}
+\item{sc}{if TRUE, the columns of X will be scaled/standardized (if different units)}
 
 \item{plot}{if not NULL, use "points" to show a plot with \code{\link[graphics]{points}} of PC1 versus PC2, and "text" to use \code{\link[graphics]{text}} with row names of \code{X} as labels (use \code{\link{plotPca}} to use other axes)}
 
@@ -25,10 +25,10 @@ pca(X = NULL, S = NULL, ct = TRUE, sc = FALSE, plot = NULL,
 
 \item{pchs}{N-vector of point symbols (used if \code{plot="points"})}
 
-\item{ES10}{if TRUE, the Lambda (= U) and F (= D V^T) matrices from \href{http://dx.doi.org/10.1371/journal.pgen.1001117}{Engelhart and Stephens (2010)} are also returned}
+\item{ES10}{if TRUE (and X is specified), the Lambda (= U) and F (= D V^T) matrices from \href{http://dx.doi.org/10.1371/journal.pgen.1001117}{Engelhart and Stephens (2010)} are also returned}
 }
 \value{
-list with, if X is given, the rotated data matrix (= X V) which rows correspond to the original rows after translation towards the sample mean (if center=TRUE) and rotation onto the "principal components" (eigenvectors of the sample covariance matrix), with the singular and eigen values, and with the proportion of variance explained per PC
+list with (1) if X is given, the rotated data matrix (= X V) which rows correspond to the original rows after translation towards the sample mean (if center=TRUE) and rotation onto the "principal components" (eigenvectors of the sample covariance matrix), (2) if X is given, the singular values, (3) the eigen values, and (4) the proportions of variance explained per PC
 }
 \description{
 Given a data matrix X with N rows and P columns, principal component analysis can be performed using the singular value decomposition (SVD), X = U D V^T, where U is NxN, D is NxN and diagonal (singular values), and V is PxN.
@@ -62,7 +62,8 @@ out.pca.X$prop.vars[1:4]
 head(out.pca.X$rot.dat[, 1:4]) # rotated data
 
 ## this function fed with the scatter matrix
-out.pca.S <- pca(S=tcrossprod(scale(X, center=TRUE, scale=FALSE)))
+S <- tcrossprod(scale(X, center=TRUE, scale=FALSE))
+out.pca.S <- pca(S=S)
 out.pca.S$eigen.values[1:4]
 out.pca.S$prop.vars[1:4]
 head(out.pca.S$rot.dat[, 1:4]) # rotated data
