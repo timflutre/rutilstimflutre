@@ -245,8 +245,8 @@ mpInv <- function(x){
 ##' @param sc if TRUE, the columns of X will be scaled/standardized (if different units)
 ##' @param plot if not NULL, use "points" to show a plot with \code{\link[graphics]{points}} of PC1 versus PC2, and "text" to use \code{\link[graphics]{text}} with row names of \code{X} as labels (use \code{\link{plotPca}} to use other axes)
 ##' @param main main title of the plot
-##' @param cols N-vector of colors
-##' @param pchs N-vector of point symbols (used if \code{plot="points"})
+##' @param cols N-vector of colors (will be \code{"black"} by default)
+##' @param pchs N-vector of point symbols; used if \code{plot="points"}; will be \code{20} by default
 ##' @param ES10 if TRUE (and X is specified), the Lambda (= U) and F (= D V^T) matrices from \href{http://dx.doi.org/10.1371/journal.pgen.1001117}{Engelhart and Stephens (2010)} are also returned
 ##' @return list with (1) if X is given, the rotated data matrix (= X V) which rows correspond to the original rows after translation towards the sample mean (if center=TRUE) and rotation onto the "principal components" (eigenvectors of the sample covariance matrix), (2) if X is given, the singular values, (3) the eigen values, and (4) the proportions of variance explained per PC
 ##' @author Timothee Flutre
@@ -287,8 +287,7 @@ mpInv <- function(x){
 ##' }
 ##' @export
 pca <- function(X=NULL, S=NULL, ct=TRUE, sc=FALSE, plot=NULL, main="PCA",
-                cols=rep("black", nrow(X)), pchs=rep(20, nrow(X)),
-                ES10=FALSE){
+                cols=NULL, pchs=NULL, ES10=FALSE){
   stopifnot(xor(! is.null(X), ! is.null(S)))
   if(! is.null(X)){
     if(! is.matrix(X))
@@ -304,10 +303,19 @@ pca <- function(X=NULL, S=NULL, ct=TRUE, sc=FALSE, plot=NULL, main="PCA",
     stopifnot(is.matrix(S),
               isSymmetric(S))
   }
-  if(! is.null(plot))
+  if(! is.null(plot)){
+    if(is.null(cols))
+      cols <- rep("black", ifelse(is.null(S), nrow(X), nrow(S)))
+    if(is.null(pchs))
+      pchs <- rep(20, ifelse(is.null(S), nrow(X), nrow(S)))
     stopifnot(plot %in% c("points", "text"),
               is.vector(cols),
-              length(cols) == nrow(X))
+              ifelse(is.null(S), length(cols) == nrow(X),
+                     length(cols) == nrow(S)),
+              is.vector(pchs),
+              ifelse(is.null(S), length(pchs) == nrow(X),
+                     length(pchs) == nrow(S)))
+  }
 
   output <- list()
 

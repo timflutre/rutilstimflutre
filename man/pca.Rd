@@ -5,8 +5,7 @@
 \title{Principal component analysis}
 \usage{
 pca(X = NULL, S = NULL, ct = TRUE, sc = FALSE, plot = NULL,
-  main = "PCA", cols = rep("black", nrow(X)), pchs = rep(20, nrow(X)),
-  ES10 = FALSE)
+  main = "PCA", cols = NULL, pchs = NULL, ES10 = FALSE)
 }
 \arguments{
 \item{X}{data matrix with N rows ("units") and P columns ("variables"); P can be equal to N but X shouldn't be symmetric; a data frame will be converted into a matrix; specify X or S, but not both}
@@ -21,9 +20,9 @@ pca(X = NULL, S = NULL, ct = TRUE, sc = FALSE, plot = NULL,
 
 \item{main}{main title of the plot}
 
-\item{cols}{N-vector of colors}
+\item{cols}{N-vector of colors (will be \code{"black"} by default)}
 
-\item{pchs}{N-vector of point symbols (used if \code{plot="points"})}
+\item{pchs}{N-vector of point symbols; used if \code{plot="points"}; will be \code{20} by default}
 
 \item{ES10}{if TRUE (and X is specified), the Lambda (= U) and F (= D V^T) matrices from \href{http://dx.doi.org/10.1371/journal.pgen.1001117}{Engelhart and Stephens (2010)} are also returned}
 }
