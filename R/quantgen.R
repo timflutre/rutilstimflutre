@@ -6481,9 +6481,9 @@ stanAM <- function(data, relmat, errors.Student=FALSE,
 ##' @param mean.c mean of the prior on c[2:Q]
 ##' @param sd.c std dev of the prior on c[2:Q]
 ##' @param X matrix of bi-allelic SNP genotypes encoded in allele doses in [0,2], with genotypes in rows and SNPs in columns (SNPs with missing values or low MAF should be discarded beforehand)
-##' @param m1 if TRUE, 1 will be subtracted from each entry of X to make X_A
+##' @param m1 if TRUE, 1 will be subtracted from each entry of X to make X_A (before optional centering and scaling)
 ##' @param ctr if TRUE, the columns of the X matrix will be centered to make X_A and X_D
-##' @param std if TRUE, the columns of the X matrix will also be standardized to make X_A and X_D
+##' @param std if TRUE, the columns of the X matrix will also be standardized to make X_A and X_D (note that Habier et al (2007) don't standardize the genotypes, but Janss et al (2012) do)
 ##' @param pi proportion of marker effects (a) that are non-zero; setting pi at 1 means simulating from the additive infinitesimal model (equivalent to ridge regression)
 ##' @param pve proportion of phenotypic variance explained by SNPs with non-zero effects ("heritability"); PVE = V[g] / V[y] where y = g + e and g = g_a + g_d (no epistasis); the magnitude of g_a (resp. g_d) depends on whether or not \code{sigma.a2} (resp. \code{sigma.d2}) is set to zero; a value for sigma^2 is then chosen
 ##' @param sigma.a2 prior variance of the non-zero additive effects
@@ -6510,32 +6510,33 @@ stanAM <- function(data, relmat, errors.Student=FALSE,
 ##' ## choose pi so that sum(gamma * (1 + log(P / sum(gamma)))) < I
 ##' Q <- 3
 ##' modelA <- simulBvsr(Q=Q, X=X, pi=0.01, pve=0.7, sigma.a2=1)
+##' modelA$sigma2
 ##'
 ##' library(lme4)
-##' dat <- data.frame(response=modelA$Y[,1],
-##'                   year=factor(rep(2010:(2010+Q-1), each=I)),
-##'                   geno=factor(rep(rownames(X), Q)))
-##' fit1 <- lmer(formula=response ~ year + (1|geno), data=dat)
+##' fit1 <- lmer(formula=response1 ~ year + (1|geno), data=modelA$dat)
 ##' cbind(modelA$c, blues <- fixef(fit1))
 ##' blups <- ranef(fit1, drop=TRUE)$geno[rownames(X)]
 ##' cor(modelA$g.A, blups, method="pearson")
 ##' cor(modelA$g.A, blups, method="spearman")
-##' vc1 <- as.data.frame(VarCorr(fit1))
+##' (vc1 <- as.data.frame(VarCorr(fit1)))
 ##' (pve1.hat <- vc1$vcov[1] / (vc1$vcov[1] + vc1$vcov[2]))
 ##'
-##' fit1A <- lmerAM(formula=response ~ year + (1|geno), data=dat,
+##' fit1A <- lmerAM(formula=response1 ~ year + (1|geno), data=modelA$dat,
 ##'                 relmat=list(geno=A))
+##' ## maybe necessary to use A2 <- nearPD(A)$mat
 ##' cbind(modelA$c, blues <- fixef(fit1A$merMod))
 ##' blupsA <- ranef(fit1A$merMod, drop=TRUE)$geno[rownames(X)]
 ##' cor(modelA$g.A, blupsA, method="pearson")
 ##' cor(modelA$g.A, blupsA, method="spearman")
-##' vc1A <- as.data.frame(VarCorr(fit1A$merMod))
+##' (vc1A <- as.data.frame(VarCorr(fit1A$merMod)))
 ##' (pve1A.hat <- vc1A$vcov[1] / (vc1A$vcov[1] + vc1A$vcov[2]))
 ##'
-##' plot(x=modelA$g.A, y=blups, col="blue", asp=1)
+##' plot(x=modelA$g.A, y=blups, col="blue", asp=1, las=1)
 ##' points(x=modelA$g.A, y=blupsA, col="red")
 ##' segments(x0=modelA$g.A, y0=blups, x1=modelA$g.A, y1=blupsA)
 ##' abline(h=0, v=0, a=0, b=1, lty=2)
+##' legend("bottomright", legend=c("without A", "with A"), col=c("blue", "red"),
+##'        pch=1, bty="n")
 ##'
 ##' library(varbvs)
 ##' fit2 <- varbvs(X=modelA$X.A, Z=NULL, y=blups, verbose=FALSE)
@@ -6559,25 +6560,25 @@ stanAM <- function(data, relmat, errors.Student=FALSE,
 ##' ## dominant sparse genetic architecture
 ##' Q <- 3
 ##' modelAD <- simulBvsr(Q=Q, X=X, pi=0.01, pve=0.7, sigma.a2=0, sigma.d2=1)
+##' modelAD$sigma2
 ##'
 ##' library(lme4)
-##' dat <- data.frame(response=modelAD$Y[,1],
-##'                   year=factor(rep(2010:(2010+Q-1), each=I)),
-##'                   geno.add=factor(rep(rownames(X), Q)))
+##' dat <- modelAD$dat
+##' colnames(dat)[colnames(dat) == "geno"] <- "geno.add"
 ##' dat$geno.dom <- dat$geno.add
-##' fit3A <- lmerAM(formula=response ~ year + (1|geno.add), data=dat,
+##' fit3A <- lmerAM(formula=response1 ~ year + (1|geno.add), data=dat,
 ##'                 relmat=list(geno.add=A))
-##' vc3A <- as.data.frame(VarCorr(fit3A$merMod))
+##' (vc3A <- as.data.frame(VarCorr(fit3A$merMod)))
 ##' (pve3A.hat <- vc3A$vcov[1] / (vc3A$vcov[1] + vc3A$vcov[2]))
 ##'
-##' fit3D <- lmerAM(formula=response ~ year + (1|geno.dom), data=dat,
+##' fit3D <- lmerAM(formula=response1 ~ year + (1|geno.dom), data=dat,
 ##'                 relmat=list(geno.dom=D))
-##' vc3D <- as.data.frame(VarCorr(fit3D$merMod))
+##' (vc3D <- as.data.frame(VarCorr(fit3D$merMod)))
 ##' (pve3D.hat <- vc3D$vcov[1] / (vc3D$vcov[1] + vc3D$vcov[2]))
 ##'
-##' fit3AD <- lmerAM(formula=response ~ year + (1|geno.add) + (1|geno.dom),
+##' fit3AD <- lmerAM(formula=response1 ~ year + (1|geno.add) + (1|geno.dom),
 ##'                  data=dat, relmat=list(geno.add=A, geno.dom=D))
-##' vc3AD <- as.data.frame(VarCorr(fit3AD$merMod))
+##' (vc3AD <- as.data.frame(VarCorr(fit3AD$merMod)))
 ##' (pve3AD.hat <- (vc3AD$vcov[1] + vc3AD$vcov[2]) /
 ##'                  (vc3AD$vcov[1] + vc3AD$vcov[2] + vc3AD$vcov[3]))
 ##'
@@ -6595,7 +6596,8 @@ stanAM <- function(data, relmat, errors.Student=FALSE,
 ##' fit.AM$Ve
 ##' fit.AM$Vu
 ##' afs <- estimSnpAf(X=X)
-##' fit.AM$Vu / (2 * sum(afs * (1 - afs)))
+##' fit.AM$Vu / (2 * sum(afs * (1 - afs))) # see Habier et al (2007)
+##' fit.AM$Vu / (fit.AM$Vu + fit.AM$Ve) # same as the specified pve
 ##' }
 ##' @export
 simulBvsr <- function(Q=3, mu=50, mean.c=5, sd.c=2,
@@ -6670,9 +6672,12 @@ simulBvsr <- function(Q=3, mu=50, mean.c=5, sd.c=2,
     X.A <- scale(x=X - 1, center=ctr, scale=std)
   } else
     X.A <- scale(x=X, center=ctr, scale=std)
-  X.D <- scale(x=recodeIntoDominant(X), center=ctr, scale=std)
-  if(std & any(is.na(X.D)))
-    stop("use min.maf to avoid NA with std=TRUE for X.D")
+  X.D <- matrix(data=0, nrow=nrow(X.A), ncol=ncol(X.A))
+  if(sigma.d2 > 0){
+    X.D <- scale(x=recodeIntoDominant(X), center=ctr, scale=std)
+    if(std & any(is.na(X.D)))
+      stop("use min.maf to avoid NA with std=TRUE for X.D")
+  }
   dat$geno <- inds
 
   ## incidence vector of the causal genetic predictors
