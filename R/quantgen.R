@@ -7233,6 +7233,408 @@ qtlrelPerChr <- function(y, X, snp.coords, thresh=0.01, chr.ids=NULL, W=NULL, Z=
   return(out)
 }
 
+##' Gibbs sampler from Janss et al (2012)
+##'
+##' Run the Gibbs sampler from Janss et al (2012).
+##' @param y vector of responses of length n
+##' @param a used when y is censored
+##' @param b used when y is censored
+##' @param family "gaussian" or "bernoulli"
+##' @param K list of lists (one per prior)
+##' @param XF n x pF incidence matrix for fixed effects
+##' @param df0 degrees of freedom for the prior variances
+##' @param S0 scale for the prior variances
+##' @param nIter number of iterations
+##' @param burnIn burn-in
+##' @param thin thinning
+##' @param saveAt if not NULL, results will be saved in this file
+##' @param weights optional vector
+##' @param verbose verbosity level (0/1/2)
+##' @return list
+##' @author Luc Janss [aut], Gustavo de los Campos [aut], Timothee Flutre [ctb]
+##' @note To reduce dependency, the R version of the "rtrun" function from the "bayesm" package (version 2.2-5 implemented by Peter Rossi and available under the GPL) was copied. Moreover, because the Janss supplement lacked a function, the "dtruncnorm" function from the "truncnorm" package was adapted.
+##' @examples
+##' \dontrun{## load the wheat data set
+##' c("X","Y") %in% ls()
+##' library(BLR)
+##' data(wheat)
+##' c("X","Y") %in% ls()
+##' dim(X) # lines x markers
+##' W <- scale(X, center=TRUE, scale=TRUE)
+##' G <- tcrossprod(W) / ncol(W)
+##' EVD <- eigen(G)
+##' plot(EVD$vectors[,2], EVD$vectors[,1], main="Same as figure 3 left",
+##'      xlab="Eigenvector 2", ylab="Eigenvector 1", pch=18)
+##' plot(x=0:nrow(X), y=c(0, cumsum(EVD$values) / nrow(X)), type="l", las=1,
+##'      main="Same as figure 4 left", ylab="", xlab="Number of eigenvalues")
+##' abline(h=1, a=0, b=1/nrow(X), lty=2)
+##' fit <- gibbsJanss2012(y=Y[,1], K=list(list(V=EVD$vectors, d=EVD$values,
+##'                                            df0=5, S0=3/2)),
+##'                       nIter=20000, burnIn=2000)
+##' fit$mu # ~= 0
+##' fit$varE # ~= 0.54
+##' fit$K[[1]]$varU # ~= 0.52
+##' fit$K[[1]]$varU / (fit$K[[1]]$varU + fit$varE) # ~= 0.49 (same as in paper)
+##' }
+##' @export
+gibbsJanss2012 <- function(y, a=NULL, b=NULL, family="gaussian", K, XF=NULL,
+                           df0=0, S0=0, nIter=110, burnIn=10, thin=10,
+                           saveAt=NULL, weights=NULL, verbose=0){
+  stopifnot(is.numeric(y),
+            family %in% c("gaussian", "bernoulli"),
+            is.list(K))
+  if(! is.null(saveAt))
+    if(file.exists(saveAt))
+      file.remove(saveAt)
+
+  rtrun <- function(mu, sigma, a, b){
+    ## the original implementation (supplement of Janss et al, 2012) uses
+    ##  the rtrun() function from the R package "bayesm" v2.2-5,
+    ##  so I copied it here to avoid depending on the whole package
+    ## see https://en.wikipedia.org/wiki/Truncated_normal_distribution#Simulating
+    FA <- stats::pnorm(((a - mu) / sigma))
+    FB <- stats::pnorm(((b - mu) / sigma))
+    return(mu + sigma * stats::qnorm(stats::runif(length(mu)) * (FB-FA) + FA))
+  }
+  logLikTruncNorm <- function(param=c(0,1), y, a=-Inf, b=+Inf){
+    ## the original implementation mentions this function, but it was absent
+    ##  from the supplement, so I looked at the "truncnorm" package
+    ## see https://en.wikipedia.org/wiki/Truncated_normal_distribution#Definition
+    mu <- param[1]
+    sigma <- param[2]
+    ksi <- (y - mu) / sigma
+    alpha <- (a - mu) / sigma
+    beta <- (b - mu) / sigma
+    Z <- stats::pnorm(beta) - stats::pnorm(alpha)
+    n <- length(y)
+    loglik <- rep(NA, n)
+    inrange <- which(y >= a & y <= b)
+    loglik[inrange] <- stats::dnorm(ksi, log=TRUE) - log(sigma) - log(Z)
+    loglik[! inrange] <- 0
+    return(sum(loglik))
+  }
+  ## check it, wihout the last sum
+  ## all.equal(logLikTruncNorm(y=0.5), dnorm(0.5, log=TRUE))
+  ## all.equal(logLikTruncNorm(c(1,2), y=0.5), dnorm(0.5, 1, 2, log=TRUE))
+  ## library(truncnorm)
+  ## all.equal(exp(logLikTruncNorm(y=0.5)), dtruncnorm(0.5))
+  ## all.equal(exp(logLikTruncNorm(c(1,2), y=0.5)), dtruncnorm(0.5, mean=1, sd=2))
+  ## all.equal(exp(logLikTruncNorm(y=0.5, a=-1, b=1)), dtruncnorm(0.5, -1, 1))
+  ## all.equal(exp(logLikTruncNorm(c(1,2), y=0.5, a=-1, b=1)),
+  ##           dtruncnorm(0.5, -1, 1, 1, 2))
+  ## all.equal(exp(logLikTruncNorm(c(1,2), y=c(0.5,0.3), a=-1, b=1)),
+  ##           dtruncnorm(c(0.5,0.3), -1, 1, 1, 2))
+
+  if(verbose > 0)
+    write("prepare inputs...", stdout())
+  iter <- 0
+  n <- length(y)
+  if ((family != "gaussian") & (family != "bernoulli")) {
+    stop("Only Gaussian and Bernoulli Outcomes are allowed")
+  }
+  isYCensored <- FALSE
+  if (family == "gaussian") {
+    if ((!is.null(a)) | (!is.null(b))) {
+      isYCensored <- TRUE
+    }
+  }
+  whichNa <- which(is.na(y))
+  nNa <- length(whichNa)
+  hasWeights <- !is.null(weights)
+  if (!hasWeights) {
+    weights <- rep(1, n)
+  }
+  else {
+    if (isYCensored | (family == "bernoulli")) {
+      stop("Weights are implemented only for Non-Censored Gaussian")
+    }
+  }
+  sumW2 <- sum(weights^2)
+  if (family == "gaussian") {
+    if (!isYCensored) {
+      mu <- stats::weighted.mean(x = y, w = weights, na.rm = TRUE)
+      yStar <- y * weights
+      yStar[whichNa] <- mu * weights[whichNa]
+    }
+    else {
+      tmp <- c(mean(y, na.rm = TRUE), stats::sd(y, na.rm = TRUE))
+      tmp <- stats::optim(fn = logLikTruncNorm, par = tmp, y = y,
+                          a = a, b = b, control = list(fnscale = -1))
+      mu <- tmp$par[1]
+      varE <- (tmp$par[2]^2)/2
+      yStar <- y
+      tmp <- rtrun(sigma = sqrt(varE), mu = mu, a = a[whichNa],
+                   b = b[whichNa])
+      yStar[whichNa] <- tmp
+    }
+  }
+  if (family == "bernoulli") {
+    threshold <- 500
+    pSuccess <- stats::weighted.mean(x = y, w = weights, na.rm = TRUE)
+    mu <- stats::qnorm(sd = 1, mean = 0, p = pSuccess)
+    tmpY <- y
+    tmpY[whichNa] <- ifelse(stats::rnorm(n = nNa, sd = 1, mean = mu) >
+                            0, 1, 0)
+    a <- ifelse(tmpY == 0, -threshold, 0)
+    b <- ifelse(tmpY == 0, 0, threshold)
+    yStar <- rtrun(sigma = 1, mu = mu, a = a, b = b)
+  }
+  e <- (yStar - weights * mu)
+  if (family == "bernoulli") {
+    varE <- 1
+  }
+  else {
+    varE <- as.numeric(stats::var(e, na.rm = TRUE)/2)
+  }
+  sdE <- sqrt(varE)
+  nK <- length(K)
+  postMu <- 0
+  postVarE <- 0
+  postYHat <- rep(0, n)
+  postYHat2 <- rep(0, n)
+  postLogLik <- 0
+  hasXF <- !is.null(XF)
+  if (hasXF) {
+    for (i in 1:n) {
+      XF[i, ] <- weights[i] * XF[i, ]
+    }
+    SVD.XF <- svd(XF)
+    SVD.XF$Vt <- t(SVD.XF$v)
+    SVD.XF <- SVD.XF[-3]
+    pF0 <- length(SVD.XF$d)
+    pF <- ncol(XF)
+    bF0 <- rep(0, pF0)
+    bF <- rep(0, pF)
+    namesBF <- colnames(XF)
+    post_bF <- bF
+    post_bF2 <- bF
+    rm(XF)
+  }
+  for (k in 1:nK) {
+    if (hasWeights & is.null(K[[k]]$K)) {
+      stop("If weights are provided K is needed")
+    }
+    if (hasWeights) {
+      T <- diag(weights)
+      K[[k]]$K <- T %*% K[[k]]$K %*% T
+    }
+    if (is.null(K[[k]]$V)) {
+      K[[k]]$K <- as.matrix(K[[k]]$K)
+      tmp <- eigen(K[[k]]$K)
+      K[[k]]$V <- tmp$vectors
+      K[[k]]$d <- tmp$values
+    }
+    if (is.null(K[[k]]$tolD)) {
+      K[[k]]$tolD <- 1e-12
+    }
+
+    tmp <- K[[k]]$d > K[[k]]$tolD
+    K[[k]]$levelsU <- sum(tmp)
+    K[[k]]$d <- K[[k]]$d[tmp]
+    K[[k]]$V <- K[[k]]$V[, tmp]
+    if (is.null(K[[k]]$df0)) {
+      K[[k]]$df0 = 1
+    }
+    if (is.null(K[[k]]$S0)) {
+      K[[k]]$S0 = 1e-15
+    }
+    K[[k]]$varU <- varE/nK/2
+    K[[k]]$u <- rep(0, n)
+    K[[k]]$uStar <- rep(0, K[[k]]$levelsU)
+    K[[k]]$postVarU <- 0
+    K[[k]]$postUStar <- rep(0, K[[k]]$levelsU)
+    K[[k]]$postU <- rep(0, n)
+    K[[k]]$postCumMSa<-rep(0,K[[k]]$levelsU)
+    K[[k]]$postH1<-rep(0,K[[k]]$levelsU)
+  }
+
+  if(verbose > 0)
+    write("perform inference...", stdout())
+  if(! is.null(saveAt)){
+    tmp <- c("logLik", "mu", "varE", paste0("varU", 1:nK))
+    if(hasXF)
+      tmp <- c(tmp, paste0("bF", 1:pF))
+    write(tmp, ncolumns=length(tmp), file=saveAt, append=FALSE,  sep=" ")
+  }
+  if(verbose > 0){
+    tmpOut <- paste0("iter: ", 0,
+                     "; time: ", round(0, 4),
+                     "; varE: ", round(varE, 3),
+                     "; mu: ", round(mu, 3), "\n")
+    cat(tmpOut)
+  }
+  time <- proc.time()[3]
+  for (i in 1:nIter) {
+    if (hasXF) {
+      sol <- (crossprod(SVD.XF$u, e) + bF0)
+      tmp <- sol + stats::rnorm(n = pF0, sd = sqrt(varE))
+      bF <- crossprod(SVD.XF$Vt, tmp/SVD.XF$d)
+      e <- e + SVD.XF$u %*% (bF0 - tmp)
+      bF0 <- tmp
+    }
+    for (k in 1:nK) {
+      e <- e + K[[k]]$u
+      rhs <- crossprod(K[[k]]$V, e)/varE
+      varU <- K[[k]]$varU * K[[k]]$d
+      C <- as.numeric(1/varU + 1/varE)
+      SD <- 1/sqrt(C)
+      sol <- rhs/C
+      tmp <- stats::rnorm(n = K[[k]]$levelsU, sd = SD, mean = sol)
+      K[[k]]$uStar <- tmp
+      K[[k]]$u <- as.vector(K[[k]]$V %*% tmp)
+      e <- e - K[[k]]$u
+      tmp <- K[[k]]$uStar/sqrt(K[[k]]$d)
+      S <- as.numeric(crossprod(tmp)) + K[[k]]$S0
+      df <- K[[k]]$levelsU + K[[k]]$df0
+      K[[k]]$varU <- S/stats::rchisq(n = 1, df = df)
+    }
+    e <- e + weights * mu
+    rhs <- sum(weights * e)/varE
+    C <- sumW2/varE
+    sol <- rhs/C
+    mu <- stats::rnorm(n = 1, sd = sqrt(1/C), mean = sol)
+    e <- e - weights * mu
+    if (family != "bernoulli") {
+      df <- n + df0
+      SS <- as.numeric(crossprod(e)) + S0
+      varE <- SS/stats::rchisq(n = 1, df = df)
+    }
+    yHat <- yStar - e
+    if (family == "bernoulli") {
+      yStar <- rtrun(mu = yHat, a = a, b = b, sigma = 1)
+      e <- yStar - yHat
+    }
+    if (nNa > 0) {
+      if (family == "gaussian") {
+        if (isYCensored) {
+          yStar[whichNa] <- rtrun(mu = yHat[whichNa],  a = a[whichNa], b = b[whichNa], sigma = sdE)
+        }
+        else {
+          yStar[whichNa] <- yHat[whichNa] + stats::rnorm(n = nNa,  sd = sdE)
+        }
+        e[whichNa] <- yStar[whichNa] - yHat[whichNa]
+      }
+      if (family == "bernoulli") {
+        pSuccess <- stats::pnorm(mean = 0, q = yHat[whichNa], sd = 1)
+        tmp <- stats::rbinom(size = 1, n = nNa, prob = pSuccess)
+        a[whichNa] <- ifelse(tmp == 0, -threshold, 0)
+        b[whichNa] <- ifelse(tmp == 0, 0, threshold)
+      }
+    }
+    if (family == "gaussian") {
+      tmpE <- e/weights
+      tmpSD <- sqrt(varE)/weights
+      if (nNa > 0) {
+        tmpE <- tmpE[-whichNa]
+        tmpSD <- tmpSD[-whichNa]
+      }
+      logLik <- sum(stats::dnorm(tmpE, sd = tmpSD, log = TRUE))
+      if (isYCensored) {
+        cdfA <- stats::pnorm(q = a[whichNa], sd = sdE, mean = yHat[whichNa])
+        cdfB <- stats::pnorm(q = b[whichNa], sd = sdE, mean = yHat[whichNa])
+        logLik <- logLik + sum(log(cdfB - cdfA))
+      }
+    }
+    if (family == "bernoulli") {
+      pSuccess <- stats::pnorm(mean = 0, sd = 1, q = yHat[-whichNa])
+      tmp <- y[-whichNa]
+      logLik <- sum(log(ifelse(y[-whichNa] == 0, (1 - pSuccess), pSuccess)))
+    }
+    if ((i > burnIn) & (i%%thin == 0)) {
+      iter <- iter + 1
+      constant <- (iter - 1)/(iter)
+      postMu <- postMu * constant + mu/iter
+      postVarE <- postVarE * constant + varE/iter
+      postYHat <- postYHat * constant + yHat/iter
+      for (k in 1:nK) {
+        K[[k]]$postVarU <- K[[k]]$postVarU * constant +  K[[k]]$varU/iter
+        K[[k]]$postUStar <- K[[k]]$postUStar * constant + K[[k]]$uStar/iter
+        K[[k]]$postU <- K[[k]]$postU * constant + K[[k]]$u/iter
+        tmp<-cumsum(K[[k]]$uStar^2)/K[[k]]$levelsU
+        K[[k]]$postCumMSa<-K[[k]]$postCumMSa*constant+tmp/iter
+        tmp<-K[[k]]$uStar^2>mean(K[[k]]$uStar^2)
+        K[[k]]$postH1<-K[[k]]$postH1*constant+tmp/iter
+      }
+      postLogLik <- postLogLik * constant + logLik/iter
+      if (hasXF) {
+        post_bF <- post_bF * constant + bF/iter
+        post_bF2 <- post_bF2 * constant + (bF^2)/iter
+      }
+    }
+    tmp <- i%%thin == 0
+    if (! is.null(saveAt) & i > burnIn & (tmp)) {
+      tmp <- c(logLik, mu, varE)
+      for(k in 1:nK)
+        tmp <- c(tmp, K[[k]]$varU)
+      if(hasXF)
+        tmp <- bF
+      write(tmp, ncolumns=length(tmp), file=saveAt, append=TRUE,  sep=" ")
+    }
+    tmp <- proc.time()[3]
+    if(verbose > 0){
+      if(verbose == 1 & i %% thin != 0)
+        next
+      tmpOut <- paste0("iter: ", i,
+                       "; time: ", round(tmp - time, 4),
+                       "; varE: ", round(varE, 3), "\n")
+      cat(tmpOut)
+    }
+    time <- tmp
+  }
+
+  if(verbose > 0)
+    write("prepare the output...", stdout())
+  out <- list(mu = postMu, fit = list(), varE = postVarE,
+              yHat = as.numeric(postYHat/weights),
+              weights = weights, K = list(), whichNa = whichNa, df0 = df0,
+              S0 = S0, nIter = nIter, burnIn = burnIn, saveAt = saveAt)
+  out$fit$postMeanLogLik <- postLogLik
+  if (family == "gaussian") {
+    tmpE <- (yStar - postYHat)/weights
+    tmpSD <- sqrt(postVarE)/weights
+    if (nNa > 0) {
+      tmpE <- tmpE[-whichNa]
+      tmpSD <- tmpSD[-whichNa]
+    }
+    out$fit$logLikAtPostMean <- sum(stats::dnorm(tmpE, sd = tmpSD,
+                                          log = TRUE))
+    if (isYCensored) {
+      cdfA <- stats::pnorm(q = a[whichNa], sd = sqrt(postVarE),
+                    mean = postYHat[whichNa])
+      cdfB <- stats::pnorm(q = b[whichNa], sd = sqrt(postVarE),
+                    mean = postYHat[whichNa])
+      out$fit$logLikAtPostMean <- out$fit$logLikAtPostMean +
+        sum(log(cdfB - cdfA))
+    }
+  }
+  if (family == "bernoulli") {
+    pSuccess <- stats::pnorm(mean = 0, sd = 1, q = postYHat[-whichNa])
+    tmp <- y[-whichNa]
+    out$fit$logLikAtPostMean <- sum(log(ifelse(y[-whichNa] ==
+                                               0, (1 - pSuccess), pSuccess)))
+  }
+  out$fit$pD <- -2 * (out$fit$postMeanLogLik - out$fit$logLikAtPostMean)
+  out$fit$DIC <- out$fit$pD - 2 * out$fit$postMeanLogLik
+  if (hasXF) {
+    out$bF <- as.vector(post_bF)
+    out$SD.bF <- as.vector(sqrt(post_bF2 - post_bF^2))
+    names(out$bF) <- namesBF
+    names(out$SD.bF) <- namesBF
+  }
+  for (k in 1:nK) {
+    out$K[[k]] <- list()
+    out$K[[k]]$u <- K[[k]]$postU
+    out$K[[k]]$uStar <- K[[k]]$postUStar
+    out$K[[k]]$varU <- K[[k]]$postVarU
+    out$K[[k]]$cumMSa<-K[[k]]$postCumMSa
+    out$K[[k]]$probH1<-K[[k]]$postH1
+    out$K[[k]]$dfo <- K[[k]]$df0
+    out$K[[k]]$S0 <- K[[k]]$S0
+    out$K[[k]]$tolD <- K[[k]]$tolD
+  }
+  return(out)
+}
+
 ##' Asymptotic Bayes factor
 ##'
 ##' Calculate the asymptotic Bayes factor proposed by Wakefield in Genetic Epidemiology 33:79-86 (2009, \url{http://dx.doi.org/10.1002/gepi.20359}).
