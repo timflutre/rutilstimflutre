@@ -1283,11 +1283,11 @@ readSegregJoinMap <- function(file, na.string="--", verbose=1){
 ##' Write genotype data in the \href{https://www.kyazma.nl/index.php/JoinMap/}{JoinMap} format into a "loc" file used by this software.
 ##' @param pop.name name of the population
 ##' @param pop.type type of the population
-##' @param locus vector of locus names (should be shorter or equal to 20 characters, otherwise a warning will be issued)
-##' @param segregs vector of segregation types
+##' @param locus vector of locus names; should be shorter or equal to 20 characters, otherwise a warning will be issued; should be in the same order as the rows of the "genos" argument
+##' @param segregs vector of segregation types; should be in the same order as the rows of the "genos" argument
 ##' @param genos data frame containing genotypes encoded in the JoinMap format,  similar to the output from \code{\link{genoClasses2JoinMap}}
-##' @param phases vector of phase types (optional)
-##' @param classifs vector of classification types (optional)
+##' @param phases vector of phase types (optional; should be in the same order as the rows of the "genos" argument)
+##' @param classifs vector of classification types (optional; should be in the same order as the rows of the "genos" argument)
 ##' @param file name of the file in which the data will be saved (will be compressed if ends with ".gz" and "gzip" is available in the PATH)
 ##' @param save.ind.names if TRUE, individual names will be saved at the end of the file
 ##' @param na.string character to replace NA's in "genos"
@@ -1372,6 +1372,7 @@ writeSegregJoinMap <- function(pop.name, pop.type="CP",
     tmp <- cbind(tmp, phases)
   if(! is.null(classifs))
     tmp <- cbind(tmp, classifs)
+  rownames(tmp) <- NULL
   genos[is.na(genos)] <- na.string
   tmp <- cbind(tmp, genos)
   suppressWarnings(utils::write.table(x=tmp, file=con, append=TRUE,
@@ -4924,6 +4925,7 @@ distConsecutiveSnps <- function(snp.coords, only.chr=NULL, nb.cores=1){
 ##' @param only.chr identifier of a given chromosome
 ##' @return vector of SNP identifiers
 ##' @author Timothee Flutre
+##' @seealso \code{\link{pruneSnpsLd}}
 ##' @export
 thinSnps <- function(method, threshold, snp.coords, only.chr=NULL){
   requireNamespaces("GenomicRanges")
@@ -4957,6 +4959,83 @@ thinSnps <- function(method, threshold, snp.coords, only.chr=NULL){
       names(tmp.gr[idx[! is.na(idx)]])
     }
   }))
+
+  return(out.snp.ids)
+}
+
+##' Prune SNPs based on LD
+##'
+##' Prune SNPs based on their pairwise linkage disequilibriums via sliding windows using the "snpgdsLDpruning" function from the "SNPRelate" package..
+##' @param X matrix of bi-allelic SNP genotypes encoded, for each SNP, in number of copies of its second allele, i.e. as allele doses in {0,1,2}, with genotypes in rows and SNPs in columns; the "second" allele is arbitrary, it can correspond to the minor (least frequent) or the major (most frequent) allele; will be transformed into a "gds" object (see next argument)
+##' @param snp.coords data frame which row names are SNP identifiers, the first column should contain chromosomes as integers, and the second column should contain positions; compulsory if the X argument is specified
+##' @param gds object of class "SNPGDSFileClass" from the SNPRelate package
+##' @param ld.threshold the LD threshold below which SNPs are discarded; will be passed to "snpgdsLDpruning"
+##' @param remove.monosnp will be passed to "snpgdsLDpruning"
+##' @param maf will be passed to "snpgdsLDpruning"
+##' @param missing.rate will be passed to "snpgdsLDpruning"
+##' @param method will be passed to "snpgdsLDpruning"
+##' @param slide.max.bp will be passed to "snpgdsLDpruning"
+##' @param slide.max.n will be passed to "snpgdsLDpruning"
+##' @param seed seed for the pseudo-random number generator
+##' @param nb.cores will be passed to "snpgdsLDpruning"
+##' @param verbose verbosity level (0/1)
+##' @return vector of SNP identifiers
+##' @author Timothee Flutre
+##' @seealso \code{\link{thinSnps}}, \code{\link[SNPRelate]{snpgdsLDpruning}}
+##' @export
+pruneSnpsLd <- function(X=NULL, snp.coords=NULL, gds=NULL,
+                        ld.threshold=0.2,
+                        remove.monosnp=TRUE, maf=NaN, missing.rate=NaN,
+                        method=c("composite", "r", "dprime", "corr"),
+                        slide.max.bp=500000, slide.max.n=NA,
+                        seed=NULL, nb.cores=1, verbose=1){
+  requireNamespace("SNPRelate")
+  stopifnot(xor(is.null(X), is.null(gds)))
+  if(is.null(gds)){
+    stopIfNotValidGenosDose(X=X, check.noNA=FALSE, check.notImputed=TRUE)
+    stopifnot(! is.null(snp.coords),
+              is.data.frame(snp.coords),
+              ! is.null(rownames(snp.coords)),
+              all(colnames(X) %in% rownames(snp.coords)),
+              ncol(snp.coords) >= 2)
+  }
+
+  gds.file <- NULL
+  if(is.null(gds)){
+    gds.file <- tempfile()
+    snp.coords <- snp.coords[colnames(X),] # re-order the rows
+    SNPRelate::snpgdsCreateGeno(gds.fn=gds.file,
+                                genmat=X,
+                                sample.id=rownames(X),
+                                snp.id=colnames(X),
+                                snp.chromosome=snp.coords[,1],
+                                snp.position=snp.coords[,2],
+                                snpfirstdim=FALSE)
+    gds <- SNPRelate::snpgdsOpen(gds.file)
+  }
+
+  if(verbose > 1)
+    SNPRelate::snpgdsSummary(gds)
+
+  if(! is.null(seed))
+    set.seed(seed)
+  out.snp.ids <-
+    SNPRelate::snpgdsLDpruning(gdsobj=gds,
+                               remove.monosnp=remove.monosnp,
+                               maf=maf,
+                               missing.rate=missing.rate,
+                               method=method,
+                               slide.max.bp=slide.max.bp,
+                               slide.max.n=slide.max.n,
+                               ld.threshold=ld.threshold,
+                               num.thread=nb.cores,
+                               verbose=ifelse(verbose > 0, TRUE, FALSE))
+  out.snp.ids <- unlist(out.snp.ids)
+
+  if(! is.null(gds.file)){
+    SNPRelate::snpgdsClose(gds)
+    file.remove(gds.file)
+  }
 
   return(out.snp.ids)
 }

@@ -13,15 +13,15 @@ writeSegregJoinMap(pop.name, pop.type = "CP", locus, segregs, genos,
 
 \item{pop.type}{type of the population}
 
-\item{locus}{vector of locus names (should be shorter or equal to 20 characters, otherwise a warning will be issued)}
+\item{locus}{vector of locus names; should be shorter or equal to 20 characters, otherwise a warning will be issued; should be in the same order as the rows of the "genos" argument}
 
-\item{segregs}{vector of segregation types}
+\item{segregs}{vector of segregation types; should be in the same order as the rows of the "genos" argument}
 
 \item{genos}{data frame containing genotypes encoded in the JoinMap format,  similar to the output from \code{\link{genoClasses2JoinMap}}}
 
-\item{phases}{vector of phase types (optional)}
+\item{phases}{vector of phase types (optional; should be in the same order as the rows of the "genos" argument)}
 
-\item{classifs}{vector of classification types (optional)}
+\item{classifs}{vector of classification types (optional; should be in the same order as the rows of the "genos" argument)}
 
 \item{file}{name of the file in which the data will be saved (will be compressed if ends with ".gz" and "gzip" is available in the PATH)}
 

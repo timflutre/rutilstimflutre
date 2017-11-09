@@ -21,6 +21,9 @@ vector of SNP identifiers
 \description{
 Thin SNPs according to various methods: based on their index or based on their genomic coordinate.
 }
+\seealso{
+\code{\link{pruneSnpsLd}}
+}
 \author{
 Timothee Flutre
 }
