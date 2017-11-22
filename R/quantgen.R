@@ -5104,6 +5104,8 @@ imputeGenosWithMeanPerPop <- function(X, pops, min.maf.pop=0.1,
 
   pops$ind <- as.character(pops$ind)
   pops$pop <- as.character(pops$pop)
+  if(any(is.na(pops$pop)))
+    pops <- pops[! is.na(pops$pop),]
 
   if(verbose > 0){
     msg <- paste0("nb of genotypes: ", nrow(X),
