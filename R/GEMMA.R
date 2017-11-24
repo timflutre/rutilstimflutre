@@ -97,6 +97,8 @@ genoDoses2bimbam <- function(X=NULL, tX=NULL, alleles, file=NULL, format="mean")
 ##' ## test SNPs one by one with the univariate LMM
 ##' fit.u <- gemma(model="ulmm", y=modelA$Y[,1], X=X, snp.coords, alleles,
 ##'                W=modelA$W, out.dir=tempdir(), clean="all")
+##' fit.u$global.mean
+##' fit.u$pve
 ##' cor(modelA$a[modelA$gamma == 1], fit.u$tests$beta[modelA$gamma == 1])
 ##' cols <- rep("black",ncol(X)); cols[modelA$gamma==1] <- "red"
 ##' pvadj.AA <- qqplotPval(fit.u$tests$p_wald, col=cols, ctl.fdr.bh=TRUE,
@@ -301,6 +303,13 @@ gemma <- function(model="ulmm", y, X, snp.coords, alleles=NULL,
     tmp2 <- strsplit(output$log[idx+1], " ")[[1]]
     output[["global.mean"]] <- c(beta.hat=as.numeric(tmp1[length(tmp1)]),
                                  se.beta.hat=as.numeric(tmp2[length(tmp2)]))
+  }
+  idx <- grep("pve estimate in the null model", output[["log"]])
+  if(length(idx) == 1){
+    tmp1 <- strsplit(output$log[idx], " ")[[1]]
+    tmp2 <- strsplit(output$log[idx+1], " ")[[1]]
+    output[["pve"]] <- c(pve.hat=as.numeric(tmp1[length(tmp1)]),
+                         se.pve.hat=as.numeric(tmp2[length(tmp2)]))
   }
   if(clean == "all")
     file.remove(f)

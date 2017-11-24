@@ -74,6 +74,8 @@ summary(abs(modelA$a[modelA$gamma == 1]))
 ## test SNPs one by one with the univariate LMM
 fit.u <- gemma(model="ulmm", y=modelA$Y[,1], X=X, snp.coords, alleles,
                W=modelA$W, out.dir=tempdir(), clean="all")
+fit.u$global.mean
+fit.u$pve
 cor(modelA$a[modelA$gamma == 1], fit.u$tests$beta[modelA$gamma == 1])
 cols <- rep("black",ncol(X)); cols[modelA$gamma==1] <- "red"
 pvadj.AA <- qqplotPval(fit.u$tests$p_wald, col=cols, ctl.fdr.bh=TRUE,
