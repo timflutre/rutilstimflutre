@@ -5,9 +5,9 @@
 \title{GEMMA}
 \usage{
 gemma(model = "ulmm", y, X, snp.coords, alleles = NULL, maf = 0.01,
-  K.c = NULL, W, out.dir = getwd(), task.id = "gemma", verbose = 1,
-  clean = "none", seed = 1859, burnin = 1000, nb.iters = 7000,
-  thin = 10)
+  K.c = NULL, W, weights = NULL, out.dir = getwd(), task.id = "gemma",
+  verbose = 1, clean = "none", seed = 1859, burnin = 1000,
+  nb.iters = 7000, thin = 10)
 }
 \arguments{
 \item{model}{name of the model to fit (ulmm/bslmm)}
@@ -25,6 +25,8 @@ gemma(model = "ulmm", y, X, snp.coords, alleles = NULL, maf = 0.01,
 \item{K.c}{kinship matrix; if NULL, will be estimated using X via \code{\link{estimGenRel}} with \code{relationships="additive"} and \code{method="zhou"}}
 
 \item{W}{matrix of covariates with genotypes in rows (names as row names), a first column of 1 and a second column of covariates values}
+
+\item{weights}{vector of positive weights with genotype names}
 
 \item{out.dir}{directory in which the output files will be saved}
 

@@ -61,6 +61,7 @@ genoDoses2bimbam <- function(X=NULL, tX=NULL, alleles, file=NULL, format="mean")
 ##' @param maf SNPs with minor allele frequency strictly below this threshold will be discarded
 ##' @param K.c kinship matrix; if NULL, will be estimated using X via \code{\link{estimGenRel}} with \code{relationships="additive"} and \code{method="zhou"}
 ##' @param W matrix of covariates with genotypes in rows (names as row names), a first column of 1 and a second column of covariates values
+##' @param weights vector of positive weights with genotype names
 ##' @param out.dir directory in which the output files will be saved
 ##' @param task.id identifier of the task (used in temporary and output file names)
 ##' @param verbose verbosity level (0/1)
@@ -141,11 +142,13 @@ genoDoses2bimbam <- function(X=NULL, tX=NULL, alleles, file=NULL, format="mean")
 ##'                 called.nulls=pvadj.DD$pv.bh > 0.05))
 ##' }
 ##' @export
-gemma <- function(model="ulmm", y, X, snp.coords, alleles=NULL, maf=0.01, K.c=NULL,
-                  W, out.dir=getwd(), task.id="gemma", verbose=1, clean="none",
+gemma <- function(model="ulmm", y, X, snp.coords, alleles=NULL,
+                  maf=0.01, K.c=NULL, W, weights=NULL,
+                  out.dir=getwd(), task.id="gemma", verbose=1, clean="none",
                   seed=1859, burnin=1000, nb.iters=7000, thin=10){
-  stopifnot(file.exists(Sys.which("gemma")),
-            model %in% c("ulmm", "bslmm"))
+  stopifnot(file.exists(Sys.which("gemma")))
+  stopifnot(system("gemma > /dev/null") == 0)
+  stopifnot(model %in% c("ulmm", "bslmm"))
   if(is.matrix(y)){
     stopifnot(ncol(y) == 1,
               ! is.null(rownames(y)))
@@ -174,6 +177,13 @@ gemma <- function(model="ulmm", y, X, snp.coords, alleles=NULL, maf=0.01, K.c=NU
               ! is.null(rownames(alleles)),
               ncol(alleles) == 2,
               all(colnames(X) %in% rownames(alleles)))
+  if(! is.null(weights))
+    stopifnot(is.vector(weights),
+              is.numeric(weights),
+              ! is.null(names(weights)),
+              length(weights) == length(y),
+              all(names(weights) == names(y)),
+              all(weights[! is.na(weights)] >= 0))
 
   output <- list()
 
@@ -241,6 +251,13 @@ gemma <- function(model="ulmm", y, X, snp.coords, alleles=NULL, maf=0.01, K.c=NU
   utils::write.table(x=y,
                      file=gzfile(tmp.files["phenos"]),
                      quote=FALSE, sep="\t", row.names=FALSE, col.names=FALSE)
+  if(! is.null(weights)){
+    tmp.files <- c(tmp.files,
+                   weights=paste0(out.dir, "/weights_", task.id, ".txt.gz"))
+    utils::write.table(x=weights,
+                       file=gzfile(tmp.files["weights"]),
+                       quote=FALSE, sep="\t", row.names=FALSE, col.names=FALSE)
+  }
 
   ## prepare cmd-line and execute it
   cmd <- paste0("cd ", out.dir,
@@ -262,6 +279,9 @@ gemma <- function(model="ulmm", y, X, snp.coords, alleles=NULL, maf=0.01, K.c=NU
                   " -rpace ", thin,
                   " -seed ", seed)
   }
+  if(! is.null(weights))
+    cmd <- paste0(cmd,
+                  " -widv ", tmp.files["weights"])
   if(verbose <= 0){
     tmp.files <- c(tmp.files,
                    stdoe=paste0(out.dir, "/stdouterr_gemma_", task.id, ".txt"))
@@ -329,6 +349,7 @@ gemma <- function(model="ulmm", y, X, snp.coords, alleles=NULL, maf=0.01, K.c=NU
 ##' @param maf SNPs with minor allele frequency strictly below this threshold will be discarded
 ##' @param chr.ids set of chromosome identifiers to analyze (optional, all by default)
 ##' @param W matrix of covariates with genotypes in rows (names as row names), a first column of 1 and a second column of covariates values
+##' @param weights vector of positive weights with genotype names
 ##' @param out.dir directory in which the data files will be found
 ##' @param task.id identifier of the task (used in output file names)
 ##' @param clean remove files: none, some (temporary only), all (temporary and results)
@@ -337,10 +358,12 @@ gemma <- function(model="ulmm", y, X, snp.coords, alleles=NULL, maf=0.01, K.c=NU
 ##' @author Timothee Flutre [aut,cre], Dalel Ahmed [ctb]
 ##' @seealso \code{link{gemma}}, \code{\link{plotHistPval}}, \code{\link{qqplotPval}}
 ##' @export
-gemmaUlmmPerChr <- function(y, X, snp.coords, alleles=NULL, maf=0.01,
-                            chr.ids=NULL, W, out.dir, task.id="gemma", clean="none",
+gemmaUlmmPerChr <- function(y, X, snp.coords, alleles=NULL,
+                            maf=0.01, chr.ids=NULL, W, weights=NULL,
+                            out.dir, task.id="gemma", clean="none",
                             verbose=1){
   stopifnot(file.exists(Sys.which("gemma")))
+  stopifnot(system("gemma > /dev/null") == 0)
   if(is.matrix(y)){
     stopifnot(ncol(y) == 1,
               ! is.null(rownames(y)))
@@ -369,6 +392,13 @@ gemmaUlmmPerChr <- function(y, X, snp.coords, alleles=NULL, maf=0.01,
               ! is.null(rownames(alleles)),
               ncol(alleles) == 2,
               all(colnames(X) %in% rownames(alleles)))
+  if(! is.null(weights))
+    stopifnot(is.vector(weights),
+              is.numeric(weights),
+              ! is.null(names(weights)),
+              length(weights) == length(y),
+              all(names(weights) == names(y)),
+              all(weights[! is.na(weights)] >= 0))
 
   out <- list()
 
@@ -418,7 +448,8 @@ gemmaUlmmPerChr <- function(y, X, snp.coords, alleles=NULL, maf=0.01,
                         X=X[, subset.snp.ids],
                         snp.coords=snp.coords[subset.snp.ids,],
                         alleles=alleles[subset.snp.ids,],
-                        maf=maf, K.c=K.c, W=W, out.dir=out.dir,
+                        maf=maf, K.c=K.c, W=W, weights=weights,
+                        out.dir=out.dir,
                         task.id=paste0(task.id, "-", chr.id),
                         verbose=verbose-1, clean=clean)
     out[[chr.id]] <- out.chr.id$tests

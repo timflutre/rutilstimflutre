@@ -5,8 +5,8 @@
 \title{GEMMA uLMM per chromosome}
 \usage{
 gemmaUlmmPerChr(y, X, snp.coords, alleles = NULL, maf = 0.01,
-  chr.ids = NULL, W, out.dir, task.id = "gemma", clean = "none",
-  verbose = 1)
+  chr.ids = NULL, W, weights = NULL, out.dir, task.id = "gemma",
+  clean = "none", verbose = 1)
 }
 \arguments{
 \item{y}{vector of phenotypes with genotype names}
@@ -22,6 +22,8 @@ gemmaUlmmPerChr(y, X, snp.coords, alleles = NULL, maf = 0.01,
 \item{chr.ids}{set of chromosome identifiers to analyze (optional, all by default)}
 
 \item{W}{matrix of covariates with genotypes in rows (names as row names), a first column of 1 and a second column of covariates values}
+
+\item{weights}{vector of positive weights with genotype names}
 
 \item{out.dir}{directory in which the data files will be found}
 

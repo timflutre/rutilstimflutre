@@ -8080,7 +8080,8 @@ boxplotCandidateQtl <- function(y, X, snp, simplify.imputed=TRUE,
 
   counts <- table(x)
   if(verbose > 0){
-    msg <- paste0("genotypic classes:")
+    msg <- paste0("marker '", snp, "'",
+                  "\ngenotypic classes:")
     for(i in seq_along(counts))
       msg <- paste0(msg, " ", names(counts)[i], "=", counts[i])
     msg <- paste0(msg, " (total=", sum(counts), ")")
