@@ -4,10 +4,10 @@
 \alias{gemma}
 \title{GEMMA}
 \usage{
-gemma(model = "ulmm", y, X, snp.coords, alleles = NULL, maf = 0.01,
-  K.c = NULL, W, weights = NULL, out.dir = getwd(), task.id = "gemma",
-  verbose = 1, clean = "none", seed = 1859, burnin = 1000,
-  nb.iters = 7000, thin = 10)
+gemma(model = "ulmm", y, X, snp.coords, recode.genos = TRUE,
+  alleles = NULL, maf = 0.01, K.c = NULL, W, weights = NULL,
+  out.dir = getwd(), task.id = "gemma", verbose = 1, clean = "none",
+  seed = 1859, burnin = 1000, nb.iters = 7000, thin = 10)
 }
 \arguments{
 \item{model}{name of the model to fit (ulmm/bslmm)}
@@ -16,7 +16,9 @@ gemma(model = "ulmm", y, X, snp.coords, alleles = NULL, maf = 0.01,
 
 \item{X}{matrix of bi-allelic SNP genotypes encoded, for each SNP, in number of copies of its second allele, i.e. as allele doses in {0,1,2}, with genotypes in rows and SNPs in columns; the "second" allele is arbitrary, it corresponds to the second column of \code{alleles}, which can be the minor or the major allele}
 
-\item{snp.coords}{data.frame with 3 columns (snp, coord, chr)}
+\item{snp.coords}{data.frame with SNPs as row names and two columns named "coord" and "chr"}
+
+\item{recode.genos}{if TRUE, SNP genotypes in X will be recoded so that the minor allele is counted}
 
 \item{alleles}{data.frame with SNPs in rows (names as row names) and alleles in columns (exactly 2 columns are required); the second column should correspond to the allele which number of copies is counted at each SNP in \code{X}; if NULL, fake alleles will be generated}
 

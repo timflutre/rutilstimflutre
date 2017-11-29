@@ -17,7 +17,7 @@ estimatePi0WithQbf(log10.bfs, gamma = 0.5, verbose = 1)
 numeric
 }
 \description{
-Estimate pi0 (proba for a null hypothesis to be true) via the QBF procedure (Wen, arXiv:1311.3981).
+Estimate pi0 (proba for a null hypothesis to be true) via the QBF procedure from Wen (Statistics in Biosciences, 2016).
 }
 \seealso{
 \code{\link{estimatePi0WithEbf}}, \code{\link{controlBayesFdr}}

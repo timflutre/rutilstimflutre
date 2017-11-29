@@ -4,15 +4,15 @@
 \alias{calcAsymptoticBayesFactorWakefield}
 \title{Asymptotic Bayes factor}
 \usage{
-calcAsymptoticBayesFactorWakefield(theta.hat, V, W, weights = NULL,
-  log10 = TRUE)
+calcAsymptoticBayesFactorWakefield(theta.hat, V, W = c(0.1, 0.2, 0.4, 0.8,
+  1.6), weights = NULL, log10 = TRUE)
 }
 \arguments{
 \item{theta.hat}{vector of MLE(s) of the additive genetic effect(s)}
 
 \item{V}{vector of the corresponding variance(s) of \code{theta.hat}}
 
-\item{W}{vector of variance(s) of the prior on theta (if several values, the ABF will be averaged over them)}
+\item{W}{vector of variance(s) of the prior on theta (if several values, the ABF will be averaged over them); the vector of default values comes from the single-SNP R implementation of BLMM by Wen for his 2015 article (see https://github.com/xqwen/blmm)}
 
 \item{weights}{weights used to average over the grid of \code{W} (all equal by default)}
 

@@ -937,7 +937,7 @@ significantTests <- function(pvalues, thresh.fwer.bonf=c(0.01, 0.05, 0.1),
 
 ##' FDR
 ##'
-##' Estimate pi0 (proba for a null hypothesis to be true) via the EBF procedure (Wen, arXiv:1311.3981).
+##' Estimate pi0 (proba for a null hypothesis to be true) via the EBF procedure from Wen (Statistics in Biosciences, 2016).
 ##' @param log10.bfs vector containing the log10(BF) of each test (NA will be discarded)
 ##' @param verbose verbosity level (0/1)
 ##' @return numeric
@@ -976,7 +976,7 @@ estimatePi0WithEbf <- function(log10.bfs, verbose=1){
 
 ##' FDR
 ##'
-##' Estimate pi0 (proba for a null hypothesis to be true) via the QBF procedure (Wen, arXiv:1311.3981).
+##' Estimate pi0 (proba for a null hypothesis to be true) via the QBF procedure from Wen (Statistics in Biosciences, 2016).
 ##' @param log10.bfs matrix with tests in rows and two columns, the true log10(BF) and the gamma-quantile log10(BF) under the null
 ##' @param gamma level of the quantile (e.g. 0.5 for the median)
 ##' @param verbose verbosity level (0/1)

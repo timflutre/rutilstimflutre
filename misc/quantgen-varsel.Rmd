@@ -1,6 +1,6 @@
 ---
 title: "Variable selection in quantitative genetics"
-author: "Timothée Flutre (INRA)"
+author: "Timothee Flutre (INRA)"
 date: "`r format(Sys.time(), '%d/%m/%Y %H:%M:%S')`"
 colorlinks: true
 output:
@@ -35,6 +35,11 @@ opts_knit$set(progress=TRUE, verbose=TRUE)
 
 This document requires external packages:
 ```{r load_pkg}
+suppressPackageStartupMessages(library(scrm))
+suppressPackageStartupMessages(library(qqman))
+suppressPackageStartupMessages(library(qvalue))
+suppressPackageStartupMessages(library(ashr))
+suppressPackageStartupMessages(library(mlmm))
 suppressPackageStartupMessages(library(varbvs))
 suppressPackageStartupMessages(library(coda))
 suppressPackageStartupMessages(library(rgs3))
@@ -59,14 +64,20 @@ nb.chroms <- 10
 chrom.len <- 10^5
 mu <- 10^(-8)
 c.rec <- 10^(-7)
-genomes <- simulCoalescent(nb.inds=nb.genos,
-                           nb.reps=nb.chroms,
-                           pop.mut.rate=4 * Ne * mu * chrom.len,
-                           pop.recomb.rate=4 * Ne * c.rec * chrom.len,
-                           chrom.len=chrom.len,
-                           get.alleles=TRUE)
+system.time(
+    genomes <- simulCoalescent(nb.inds=nb.genos,
+                               nb.reps=nb.chroms,
+                               pop.mut.rate=4 * Ne * mu * chrom.len,
+                               pop.recomb.rate=4 * Ne * c.rec * chrom.len,
+                               chrom.len=chrom.len,
+                               get.alleles=TRUE))
 plotHistAllelFreq(X=genomes$genos)
 X <- discardSnpsLowMaf(X=genomes$genos, thresh=0.01)
+A.vr <- estimGenRel(X=X, relationships="additive", method="vanraden1")
+A.cs <- estimGenRel(X=X, relationships="additive", method="center-std")
+table(genomes$snp.coords$chr)
+cn2i <- chromNames2integers(x=genomes$snp.coords$chr,
+                            prefix="chr")
 ```
 
 ## Phenotypes
@@ -74,8 +85,16 @@ X <- discardSnpsLowMaf(X=genomes$genos, thresh=0.01)
 ```{r}
 set.seed(1859)
 phenos <- simulBvsr(Q=1, X=X, pi=0.01, pve=0.7, sigma.a2=1, min.maf=0.01)
-sum(phenos$gamma != 0)
-summary(abs(phenos$a[phenos$gamma == 1]))
+stopifnot(colnames(phenos$X.A) == colnames(X))
+stopifnot(names(phenos$a) == colnames(phenos$X.A))
+stopifnot(names(phenos$gamma) == names(phenos$a))
+true.qtls <- names(phenos$gamma[phenos$gamma != 0])
+summary(abs(phenos$a[true.qtls]))
+length(true.qtls)
+(tmp <- data.frame(chr=genomes$snp.coords[true.qtls, "chr"],
+                   pos=genomes$snp.coords[true.qtls, "pos"],
+                   a=phenos$a[true.qtls]))
+(tmp <- tmp[order(abs(tmp$a), decreasing=TRUE),])
 ```
 
 
@@ -90,42 +109,219 @@ hist(phenos$Y[,1], breaks="FD",
 
 # Perform inference SNP-by-SNP with GEMMA
 
+## Fit
+
 ```{r}
-fit.gemma <- gemma(model="ulmm", y=phenos$Y[,1], X=X, maf=0.01,
-                   snp.coords=genomes$snp.coords, alleles=genomes$alleles,
-                   W=phenos$W, clean="all")
-cols <- rep("black",ncol(X)); cols[phenos$gamma==1] <- "red"
-pvadj <- qqplotPval(fit.gemma$tests$p_wald, col=cols, ctl.fdr.bh=TRUE,
-                    plot.signif=TRUE)
+snp.coords <- data.frame(coord=genomes$snp.coords$pos,
+                         chr=cn2i$renamed,
+                         row.names=rownames(genomes$snp.coords))
+system.time(
+    fit.gemma <- gemma(model="ulmm", y=phenos$Y[,1], X=X,
+                       maf=0.01, recode.genos=FALSE,
+                       snp.coords=snp.coords,
+                       alleles=genomes$alleles,
+                       W=phenos$W, clean="all"))
+stopifnot(all(names(phenos$a) == rownames(fit.gemma$tests)))
+system.time(
+    fit.gemma.chr <- gemmaUlmmPerChr(y=phenos$Y[,1], X=X,
+                                     maf=0.01, recode.genos=FALSE,
+                                     snp.coords=snp.coords,
+                                     alleles=genomes$alleles,
+                                     W=phenos$W, clean="all"))
+stopifnot(all(names(phenos$a) == rownames(fit.gemma.chr)))
+```
+
+## Results concerning the QTL percentage
+
+```{r}
+plotHistPval(pvalues=fit.gemma$tests$p_wald)
+plotHistPval(pvalues=fit.gemma.chr$p_wald)
+cols <- setNames(rep("black", ncol(X)), colnames(X))
+cols[true.qtls] <- "red"
+pvadj <- qqplotPval(pvalues=setNames(fit.gemma$tests$p_wald,
+                                     rownames(fit.gemma$tests)),
+                    thresh=0.05,
+                    ctl.fwer.bonf=TRUE, ctl.fdr.bh=TRUE, ctl.fdr.storey=TRUE,
+                    plot.signif=TRUE, col=cols)
+1 - qvalue(fit.gemma$tests$p_wald, fdr.level=0.05)$pi0
+pvadj.chr <- qqplotPval(pvalues=setNames(fit.gemma.chr$p_wald,
+                                         rownames(fit.gemma.chr)),
+                        thresh=0.05,
+                        ctl.fwer.bonf=TRUE, ctl.fdr.bh=TRUE, ctl.fdr.storey=TRUE,
+                        plot.signif=TRUE, col=cols)
+1 - qvalue(fit.gemma.chr$p_wald, fdr.level=0.05)$pi0
+```
+
+Look at the Manhattan plot:
+```{r, fig.width=12}
+tmp <- data.frame(BP=fit.gemma.chr$ps,
+                  CHR=fit.gemma.chr$chr,
+                  P=fit.gemma.chr$p_wald,
+                  SNP=rownames(fit.gemma.chr))
+manhattan(x=tmp,
+          chrlabs=unique(cn2i$original[order(cn2i$renamed)]),
+          suggestiveline=FALSE,
+          genomewideline=-log10(0.05 / nrow(fit.gemma.chr)),
+          highlight=true.qtls, main="GEMMA per chr")
+legend("topright", legend="Bonferroni threshold", col="red", lty=1, bty="n")
+```
+
+Try ashr:
+```{r, eval=TRUE}
+x <- fit.gemma.chr$beta
+h <- hist(x, breaks="FD")
+seq.x <- seq(min(x), max(x), length=60) 
+dnorm.y <- dnorm(seq.x, mean=mean(x), sd=sd(x)) 
+dnorm.y <- dnorm.y * diff(h$mids[1:2]) * length(x)
+lines(seq.x, dnorm.y, col="red", lwd=2)
+## see ?MASS::fitdistr (example) to fit a "t" dist
+fit.ash <- ash(betahat=fit.gemma.chr$beta,
+               sebetahat=fit.gemma.chr$se,
+               df=NULL) # alpha=0 by default
+head(fit.ash$result)
+plot(fit.gemma.chr$beta,
+     fit.ash$result$PosteriorMean,
+     col=cols, asp=1)
+abline(h=0, v=0, a=0, b=1, lty=2)
+plot(phenos$a,
+     fit.ash$result$PosteriorMean,
+     col=cols, asp=1)
+abline(h=0, v=0, a=0, b=1, lty=2)
+```
+
+## Results concerning non-null effects
+
+```{r}
+tmp <- setNames(rep(TRUE, ncol(X)), names(phenos$gamma))
+tmp[rownames(pvadj[pvadj$pv.bh > 0.05,])] <- FALSE
 t(binaryClassif(known.nulls=phenos$gamma == 0,
-                called.nulls=pvadj$pv.bh > 0.05))
-cor(phenos$a[phenos$gamma == 1],
-    fit.gemma$tests[names(phenos$a[phenos$gamma == 1]), "beta"])
+                called.nulls=tmp))
+tmp <- setNames(rep(TRUE, ncol(X)), names(phenos$gamma))
+tmp[rownames(pvadj.chr[pvadj.chr$pv.bh > 0.05,])] <- FALSE
+t(binaryClassif(known.nulls=phenos$gamma == 0,
+                called.nulls=tmp))
+```
+
+## Results concerning effect magnitudes
+
+```{r}
+cor(phenos$a[true.qtls],
+    fit.gemma$tests[true.qtls, "beta"])
+cor(phenos$a[true.qtls],
+    fit.gemma.chr[true.qtls, "beta"])
+plot(x=phenos$a[true.qtls],
+     y=fit.gemma$tests[true.qtls, "beta"], asp=1,
+     xlab="true", ylab="estimated", main="SNP effects (GEMMA)")
+abline(h=0, v=0, a=0, b=1, lty=2)
+plot(x=phenos$a[true.qtls],
+     y=fit.gemma.chr[true.qtls, "beta"], asp=1,
+     xlab="true", ylab="estimated", main="SNP effects (GEMMA per chr)")
+abline(h=0, v=0, a=0, b=1, lty=2)
+```
+
+
+# Perform inference SNP-by-SNP with BLMM
+
+## Fit
+
+It uses the approximate Bayes factor from Wakefield, which requires summary statistics, e.g. from GEMMA:
+```{r}
+system.time(
+    fit.blmm <-
+      calcAsymptoticBayesFactorWakefield(
+          theta.hat=setNames(fit.gemma.chr$beta, rownames(fit.gemma.chr)),
+          V=setNames(fit.gemma.chr$se, rownames(fit.gemma.chr)),
+          W=c(0.1, 0.2, 0.4, 0.8, 1.6),
+          log10=TRUE))
+stopifnot(names(fit.blmm) == colnames(X))
+```
+
+## Results concerning the QTL percentage
+
+```{r}
+(pi0.hat <- estimatePi0WithEbf(log10.bfs=fit.blmm))
+```
+
+## Results concerning non-null effects
+
+```{r}
+signif <- controlBayesFdr(log10.bfs=fit.blmm, pi0=pi0.hat)
+stopifnot(names(signif) == colnames(X))
+t(binaryClassif(known.nulls=phenos$gamma == 0,
+                called.nulls=! signif))
+```
+
+## Results concerning effect magnitudes
+
+TODO: compute posterior means
+
+
+
+# Perform inference all SNPs jointly with MLMM
+
+## Fit
+
+```{r}
+system.time(
+    fit.mlmm <- mlmm(Y=phenos$Y[,1], X=phenos$X.A, K=A.cs,
+                     nbchunks=2, maxsteps=20))
+plot_step_RSS(fit.mlmm)
+snp.info <- cbind(colnames(X), genomes$snp.coords[colnames(X),])
+colnames(snp.info) <- c("SNP", "Chr", "Pos")
+c2i <- chromNames2integers(snp.info$Chr)
+snp.info$Chr <- c2i$renamed
+plot_opt_GWAS(fit.mlmm, opt="extBIC", snp_info=snp.info, pval_filt=0.1,
+              main="optimal (EBIC)")
+```
+
+## Results concerning non-null effects
+
+```{r}
+tmp <- setNames(rep(TRUE, ncol(X)), names(phenos$gamma))
+tmp[fit.mlmm$opt_extBIC$cof] <- FALSE
+t(binaryClassif(known.nulls=phenos$gamma == 0,
+                called.nulls=tmp))
+```
+
+## Results concerning effect magnitudes
+
+```{r}
+tmp <- setNames(rep(0, length(true.qtls)), true.qtls)
+tmp[fit.mlmm$opt_extBIC$cof] <- fit.mlmm$opt_extBIC$coef[-1, "Estimate"]
+cor(phenos$a[true.qtls], tmp)
+plot(x=phenos$a[true.qtls],
+     y=tmp, asp=1,
+     xlab="true", ylab="estimated", main="SNP effects (MLMM)")
+abline(h=0, v=0, a=0, b=1, lty=2)
 ```
 
 
 # Perform inference all SNPs jointly with varbvs
 
+## Fit
+
 ```{r}
-fit.varbvs <- varbvs(X=phenos$X.A, Z=NULL, y=phenos$Y[,1], verbose=FALSE)
+system.time(
+    fit.varbvs <- varbvs(X=phenos$X.A, Z=NULL, y=phenos$Y[,1], verbose=FALSE))
 print(fit.varbvs.s <- summary(fit.varbvs))
-names(sort(phenos$a[phenos$gamma == 1], decreasing=TRUE))
 subset.snps <- unique(c(as.character(fit.varbvs.s$top.vars$variable),
-                        names(sort(phenos$a[phenos$gamma == 1], decreasing=TRUE))))
+                        true.qtls))
 subset.coords <- genomes$snp.coords[subset.snps,]
 (subset.coords <- subset.coords[order(subset.coords$chr, rownames(subset.coords)),])
 ld <- estimLd(X=X[, rownames(subset.coords)], snp.coords=subset.coords)
-ld[ld$loc1 == "snp2270",]
+ld[ld$loc1 == as.character(fit.varbvs.s$top.vars$variable)[1],]
 ```
 
-Inference concerning $\pi$:
+## Results concerning the QTL percentage
+
 ```{r}
 (pi.hat <- 10^(fit.varbvs.s$logodds$x0) / (1 + 10^(fit.varbvs.s$logodds$x0)))
 (pi.hat.low <- 10^(fit.varbvs.s$logodds$a) / (1 + 10^(fit.varbvs.s$logodds$a)))
 (pi.hat.high <- 10^(fit.varbvs.s$logodds$b) / (1 + 10^(fit.varbvs.s$logodds$b)))
 ```
 
-Inference concerning the PIPs:
+## Results concerning non-null effects
+
 ```{r}
 w <- c(normalizelogweights(fit.varbvs$logw))
 pips <- c(fit.varbvs$alpha %*% w)
@@ -135,11 +331,15 @@ plot(x=1:ncol(phenos$X.A), y=pips, col=cols, las=1, xlab="SNPs", ylab="PIP",
      main="Posterior inclusion probabilities (varbvs)")
 ```
 
-TODO: Inference concerning the SNP effects:
+## Results concerning effect magnitudes
+
+TODO
 
 
 
 # Perform inference all SNPs jointly with GS3
+
+## Fit
 
 Prepare the input files:
 ```{r}
@@ -170,9 +370,9 @@ config <- getDefaultConfig(
     method="VCE",
     ptl=ptl,
     use.mix="T")
-config$niter <- 10^5
-config$burnin <- 5*10^3
-config$thin <- 5
+config$niter <- 30 * 10^3
+config$burnin <- 15 * 10^3
+config$thin <- 2
 config$ap
 getMeanVarBetaDist(1, 10)
 stopifnot(isValidConfig(config))
@@ -184,40 +384,63 @@ config.file <- writeConfigForGs3(config=config,
 
 Run GS3, and assess convergence:
 ```{r, fig.height=15}
-stdouterr.GS3.file <- execGs3(config.file, task.id)
+system.time(
+    stdouterr.GS3.file <- execGs3(config.file, task.id))
 vcs <- vcs2mcmc(config$vcs.file)
 vcs <- vcs[, c("vara","vare","pa_1","2varapqpi")]
 plot(vcs)
-raftery.diag(vcs, q=0.5)
+raftery.diag(vcs, q=0.5, r=0.05, s=0.9)
+geweke.diag(vcs) # should not be too far from [-2;2]
 summary(vcs)
 ```
 
 Look at the proportion of variance explained by breeding values:
 ```{r}
-pve.bv <- vcs[[1]][,"2varapqpi"] / (vcs[[1]][,"2varapqpi"] + vcs[[1]][,"vare"])
+pve.bv <- vcs[[1]][,"2varapqpi"] / (vcs[[1]][,"2varapqpi"] +
+                                    vcs[[1]][,"vare"])
 summary(pve.bv)
 plot(pve.bv)
 ```
 
-Look at SNP effects and inclusion:
+## Results concerning the QTL percentage
+
+```{r}
+summary(vcs[,"pa_1"])
+HPDinterval(vcs[,"pa_1"])
+```
+
+## Results concerning non-null effects
+
 ```{r}
 sols <- read.table(file=config$sol.file, header=TRUE)
 table(sols$effect)
 sols$solution[sols$effect == 1]
 post.snps <- sols[sols$effect == 2,]
 rownames(post.snps) <- colnames(X)
-summary(post.snps$solution)
 summary(post.snps$p)
-true.qtls <- names(phenos$gamma[phenos$gamma != 0])
-post.snps[true.qtls,]
 cols <- rep("black", ncol(X))
 cols[phenos$gamma != 0] <- "red"
 plot(x=1:ncol(X), y=post.snps[names(phenos$gamma), "p"],
      col=cols, las=1, xlab="SNPs", ylab="PIP",
-     main="Posterior inclusion probabilities (GS3 BayesCPi)")
+     main="Posterior inclusion probabilities (GS3 with BayesCPi)")
 ```
 
-Clean files:
+## Results concerning effect magnitudes
+
+```{r}
+summary(post.snps$solution)
+tmp <- cbind(phenos$a[true.qtls], post.snps[true.qtls, c("solution", "sderror", "p")])
+tmp[order(tmp[,1]),]
+cor(phenos$a[true.qtls],
+    post.snps[true.qtls, "solution"])
+plot(x=phenos$a[true.qtls],
+     y=post.snps[true.qtls, "solution"], asp=1,
+     xlab="true", ylab="estimated", main="SNP effects (GS3 with BayesCPi)")
+abline(h=0, v=0, a=0, b=1, lty=2)
+```
+
+## Clean
+
 ```{r}
 cleanGs3(config, config.file, task.id)
 file.remove(data.GS3.file)

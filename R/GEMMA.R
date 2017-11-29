@@ -56,7 +56,8 @@ genoDoses2bimbam <- function(X=NULL, tX=NULL, alleles, file=NULL, format="mean")
 ##' @param model name of the model to fit (ulmm/bslmm)
 ##' @param y vector of phenotypes with genotype names
 ##' @param X matrix of bi-allelic SNP genotypes encoded, for each SNP, in number of copies of its second allele, i.e. as allele doses in {0,1,2}, with genotypes in rows and SNPs in columns; the "second" allele is arbitrary, it corresponds to the second column of \code{alleles}, which can be the minor or the major allele
-##' @param snp.coords data.frame with 3 columns (snp, coord, chr)
+##' @param snp.coords data.frame with SNPs as row names and two columns named "coord" and "chr"
+##' @param recode.genos if TRUE, SNP genotypes in X will be recoded so that the minor allele is counted
 ##' @param alleles data.frame with SNPs in rows (names as row names) and alleles in columns (exactly 2 columns are required); the second column should correspond to the allele which number of copies is counted at each SNP in \code{X}; if NULL, fake alleles will be generated
 ##' @param maf SNPs with minor allele frequency strictly below this threshold will be discarded
 ##' @param K.c kinship matrix; if NULL, will be estimated using X via \code{\link{estimGenRel}} with \code{relationships="additive"} and \code{method="zhou"}
@@ -144,8 +145,9 @@ genoDoses2bimbam <- function(X=NULL, tX=NULL, alleles, file=NULL, format="mean")
 ##'                 called.nulls=pvadj.DD$pv.bh > 0.05))
 ##' }
 ##' @export
-gemma <- function(model="ulmm", y, X, snp.coords, alleles=NULL,
-                  maf=0.01, K.c=NULL, W, weights=NULL,
+gemma <- function(model="ulmm", y, X, snp.coords, recode.genos=TRUE,
+                  alleles=NULL, maf=0.01,
+                  K.c=NULL, W, weights=NULL,
                   out.dir=getwd(), task.id="gemma", verbose=1, clean="none",
                   seed=1859, burnin=1000, nb.iters=7000, thin=10){
   stopifnot(file.exists(Sys.which("gemma")))
@@ -200,13 +202,15 @@ gemma <- function(model="ulmm", y, X, snp.coords, alleles=NULL,
 
   ## for GEMMA, recode SNP genotypes in terms of minor alleles, if necessary
   afs <- estimSnpAf(X=X)
-  if(any(afs > 0.5)){
-    msg <- paste0(sum(afs > 0.5), " SNPs in X are not encoded",
-                  " in terms of their minor allele")
-    write(msg, stdout())
-    tmp <- recodeGenosMinorSnpAllele(X=X, alleles=alleles, verbose=verbose)
-    X <- tmp$X
-    alleles <- tmp$alleles
+  if(recode.genos){
+    if(any(afs > 0.5)){
+      msg <- paste0(sum(afs > 0.5), " SNPs in X are not encoded",
+                    " in terms of their minor allele")
+      write(msg, stdout())
+      tmp <- recodeGenosMinorSnpAllele(X=X, alleles=alleles, verbose=verbose)
+      X <- tmp$X
+      alleles <- tmp$alleles
+    }
   }
 
   ## discard SNPs with low MAF
@@ -231,7 +235,7 @@ gemma <- function(model="ulmm", y, X, snp.coords, alleles=NULL,
                    file=gzfile(tmp.files["genos"]))
   tmp.files <- c(tmp.files,
                  snp.coords=paste0(out.dir, "/snp-coords_", task.id, ".txt"))
-  utils::write.table(x=snp.coords,
+  utils::write.table(x=sc.gemma,
                      file=tmp.files["snp.coords"],
                      quote=FALSE, sep="\t", row.names=FALSE, col.names=FALSE)
   if(is.null(K.c))
@@ -353,7 +357,8 @@ gemma <- function(model="ulmm", y, X, snp.coords, alleles=NULL,
 ##' See Zhou & Stephens (Nature Genetics, 2012).
 ##' @param y vector of phenotypes with genotype names
 ##' @param X matrix of bi-allelic SNP genotypes encoded, for each SNP, in number of copies of its second allele, i.e. as allele doses in {0,1,2}, with genotypes in rows and SNPs in columns; the "second" allele is arbitrary, it corresponds to the second column of \code{alleles}, which can be the minor or the major allele
-##' @param snp.coords data.frame with 3 columns (snp, coord, chr)
+##' @param snp.coords data.frame with SNPs as row names and two columns named "coord" and "chr"
+##' @param recode.genos if TRUE, SNP genotypes in X will be recoded so that the minor allele is counted
 ##' @param alleles data.frame with SNPs in rows (names as row names) and alleles in columns (exactly 2 columns are required); the second column should correspond to the allele which number of copies is counted at each SNP in \code{X}; if NULL, fake alleles will be generated
 ##' @param maf SNPs with minor allele frequency strictly below this threshold will be discarded
 ##' @param chr.ids set of chromosome identifiers to analyze (optional, all by default)
@@ -367,10 +372,11 @@ gemma <- function(model="ulmm", y, X, snp.coords, alleles=NULL,
 ##' @author Timothee Flutre [aut,cre], Dalel Ahmed [ctb]
 ##' @seealso \code{link{gemma}}, \code{\link{plotHistPval}}, \code{\link{qqplotPval}}
 ##' @export
-gemmaUlmmPerChr <- function(y, X, snp.coords, alleles=NULL,
-                            maf=0.01, chr.ids=NULL, W, weights=NULL,
-                            out.dir, task.id="gemma", clean="none",
-                            verbose=1){
+gemmaUlmmPerChr <- function(y, X, snp.coords, recode.genos=TRUE,
+                            alleles=NULL, maf=0.01,
+                            chr.ids=NULL, W, weights=NULL,
+                            out.dir=getwd(), task.id="gemma",
+                            clean="none", verbose=1){
   stopifnot(file.exists(Sys.which("gemma")))
   stopifnot(system("gemma > /dev/null") == 0)
   if(is.matrix(y)){
@@ -422,13 +428,15 @@ gemmaUlmmPerChr <- function(y, X, snp.coords, alleles=NULL,
 
   ## for GEMMA, recode SNP genotypes in terms of minor alleles, if necessary
   afs <- estimSnpAf(X=X)
-  if(any(afs > 0.5)){
-    msg <- paste0(sum(afs > 0.5), " SNPs in X are not encoded",
-                  " in terms of their minor allele")
-    write(msg, stdout())
-    tmp <- recodeGenosMinorSnpAllele(X=X, alleles=alleles, verbose=verbose)
-    X <- tmp$X
-    alleles <- tmp$alleles
+  if(recode.genos){
+    if(any(afs > 0.5)){
+      msg <- paste0(sum(afs > 0.5), " SNPs in X are not encoded",
+                    " in terms of their minor allele")
+      write(msg, stdout())
+      tmp <- recodeGenosMinorSnpAllele(X=X, alleles=alleles, verbose=verbose)
+      X <- tmp$X
+      alleles <- tmp$alleles
+    }
   }
 
   ## discard SNPs with low MAF
@@ -456,6 +464,7 @@ gemmaUlmmPerChr <- function(y, X, snp.coords, alleles=NULL,
                         y=y,
                         X=X[, subset.snp.ids],
                         snp.coords=snp.coords[subset.snp.ids,],
+                        recode.genos=recode.genos,
                         alleles=alleles[subset.snp.ids,],
                         maf=maf, K.c=K.c, W=W, weights=weights,
                         out.dir=out.dir,
@@ -465,6 +474,7 @@ gemmaUlmmPerChr <- function(y, X, snp.coords, alleles=NULL,
   }
   out <- do.call(rbind, out)
   rownames(out) <- out$rs
+  out <- out[colnames(X),]
 
   return(out)
 }

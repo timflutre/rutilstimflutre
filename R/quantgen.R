@@ -7716,42 +7716,6 @@ gibbsJanss2012 <- function(y, a=NULL, b=NULL, family="gaussian", K, XF=NULL,
   return(out)
 }
 
-##' Asymptotic Bayes factor
-##'
-##' Calculate the asymptotic Bayes factor proposed by Wakefield in Genetic Epidemiology 33:79-86 (2009, \url{http://dx.doi.org/10.1002/gepi.20359}).
-##' Can also be averaged over a grid of values of W, as done in various papers from Matthew Stephens' lab.
-##' @param theta.hat vector of MLE(s) of the additive genetic effect(s)
-##' @param V vector of the corresponding variance(s) of \code{theta.hat}
-##' @param W vector of variance(s) of the prior on theta (if several values, the ABF will be averaged over them)
-##' @param weights weights used to average over the grid of \code{W} (all equal by default)
-##' @param log10 return the log10 of the ABF
-##' @return numeric
-##' @author Timothee Flutre
-##' @export
-calcAsymptoticBayesFactorWakefield <- function(theta.hat, V, W, weights=NULL,
-                                               log10=TRUE){
-  stopifnot(length(V) == length(theta.hat))
-
-  z2 <- theta.hat^2 / V # Wald statistic
-
-  if(length(theta.hat) == 1){
-    log10.ABF <- 0.5 * log10(V) - 0.5 * log10(V + W) +
-      (0.5 * z2 * W / (V + W)) / log(10)
-  } else{
-    log10.ABF <- sapply(seq_along(theta.hat), function(i){
-      tmp <- sapply(W, function(Wj){
-        calcAsymptoticBayesFactorWakefield(theta.hat[i], V[i], Wj)
-      })
-      log10WeightedSum(x=tmp, weights=weights)
-    })
-  }
-
-  if(log10)
-    return(log10.ABF)
-  else
-    return(10^log10.ABF)
-}
-
 ##' Genotype frequencies
 ##'
 ##' Calculate the genotype frequencies at a bi-allelic SNP, from its minor allele frequency, assuming Hardy-Weinberg equilibrium.
@@ -7775,18 +7739,75 @@ maf2genoFreq <- function(maf){
 
 ##' Proportion of variance explained
 ##'
-##' For the model "y_i = mu + beta * x_i + epsilon_i", compute the additive effect of a bi-allelic SNP (beta) given its PVE, MAF and error standard deviation.
+##' Computes the additive effect of a bi-allelic SNP (beta) given its PVE, MAF and error standard deviation for the simple linear regression model: for all i in {1,...,n}, y_i = mu + beta * x_i + epsilon_i with epsilon_i ~ N(0, sigma^2).
+##' Indeed, for this model: var(y) = beta^2 var(x) + sigma^2.
+##' Assuming Hardy-Weinberg equilibrium: x ~ Binomial(2, maf); hence: var(x) = 2 f (1 - f).
+##' Moreover: PVE = var(beta x) / var(y).
+##' As a consequence, by fixing the PVE, the MAF and sigma, we can deduce a value for beta.
 ##' @param pve proportion of variance explained
-##' @param n sample size
 ##' @param maf minor allele frequency
 ##' @param sigma error standard deviation
 ##' @return numeric
 ##' @author Timothee Flutre
+##' @examples
+##' \dontrun{## compare two different PVEs
+##' pve2beta(pve=0.7, maf=0.3, sigma=1)
+##' pve2beta(pve=0.2, maf=0.3, sigma=1)
+##'
+##' ## compare two different MAFs, depending on the PVE
+##' pve2beta(pve=0.7, maf=0.4, sigma=1)
+##' pve2beta(pve=0.7, maf=0.1, sigma=1)
+##' pve2beta(pve=0.2, maf=0.4, sigma=1)
+##' pve2beta(pve=0.2, maf=0.1, sigma=1)
+##' }
 ##' @export
-pve2beta <- function(pve=0.7, n=200, maf=0.3, sigma=1){
+pve2beta <- function(pve=0.7, maf=0.3, sigma=1){
   var.genos <- maf * (1 - maf)
   beta <- sigma * sqrt(pve / ((1 - pve) * var.genos))
   return(beta)
+}
+
+##' Asymptotic Bayes factor
+##'
+##' Calculate the asymptotic Bayes factor proposed by Wakefield in Genetic Epidemiology 33:79-86 (2009, \url{http://dx.doi.org/10.1002/gepi.20359}).
+##' Can also be averaged over a grid of values of W, as done in various papers from Matthew Stephens' lab.
+##' @param theta.hat vector of MLE(s) of the additive genetic effect(s)
+##' @param V vector of the corresponding variance(s) of \code{theta.hat}
+##' @param W vector of variance(s) of the prior on theta (if several values, the ABF will be averaged over them); the vector of default values comes from the single-SNP R implementation of BLMM by Wen for his 2015 article (see https://github.com/xqwen/blmm)
+##' @param weights weights used to average over the grid of \code{W} (all equal by default)
+##' @param log10 return the log10 of the ABF
+##' @return numeric
+##' @author Timothee Flutre
+##' @export
+calcAsymptoticBayesFactorWakefield <- function(theta.hat, V,
+                                               W=c(0.1, 0.2, 0.4, 0.8, 1.6),
+                                               weights=NULL,
+                                               log10=TRUE){
+  stopifnot(length(V) == length(theta.hat))
+  if(! is.null(names(theta.hat)) & ! is.null(names(V)))
+    stopifnot(all(names(theta.hat) == names(V)))
+
+  z2 <- theta.hat^2 / V # Wald statistic
+
+  if(length(theta.hat) == 1){
+    log10.ABF <- 0.5 * log10(V) - 0.5 * log10(V + W) +
+      (0.5 * z2 * W / (V + W)) / log(10)
+  } else{
+    log10.ABF <- sapply(seq_along(theta.hat), function(i){
+      tmp <- sapply(W, function(Wj){
+        calcAsymptoticBayesFactorWakefield(theta.hat[i], V[i], Wj)
+      })
+      log10WeightedSum(x=tmp, weights=weights)
+    })
+  }
+
+  if(! is.null(names(theta.hat)))
+    names(log10.ABF) <- names(theta.hat)
+
+  if(log10)
+    return(log10.ABF)
+  else
+    return(10^log10.ABF)
 }
 
 ##' Exact Bayes factor
@@ -7858,6 +7879,46 @@ calcExactBayesFactorServinStephens <- function(G, Y, sigma.a, sigma.d,
     return(10^log10.BF)
 }
 
+##' Grid for Bayes Factors
+##'
+##' Makes the grid of prior variances used to compute Bayes factors as in Wen and Stephens (Annals of Applied Statistics, 2014).
+##' @param grid.type "general" indicates the meta-analysis grid (large), otherwise the configuration grid (small) is returned
+##' @param no.het if TRUE, the grid is built without heterogeneity
+##' @return matrix with two columns named "phi2" and "oma2"
+##' @author Timothee Flutre
+##' @seealso \code{\link{calcL10ApproximateBayesFactorWenStephens}}
+##' @export
+makeGridWenStephens <- function(grid.type="general", no.het=FALSE){
+  stopifnot(is.character(grid.type),
+            is.logical(no.het))
+
+  oma2.plus.phi2 <- c(0.1^2, 0.2^2, 0.4^2, 0.8^2, 1.6^2) # avg eff size
+  oma2.over.oma2.plus.phi2 <- c(0, 1/4, 1/2, 3/4, 1) # homogeneity
+
+  if(grid.type != "general"){
+    if(no.het){
+      oma2.over.oma2.plus.phi2 <- c(1)
+    } else
+      oma2.over.oma2.plus.phi2 <- c(3/4, 1)
+  }
+
+  grid <- matrix(data=NA,
+                 nrow=length(oma2.plus.phi2) *
+                   length(oma2.over.oma2.plus.phi2),
+                 ncol=2)
+  colnames(grid) <- c("phi2", "oma2")
+  i <- 1
+  for(aes in oma2.plus.phi2){
+    for(hom in oma2.over.oma2.plus.phi2){
+      grid[i,"phi2"] <- aes * (1 - hom)
+      grid[i,"oma2"] <- aes * hom
+      i <- i + 1
+    }
+  }
+
+  return(grid)
+}
+
 ##' Approximate Bayes factor
 ##'
 ##' Calculate the log10(ABF) of Wen & Stephens in Annals of Applied Statistics (2014, \url{http://dx.doi.org/10.1214/13-AOAS695}) according to the "exchangeable standardized effects" model.
@@ -7866,7 +7927,7 @@ calcExactBayesFactorServinStephens <- function(G, Y, sigma.a, sigma.d,
 ##' @param oma2 prior variance of \eqn{\bar{b}}; controls the prior expected size of the average effect across subgroups
 ##' @return numeric
 ##' @author Xiaoquan Wen [aut], Timothee Flutre [ctb,cre]
-##' @seealso \code{\link{calcL10ApproximateBayesFactorWen}}
+##' @seealso \code{\link{makeGridWenStephens}}, \code{\link{calcL10ApproximateBayesFactorWen}}
 ##' @export
 calcL10ApproximateBayesFactorWenStephens <- function(sstats, phi2, oma2){
   stopifnot(is.matrix(sstats),

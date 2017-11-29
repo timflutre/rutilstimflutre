@@ -4,12 +4,10 @@
 \alias{pve2beta}
 \title{Proportion of variance explained}
 \usage{
-pve2beta(pve = 0.7, n = 200, maf = 0.3, sigma = 1)
+pve2beta(pve = 0.7, maf = 0.3, sigma = 1)
 }
 \arguments{
 \item{pve}{proportion of variance explained}
-
-\item{n}{sample size}
 
 \item{maf}{minor allele frequency}
 
@@ -19,7 +17,23 @@ pve2beta(pve = 0.7, n = 200, maf = 0.3, sigma = 1)
 numeric
 }
 \description{
-For the model "y_i = mu + beta * x_i + epsilon_i", compute the additive effect of a bi-allelic SNP (beta) given its PVE, MAF and error standard deviation.
+Computes the additive effect of a bi-allelic SNP (beta) given its PVE, MAF and error standard deviation for the simple linear regression model: for all i in {1,...,n}, y_i = mu + beta * x_i + epsilon_i with epsilon_i ~ N(0, sigma^2).
+Indeed, for this model: var(y) = beta^2 var(x) + sigma^2.
+Assuming Hardy-Weinberg equilibrium: x ~ Binomial(2, maf); hence: var(x) = 2 f (1 - f).
+Moreover: PVE = var(beta x) / var(y).
+As a consequence, by fixing the PVE, the MAF and sigma, we can deduce a value for beta.
+}
+\examples{
+\dontrun{## compare two different PVEs
+pve2beta(pve=0.7, maf=0.3, sigma=1)
+pve2beta(pve=0.2, maf=0.3, sigma=1)
+
+## compare two different MAFs, depending on the PVE
+pve2beta(pve=0.7, maf=0.4, sigma=1)
+pve2beta(pve=0.7, maf=0.1, sigma=1)
+pve2beta(pve=0.2, maf=0.4, sigma=1)
+pve2beta(pve=0.2, maf=0.1, sigma=1)
+}
 }
 \author{
 Timothee Flutre
