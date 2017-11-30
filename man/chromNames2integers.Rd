@@ -7,7 +7,7 @@
 chromNames2integers(x, prefix = "chr", thresh.max.chr.int = +Inf)
 }
 \arguments{
-\item{x}{vector of chromosome names}
+\item{x}{vector of chromosome names (if factor, will be converted to character)}
 
 \item{prefix}{characters to be removed at the start of each chromosome name (case will be ignored)}
 
@@ -17,7 +17,7 @@ chromNames2integers(x, prefix = "chr", thresh.max.chr.int = +Inf)
 data.frame with original and new names
 }
 \description{
-Rename chromosomes into integers, especially useful with FImpute.
+Rename chromosomes into integers, especially useful with FImpute, GEMMA, qqman, etc.
 }
 \examples{
 \dontrun{## example from grapevine

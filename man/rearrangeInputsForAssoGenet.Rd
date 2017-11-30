@@ -4,7 +4,8 @@
 \alias{rearrangeInputsForAssoGenet}
 \title{Plant association genetics}
 \usage{
-rearrangeInputsForAssoGenet(ids, y, X, snp.coords, alleles, verbose = 1)
+rearrangeInputsForAssoGenet(ids, y, X, snp.coords, alleles,
+  rename.chr.prefix = NULL, verbose = 1)
 }
 \arguments{
 \item{ids}{data.frame of identifiers, with (at least) column names \code{cultivar.code} and \code{accession.code}; the outputs will be sorted according to this option}
@@ -17,6 +18,8 @@ rearrangeInputsForAssoGenet(ids, y, X, snp.coords, alleles, verbose = 1)
 
 \item{alleles}{data.frame with SNPs in rows (names as row names) and alleles in columns (exactly 2 columns are required); the second column should correspond to the allele which number of copies is counted at each SNP in \code{X}}
 
+\item{rename.chr.prefix}{if not NULL, the value of this parameter will be passed to \code{\link{chromNames2integers}} so that chromosome names from snp.coords will be renamed as integers}
+
 \item{verbose}{verbosity level (0/1)}
 }
 \value{
@@ -24,6 +27,9 @@ list with inputs after subsetting and sorting
 }
 \description{
 Subset and sort inputs necessary to perform an analysis of plant association genetics, that is, the subset of cultivars with genotypes and phenotypes, and the subset of markers having genotypes and coordinates.
+}
+\seealso{
+\code{\link{chromNames2integers}}
 }
 \author{
 Timothee Flutre

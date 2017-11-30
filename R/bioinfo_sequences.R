@@ -2,8 +2,8 @@
 
 ##' Rename chromosomes
 ##'
-##' Rename chromosomes into integers, especially useful with FImpute.
-##' @param x vector of chromosome names
+##' Rename chromosomes into integers, especially useful with FImpute, GEMMA, qqman, etc.
+##' @param x vector of chromosome names (if factor, will be converted to character)
 ##' @param prefix characters to be removed at the start of each chromosome name (case will be ignored)
 ##' @param thresh.max.chr.int threshold on the maximum chromosome integer, above which the renaming will simply be the sequence from 1 to the number of chromosomes
 ##' @return data.frame with original and new names
@@ -23,8 +23,8 @@
 ##' }
 ##' @export
 chromNames2integers <- function(x, prefix="chr", thresh.max.chr.int=+Inf){
-  stopifnot(is.character(x),
-            is.vector(x),
+  x <- as.character(x)
+  stopifnot(is.vector(x),
             is.character(prefix),
             is.numeric(thresh.max.chr.int),
             length(unique(x)) <= thresh.max.chr.int)

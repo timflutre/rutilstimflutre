@@ -7020,11 +7020,14 @@ simulLogistic <- function(t=1:20, a=50, g.t0=1, r=0.6, sigma2=0){
 ##' @param X matrix of bi-allelic SNP genotypes encoded in allele doses in [0,2], with genotypes in rows and SNPs in columns; the "second" allele is arbitrary, it corresponds to the second column of \code{alleles}, which can be the minor or the major allele; row names should be present in \code{ids$accession.code} or \code{ids$cultivar.code}, and column names in \code{rownames(snp.coords)}
 ##' @param snp.coords data.frame with 2 columns \code{coord} and \code{chr}, and SNP identifiers as row names
 ##' @param alleles data.frame with SNPs in rows (names as row names) and alleles in columns (exactly 2 columns are required); the second column should correspond to the allele which number of copies is counted at each SNP in \code{X}
+##' @param rename.chr.prefix if not NULL, the value of this parameter will be passed to \code{\link{chromNames2integers}} so that chromosome names from snp.coords will be renamed as integers
 ##' @param verbose verbosity level (0/1)
 ##' @return list with inputs after subsetting and sorting
 ##' @author Timothee Flutre
+##' @seealso \code{\link{chromNames2integers}}
 ##' @export
 rearrangeInputsForAssoGenet <- function(ids, y, X, snp.coords, alleles,
+                                        rename.chr.prefix=NULL,
                                         verbose=1){
   ## check inputs separately from each other
   stopifnot(is.data.frame(ids),
@@ -7050,6 +7053,8 @@ rearrangeInputsForAssoGenet <- function(ids, y, X, snp.coords, alleles,
             ! is.null(row.names(alleles)),
             ncol(alleles) == 2)
   alleles <- convertFactorColumnsToCharacter(alleles)
+  if(! is.null(rename.chr.prefix))
+    stopifnot(is.character(rename.chr.prefix))
 
   ## determine if the genotypes of y are accession or cultivar codes
   in.geno.y <- NA
@@ -7104,7 +7109,16 @@ rearrangeInputsForAssoGenet <- function(ids, y, X, snp.coords, alleles,
   X <- X[, snps.tokeep, drop=FALSE]
   alleles <- droplevels(alleles[snps.tokeep,])
 
-  return(list(ids=ids, y=y, X=X, snp.coords=snp.coords, alleles=alleles))
+  ## rename chromosome names as integers
+  cn2i <- NULL
+  if(! is.null(rename.chr.prefix)){
+    cn2i <- chromNames2integers(x=snp.coords$chr,
+                                prefix=rename.chr.prefix)
+    snp.coords$chr <- cn2i$renamed
+  }
+
+  return(list(ids=ids, y=y, X=X, snp.coords=snp.coords, alleles=alleles,
+              cn2i=cn2i))
 }
 
 ##' QTLRel per chromosome
