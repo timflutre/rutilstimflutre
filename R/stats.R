@@ -731,6 +731,8 @@ qqplotPval <- function(pvalues, plot.conf.int=TRUE,
             is.logical(ctl.fdr.bh),
             is.logical(ctl.fdr.storey),
             is.logical(plot.signif))
+  if(ctl.fdr.storey)
+    requireNamespace("qvalue")
   if(! is.null(col))
     stopifnot(is.vector(col),
               length(col) == length(pvalues))
@@ -824,7 +826,7 @@ qqplotPval <- function(pvalues, plot.conf.int=TRUE,
 
   ## multiple testing correction: FDR with Storey
   qv.st <- NULL
-  if(all(ctl.fdr.storey, requireNamespace("qvalue"))){
+  if(ctl.fdr.storey){
     out.st <- qvalue::qvalue(p=pvalues, fdr.level=thresh, pfdr=TRUE)
     qv.st <- out.st$qvalues
     if(verbose > 0){
