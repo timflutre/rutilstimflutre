@@ -2850,6 +2850,29 @@ discardMarkersMissGenos <- function(X, verbose=1){
   return(X.out)
 }
 
+##' Convert imputed genotypes to 0/1/2
+##'
+##' Converts imputed genotypes to 0/1/2.
+##' @param X matrix of bi-allelic SNP genotypes encoded in allele doses in [0,2], with genotypes in rows and SNPs in columns; missing values should be encoded as NA
+##' @return matrix
+##' @author Timothee Flutre
+##' @export
+convertImputedTo012 <- function(X){
+  stopIfNotValidGenosDose(X=X, check.hasColNames=FALSE,
+                          check.hasRowNames=FALSE, check.noNA=FALSE,
+                          check.notImputed=FALSE)
+
+  boundaries <- seq(from=0, to=2, length.out=4)
+  is.0 <- (X <= boundaries[2]) # homozygotes for the first allele (ref)
+  is.1 <- (X > boundaries[2] & X <= boundaries[3]) # heterozygotes
+  is.2 <- (X > boundaries[3]) # homozygotes for the second allele (alt)
+  X[is.0] <- 0
+  X[is.1] <- 1
+  X[is.2] <- 2
+
+  return(X)
+}
+
 ##' Allele frequencies
 ##'
 ##' Estimate allele frequencies of bi-allelic SNPs.
