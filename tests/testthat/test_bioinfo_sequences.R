@@ -1,14 +1,52 @@
 library(rutilstimflutre)
 context("Bioinfo")
 
-test_that("chromNames2integers", {
+test_that("chromNames2integers_grape", {
   x <- c("chr1_random", "chr10", "chrUn", "chr1", "chr10_random", "chr2")
 
   expected <- data.frame(original=x,
-                         renamed=c(11L, 10L, 21L, 1L, 20L, 2L),
+                         renamed=c(10+1, 10, 2*10+1, 1, 2*10, 2),
                          stringsAsFactors=FALSE)
 
   observed <- chromNames2integers(x=x)
+
+  expect_equal(observed, expected)
+})
+
+test_that("chromNames2integers_apple", {
+  x <- c("Chr15", "Chr01", "Chr02", "Chr00", "Chr02")
+
+  expected <- data.frame(original=x,
+                         renamed=c(15, 1, 2, ((2*15)+1), 2),
+                         stringsAsFactors=FALSE)
+
+  observed <- chromNames2integers(x=x)
+
+  expect_equal(observed, expected)
+})
+
+test_that("chromNames2integers_cherry", {
+  x <- c("Super-Scaffold_14", "Super-Scaffold_4374", "Super-Scaffold_27")
+
+  expected <- data.frame(original=x,
+                         renamed=c(1, 3, 2),
+                         stringsAsFactors=FALSE)
+
+  observed <- chromNames2integers(x=x, prefix="Super-Scaffold_",
+                                  thresh.max.chr.int=500)
+
+  expect_equal(observed, expected)
+})
+
+test_that("chromNames2integers_apricot", {
+  x <- c("Pp08", "scaffold_51", "Pp02", "Pp01", "scaffold_23")
+
+  expected <- data.frame(original=x,
+                         renamed=c(8, 8+51, 2, 1, 8+23),
+                         stringsAsFactors=FALSE)
+
+  observed <- chromNames2integers(x=x, prefix="Pp", toreplace2=NULL,
+                                  prefix2="scaffold_")
 
   expect_equal(observed, expected)
 })
