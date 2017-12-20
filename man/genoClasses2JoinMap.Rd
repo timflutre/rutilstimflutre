@@ -5,7 +5,7 @@
 \title{Convert genotypes}
 \usage{
 genoClasses2JoinMap(x, reformat.input = TRUE, na.string = "--",
-  thresh.counts = NULL, thresh.na = NULL, verbose = 1)
+  thresh.counts = NULL, thresh.na = NULL, is.F2 = FALSE, verbose = 1)
 }
 \arguments{
 \item{x}{data.frame of bi-allelic SNP genotypes, with SNPs in rows and genotypes in columns; row names should contain SNP identifiers, the first column should contain the SNP genotypes of the first parent (traditionnaly the mother), the second column should contain the SNP genotypes of the second parent (traditionnaly the father), and the remaining columns should contain the SNP genotypes of the offsprings (full siblings); if it is a matrix, it will be silently transformed into a data frame}
@@ -18,13 +18,15 @@ genoClasses2JoinMap(x, reformat.input = TRUE, na.string = "--",
 
 \item{thresh.na}{threshold (per SNP) on the number of offsprings having \code{NA} (applied after \code{thresh.counts})}
 
+\item{is.F2}{if TRUE, it is assumed that the two outbred parents were crossed once to make a F1 which was then autofecundated multiple times to make the offsprings; note that the SNP genotypes of the F1 should not be given (and they are often unavailable)}
+
 \item{verbose}{verbosity level (0/1)}
 }
 \value{
 data.frame
 }
 \description{
-Convert SNP genotypes of a bi-parental cross from genotypic classes into the \href{https://www.kyazma.nl/index.php/JoinMap/}{JoinMap} format.
+Convert SNP genotypes of an outbred bi-parental cross from genotypic classes into the \href{https://www.kyazma.nl/index.php/JoinMap/}{JoinMap} format.
 For the moment, missing genotypes in parents result in the SNP being ignored, but we could imagine using genotypes in offsprings to impute such cases.
 }
 \examples{

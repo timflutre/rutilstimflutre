@@ -248,13 +248,14 @@ updateJoinMap <- function(x, verbose=1){
 
 ##' Convert genotypes
 ##'
-##' Convert SNP genotypes of a bi-parental cross from genotypic classes into the \href{https://www.kyazma.nl/index.php/JoinMap/}{JoinMap} format.
+##' Convert SNP genotypes of an outbred bi-parental cross from genotypic classes into the \href{https://www.kyazma.nl/index.php/JoinMap/}{JoinMap} format.
 ##' For the moment, missing genotypes in parents result in the SNP being ignored, but we could imagine using genotypes in offsprings to impute such cases.
 ##' @param x data.frame of bi-allelic SNP genotypes, with SNPs in rows and genotypes in columns; row names should contain SNP identifiers, the first column should contain the SNP genotypes of the first parent (traditionnaly the mother), the second column should contain the SNP genotypes of the second parent (traditionnaly the father), and the remaining columns should contain the SNP genotypes of the offsprings (full siblings); if it is a matrix, it will be silently transformed into a data frame
 ##' @param reformat.input if TRUE, the function \code{\link{reformatGenoClasses}} will be used
 ##' @param na.string a character to be interpreted as NA values by \code{\link{reformatGenoClasses}}
 ##' @param thresh.counts threshold (per SNP) on the number of offsprings having a particular genotypic class, below which counts are converted into \code{NA}
 ##' @param thresh.na threshold (per SNP) on the number of offsprings having \code{NA} (applied after \code{thresh.counts})
+##' @param is.F2 if TRUE, it is assumed that the two outbred parents were crossed once to make a F1 which was then autofecundated multiple times to make the offsprings; note that the SNP genotypes of the F1 should not be given (and they are often unavailable)
 ##' @param verbose verbosity level (0/1)
 ##' @return data.frame
 ##' @author Timothee Flutre
@@ -275,7 +276,7 @@ updateJoinMap <- function(x, verbose=1){
 ##' @export
 genoClasses2JoinMap <- function(x, reformat.input=TRUE, na.string="--",
                                 thresh.counts=NULL, thresh.na=NULL,
-                                verbose=1){
+                                is.F2=FALSE, verbose=1){
   stopifnot(is.logical(reformat.input))
   if(! is.null(thresh.counts))
     stopifnot(is.numeric(thresh.counts),
@@ -318,7 +319,7 @@ genoClasses2JoinMap <- function(x, reformat.input=TRUE, na.string="--",
   output[, c("p1.A","p1.B")] <- do.call(rbind, strsplit(x[,1], ""))
   output[, c("p2.C","p2.D")] <- do.call(rbind, strsplit(x[,2], ""))
 
-  ## identify proper segregation per SNP based on parents
+  ## assess conditions before identifying parental segregations
   par1.hom <- output[,"p1.A"] == output[,"p1.B"]
   par2.hom <- output[,"p2.C"] == output[,"p2.D"]
   is.na.pars <- apply(x[, 1:2], 1, function(in.row){any(is.na(in.row))})
@@ -328,10 +329,10 @@ genoClasses2JoinMap <- function(x, reformat.input=TRUE, na.string="--",
     par.alleles[[colnames(tmp)]] <- tmp[,1]
   } else
     par.alleles <- apply(output[, 3:6], 1, unique)
+  par.alleles <- lapply(par.alleles, sort, na.last=NA)
   two.par.alleles <- sapply(par.alleles, length) == 2
-  proper.seg.pars <- ! (par1.hom & par2.hom) & ! is.na.pars & two.par.alleles
 
-  ## identify proper segregation per SNP based on offsprings
+  ## assess conditions before identifying parental segregations
   if(nrow(x) == 1){
     tmp <- apply(x[, 3:ncol(x)], 1, table, useNA="always")
     nb.gclasses.offs <- list()
@@ -355,90 +356,185 @@ genoClasses2JoinMap <- function(x, reformat.input=TRUE, na.string="--",
     pass.na <- sapply(nb.gclasses.offs, function(nb.gc){
       nb.gc[is.na(names(nb.gc))] < thresh.na
     })
-  proper.seg.offs <- sapply(nb.gclasses.offs, length) >= 3 &
-    sapply(nb.gclasses.offs, length) <= 4 & pass.na
 
-  ## among proper segregations, determine type per SNP based on parents
-  pars.hkhk <- proper.seg.pars & x[,1] == x[,2] & (! par1.hom)
-  pars.lmll <- proper.seg.pars & x[,1] != x[,2] & (! par1.hom) & par2.hom
-  pars.nnnp <- proper.seg.pars & x[,1] != x[,2] & par1.hom & (! par2.hom)
-  output[pars.hkhk, "seg.pars"] <- "<hkxhk>"
-  output[pars.lmll, "seg.pars"] <- "<lmxll>"
-  output[pars.nnnp, "seg.pars"] <- "<nnxnp>"
+  if(is.F2){
+    ## identify proper segregation per SNP based on parents
+    proper.seg.pars <- ! is.na.pars & two.par.alleles
 
-  ## among proper segregations, determine type per SNP based on offsprings
-  offs.hkhk <- proper.seg.offs & sapply(nb.gclasses.offs, length) == 4
-  offs.lmll.or.nnnp <- proper.seg.offs & sapply(nb.gclasses.offs, length) == 3
-  output[offs.hkhk, "seg.offs"] <- "<hkxhk>"
-  output[offs.lmll.or.nnnp, "seg.offs"] <- "<lmxll>_<nnxnp>"
+    ## identify proper segregation per SNP based on offsprings
+    proper.seg.offs <- sapply(nb.gclasses.offs, length) >= 2 &
+      sapply(nb.gclasses.offs, length) <= 4 & pass.na
 
-  ## identify segregations per SNP coherent for parents and offsprings
-  proper.seg <- proper.seg.offs & proper.seg.pars
+    ## identify segregations per SNP coherent for parents and offsprings
+    proper.seg <- proper.seg.offs & proper.seg.pars
 
-  ## determine coherent segregations among parents and offsprings
-  is.hkhk <- (proper.seg.pars & pars.hkhk) &
-    (proper.seg.offs & offs.hkhk)
-  is.hkhk[is.na(is.hkhk)] <- FALSE
-  is.lmll <- (proper.seg.pars & pars.lmll) &
-    (proper.seg.offs & offs.lmll.or.nnnp)
-  is.lmll[is.na(is.lmll)] <- FALSE
-  is.nnnp <- (proper.seg.pars & pars.nnnp) &
-    (proper.seg.offs & offs.lmll.or.nnnp)
-  is.nnnp[is.na(is.nnnp)] <- FALSE
-  if(verbose > 0){
-    msg <- paste0("coherent segregations: ", sum(is.hkhk) + sum(is.lmll) +
-                                             sum(is.nnnp),
-                  "\n<hkxhk>=", sum(is.hkhk),
-                  " <lmxll>=", sum(is.lmll),
-                  " <nnxnp>=", sum(is.nnnp))
-    write(msg, stdout())
+    ## code offspring genotypes when unproper segregation
+    output[! proper.seg, 10:ncol(output)] <- NA
+
+    ## code offspring genotypes when heterozygotes
+    offs.het <- apply(output[proper.seg, 10:ncol(output)], 2, function(in.col){
+      sapply(strsplit(in.col, split=""), function(alleles){
+        sum(! is.na(unique(alleles))) == 2
+      })
+    })
+    output[proper.seg, 10:ncol(output)][offs.het] <- "H"
+
+    ## possible.F1 <- lapply(1:sum(proper.seg), function(i){
+    ##   par.all <- output[proper.seg, 3:6][i,]
+    ##   unique(sort(c(paste(sort(par.all[c("p1.A","p2.C")]), collapse=""),
+    ##                 paste(sort(par.all[c("p1.A","p2.D")]), collapse=""),
+    ##                 paste(sort(par.all[c("p1.B","p2.C")]), collapse=""),
+    ##                 paste(sort(par.all[c("p1.B","p2.D")]), collapse=""))))
+    ## })
+    ## names(possible.F1) <- rownames(output[proper.seg,])
+
+    ## code offspring genotypes when homozygotes from parent 1
+    offs.hom1 <- matrix(data=FALSE, nrow=sum(proper.seg),
+                        ncol=length(10:ncol(output)))
+    rownames(offs.hom1) <- names(proper.seg[proper.seg])
+    colnames(offs.hom1) <- colnames(output)[10:ncol(output)]
+    if(verbose > 0){
+      pb <- utils::txtProgressBar(min=0, max=nrow(offs.hom1), style=3)
+      pb.tmp <- stats::setNames(object=cut(x=1:nrow(offs.hom1), breaks=10,
+                                           labels=FALSE),
+                                nm=1:nrow(offs.hom1)) # update pb <= 10 times
+    }
+    for(i in 1:nrow(offs.hom1)){ # for each SNP
+      offs.genos <- unlist(output[proper.seg, 10:ncol(output)][i,])
+      idx.hom <- which(! is.na(offs.genos) & ! offs.het[i,])
+      if(length(idx.hom) > 0){
+        ## identify from which parent(s) each allele comes from
+        offs.genos.hom <- offs.genos[idx.hom]
+        uniq.offs.homs <- unique(sort(unlist(offs.genos.hom)))
+        uniq.offs.homs.alleles <- sapply(strsplit(uniq.offs.homs, ""), `[`, 1)
+        origin.uniq.offs.homs.alleles <-
+          lapply(uniq.offs.homs.alleles, function(a){
+            tmp <- c()
+            if(a %in% output[proper.seg, c("p1.A","p1.B")][i,])
+              tmp <- c(tmp, "par1")
+            if(a %in% output[proper.seg, c("p2.C","p2.D")][i,])
+              tmp <- c(tmp, "par2")
+            tmp
+          })
+        names(origin.uniq.offs.homs.alleles) <- uniq.offs.homs.alleles
+        ## assign one allele to parent 1
+        has.par1 <- sapply(origin.uniq.offs.homs.alleles, function(pars){
+          "par1" %in% pars
+        })
+        allele.par1 <- names(has.par1[has.par1])[1] # arbitrary choice
+        output$seg[proper.seg][i] <- paste0("A=", allele.par1)
+        ## fill offs.hom1
+        geno.hom.par1 <- paste(rep(allele.par1, 2), collapse="")
+        is.hom.par1 <- offs.genos.hom == geno.hom.par1
+        if(any(is.hom.par1, na.rm=TRUE))
+          offs.hom1[i, names(is.hom.par1[is.hom.par1])] <- TRUE
+      }
+      if(verbose > 0){
+        ## utils::setTxtProgressBar(pb, i)
+        if(i %in% as.numeric(names(pb.tmp)[cumsum(table(pb.tmp))]))
+          utils::setTxtProgressBar(pb, which(1:nrow(offs.hom1) == i))
+      }
+    }
+    if(verbose > 0)
+      close(pb)
+    output[proper.seg, 10:ncol(output)][offs.hom1] <- "A"
+
+    ## code offspring genotypes when homozygotes from parent 2
+    offs.na <- is.na(output[proper.seg, 10:ncol(output)])
+    output[proper.seg, 10:ncol(output)][! offs.na &
+                                        ! offs.het &
+                                        ! offs.hom1] <- "B"
+
+  } else{
+    ## identify proper segregation per SNP based on parents
+    proper.seg.pars <- ! (par1.hom & par2.hom) & ! is.na.pars & two.par.alleles
+
+    ## identify proper segregation per SNP based on offsprings
+    proper.seg.offs <- sapply(nb.gclasses.offs, length) >= 3 &
+      sapply(nb.gclasses.offs, length) <= 4 & pass.na
+
+    ## among proper segregations, determine type per SNP based on parents
+    pars.hkhk <- proper.seg.pars & x[,1] == x[,2] & (! par1.hom)
+    pars.lmll <- proper.seg.pars & x[,1] != x[,2] & (! par1.hom) & par2.hom
+    pars.nnnp <- proper.seg.pars & x[,1] != x[,2] & par1.hom & (! par2.hom)
+    output[pars.hkhk, "seg.pars"] <- "<hkxhk>"
+    output[pars.lmll, "seg.pars"] <- "<lmxll>"
+    output[pars.nnnp, "seg.pars"] <- "<nnxnp>"
+
+    ## among proper segregations, determine type per SNP based on offsprings
+    offs.hkhk <- proper.seg.offs & sapply(nb.gclasses.offs, length) == 4
+    offs.lmll.or.nnnp <- proper.seg.offs & sapply(nb.gclasses.offs, length) == 3
+    output[offs.hkhk, "seg.offs"] <- "<hkxhk>"
+    output[offs.lmll.or.nnnp, "seg.offs"] <- "<lmxll>_<nnxnp>"
+
+    ## identify segregations per SNP coherent for parents and offsprings
+    proper.seg <- proper.seg.offs & proper.seg.pars
+
+    ## determine coherent segregations among parents and offsprings
+    is.hkhk <- (proper.seg.pars & pars.hkhk) &
+      (proper.seg.offs & offs.hkhk)
+    is.hkhk[is.na(is.hkhk)] <- FALSE
+    is.lmll <- (proper.seg.pars & pars.lmll) &
+      (proper.seg.offs & offs.lmll.or.nnnp)
+    is.lmll[is.na(is.lmll)] <- FALSE
+    is.nnnp <- (proper.seg.pars & pars.nnnp) &
+      (proper.seg.offs & offs.lmll.or.nnnp)
+    is.nnnp[is.na(is.nnnp)] <- FALSE
+    if(verbose > 0){
+      msg <- paste0("coherent segregations: ", sum(is.hkhk) + sum(is.lmll) +
+                                               sum(is.nnnp),
+                    "\n<hkxhk>=", sum(is.hkhk),
+                    " <lmxll>=", sum(is.lmll),
+                    " <nnxnp>=", sum(is.nnnp))
+      write(msg, stdout())
+    }
+
+    ## set proper segregation classes
+    output[is.hkhk, 1:2] <- "hk"
+    output[is.lmll, 1] <- "lm"
+    output[is.lmll, 2] <- "ll"
+    output[is.nnnp, 1] <- "nn"
+    output[is.nnnp, 2] <- "np"
+
+    ## set segregation type per SNP
+    idx <- which(output[,1] %in% c("hk", "lm", "nn"))
+    output$seg[idx] <- paste0("<", output[idx,1], "x", output[idx,2], ">")
+
+    ## set segregation classes of offsprings when seg type is <hkxhk>
+    gclasses.hh <- paste0(output[is.hkhk, "p1.A"], output[is.hkhk, "p2.C"])
+    tmp <- t(apply(cbind(gclasses.hh, output[is.hkhk, 8:ncol(output)]), 1,
+                   function(in.row){in.row[-1] == in.row[1]}))
+    tmp[is.na(tmp)] <- FALSE
+    if(any(tmp))
+      output[is.hkhk, 8:ncol(output)][tmp] <- "hh"
+    gclasses.kk <- paste0(output[is.hkhk, "p1.B"], output[is.hkhk, "p2.D"])
+    tmp <- t(apply(cbind(gclasses.kk, output[is.hkhk, 8:ncol(output)]), 1,
+                   function(in.row){in.row[-1] == in.row[1]}))
+    tmp[is.na(tmp)] <- FALSE
+    if(any(tmp))
+      output[is.hkhk, 8:ncol(output)][tmp] <- "kk"
+    gclasses.hk <- paste0(output[is.hkhk, "p1.A"], output[is.hkhk, "p2.D"])
+    tmp <- t(apply(cbind(gclasses.hk, output[is.hkhk, 8:ncol(output)]), 1,
+                   function(in.row){in.row[-1] == in.row[1]}))
+    tmp[is.na(tmp)] <- FALSE
+    if(any(tmp))
+      output[is.hkhk, 8:ncol(output)][tmp] <- "hk"
+
+    ## set segregation classes of offsprings when seg type is <lmxll> or <nnxnp>
+    lmll.or.nnnp <- is.lmll | is.nnnp
+    tmp <- t(apply(cbind(x[,1], output[, 8:ncol(output)])[lmll.or.nnnp,], 1,
+                   function(in.row){in.row[-1] == in.row[1]}))
+    tmp[is.na(tmp)] <- FALSE
+    if(any(tmp))
+      output[lmll.or.nnnp, 8:ncol(output)][tmp] <-
+        rep(output[lmll.or.nnnp, 1], ncol(tmp))[tmp]
+    tmp <- t(apply(cbind(x[,2], output[, 8:ncol(output)])[lmll.or.nnnp,], 1,
+                   function(in.row){in.row[-1] == in.row[1]}))
+    tmp[is.na(tmp)] <- FALSE
+    if(any(tmp))
+      output[lmll.or.nnnp, 8:ncol(output)][tmp] <-
+        rep(output[lmll.or.nnnp, 2], ncol(tmp))[tmp]
   }
-
-  ## set proper segregation classes
-  output[is.hkhk, 1:2] <- "hk"
-  output[is.lmll, 1] <- "lm"
-  output[is.lmll, 2] <- "ll"
-  output[is.nnnp, 1] <- "nn"
-  output[is.nnnp, 2] <- "np"
-
-  ## set segregation type per SNP
-  idx <- which(output[,1] %in% c("hk", "lm", "nn"))
-  output$seg[idx] <- paste0("<", output[idx,1], "x", output[idx,2], ">")
-
-  ## set segregation classes of offprings when segregation type is <hkxhk>
-  gclasses.hh <- paste0(output[is.hkhk, "p1.A"], output[is.hkhk, "p2.C"])
-  tmp <- t(apply(cbind(gclasses.hh, output[is.hkhk, 8:ncol(output)]), 1,
-                 function(in.row){in.row[-1] == in.row[1]}))
-  tmp[is.na(tmp)] <- FALSE
-  if(any(tmp))
-    output[is.hkhk, 8:ncol(output)][tmp] <- "hh"
-  gclasses.kk <- paste0(output[is.hkhk, "p1.B"], output[is.hkhk, "p2.D"])
-  tmp <- t(apply(cbind(gclasses.kk, output[is.hkhk, 8:ncol(output)]), 1,
-                 function(in.row){in.row[-1] == in.row[1]}))
-  tmp[is.na(tmp)] <- FALSE
-  if(any(tmp))
-    output[is.hkhk, 8:ncol(output)][tmp] <- "kk"
-  gclasses.hk <- paste0(output[is.hkhk, "p1.A"], output[is.hkhk, "p2.D"])
-  tmp <- t(apply(cbind(gclasses.hk, output[is.hkhk, 8:ncol(output)]), 1,
-                 function(in.row){in.row[-1] == in.row[1]}))
-  tmp[is.na(tmp)] <- FALSE
-  if(any(tmp))
-    output[is.hkhk, 8:ncol(output)][tmp] <- "hk"
-
-  ## set segregation classes of offprings when segregation type is <lmxll> or <nnxnp>
-  lmll.or.nnnp <- is.lmll | is.nnnp
-  tmp <- t(apply(cbind(x[,1], output[, 8:ncol(output)])[lmll.or.nnnp,], 1,
-                 function(in.row){in.row[-1] == in.row[1]}))
-  tmp[is.na(tmp)] <- FALSE
-  if(any(tmp))
-    output[lmll.or.nnnp, 8:ncol(output)][tmp] <-
-      rep(output[lmll.or.nnnp, 1], ncol(tmp))[tmp]
-  tmp <- t(apply(cbind(x[,2], output[, 8:ncol(output)])[lmll.or.nnnp,], 1,
-                 function(in.row){in.row[-1] == in.row[1]}))
-  tmp[is.na(tmp)] <- FALSE
-  if(any(tmp))
-    output[lmll.or.nnnp, 8:ncol(output)][tmp] <-
-      rep(output[lmll.or.nnnp, 2], ncol(tmp))[tmp]
 
   ## -------------------------------------------------------
   ## un-vectorized version:
