@@ -367,6 +367,7 @@ genoClasses2JoinMap <- function(x, reformat.input=TRUE, na.string="--",
 
     ## identify segregations per SNP coherent for parents and offsprings
     proper.seg <- proper.seg.offs & proper.seg.pars
+    output$seg[proper.seg] <- "F2"
 
     ## code offspring genotypes when unproper segregation
     output[! proper.seg, 10:ncol(output)] <- NA
@@ -422,7 +423,7 @@ genoClasses2JoinMap <- function(x, reformat.input=TRUE, na.string="--",
           "par1" %in% pars
         })
         allele.par1 <- names(has.par1[has.par1])[1] # arbitrary choice
-        output$seg[proper.seg][i] <- paste0("A=", allele.par1)
+        output$seg.pars[proper.seg][i] <- paste0("A=", allele.par1)
         ## fill offs.hom1
         geno.hom.par1 <- paste(rep(allele.par1, 2), collapse="")
         is.hom.par1 <- offs.genos.hom == geno.hom.par1
@@ -617,21 +618,26 @@ genoClasses2JoinMap <- function(x, reformat.input=TRUE, na.string="--",
 ##' @param x data.frame similar to the output from \code{\link{genoClasses2JoinMap}}, with locus in rows and where the first columns corresponding to parents are discarded, i.e. the first column should be named "seg" and the following should correspond to offsprings
 ##' @param thresh.pval significance threshold at which to control the FWER (Bonferroni-adjusted p values) and the FDR (Benjamini-Hochberg-adjusted p values); the number of non-rejected null hypotheses will be shown only if \code{verbose} is non-zero
 ##' @param return.counts if TRUE, counts used to calculate the chi2 statistic are returned
+##' @param is.F2 if TRUE, it is assumed that the two outbred parents were crossed once to make a F1 which was then autofecundated multiple times to make the offsprings; note that the SNP genotypes of the F1 should not be given (and they are often unavailable)
 ##' @param nb.cores the number of cores to use, i.e. at most how many child processes will be run simultaneously (not on Windows)
 ##' @param verbose verbosity level (0/1)
 ##' @return data.frame with one row per locus and several columns (chi2, p value, Bonferroni-adjusted p value, Benjamini-Hochberg-adjusted p value), as well as counts (if \code{return.counts=TRUE})
 ##' @author Timothee Flutre
 ##' @seealso \code{\link{genoClasses2JoinMap}}, \code{\link{updateJoinMap}}, \code{\link{plotHistPval}}, \code{\link{qqplotPval}}
 ##' @export
-filterSegreg <- function(x, thresh.pval=0.05, return.counts=FALSE, nb.cores=1,
-                         verbose=1){
+filterSegreg <- function(x, thresh.pval=0.05, return.counts=FALSE,
+                         is.F2=FALSE, nb.cores=1, verbose=1){
   stopifnot(is.data.frame(x),
             colnames(x)[1] == "seg",
-            all(x$seg %in% c("<nnxnp>", "<lmxll>", "<hkxhk>", "<efxeg>",
-                             "<abxcd>", "NA", NA)),
             is.numeric(thresh.pval),
             length(thresh.pval) == 1,
             all(thresh.pval >= 0, thresh.pval <= 1))
+  if(is.F2){
+    stopifnot(all(x$seg %in% c("F2", "NA", NA)),
+              all(unlist(x[,-1]) %in% c("A", "H", "B", "NA", NA)))
+  } else
+    stopifnot(all(x$seg %in% c("<nnxnp>", "<lmxll>", "<hkxhk>", "<efxeg>",
+                               "<abxcd>", "NA", NA)))
 
   x <- convertFactorColumnsToCharacter(x)
 
@@ -650,8 +656,13 @@ filterSegreg <- function(x, thresh.pval=0.05, return.counts=FALSE, nb.cores=1,
                    "<efxeg>"=list(classes=sort(c("ee", "eg", "ef", "fg")),
                                   exp=rep(0.25, 4)),
                    "<abxcd>"=list(classes=sort(c("ac", "ad", "bc", "bd")),
-                                  exp=rep(0.25, 4)))
-  info.seg<- info.seg[names(info.seg) %in% x$seg]
+                                  exp=rep(0.25, 4)),
+                   "F2"=list(classes=c("A", "H", "B"),
+                             exp=c(0.25, 0.5, 0.25)))
+  if(is.F2){
+    info.seg <- info.seg[names(info.seg) %in% "F2"]
+  } else
+    info.seg <- info.seg[names(info.seg) %in% x$seg]
 
   output <- data.frame(seg=x$seg,
                        nb.classes=NA,

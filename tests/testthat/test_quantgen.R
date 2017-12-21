@@ -112,7 +112,7 @@ test_that("genoClasses2JoinMap", {
   expect_equal(observed, expected)
 })
 
-test_that("genoClasses2JoinMap_F1", {
+test_that("genoClasses2JoinMap_F2", {
   nb.offs <- 4 # offsprings
   N <- 2 + 1 + nb.offs
   P <- 11 # SNPs
@@ -210,14 +210,20 @@ test_that("genoClasses2JoinMap_F1", {
                                 "T",
                                 "T",
                                 "G"),
-                         seg.pars=rep(NA, P),
+                         seg.pars=c("A=A", "A=A",
+                                    "A=G", "A=C", "A=C",
+                                    "A=G", "A=G",
+                                    NA,
+                                    "A=A",
+                                    "A=A",
+                                    NA),
                          seg.offs=rep(NA, P),
-                         seg=c("A=A", "A=A",
-                               "A=G", "A=C", "A=C",
-                               "A=G", "A=G",
+                         seg=c("F2", "F2",
+                               "F2", "F2", "F2",
+                               "F2", "F2",
                                NA,
-                               "A=A",
-                               "A=A",
+                               "F2",
+                               "F2",
                                NA),
                          off1=c("A", "A",
                                 "A", "B", "A",
@@ -678,6 +684,64 @@ test_that("filterSegreg", {
 
   expected <- tmp
   observed <- filterSegreg(x=x, return.counts=TRUE, nb.cores=2, verbose=0)
+  expect_equal(observed, expected)
+})
+
+test_that("filterSegreg_F2", {
+  nb.offs <- 6 # offsprings
+  N <- 2 + nb.offs
+  P <- 4 # SNPs
+  x <- data.frame(seg=c("F2", NA, "F2", "F2"),
+                  off1=c("A", NA, "A", "A"),
+                  off2=c("A", NA, "A", "A"),
+                  off3=c("H", NA, "H", "A"),
+                  off4=c("H", NA, "H", NA),
+                  off5=c("B", NA, "A", NA),
+                  off6=c("B", NA, NA, "A"),
+                  row.names=paste0("snp", 1:P),
+                  stringsAsFactors=FALSE)
+
+  tmp <- data.frame(seg=x$seg,
+                    nb.classes=c(3, NA, 3, 3),
+                    class1=c("A", NA, "A", "A"),
+                    class2=c("H", NA, "H", "H"),
+                    class3=c("B", NA, "B", "B"),
+                    class4=c(NA, NA, NA, NA),
+                    obs1=c(2, NA, 3, 4),
+                    obs2=c(2, NA, 2, 0),
+                    obs3=c(2, NA, 0, 0),
+                    obs4=c(NA, NA, NA, NA),
+                    exp1=c(0.25*6, NA, 0.25*5, 0.25*4),
+                    exp2=c(0.50*6, NA, 0.50*5, 0.50*4),
+                    exp3=c(0.25*6, NA, 0.25*5, 0.25*4),
+                    exp4=c(NA, NA, NA, NA),
+                    row.names=rownames(x),
+                    stringsAsFactors=FALSE)
+  tmp$chi2 <- c((tmp$obs1[1] - tmp$exp1[1])^2 / tmp$exp1[1] +
+                (tmp$obs2[1] - tmp$exp2[1])^2 / tmp$exp2[1] +
+                (tmp$obs3[1] - tmp$exp3[1])^2 / tmp$exp3[1],
+                NA,
+                (tmp$obs1[3] - tmp$exp1[3])^2 / tmp$exp1[3] +
+                (tmp$obs2[3] - tmp$exp2[3])^2 / tmp$exp2[3] +
+                (tmp$obs3[3] - tmp$exp3[3])^2 / tmp$exp3[3],
+                (tmp$obs1[4] - tmp$exp1[4])^2 / tmp$exp1[4] +
+                (tmp$obs2[4] - tmp$exp2[4])^2 / tmp$exp2[4] +
+                (tmp$obs3[4] - tmp$exp3[4])^2 / tmp$exp3[4])
+  tmp$pvalue <- pchisq(q=tmp$chi2, df=tmp$nb.classes - 1, lower.tail=FALSE)
+  tmp$pvalue.bonf <- stats::p.adjust(p=tmp$pvalue, method="bonferroni")
+  tmp$pvalue.bh <- stats::p.adjust(p=tmp$pvalue, method="BH")
+
+  expected <- tmp[, c("chi2", "pvalue", "pvalue.bonf", "pvalue.bh")]
+  observed <- filterSegreg(x=x, is.F2=TRUE, verbose=0)
+  expect_equal(observed, expected)
+
+  expected <- tmp
+  observed <- filterSegreg(x=x, is.F2=TRUE, return.counts=TRUE, verbose=0)
+  expect_equal(observed, expected)
+
+  expected <- tmp
+  observed <- filterSegreg(x=x, is.F2=TRUE, return.counts=TRUE, nb.cores=2,
+                           verbose=0)
   expect_equal(observed, expected)
 })
 
