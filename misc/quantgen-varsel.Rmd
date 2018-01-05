@@ -42,6 +42,7 @@ suppressPackageStartupMessages(library(ashr))
 suppressPackageStartupMessages(library(mlmm))
 suppressPackageStartupMessages(library(varbvs))
 suppressPackageStartupMessages(library(coda))
+suppressPackageStartupMessages(library(BGLR))
 suppressPackageStartupMessages(library(rgs3))
 suppressPackageStartupMessages(library(rutilstimflutre))
 ```
@@ -84,16 +85,20 @@ cn2i <- chromNames2integers(x=genomes$snp.coords$chr,
 
 ```{r}
 set.seed(1859)
-phenos <- simulBvsr(Q=1, X=X, pi=0.01, pve=0.7, sigma.a2=1, min.maf=0.01)
+true.pi <- 0.01
+true.pve <- 0.7
+true.sigma.a2 <- 1
+phenos <- simulBvsr(Q=1, X=X, pi=true.pi, pve=true.pve,
+                    sigma.a2=true.sigma.a2, min.maf=0.01)
 stopifnot(colnames(phenos$X.A) == colnames(X))
 stopifnot(names(phenos$a) == colnames(phenos$X.A))
 stopifnot(names(phenos$gamma) == names(phenos$a))
 true.qtls <- names(phenos$gamma[phenos$gamma != 0])
 summary(abs(phenos$a[true.qtls]))
 length(true.qtls)
-(tmp <- data.frame(chr=genomes$snp.coords[true.qtls, "chr"],
-                   pos=genomes$snp.coords[true.qtls, "pos"],
-                   a=phenos$a[true.qtls]))
+tmp <- data.frame(chr=genomes$snp.coords[true.qtls, "chr"],
+                  pos=genomes$snp.coords[true.qtls, "pos"],
+                  a=phenos$a[true.qtls])
 (tmp <- tmp[order(abs(tmp$a), decreasing=TRUE),])
 ```
 
@@ -106,8 +111,13 @@ hist(phenos$Y[,1], breaks="FD",
      col="grey", border="white", las=1)
 ```
 
+TODO: plot LD around causal SNPs
+
+
 
 # Perform inference SNP-by-SNP with GEMMA
+
+Ref: [Zhou and Stephens (2012)](http://dx.doi.org/10.1038/ng.2310)
 
 ## Fit
 
@@ -222,6 +232,8 @@ abline(h=0, v=0, a=0, b=1, lty=2)
 
 # Perform inference SNP-by-SNP with BLMM
 
+Ref: [Wen (2015)](http://dx.doi.org/10.1093/biostatistics/kxv009)
+
 ## Fit
 
 It uses the approximate Bayes factor from Wakefield, which requires summary statistics, e.g. from GEMMA:
@@ -258,6 +270,8 @@ TODO: compute posterior means
 
 
 # Perform inference all SNPs jointly with MLMM
+
+Ref: [Segura et al (2012)](http://dx.doi.org/10.1038/ng.2314)
 
 ## Fit
 
@@ -298,6 +312,8 @@ abline(h=0, v=0, a=0, b=1, lty=2)
 
 # Perform inference all SNPs jointly with varbvs
 
+Ref: [Carbonetto and Stephens (2012)](http://dx.doi.org/10.1214/12-ba703)
+
 ## Fit
 
 ```{r}
@@ -336,8 +352,117 @@ plot(x=1:ncol(phenos$X.A), y=pips, col=cols, las=1, xlab="SNPs", ylab="PIP",
 TODO
 
 
+# Perform inference all SNPs jointly with BGLR
+
+Ref: [de los Campo et al (2009)](https://doi.org/10.1534/genetics.109.101501)
+
+## Fit
+
+Run BGLR:
+```{r}
+task.id <- "test-BGLR_"
+nb.iters <- 50 * 10^3
+burn.in <- 5 * 10^3
+thin <- 5
+system.time(
+    fit.bglr <- BGLR(y=phenos$Y[,1],
+                     response_type="gaussian",
+                     ETA=list(list(X=X, model="BayesC", saveEffects=TRUE)),
+                     weights=NULL,
+                     groups=NULL,
+                     nIter=nb.iters, burnIn=burn.in, thin=thin,
+                     saveAt=task.id,
+                     verbose=FALSE))
+```
+
+Assess convergence (caution, BGLR is inconsistent in its use of `burnIn` when saving samples):
+```{r, fig.height=15}
+post.samples <- cbind(mu=read.table(paste0(task.id, "mu.dat"))[,1],
+                      varE=read.table(paste0(task.id, "varE.dat"))[,1],
+                      pi=read.table(paste0(task.id, "ETA_1_parBayesC.dat"))[,1],
+                      varB=read.table(paste0(task.id, "ETA_1_parBayesC.dat"))[,2])
+post.samples <- mcmc.list(mcmc(post.samples, start=thin,
+                               end=nb.iters, thin=thin))
+post.samples <- window(post.samples, start=burn.in+1)
+plot(post.samples)
+raftery.diag(post.samples, q=0.5, r=0.05, s=0.9)
+geweke.diag(post.samples) # should not be too far from [-2;2]
+effectiveSize(post.samples)
+summary(post.samples)
+post.effects <- readBinMat(paste0(task.id, "ETA_1_b.bin"))
+dim(post.effects)
+colnames(post.effects) <- colnames(X)
+post.effects <- mcmc.list(mcmc(post.effects, start=thin+burn.in,
+                               end=nb.iters, thin=thin))
+plot(post.effects[,true.qtls[1:4]])
+summary(post.effects[,true.qtls])
+```
+
+Look at the proportion of variance explained by breeding values:
+```{r}
+pve <- rep(NA, (nb.iters - burn.in) / thin)
+for(i in seq_along(pve)){
+  var.gen.add <- var(X %*% post.effects[[1]][i,])
+  pve[i] <- var.gen.add / (var.gen.add + post.samples[[1]][i,"varE"])
+}
+pve <- mcmc.list(mcmc(pve, start=thin+burn.in,
+                      end=nb.iters, thin=thin))
+summary(pve)
+plot(pve)
+```
+
+## Results concerning the QTL percentage
+
+```{r}
+summary(post.samples[,"pi"])
+HPDinterval(post.samples[,"pi"])
+```
+
+## Results concerning non-null effects
+
+```{r}
+post.snps <- fit.bglr$ETA[[1]]$d
+names(post.snps) <- colnames(X)
+summary(post.snps)
+cols <- rep("black", ncol(X))
+cols[phenos$gamma != 0] <- "red"
+plot(x=1:ncol(X), y=post.snps[names(phenos$gamma)],
+     col=cols, las=1, xlab="SNPs", ylab="PIP",
+     main="Posterior inclusion probabilities (BGLR with BayesC)")
+```
+
+## Results concerning effect magnitudes
+
+```{r}
+idx <- match(true.qtls, fit.bglr$ETA[[1]]$colNames)
+tmp <- cbind(true=phenos$a[true.qtls],
+             pip=fit.bglr$ETA[[1]]$d[idx],
+             estim=fit.bglr$ETA[[1]]$b[idx],
+             se=fit.bglr$ETA[[1]]$SD.b[idx])
+tmp[order(abs(tmp[,1]), decreasing=TRUE),]
+post.snps <- fit.bglr$ETA[[1]]$b
+names(post.snps) <- colnames(X)
+cor(phenos$a[true.qtls], post.snps[true.qtls])
+plot(x=phenos$a[true.qtls],
+     y=post.snps[true.qtls], asp=1,
+     xlab="true", ylab="estimated", main="SNP effects (BGLR with BayesC)")
+abline(h=0, v=0, a=0, b=1, lty=2)
+```
+
+## Clean
+
+```{r}
+for(f in c(paste0(task.id, c("mu.dat", "varE.dat", "ETA_1_parBayesC.dat",
+                             "ETA_1_b.bin"))))
+  if(file.exists(f))
+    file.remove(f)
+```
+
+
 
 # Perform inference all SNPs jointly with GS3
+
+Ref: [Legarra et al (2014)](http://dx.doi.org/10.1016/j.livsci.2014.04.029)
 
 ## Fit
 
@@ -382,15 +507,20 @@ config.file <- writeConfigForGs3(config=config,
                                  task.id=task.id)
 ```
 
-Run GS3, and assess convergence:
-```{r, fig.height=15}
+Run GS3:
+```{r}
 system.time(
     stdouterr.GS3.file <- execGs3(config.file, task.id))
+```
+
+Assess convergence:
+```{r, fig.height=15}
 vcs <- vcs2mcmc(config$vcs.file)
 vcs <- vcs[, c("vara","vare","pa_1","2varapqpi")]
 plot(vcs)
 raftery.diag(vcs, q=0.5, r=0.05, s=0.9)
 geweke.diag(vcs) # should not be too far from [-2;2]
+effectiveSize(vcs)
 summary(vcs)
 ```
 
@@ -429,8 +559,9 @@ plot(x=1:ncol(X), y=post.snps[names(phenos$gamma), "p"],
 
 ```{r}
 summary(post.snps$solution)
-tmp <- cbind(phenos$a[true.qtls], post.snps[true.qtls, c("solution", "sderror", "p")])
-tmp[order(tmp[,1]),]
+tmp <- cbind(phenos$a[true.qtls],
+             post.snps[true.qtls, c("solution", "sderror", "p")])
+tmp[order(abs(tmp[,1]), decreasing=TRUE),]
 cor(phenos$a[true.qtls],
     post.snps[true.qtls, "solution"])
 plot(x=phenos$a[true.qtls],

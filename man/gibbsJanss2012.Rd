@@ -53,21 +53,83 @@ library(BLR)
 data(wheat)
 c("X","Y") \%in\% ls()
 dim(X) # lines x markers
+dim(Y) # lines x traits
+
+## factorize the genotypes
 W <- scale(X, center=TRUE, scale=TRUE)
 G <- tcrossprod(W) / ncol(W)
 EVD <- eigen(G)
+
+## look at the G matrix
+imageWithScale(G)
+library(seriation)
+order <- seriate(G)
+imageWithScale(G[order[[1]], order[[2]]])
+
+## look at the factorization
 plot(EVD$vectors[,2], EVD$vectors[,1], main="Same as figure 3 left",
      xlab="Eigenvector 2", ylab="Eigenvector 1", pch=18)
 plot(x=0:nrow(X), y=c(0, cumsum(EVD$values) / nrow(X)), type="l", las=1,
      main="Same as figure 4 left", ylab="", xlab="Number of eigenvalues")
 abline(h=1, a=0, b=1/nrow(X), lty=2)
-fit <- gibbsJanss2012(y=Y[,1], K=list(list(V=EVD$vectors, d=EVD$values,
-                                           df0=5, S0=3/2)),
-                      nIter=20000, burnIn=2000)
-fit$mu # ~= 0
-fit$varE # ~= 0.54
-fit$K[[1]]$varU # ~= 0.52
-fit$K[[1]]$varU / (fit$K[[1]]$varU + fit$varE) # ~= 0.49 (same as in paper)
+
+## fit the full model
+fit.full <- gibbsJanss2012(y=Y[,1], K=list(list(V=EVD$vectors, d=EVD$values,
+                                                df0=5, S0=3/2)),
+                           nIter=20000, burnIn=2000, saveAt=tempfile())
+fit.full$mu # ~= 0
+fit.full$varE # ~= 0.54
+fit.full$K[[1]]$varU # ~= 0.52
+fit.full$K[[1]]$varU / (fit.full$K[[1]]$varU +
+                        fit.full$varE) # ~= 0.49
+
+## load posterior samples
+library(coda)
+post.full <- mcmc(data=read.table(fit.full$saveAt, header=TRUE))
+post.full <- mcmc(cbind(post.full,
+                        h2=post.full[,"varU1"] /
+                          (post.full[,"varU1"] +
+                           post.full[,"varE"])))
+plot(post.full)
+summary(post.full)
+HPDinterval(post.full)
+
+## fit models with PCs as fixed effects
+fit.PC <- list()
+post.PC <- list()
+PCs.toaccountfor <- c(1, 5, 10, 15, 20)
+for(i in seq_along(PCs.toaccountfor)){
+  nb.PCs <- PCs.toaccountfor[i]
+  fit.PC[[i]] <- gibbsJanss2012(y=Y[,1], XF=as.matrix(EVD$vectors[,1:nb.PCs]),
+                                K=list(list(V=EVD$vectors, d=EVD$values,
+                                            df0=5, S0=3/2)),
+                                nIter=20000, burnIn=2000, saveAt=tempfile())
+  post.PC[[i]] <- mcmc(data=read.table(fit.PC[[i]]$saveAt, header=TRUE))
+  post.PC[[i]] <- mcmc(cbind(post.full,
+                             h2=post.full[,"varU1"] /
+                               (post.full[,"varU1"] +
+                                post.full[,"varE"])))
+}
+
+## reformat results
+H2W <- matrix(data=NA, nrow=1 + length(PCs.toaccountfor), ncol=2)
+rownames(H2W) <- c()
+colnames(H2W) <- c("with_PCs", "without_PCs")
+H2W[, "without_PCs"] <- VARU_W[,"without_PCs"] / (VARU_W[,"without_PCs"] +
+                                                  fit.full$varE)
+H2W[, "with_PCs"] <- VARU_W[,"with_PCs"] / (VARU_W[,"with_PCs"] +
+                                            fit.full$varE)
+
+## reproduce figure 6
+plot(H2W[,2] ~ I(0:20), pch=15, col="red", main="Same as figure 6",
+     xlab="Number of eigenvectors", ylab="Within-group heritability",
+     type="o", ylim=c(.95,1.05) * range(as.vector(H2W)))
+abline(h=range(H2W[,2]), lty=2)
+abline(v=0)
+points(x=0:20, y=H2W[,1], type="b", pch=15, col="blue")
+
+## clean
+file.remove(fit.full$saveAt)
 }
 }
 \author{
