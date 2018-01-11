@@ -35,6 +35,9 @@ References are:
 \note{
 Unknown parents should be coded as zero. Last modified by Morota on April 8, 2010.
 }
+\seealso{
+\code{link{makeMmeElements}}, \code{\link{makeMmeRhs}}, \code{\link{makeMmeLhs}}
+}
 \author{
-Goto Morota
+Goto Morota [aut], Timothee Flutre [ctb]
 }

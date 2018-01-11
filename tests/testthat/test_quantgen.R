@@ -1881,7 +1881,7 @@ test_that("thinSnps_coord", {
   expect_equal(observed, expected)
 })
 
-test_that("mme", {
+test_that("solveMme", {
   ## see Mrode (2005), section 3.2, example 3.1 page 42
   X <- matrix(c(1,0,0,1,1,
                 0,1,1,0,0),
@@ -1894,9 +1894,9 @@ test_that("mme", {
               ncol=8, byrow=TRUE)
   y <- matrix(c(4.5, 2.9, 3.9, 3.5, 5.0), ncol=1)
 
-  sigma.a.2 <- 20
+  sigma.u.2 <- 20
   sigma.e.2 <- 40
-  alpha <- sigma.e.2 / sigma.a.2
+  lambda <- sigma.e.2 / sigma.u.2
   Ainv <- matrix(c(1.833,0.5,0,-0.667,0,-1,0,0,
                    0.5,2,0.5,0,-1,-1,0,0,
                    0,0.5,2,0,-1,0.5,0,-1,
@@ -1906,17 +1906,18 @@ test_that("mme", {
                    0,0,0,-1,-1,0,2,0,
                    0,0,-1,0,0,-1,0,2),
                  ncol=8, byrow=TRUE)
-  G <- sigma.a.2 * solve(Ainv)
+  G <- sigma.u.2 * solve(Ainv)
   R <- sigma.e.2 * diag(length(y))
   V <- Z %*% G %*% t(Z) + R
   Vinv <- solve(V)
 
   b.hat <- solve(t(X) %*% Vinv %*% X) %*% t(X) %*% Vinv %*% y
-  a.hat <- G %*% t(Z) %*% Vinv %*% (y - X %*% b.hat)
+  u.hat <- G %*% t(Z) %*% Vinv %*% (y - X %*% b.hat)
 
-  expected <- c(b.hat, a.hat)
+  expected <- c(b.hat, u.hat)
 
-  observed <- mme(y=y, W=X, Z=Z, sigma.A2=sigma.a.2, Ainv=Ainv, V.E=sigma.e.2)
+  observed <- solveMme(y=y, X=X, Z=Z, sigma.u2=sigma.u.2, Ainv=Ainv,
+                       sigma2=sigma.e.2)
 
   expect_equal(format(observed, digits=1), format(expected, digits=1))
 })

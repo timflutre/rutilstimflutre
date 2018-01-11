@@ -4,7 +4,7 @@ context("VarCompEstimReml")
 ## example from Mrode (2005), 11.6
 ## concerning the pre-weaning gain (WWG) of beef calves
 .makeDataMrode116 <- function(){
-  ## responses
+  ## responses (5x1)
   y <- c(2.6, 0.1, 1.0, 3.0, 1.0)
 
   ## pedigree
@@ -13,10 +13,10 @@ context("VarCompEstimReml")
   A <- createA(ped$sire, ped$dam)
   Ainv <- quass(ped$sire, ped$dam)
 
-  ## incidence matrix X
+  ## incidence matrix X (5x2)
   X <- matrix(c(1,0,0,1,1,0,1,1,0,0), nrow=5, ncol=2)
 
-  ## incidence matrix Z
+  ## incidence matrix Z (5x8)
   z1 <- matrix(0, ncol=3, nrow=5)
   z2 <- matrix(c(1,0,0,0,0,0,1,0,0,0,0,0,1,0,0,0,0,0,1,0,0,0,0,0,1), ncol=5)
   Z <- cbind(z1,z2)

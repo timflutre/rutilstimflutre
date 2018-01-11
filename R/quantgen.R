@@ -5739,17 +5739,112 @@ simulAnimalModel <- function(T=1,
               coords=coords))
 }
 
-##' Animal model
+##' Make elements of MME
 ##'
-##' Given T=1 trait, I genotypes, Q covariates and N=I*Q phenotypes per trait, compute the BLUEs and BLUPs of the following "animal model" via Henderson's mixed model equations: y = W c + Z g_A + e, where y is N x 1; W is N x Q; Z is N x I; g_A ~ Normal_Ix1(0, sigma_A^2 A); e ~ Normal_Nx1(0, V.E Id_N).
-##' @param y vector of phenotypes
-##' @param W incidence matrix of fixed effects
-##' @param Z incidence matrix of random effects, the breeding values
-##' @param sigma.A2 variance component of the breeding values
-##' @param Ainv inverse of A, the matrix of additive genetic relationships
-##' @param V.E variance component of the errors
-##' @return vector of length QI containing the BLUEs of c and the BLUPs of g_A
+##' Make elements of Henderson's MME.
+##' @param y vector of phenotypes (or matrix with one column)
+##' @param X incidence matrix of fixed effects
+##' @param Z incidence matrix of random variables
+##' @return list of matrices
 ##' @author Timothee Flutre
+##' @seealso \code{link{solveMme}}
+##' @export
+makeMmeElements <- function(y, X, Z){
+  if(is.vector(y))
+    y <- matrix(y, nrow=length(y), ncol=1)
+  stopifnot(is.matrix(y),
+            is.matrix(X),
+            is.matrix(Z),
+            ncol(y) == 1,
+            nrow(y) == nrow(X),
+            nrow(X) == nrow(Z))
+
+  ## for the left-hand side
+  tX.X <- crossprod(X, X)
+  tZ.X <- crossprod(Z, X)
+  tX.Z <- crossprod(X, Z)
+  tZ.Z <- crossprod(Z, Z)
+
+  ## for the right-hand side
+  tX.y <- crossprod(X, y)
+  tZ.y <- crossprod(Z, y)
+
+  return(list(tX.X=tX.X, tZ.X=tZ.X, tX.Z=tX.Z, tZ.Z=tZ.Z,
+              tX.y=tX.y, tZ.y=tZ.y))
+}
+
+##' Make MME's right-hand side
+##'
+##' Make Henderson's MME's right-hand side.
+##' @param tX.y X being the incidence matrix of fixed effects and y the vector of phenotypes
+##' @param tZ.y Z being the incidence matrix of random variables
+##' @return matrix
+##' @author Timothee Flutre
+##' @seealso \code{link{solveMme}}
+##' @export
+makeMmeRhs <- function(tX.y, tZ.y){
+  stopifnot(is.matrix(tX.y),
+            ncol(tX.y) == 1,
+            is.matrix(tZ.y),
+            ncol(tZ.y) == 1)
+
+  rhs <- c(tX.y, tZ.y)
+
+  ## rhs <- matrix(data=NA, nrow=nrow(tX.y) + nrow(tZ.y), ncol=1)
+  ## rhs[1:ncol(X), 1] <- tX.y
+  ## rhs[(ncol(X)+1):nrow(rhs), 1] <- tZ.y
+
+  return(rhs)
+}
+
+##' Make MME's left-hand side
+##'
+##' Make Henderson's MME's left-hand side.
+##' @param tX.X X being the incidence matrix of fixed effects
+##' @param tZ.X Z being the incidence matrix of random variables
+##' @param tX.Z see above
+##' @param tZ.Z see above
+##' @param lambda ratio of the variance component of the errors over the variance component of the additive genotypic values (also called breeding values)
+##' @param Ainv inverse of A, the matrix of additive genetic relationships
+##' @return matrix
+##' @author Timothee Flutre
+##' @seealso \code{link{solveMme}}
+##' @export
+makeMmeLhs <- function(tX.X, tZ.X, tX.Z, tZ.Z, lambda, Ainv){
+  stopifnot(is.matrix(tX.X),
+            is.matrix(tZ.X),
+            is.matrix(tX.Z),
+            is.matrix(tZ.Z),
+            nrow(tX.X) == nrow(tX.Z),
+            nrow(tZ.Z) == nrow(tZ.X),
+            is.numeric(lambda),
+            length(lambda) == 1,
+            is.matrix(Ainv))
+
+  p <- nrow(tX.X)
+  q <- nrow(tZ.Z)
+  lhs <- matrix(data=NA, nrow=p+q, ncol=p+q)
+
+  lhs[1:p, 1:p] <- tX.X
+  lhs[(p+1):(p+q), 1:p] <- tZ.X
+  lhs[1:p, (p+1):(p+q)] <- tX.Z
+  lhs[(p+1):(p+q), (p+1):(p+q)] <- tZ.Z + lambda * Ainv
+
+  return(lhs)
+}
+
+##' Solve MME
+##'
+##' Given T=1 response, P fixed effects and Q random variables (for a total of N observations), compute the BLUEs and BLUPs of the following linear mixed model by solving Henderson's mixed model equation (MME): y = X beta + Z u + epsilon, where y is N x 1; X is N x P; Z is N x Q; u ~ Normal_Qx1(0, sigma_u^2 A); epsilon ~ Normal_Nx1(0, sigma^2 Id_N).
+##' @param y vector of responses (or matrix with one column)
+##' @param X incidence matrix of fixed effects
+##' @param Z incidence matrix of random variables
+##' @param sigma.u2 variance component of the random variables
+##' @param Ainv inverse of A, the variance-covariance matrix of the random variables
+##' @param sigma2 variance component of the errors
+##' @return vector of length PQ containing the BLUEs of beta and the BLUPs of u
+##' @author Timothee Flutre
+##' @seealso \code{link{makeMmeElements}}, \code{\link{makeMmeRhs}}, \code{\link{makeMmeLhs}}
 ##' @examples
 ##' \dontrun{## simulate genotypes
 ##' set.seed(1859)
@@ -5766,38 +5861,35 @@ simulAnimalModel <- function(T=1,
 ##'    Ainv <- mpInv(A)
 ##' } else
 ##'    Ainv <- solve(A)
-##' fit <- mme(y=model$Y[,1,drop=FALSE], W=model$W, Z=model$Z,
-##'            sigma.A2=model$V.G.A, Ainv=Ainv, V.E=model$V.E)
+##' fit <- solveMme(y=model$Y[,1,drop=FALSE], X=model$W, Z=model$Z,
+##'                 sigma.u2=model$V.G.A, Ainv=Ainv, sigma2=model$V.E)
 ##' cbind(model$C, fit[1:3])
 ##' cor(model$G.A, fit[4:length(fit)])
 ##' }
 ##' @export
-mme <- function(y, W, Z, sigma.A2, Ainv, V.E){
+solveMme <- function(y, X, Z, sigma.u2, Ainv, sigma2){
+  if(is.vector(y))
+    y <- matrix(y, nrow=length(y), ncol=1)
   stopifnot(is.matrix(y),
-            is.matrix(W),
+            is.matrix(X),
             is.matrix(Z),
             is.matrix(Ainv),
             ncol(y) == 1,
-            nrow(y) == nrow(W),
-            nrow(W) == nrow(Z),
+            nrow(y) == nrow(X),
+            nrow(X) == nrow(Z),
             nrow(Ainv) == ncol(Z))
 
-  lambda <- V.E / sigma.A2
+  elems <- makeMmeElements(y=y, X=X, Z=Z)
 
-  lhs <- matrix(data=NA, nrow=ncol(W)+ncol(Z), ncol=ncol(W)+ncol(Z))
-  lhs[1:ncol(W), 1:ncol(W)] <- crossprod(W, W) # faster than t(W) %*% W
-  lhs[(ncol(W)+1):nrow(lhs), 1:ncol(W)] <- crossprod(Z, W)
-  lhs[1:ncol(W), (ncol(W)+1):ncol(lhs)] <- crossprod(W, Z)
-  lhs[(ncol(W)+1):nrow(lhs), (ncol(W)+1):ncol(lhs)] <-
-    crossprod(Z, Z) + lambda * Ainv
+  rhs <- makeMmeRhs(tX.y=elems$tX.y, tZ.y=elems$tZ.y)
 
-  rhs <- matrix(data=NA, nrow=nrow(lhs), ncol=1)
-  rhs[1:ncol(W), 1] <- crossprod(W, y)
-  rhs[(ncol(W)+1):nrow(rhs), 1] <- crossprod(Z, y)
+  lhs <- makeMmeLhs(tX.X=elems$tX.X, tZ.X=elems$tZ.X,
+                    tX.Z=elems$tX.Z, tZ.Z=elems$tZ.Z,
+                    lambda=sigma2 / sigma.u2, Ainv=Ainv)
 
   theta.hat <- solve(lhs, rhs) # faster than solve(lhs) %*% rhs
 
-  return(c(theta.hat))
+  return(as.vector(theta.hat))
 }
 
 ##' Estimate variance components via REML using EM
@@ -5816,54 +5908,59 @@ mme <- function(y, W, Z, sigma.A2, Ainv, V.E){
 ##' @param initU initial value for the additive genetic variance
 ##' @param verbose verbosity level (0/1/2)
 ##' @return vector
-##' @author Goto Morota
+##' @author Goto Morota [aut], Timothee Flutre [ctb]
 ##' @note Unknown parents should be coded as zero. Last modified by Morota on April 8, 2010.
+##' @seealso \code{link{makeMmeElements}}, \code{\link{makeMmeRhs}}, \code{\link{makeMmeLhs}}
 ##' @export
 emreml <- function(Ainv, y, X, Z, initE, initU, verbose=0){
-  ## MME
 	n <- length(y)
-	Xpy <- t(X) %*% y
-	Zpy <- t(Z) %*% y
-	XpX <- t(X) %*% X
-	XpZ <- t(X) %*% Z
-	ZpX <- t(Z) %*% X
-	ZpZ <- t(Z) %*% Z
-	RHS <- c(Xpy, Zpy)
-	oldE <- initE
-	oldU <- initU
 	rankX <- qr(X, LAPACK=TRUE)$rank
 	rankA <- qr(Ainv, LAPACK=TRUE)$rank
 
-	lhsRow <- length(RHS)
-	z <- length(RHS) - dim(ZpZ)[1] + 1
+  elems <- makeMmeElements(y=y, X=X, Z=Z)
+  Xpy <- elems$tX.y
+  Zpy <- elems$tZ.y
+  rhs <- makeMmeRhs(tX.y=elems$tX.y, tZ.y=elems$tZ.y)
+  XpX <- elems$tX.X
+  XpZ <- elems$tX.Z
+  ZpX <- elems$tZ.X
+  ZpZ <- elems$tZ.Z
 
+	nb.rows.lhs <- length(rhs) # nrow(X) + nrow(Z)
+	z <- length(rhs) - dim(ZpZ)[1] + 1
+
+	oldE <- initE
+	oldU <- initU
 	diff1 <- 1
 	diff2 <- 1
 	i <- 0
-	while(diff1 > 10E-6 & diff2 > 10E-6){
+	while(diff1 > 10^(-6) & diff2 > 10^(-6)){
 		i <- i + 1
-		alpha <- as.vector((oldE / oldU))
-		LHS <- rbind(cbind(XpX, XpZ), cbind(ZpX, ZpZ+Ainv*alpha))
-		B <- solve(LHS) %*% RHS
+
+		lambda <- as.vector((oldE / oldU))
+    lhs <- makeMmeLhs(tX.X=XpX, tZ.X=ZpX, tX.Z=XpZ, tZ.Z=ZpZ,
+                      lambda=lambda, Ainv=Ainv)
+		B <- solve(lhs, rhs) #faster than solve(lhs) %*% rhs
 		e <-  y - cbind(X,Z) %*% B
-		sig2E <- (t(e) %*% y) / (n - rankX)
-		c22 <- solve(LHS)[z:lhsRow, z:lhsRow]
+		varE <- (t(e) %*% y) / (n - rankX)
+		c22 <- solve(lhs)[z:nb.rows.lhs, z:nb.rows.lhs]
 		u <- B[z:length(B)]
 		## sum(Ainv*c22) is same as sum(diag(Ainv%*%c22))
-		sig2U <- (t(u) %*% Ainv %*% u + sum(Ainv*c22)*oldE) / (rankA)
-		diff1 <- abs(sig2E - oldE)
-		diff2 <- abs(sig2U - oldU)
+		varU <- (t(u) %*% Ainv %*% u + sum(Ainv*c22)*oldE) / (rankA)
+
+		diff1 <- abs(varE - oldE)
+		diff2 <- abs(varU - oldU)
 		if(verbose > 0){
       txt <- paste0("iteration ", i, ":",
-                    " sig2E=", format(sig2E, digits=5),
-                    " sig2U=", format(sig2U, digits=5))
+                    " varE=", format(varE, digits=5),
+                    " varU=", format(varU, digits=5))
       write(txt, stdout())
 		}
-		oldE <- sig2E
-		oldU <- sig2U
+		oldE <- varE
+		oldU <- varU
 	}
 
-	return(c(varE=sig2E, varU=sig2U))
+	return(c(varE=varE, varU=varU))
 }
 
 ##' Estimate variance components via REML using AI
@@ -5888,42 +5985,50 @@ emreml <- function(Ainv, y, X, Z, initE, initU, verbose=0){
 aireml <- function(A, y, X, Z, initE, initU, verbose=0){
 	N <- length(y)
 	Ze <- diag(N)
-	varcomps <- c(initU, initE)
+	oldE <- initE
+	oldU <- initU
 	AI <- matrix(0, ncol=2, nrow=2)
 	s <- matrix(0, ncol=1, nrow=2)
-	diff1 <- 10
-	diff2 <- 10
 
+	diff1 <- 1
+	diff2 <- 1
 	i <- 0
-	while (diff1 > 10e-7 & diff2 > 10e-7 ){
+	while(diff1 > 10^(-6) & diff2 > 10^(-7)){
 		i <- i + 1
 
-		G <- A*varcomps[1]
-		R <- Ze%*%t(Ze)*varcomps[2]
-		V <- Z%*%G%*%t(Z) + R
+		G <- oldU * A
+		R <- oldE * Ze %*% t(Ze)
+		V <- Z %*% G %*% t(Z) + R
 		Vinv <- solve(V)
-		P <- Vinv - Vinv%*%X%*%solve(t(X)%*%Vinv%*%X)%*%t(X)%*%Vinv
-
-		AI[1,1] <- sum(diag((t(y)%*%P%*%Z%*%t(Z)%*%P%*%Z%*%t(Z)%*%P%*%y )))
-		AI[1,2] <-  sum(diag((t(y)%*%P%*%Z%*%t(Z)%*%P%*%Ze%*%t(Ze)%*%P%*%y )))
+		P <- Vinv - Vinv %*% X %*% solve(t(X) %*% Vinv %*% X) %*% t(X) %*% Vinv
+		AI[1,1] <- sum(diag((t(y) %*% P %*% Z %*% t(Z) %*%
+                         P %*% Z %*% t(Z) %*% P %*% y)))
+		AI[1,2] <-  sum(diag((t(y) %*% P %*% Z %*% t(Z) %*%
+                          P %*% Ze %*% t(Ze) %*% P %*% y)))
 		AI[2,1] <- AI[1,2]
-		AI[2,2] <- sum(diag((t(y)%*%P%*%Ze%*%t(Ze)%*%P%*%Ze%*%t(Ze)%*%P%*%y )))
-		s[1,1] <- sum(diag((P%*%Z%*%t(Z) ))) - (t(y)%*%P%*%Z%*%t(Z)%*%P%*%y )
-		s[2,1] <- sum(diag((P%*%Ze%*%t(Ze) ))) - (t(y)%*%P%*%Ze%*%t(Ze)%*%P%*%y )
+		AI[2,2] <- sum(diag((t(y) %*% P %*% Ze %*% t(Ze) %*%
+                         P %*% Ze %*% t(Ze) %*% P %*% y)))
+		s[1,1] <- sum(diag((P %*% Z %*% t(Z)))) -
+      (t(y) %*% P %*% Z %*% t(Z) %*% P %*% y)
+		s[2,1] <- sum(diag((P %*% Ze %*% t(Ze)))) -
+      (t(y) %*% P %*% Ze %*% t(Ze) %*% P %*% y)
+		newvarcomps <- c(oldU, oldE) - solve(AI) %*% s
+    varU <- newvarcomps[1]
+    varE <- newvarcomps[2]
 
-		newvarcomps <- varcomps - solve(AI)%*%s
-		diff1 <- abs(varcomps[1] - newvarcomps[1])
-		diff2 <- abs(varcomps[2] - newvarcomps[2])
-		varcomps <- newvarcomps
+		diff1 <- abs(varE - oldE)
+		diff2 <- abs(varU - oldU)
 		if(verbose > 0){
       txt <- paste0("iteration ", i, ":",
-                    " sig2E=", format(varcomps[1], digits=5),
-                    " sig2U=", format(varcomps[2], digits=5))
+                    " varE=", format(varE, digits=5),
+                    " varU=", format(varU, digits=5))
       write(txt, stdout())
 		}
+		oldE <- varE
+		oldU <- varU
 	}
 
-	return(c(varE=varcomps[2], varU=varcomps[1]))
+	return(c(varE=varE, varU=varU))
 }
 
 ##' Animal model
