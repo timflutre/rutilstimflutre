@@ -4,7 +4,7 @@
 \alias{makeExamplePlantFile}
 \title{Example for breeding game}
 \usage{
-makeExamplePlantFile(out.dir, lang = "fr")
+makeExamplePlantFile(out.dir, lang = "en")
 }
 \arguments{
 \item{out.dir}{path to the directory in which the file will be saved}

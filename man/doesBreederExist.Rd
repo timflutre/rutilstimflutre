@@ -4,7 +4,7 @@
 \alias{doesBreederExist}
 \title{Check breeding game}
 \usage{
-doesBreederExist(breeder, root.dir, lang = "fr")
+doesBreederExist(breeder, root.dir, lang = "en")
 }
 \arguments{
 \item{breeder}{name of the breeder (e.g. "breeder3" or "selectionneur2", depending on the language)}

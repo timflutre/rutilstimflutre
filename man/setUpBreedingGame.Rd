@@ -4,17 +4,17 @@
 \alias{setUpBreedingGame}
 \title{Set up breeding game}
 \usage{
-setUpBreedingGame(root.dir, shared.dir = NULL, nb.breeders = 3,
-  lang = "fr")
+setUpBreedingGame(root.dir, shared.dir = NULL, nb.breeders = 0,
+  lang = "en")
 }
 \arguments{
 \item{root.dir}{path to the root directory}
 
 \item{shared.dir}{path to the shared directory (e.g. via Dropbox; root.dir if NULL)}
 
-\item{nb.breeders}{number of breeders (an additional "test" breeder will be created)}
+\item{nb.breeders}{number of breeders (an default "test" breeder is always created)}
 
-\item{lang}{language to be used (fr/en)}
+\item{lang}{language to be used (en/fr)}
 }
 \value{
 list

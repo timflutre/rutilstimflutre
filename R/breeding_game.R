@@ -7,13 +7,13 @@
 ##' Already-existing directories are not re-created.
 ##' @param root.dir path to the root directory
 ##' @param shared.dir path to the shared directory (e.g. via Dropbox; root.dir if NULL)
-##' @param nb.breeders number of breeders (an additional "test" breeder will be created)
-##' @param lang language to be used (fr/en)
+##' @param nb.breeders number of breeders (an default "test" breeder is always created)
+##' @param lang language to be used (en/fr)
 ##' @return list
 ##' @author Timothee Flutre
 ##' @export
-setUpBreedingGame <- function(root.dir, shared.dir=NULL, nb.breeders=3,
-                              lang="fr"){
+setUpBreedingGame <- function(root.dir, shared.dir=NULL, nb.breeders=0,
+                              lang="en"){
   stopifnot(is.character(root.dir),
             dir.exists(root.dir),
             lang %in% c("fr", "en"))
@@ -53,10 +53,12 @@ setUpBreedingGame <- function(root.dir, shared.dir=NULL, nb.breeders=3,
   out$init.dir <- init.dir
 
   breeders <- c("test")
-  if(lang == "fr"){
-    breeders <- c(breeders, paste0("selectionneur", 1:nb.breeders))
-  } else if(lang == "en"){
-    breeders <- c(breeders, paste0("breeder", 1:nb.breeders))
+  if(nb.breeders > 0){
+    if(lang == "fr"){
+      breeders <- c(breeders, paste0("selectionneur", 1:nb.breeders))
+    } else if(lang == "en"){
+      breeders <- c(breeders, paste0("breeder", 1:nb.breeders))
+    }
   }
   breeder.dirs <- c()
   for(breeder in breeders){
@@ -85,7 +87,7 @@ setUpBreedingGame <- function(root.dir, shared.dir=NULL, nb.breeders=3,
 ##' @return logical
 ##' @author Timothee Flutre
 ##' @export
-doesBreederExist <- function(breeder, root.dir, lang="fr"){
+doesBreederExist <- function(breeder, root.dir, lang="en"){
   stopifnot(is.character(breeder),
             is.character(root.dir),
             dir.exists(root.dir),
@@ -122,16 +124,20 @@ getBreedingGameSetup <- function(root.dir){
     out$truth.dir <- paste0(root.dir, "/verite")
     out$shared.dir <- paste0(root.dir, "/partage")
     out$init.dir <- paste0(out$shared.dir, "/donnees_initiales")
+    out$breeders <- c("test")
     tmp <- length(Sys.glob(paste0(out$shared.dir, "/selectionneur*")))
-    out$breeders <- c("test", paste0("selectionneur", 1:tmp))
+    if(tmp > 0)
+      out$breeders <- c(out$breeders, paste0("selectionneur", 1:tmp))
 
   } else if(dir.exists(paste0(root.dir, "/truth"))){
     lang <- "en"
     out$truth.dir <- paste0(root.dir, "/truth")
     out$shared.dir <- paste0(root.dir, "/shared")
     out$init.dir <- paste0(out$shared.dir, "/initial_data")
+    out$breeders <- c("test")
     tmp <- length(Sys.glob(paste0(out$shared.dir, "/breeder*")))
-    out$breeders <- c("test", paste0("breeder", 1:tmp))
+    if(tmp > 0)
+      out$breeders <- c(out$breeders, paste0("breeder", 1:tmp))
 
   } else
     stop("can't determine the langage used for the breeding game")
@@ -595,7 +601,7 @@ simulTrait3 <- function(dat, X, afs=NULL, subset.snps=NULL,
 ##' @author Timothee Flutre
 ##' @seealso \code{\link{readCheckBreedPlantFile}}
 ##' @export
-makeExamplePlantFile <- function(out.dir, lang="fr"){
+makeExamplePlantFile <- function(out.dir, lang="en"){
   stopifnot(dir.exists(out.dir),
             lang %in% c("fr", "en"))
 
@@ -644,7 +650,7 @@ makeExamplePlantFile <- function(out.dir, lang="fr"){
 ##' @author Timothee Flutre
 ##' @seealso \code{\link{readCheckBreedDataFile}}
 ##' @export
-makeExampleDataFile <- function(out.dir, lang="fr"){
+makeExampleDataFile <- function(out.dir, lang="en"){
   stopifnot(dir.exists(out.dir),
             lang %in% c("fr", "en"))
 
