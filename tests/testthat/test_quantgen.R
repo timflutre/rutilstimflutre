@@ -851,7 +851,7 @@ test_that("simulRefAltSnpAlleles", {
   expect_equal(dimnames(observed), dimnames(expected))
 })
 
-test_that("segSites2allDoses", {
+test_that("segSites2allDoses_several-inds", {
   nb.inds <- 2
   nb.chrs <- 2
   nb.snps <- c(3, 2)
@@ -862,6 +862,26 @@ test_that("segSites2allDoses", {
                  chr2=matrix(c(1,0,0,1, 0,0,1,1), nrow=2 * nb.inds, ncol=nb.snps[2]))
 
   expected <- matrix(c(0,0, 1,1, 2,1, 1,1, 0,2),
+                     nrow=nb.inds, ncol=sum(nb.snps),
+                     dimnames=list(ind.ids, snp.ids))
+
+  observed <- segSites2allDoses(seg.sites=haplos, ind.ids=ind.ids,
+                                snp.ids=snp.ids)
+
+  expect_equal(observed, expected)
+})
+
+test_that("segSites2allDoses_single-ind", {
+  nb.inds <- 1
+  nb.chrs <- 2
+  nb.snps <- c(3, 2)
+  ind.ids <- paste0("ind", 1:nb.inds)
+  snp.ids <- paste0("snp", 1:sum(nb.snps))
+  haplos <- list(chr1=matrix(c(0,0, 0,1, 1,1),
+                             nrow=2 * nb.inds, ncol=nb.snps[1]),
+                 chr2=matrix(c(1,0, 0,0), nrow=2 * nb.inds, ncol=nb.snps[2]))
+
+  expected <- matrix(c(0, 1, 2, 1, 0),
                      nrow=nb.inds, ncol=sum(nb.snps),
                      dimnames=list(ind.ids, snp.ids))
 
