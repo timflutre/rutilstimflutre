@@ -326,8 +326,8 @@ simulSnpEffectsTraits12 <- function(snp.ids,
 ##' @param Alpha matrix of "year" effects, for each trait, the years corresponding to those indicated in \code{dat} (if NULL, will be simulated using \code{sigma.alpha2})
 ##' @param X matrix of bi-allelic SNP genotypes encoded in allele dose in {0,1,2}, with individuals in rows in the same order as the levels of \code{dat$ind}
 ##' @param Beta matrix of additive SNP effects, for each trait
-##' @param h2 vector of heritabilities, for each trait (if NULL, \code{sigma2} will be used)
-##' @param sigma2 vector of error variances, for each trait (ignored if \code{h2} is not NULL)
+##' @param h2 vector of heritabilities, for each trait (if NULL, \code{sigma2} will be used, but do not specify both)
+##' @param sigma2 vector of error variances, for each trait (ignored if \code{h2} is not NULL, but do not specify both)
 ##' @param cor.E.inter.trait correlation of errors between both traits
 ##' @param verbose verbosity level (0/1)
 ##' @return list
@@ -353,6 +353,12 @@ simulTraits12 <- function(dat,
                           cor.E.inter.trait=0,
                           verbose=1){
   requireNamespace("MASS")
+  if(! is.matrix(X)){
+    if(is.vector(X)){
+      warning("X should be a matrix; you should use drop=FALSE")
+      X <- matrix(data=X, nrow=1)
+    }
+  }
   stopIfNotValidGenosDose(X)
   stopifnot(is.data.frame(dat),
             ncol(dat) >= 4,
@@ -373,6 +379,8 @@ simulTraits12 <- function(dat,
             ! is.null(colnames(Beta)),
             nrow(Beta) == ncol(X),
             all(rownames(Beta) == colnames(X)),
+            xor(is.null(sigma2), is.null(sigma2)),
+            xor(! is.null(sigma2), ! is.null(sigma2)),
             is.numeric(cor.E.inter.trait),
             all(cor.E.inter.trait >= -1, cor.E.inter.trait <= 1))
   if(is.null(Alpha)){
@@ -399,7 +407,8 @@ simulTraits12 <- function(dat,
               ! is.null(names(sigma2)),
               names(sigma2) == names(mu))
   } else
-    stopifnot(is.vector(h2),
+    stopifnot(is.null(sigma2),
+              is.vector(h2),
               is.numeric(h2),
               all(h2 >= 0, h2 <= 1),
               length(h2) == length(mu),
@@ -442,7 +451,10 @@ simulTraits12 <- function(dat,
     print(Alpha)
   }
 
-  Z.I <- stats::model.matrix(~ ind - 1, data=dat)
+  if(nlevels(dat$ind) == 1){
+    Z.I <- matrix(data=1, nrow=nrow(dat), ncol=1)
+  } else
+    Z.I <- stats::model.matrix(~ ind - 1, data=dat)
   colnames(Z.I) <- inds
   G.A <- X %*% Beta
   afs <- estimSnpAf(X=X)

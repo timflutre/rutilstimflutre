@@ -153,10 +153,15 @@ gemma <- function(model="ulmm", y, X, snp.coords, recode.genos=TRUE,
   stopifnot(file.exists(Sys.which("gemma")))
   stopifnot(system("gemma > /dev/null") == 0)
   stopifnot(model %in% c("ulmm", "bslmm"))
-  if(is.matrix(y)){
-    stopifnot(ncol(y) == 1,
-              ! is.null(rownames(y)))
-    y <- stats::setNames(y[,1], rownames(y))
+  if(! is.vector(y)){
+    if(is.matrix(y)){
+      stopifnot(ncol(y) == 1,
+                ! is.null(rownames(y)))
+      y <- stats::setNames(y[,1], rownames(y))
+    } else if(is.numeric(y) & is.atomic(y)){ # e.g. from ranef()
+      stopifnot(! is.null(names(y)))
+      y <- stats::setNames(as.vector(y), names(y))
+    }
   }
   stopIfNotValidGenosDose(X)
   stopifnot(is.vector(y),

@@ -8420,10 +8420,15 @@ calcL10ApproximateBayesFactorWen <- function(Y, Xg, Xc,
 boxplotCandidateQtl <- function(y, X, snp, simplify.imputed=TRUE,
                                 xlab="Genotype", ylab="Phenotype",
                                 show.points=FALSE, notch=TRUE, verbose=1, ...){
-  if(is.matrix(y)){
-    stopifnot(ncol(y) == 1,
-              ! is.null(rownames(y)))
-    y <- stats::setNames(y[,1], rownames(y))
+  if(! is.vector(y)){
+    if(is.matrix(y)){
+      stopifnot(ncol(y) == 1,
+                ! is.null(rownames(y)))
+      y <- stats::setNames(y[,1], rownames(y))
+    } else if(is.numeric(y) & is.atomic(y)){ # e.g. from ranef()
+      stopifnot(! is.null(names(y)))
+      y <- stats::setNames(as.vector(y), names(y))
+    }
   }
   stopifnot(is.vector(y),
             ! is.null(names(y)),

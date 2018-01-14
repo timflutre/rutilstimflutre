@@ -21,9 +21,9 @@ simulTraits12(dat, mu = c(trait1 = 40, trait2 = 14), sigma.alpha2 = c(trait1
 
 \item{Beta}{matrix of additive SNP effects, for each trait}
 
-\item{h2}{vector of heritabilities, for each trait (if NULL, \code{sigma2} will be used)}
+\item{h2}{vector of heritabilities, for each trait (if NULL, \code{sigma2} will be used, but do not specify both)}
 
-\item{sigma2}{vector of error variances, for each trait (ignored if \code{h2} is not NULL)}
+\item{sigma2}{vector of error variances, for each trait (ignored if \code{h2} is not NULL, but do not specify both)}
 
 \item{cor.E.inter.trait}{correlation of errors between both traits}
 
