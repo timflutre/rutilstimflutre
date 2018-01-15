@@ -379,8 +379,8 @@ simulTraits12 <- function(dat,
             ! is.null(colnames(Beta)),
             nrow(Beta) == ncol(X),
             all(rownames(Beta) == colnames(X)),
-            xor(is.null(sigma2), is.null(sigma2)),
-            xor(! is.null(sigma2), ! is.null(sigma2)),
+            xor(is.null(h2), is.null(sigma2)),
+            xor(! is.null(h2), ! is.null(sigma2)),
             is.numeric(cor.E.inter.trait),
             all(cor.E.inter.trait >= -1, cor.E.inter.trait <= 1))
   if(is.null(Alpha)){
