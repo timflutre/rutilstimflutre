@@ -5,8 +5,8 @@
 \title{Simul breeding game}
 \usage{
 simulTraits12(dat, mu = c(trait1 = 40, trait2 = 14), sigma.alpha2 = c(trait1
-  = 6, trait2 = 3), Alpha = NULL, X, Beta, h2 = c(trait1 = 0.3, trait2 =
-  0.4), sigma2 = NULL, cor.E.inter.trait = 0, verbose = 1)
+  = 6, trait2 = 3), Alpha = NULL, X, Beta, h2 = NULL, sigma2 = NULL,
+  cor.E.inter.trait = 0, verbose = 1)
 }
 \arguments{
 \item{dat}{data.frame specifying the structure of the initial data set of phenotypes, with columns "ind", "year", etc}
@@ -21,9 +21,9 @@ simulTraits12(dat, mu = c(trait1 = 40, trait2 = 14), sigma.alpha2 = c(trait1
 
 \item{Beta}{matrix of additive SNP effects, for each trait}
 
-\item{h2}{vector of heritabilities, for each trait (if NULL, \code{sigma2} will be used, but do not specify both)}
+\item{h2}{vector of heritabilities, with the name of each trait, for instance \code{c(trait1=0.3, trait2=0.4)} (if NULL, \code{sigma2} will be used, but do not specify both)}
 
-\item{sigma2}{vector of error variances, for each trait (ignored if \code{h2} is not NULL, but do not specify both)}
+\item{sigma2}{vector of error variances, with the name of each trait, for instance \code{c(trait1=0.467, trait2=0.210)} (if NULL, \code{h2} will be used, but do not specify both)}
 
 \item{cor.E.inter.trait}{correlation of errors between both traits}
 

@@ -326,8 +326,8 @@ simulSnpEffectsTraits12 <- function(snp.ids,
 ##' @param Alpha matrix of "year" effects, for each trait, the years corresponding to those indicated in \code{dat} (if NULL, will be simulated using \code{sigma.alpha2})
 ##' @param X matrix of bi-allelic SNP genotypes encoded in allele dose in {0,1,2}, with individuals in rows in the same order as the levels of \code{dat$ind}
 ##' @param Beta matrix of additive SNP effects, for each trait
-##' @param h2 vector of heritabilities, for each trait (if NULL, \code{sigma2} will be used, but do not specify both)
-##' @param sigma2 vector of error variances, for each trait (ignored if \code{h2} is not NULL, but do not specify both)
+##' @param h2 vector of heritabilities, with the name of each trait, for instance \code{c(trait1=0.3, trait2=0.4)} (if NULL, \code{sigma2} will be used, but do not specify both)
+##' @param sigma2 vector of error variances, with the name of each trait, for instance \code{c(trait1=0.467, trait2=0.210)} (if NULL, \code{h2} will be used, but do not specify both)
 ##' @param cor.E.inter.trait correlation of errors between both traits
 ##' @param verbose verbosity level (0/1)
 ##' @return list
@@ -348,7 +348,7 @@ simulTraits12 <- function(dat,
                           Alpha=NULL,
                           X,
                           Beta,
-                          h2=c(trait1=0.3, trait2=0.4),
+                          h2=NULL,
                           sigma2=NULL,
                           cor.E.inter.trait=0,
                           verbose=1){
