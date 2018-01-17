@@ -105,7 +105,7 @@ doesBreederExist <- function(breeder, root.dir, lang="en"){
   return(dir.exists(path.to.dir))
 }
 
-##' Set up breeding game
+##' Get the breeding game setup
 ##'
 ##' Retrieve the paths to the directories used for the breeding game.
 ##' @param root.dir path to the root directory
@@ -149,6 +149,42 @@ getBreedingGameSetup <- function(root.dir){
   out$dbname <- paste0(root.dir, "/breeding-game.sqlite")
 
   return(out)
+}
+
+##' Get the breeding game constants
+##'
+##' Retrieve the constants used to parametrized the breeding game from the SQLite database.
+##' @param dbname name of the SQLite database (full path)
+##' @param table name of the table
+##' @return list
+##' @author Timothee Flutre
+##' @export
+getBreedingGameConstants <- function(dbname, table="constants"){
+  requireNamespace("DBI")
+  requireNamespace("RSQLite")
+  stopifnot(file.exists(dbname),
+            is.character(table))
+
+  out.list <- list()
+
+  ## retrieve the content of the table
+  db <- DBI::dbConnect(RSQLite::SQLite(), dbname=dbname)
+  query <- paste0("SELECT *",
+                  " FROM ", table)
+  out.df <- DBI::dbGetQuery(db, query)
+  DBI::dbDisconnect(db)
+
+  ## reformat
+  out.list <- as.list(out.df$value)
+  names(out.list) <- out.df$item
+  for(i in seq_along(out.list))
+    out.list[[i]] <- tryCatch({
+      as.numeric(out.list[[i]])
+    }, warning = function(c){ # ex.: case of 'max.upload.pheno.field'
+      out.list[[i]]
+    })
+
+  return(out.list)
 }
 
 ##' Simul breeding game

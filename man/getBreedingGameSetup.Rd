@@ -2,7 +2,7 @@
 % Please edit documentation in R/breeding_game.R
 \name{getBreedingGameSetup}
 \alias{getBreedingGameSetup}
-\title{Set up breeding game}
+\title{Get the breeding game setup}
 \usage{
 getBreedingGameSetup(root.dir)
 }
