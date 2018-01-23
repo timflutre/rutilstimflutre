@@ -703,8 +703,8 @@ makeExampleDataFile <- function(out.dir, lang="en"){
             lang %in% c("fr", "en"))
 
   dat <- data.frame(ind=c(paste0("ind", 7:10), "ind7", "ind31"),
-                    task=c(rep("pheno", 3), "geno", "geno", "geno"),
-                    details=c("2", "1", "5", "hd", "snp15492", "ld"),
+                    task=c(rep("pheno-field", 2), "pheno-patho", "geno", "geno", "geno"),
+                    details=c("2", "5", "1", "hd", "snp15492", "ld"),
                     stringsAsFactors=FALSE)
 
   if(lang == "fr"){
@@ -718,15 +718,17 @@ makeExampleDataFile <- function(out.dir, lang="en"){
       file=f, append=TRUE)
   cat("# individual names should only use [a-z], [A-Z], [0-9], [_-] (no space, comma, etc)\n",
       file=f, append=TRUE)
-  cat("# the 'task' column should contain 'pheno' or 'geno'\n",
+  cat("# the 'task' column should contain 'pheno-field', 'pheno-patho' or 'geno'\n",
       file=f, append=TRUE)
-  cat("# if 'task=pheno', the 'details' column should contain the number of plots\n",
+  cat("# if 'task=pheno-field', the 'details' column should contain the number of plots\n",
+      file=f, append=TRUE)
+  cat("# if 'task=pheno-patho', the 'details' column should contain the number of replicates\n",
       file=f, append=TRUE)
   cat("# if 'task=geno', the 'details' column should contain 'hd', 'ld' or the SNP identifier\n",
       file=f, append=TRUE)
   cat("# individuals should not be duplicated within each task\n",
       file=f, append=TRUE)
-  cat("# the total number of requested plots (task=pheno) should not exceed the total available\n",
+  cat("# the total number of requested plots (task=pheno-field) should not exceed the total available\n",
       file=f, append=TRUE)
   cat("# use write.table(x=inds, file=\"<breeder>_inds.txt\", quote=FALSE, sep=\"\\t\", row.names=FALSE, col.names=TRUE)\n",
       file=f, append=TRUE)
