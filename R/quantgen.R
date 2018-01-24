@@ -4710,6 +4710,12 @@ estimGenRel <- function(X, afs=NULL, thresh=NULL, relationships="additive",
       afs <- afs[colnames(X)]
     }
   }
+  if(method == "center-std" & any(afs == 0.5)){
+    idx <- which(afs != 0.5)
+    X <- X[, idx]
+    P <- ncol(X)
+    afs <- afs[colnames(X)]
+  }
 
   if(verbose > 0){
     msg <- paste0("estimate relationships with ", ncol(X), " SNPs ...")
