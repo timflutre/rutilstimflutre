@@ -483,9 +483,9 @@ loadReadCountsPerIndAndLane <- function(lanes.dir){
 
 ##' Reformat read counts per lane
 ##'
-##' Reformat the data.frame from \code{\link{loadReadCountsPerIndAndLane}} in a matrix of counts
-##' @param x data.frame
-##' @return matrix
+##' Reformat as a matrix of counts a data frame formatted, for instance, as the output of \code{\link{loadReadCountsPerIndAndLane}}
+##' @param x data frame with columns "lane", "ind" and "assigned"
+##' @return matrix with lanes in rows and individuals in columns
 ##' @author Timothee Flutre
 ##' @export
 formatReadCountsPerLane <- function(x){
@@ -501,9 +501,11 @@ formatReadCountsPerLane <- function(x){
   for(j in 1:ncol(counts)){
     ind <- colnames(counts)[j]
     for(lane in rownames(counts)){
-      if(ind %in% x$ind[x$lane == lane])
+      if(ind %in% x$ind[x$lane == lane]){
+        stopifnot(length(x$assigned[x$ind == ind & x$lane == lane]) == 1)
         counts[lane, ind] <- x$assigned[x$ind == ind &
-                                          x$lane == lane]
+                                        x$lane == lane]
+      }
     }
   }
   counts <- counts[, order(apply(counts, 2, sum))]
