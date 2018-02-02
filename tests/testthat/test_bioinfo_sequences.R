@@ -88,6 +88,23 @@ test_that("extractFasta", {
   }
 })
 
+test_that("formatReadCountsPerLane_simple", {
+  reads <- data.frame(ind=c("ind1","ind2","ind3"),
+                      lane=c("fc1_lane1", "fc1_lane1",
+                             "fc1_lane2"),
+                      assigned=c(1, 1, 1))
+
+  expected <- matrix(data=c(1, 1, 0,
+                            0, 0, 1),
+                     nrow=2, ncol=3, byrow=TRUE,
+                     dimnames=list(c("fc1_lane1","fc1_lane2"),
+                                   c("ind1","ind2","ind3")))
+
+  observed <- formatReadCountsPerLane(x=reads)
+
+  expect_equal(observed, expected)
+})
+
 test_that("coverageBams", {
   if(all(file.exists(Sys.which("bwa")),
          file.exists(Sys.which("samtools")))){

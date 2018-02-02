@@ -7,13 +7,13 @@
 formatReadCountsPerLane(x)
 }
 \arguments{
-\item{x}{data.frame}
+\item{x}{data frame with columns "lane", "ind" and "assigned"}
 }
 \value{
-matrix
+matrix with lanes in rows and individuals in columns
 }
 \description{
-Reformat the data.frame from \code{\link{loadReadCountsPerIndAndLane}} in a matrix of counts
+Reformat as a matrix of counts a data frame formatted, for instance, as the output of \code{\link{loadReadCountsPerIndAndLane}}
 }
 \author{
 Timothee Flutre
