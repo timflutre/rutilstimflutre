@@ -318,7 +318,8 @@ Ref: [Carbonetto and Stephens (2012)](http://dx.doi.org/10.1214/12-ba703)
 
 ```{r}
 system.time(
-    fit.varbvs <- varbvs(X=phenos$X.A, Z=NULL, y=phenos$Y[,1], verbose=FALSE))
+    fit.varbvs <- varbvs(X=phenos$X.A, Z=NULL, y=phenos$Y[,1],
+                         weights=NULL, verbose=FALSE))
 print(fit.varbvs.s <- summary(fit.varbvs))
 subset.snps <- unique(c(as.character(fit.varbvs.s$top.vars$variable),
                         true.qtls))
