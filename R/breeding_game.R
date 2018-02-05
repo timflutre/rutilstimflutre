@@ -316,6 +316,10 @@ simulSnpEffectsTraits12 <- function(snp.ids,
   nb.snps <- length(snp.ids)
   traits <- names(sigma.beta2)
 
+  if(verbose > 0){
+    msg <- "first, simulate without pleiotropy..."
+    write(msg, stdout())
+  }
   Sigma.beta.nopleio <- matrix(c(sigma.beta2[1], 0, 0, sigma.beta2[2]),
                                nrow=2, ncol=2,
                                dimnames=list(traits, traits))
@@ -323,11 +327,19 @@ simulSnpEffectsTraits12 <- function(snp.ids,
   rownames(Beta) <- snp.ids
   colnames(Beta) <- traits
   if(verbose > 0){
-    msg <- paste0("cor(Beta[,1], Beta[,2]) = ",
+    msg <- paste0("var(Beta[,1]) = ",
+                  format(stats::var(Beta[,1]), digits=2),
+                  "\nvar(Beta[,2]) = ",
+                  format(stats::var(Beta[,2]), digits=2),
+                  "\ncor(Beta[,1], Beta[,2]) = ",
                   format(stats::cor(Beta[,1], Beta[,2]), digits=3))
     write(msg, stdout())
   }
 
+  if(verbose > 0){
+    msg <- "second, add pleiotropy..."
+    write(msg, stdout())
+  }
   cov.pleio <- cor.pleio * sqrt(sigma.beta2[1] * sigma.beta2[2])
   Sigma.beta.pleio <- matrix(c(sigma.beta2[1], cov.pleio, cov.pleio,
                                sigma.beta2[2]),
@@ -341,7 +353,11 @@ simulSnpEffectsTraits12 <- function(snp.ids,
   is.pleiotropic[idx.pleio] <- TRUE
 
   if(verbose > 0){
-    msg <- paste0("cor(Beta[idx.pleio,1], Beta[idx.pleio,2]) = ",
+    msg <- paste0("var(Beta[,1]) = ",
+                  format(stats::var(Beta[,1]), digits=2),
+                  "\nvar(Beta[,2]) = ",
+                  format(stats::var(Beta[,2]), digits=2),
+                  "\ncor(Beta[idx.pleio,1], Beta[idx.pleio,2]) = ",
                   format(stats::cor(Beta[idx.pleio,1], Beta[idx.pleio,2]),
                          digits=3))
     msg <- paste0(msg, "\ncor(Beta[,1], Beta[,2]) = ",
