@@ -6,7 +6,7 @@
 \usage{
 simulTraits12(dat, mu = c(trait1 = 40, trait2 = 14), sigma.alpha2 = c(trait1
   = 6, trait2 = 3), Alpha = NULL, X, Beta, h2 = NULL, sigma2 = NULL,
-  cor.E.inter.trait = 0, verbose = 1)
+  cor.E.inter.trait = 0, set.neg.to.zero = TRUE, verbose = 1)
 }
 \arguments{
 \item{dat}{data.frame specifying the structure of the initial data set of phenotypes, with columns "ind", "year", etc}
@@ -26,6 +26,8 @@ simulTraits12(dat, mu = c(trait1 = 40, trait2 = 14), sigma.alpha2 = c(trait1
 \item{sigma2}{vector of error variances, with the name of each trait, for instance \code{c(trait1=0.467, trait2=0.210)} (if NULL, \code{h2} will be used, but do not specify both)}
 
 \item{cor.E.inter.trait}{correlation of errors between both traits}
+
+\item{set.neg.to.zero}{if TRUE, the negative phenotypic values, if any, will be set to zero}
 
 \item{verbose}{verbosity level (0/1)}
 }

@@ -381,6 +381,7 @@ simulSnpEffectsTraits12 <- function(snp.ids,
 ##' @param h2 vector of heritabilities, with the name of each trait, for instance \code{c(trait1=0.3, trait2=0.4)} (if NULL, \code{sigma2} will be used, but do not specify both)
 ##' @param sigma2 vector of error variances, with the name of each trait, for instance \code{c(trait1=0.467, trait2=0.210)} (if NULL, \code{h2} will be used, but do not specify both)
 ##' @param cor.E.inter.trait correlation of errors between both traits
+##' @param set.neg.to.zero if TRUE, the negative phenotypic values, if any, will be set to zero
 ##' @param verbose verbosity level (0/1)
 ##' @return list
 ##' @author Timothee Flutre
@@ -403,6 +404,7 @@ simulTraits12 <- function(dat,
                           h2=NULL,
                           sigma2=NULL,
                           cor.E.inter.trait=0,
+                          set.neg.to.zero=TRUE,
                           verbose=1){
   requireNamespace("MASS")
   if(! is.matrix(X)){
@@ -546,18 +548,16 @@ simulTraits12 <- function(dat,
                   nrow=2, ncol=2,
                   dimnames=list(traits, traits))
   E <- MASS::mvrnorm(n=N, mu=c(0,0), Sigma=Sigma)
-  if(verbose > 0){
-    msg <- paste0("h2(trait1) = ", format(stats::var(G.A[,1]) /
-                                          stats::var(Z.I %*% G.A[,1] + E[,1]),
-                                          digits=3))
-    msg <- paste0(msg, "\nh2(trait2) = ", format(stats::var(G.A[,2]) /
-                                                 stats::var(Z.I %*% G.A[,2] + E[,2]),
-                                                 digits=3))
-    write(msg, stdout())
-  }
 
   ## make the phenotypes
   Y <- M + E
+  if(set.neg.to.zero){
+    for(t in 1:T){
+      is.neg <- Y[,t] < 0
+      if(any(is.neg))
+        Y[is.neg, t] <- 0
+    }
+  }
 
   ## fill the output
   out$N <- N
