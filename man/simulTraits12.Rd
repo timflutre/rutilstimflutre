@@ -4,8 +4,9 @@
 \alias{simulTraits12}
 \title{Simul breeding game}
 \usage{
-simulTraits12(dat, mu = c(trait1 = 40, trait2 = 14), sigma.alpha2 = c(trait1
-  = 6, trait2 = 3), Alpha = NULL, X, Beta, h2 = NULL, sigma2 = NULL,
+simulTraits12(dat, mu = c(trait1 = 100, trait2 = 15),
+  sigma.alpha2 = c(trait1 = 230, trait2 = 10), Alpha = NULL, X, afs, Beta,
+  h2 = NULL, sigma2 = c(trait1 = 330, trait2 = 0.6),
   cor.E.inter.trait = 0, set.neg.to.zero = TRUE, verbose = 1)
 }
 \arguments{
@@ -18,6 +19,8 @@ simulTraits12(dat, mu = c(trait1 = 40, trait2 = 14), sigma.alpha2 = c(trait1
 \item{Alpha}{matrix of "year" effects, for each trait, the years corresponding to those indicated in \code{dat} (if NULL, will be simulated using \code{sigma.alpha2})}
 
 \item{X}{matrix of bi-allelic SNP genotypes encoded in allele dose in {0,1,2}, with individuals in rows in the same order as the levels of \code{dat$ind}}
+
+\item{afs}{vector of allele frequencies (to center X so that the genotypic values are also centered) which names are the SNPs}
 
 \item{Beta}{matrix of additive SNP effects, for each trait}
 

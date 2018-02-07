@@ -292,8 +292,8 @@ makeDfPhenos <- function(ind.ids, nb.plots.per.ind, year, pathogen){
 ##' }
 ##' @export
 simulSnpEffectsTraits12 <- function(snp.ids,
-                                    sigma.beta2=c(trait1=10^(-5),
-                                                  trait2=10^(-5)),
+                                    sigma.beta2=c(trait1=0.017,
+                                                  trait2=10^(-4)),
                                     prop.pleio=0.4,
                                     cor.pleio=-0.7,
                                     verbose=1){
@@ -377,6 +377,7 @@ simulSnpEffectsTraits12 <- function(snp.ids,
 ##' @param sigma.alpha2 vector of variance for the "year" effects, for each trait (ignored if \code{Alpha} is not NULL)
 ##' @param Alpha matrix of "year" effects, for each trait, the years corresponding to those indicated in \code{dat} (if NULL, will be simulated using \code{sigma.alpha2})
 ##' @param X matrix of bi-allelic SNP genotypes encoded in allele dose in {0,1,2}, with individuals in rows in the same order as the levels of \code{dat$ind}
+##' @param afs vector of allele frequencies (to center X so that the genotypic values are also centered) which names are the SNPs
 ##' @param Beta matrix of additive SNP effects, for each trait
 ##' @param h2 vector of heritabilities, with the name of each trait, for instance \code{c(trait1=0.3, trait2=0.4)} (if NULL, \code{sigma2} will be used, but do not specify both)
 ##' @param sigma2 vector of error variances, with the name of each trait, for instance \code{c(trait1=0.467, trait2=0.210)} (if NULL, \code{h2} will be used, but do not specify both)
@@ -396,13 +397,14 @@ simulSnpEffectsTraits12 <- function(snp.ids,
 ##' }
 ##' @export
 simulTraits12 <- function(dat,
-                          mu=c(trait1=40, trait2=14),
-                          sigma.alpha2=c(trait1=6, trait2=3),
+                          mu=c(trait1=100, trait2=15),
+                          sigma.alpha2=c(trait1=230, trait2=10),
                           Alpha=NULL,
                           X,
+                          afs,
                           Beta,
                           h2=NULL,
-                          sigma2=NULL,
+                          sigma2=c(trait1=330, trait2=0.6),
                           cor.E.inter.trait=0,
                           set.neg.to.zero=TRUE,
                           verbose=1){
@@ -428,6 +430,11 @@ simulTraits12 <- function(dat,
             ! is.unsorted(order(dat$year)),
             any(! is.null(sigma.alpha2), ! is.null(Alpha)),
             rownames(X) == levels(dat$ind),
+            is.vector(afs),
+            is.numeric(afs),
+            length(afs) == ncol(X),
+            ! is.null(names(afs)),
+            all(names(afs) == colnames(X)),
             is.matrix(Beta),
             ncol(Beta) == length(mu),
             ! is.null(colnames(Beta)),
@@ -486,8 +493,10 @@ simulTraits12 <- function(dat,
   colnames(Y) <- traits
 
   ## make the predictors
+  ## global intercept
   Z.mu <- matrix(1, nrow=N, ncol=1)
 
+  ## "year" effects
   if(J == 1){
     Z.J <- matrix(data=1, nrow=N, ncol=1)
   } else
@@ -505,16 +514,16 @@ simulTraits12 <- function(dat,
     print(Alpha)
   }
 
+  ## genotypic values
   if(nlevels(dat$ind) == 1){
     Z.I <- matrix(data=1, nrow=nrow(dat), ncol=1)
   } else
     Z.I <- stats::model.matrix(~ ind - 1, data=dat)
   colnames(Z.I) <- inds
-  G.A <- X %*% Beta
-  afs <- estimSnpAf(X=X)
-  sigma.a2 <- c(stats::var(Beta[,1]) * 2 * sum(afs * (1 - afs)),
-                stats::var(Beta[,2]) * 2 * sum(afs * (1 - afs)))
-  names(sigma.a2) <- traits
+  ## center X as in Vitezica et al (2013)
+  tmp <- matrix(rep(1, I)) %*% (2 * afs)
+  X.center <- X - tmp
+  G.A <- X.center %*% Beta
   if(verbose > 0){
     msg <- paste0("cor(G.A[,1], G.A[,2]) = ",
                   format(stats::cor(G.A[,1], G.A[,2]), digits=3))
@@ -524,8 +533,6 @@ simulTraits12 <- function(dat,
                                                    digits=3))
     msg <- paste0(msg, "\nvar(G.A[,2]) = ", format(stats::var(G.A[,2]),
                                                    digits=3))
-    msg <- paste0(msg, "\nsigma.a2[1] = ", format(sigma.a2[1], digits=3))
-    msg <- paste0(msg, "\nsigma.a2[2] = ", format(sigma.a2[2], digits=3))
     write(msg, stdout())
   }
 
@@ -568,11 +575,9 @@ simulTraits12 <- function(dat,
   out$sigma.alpha2 <- sigma.alpha2
   out$Alpha <- Alpha
   out$Z.I <- Z.I
-  out$X <- X
   out$afs <- afs
   out$Beta <- Beta
   out$G.A <- G.A
-  out$sigma.a2 <- sigma.a2
   out$h2 <- h2
   out$sigma2 <- sigma2
   out$cor.E.inter.trait <- cor.E.inter.trait

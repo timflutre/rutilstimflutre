@@ -4,8 +4,8 @@
 \alias{simulSnpEffectsTraits12}
 \title{Simul breeding game}
 \usage{
-simulSnpEffectsTraits12(snp.ids, sigma.beta2 = c(trait1 = 10^(-5), trait2 =
-  10^(-5)), prop.pleio = 0.4, cor.pleio = -0.7, verbose = 1)
+simulSnpEffectsTraits12(snp.ids, sigma.beta2 = c(trait1 = 0.017, trait2 =
+  10^(-4)), prop.pleio = 0.4, cor.pleio = -0.7, verbose = 1)
 }
 \arguments{
 \item{snp.ids}{vector of SNP identifiers for which effects should be simulated}
