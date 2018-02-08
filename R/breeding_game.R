@@ -447,7 +447,7 @@ simulTraits12 <- function(dat,
   if(is.null(Alpha)){
     stopifnot(is.vector(sigma.alpha2),
               is.numeric(sigma.alpha2),
-              all(sigma.alpha2 > 0),
+              all(sigma.alpha2 >= 0),
               length(sigma.alpha2) == length(mu),
               ! is.null(names(sigma.alpha2)),
               all(names(sigma.alpha2) == names(mu)))
