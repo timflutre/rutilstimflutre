@@ -2983,19 +2983,58 @@ convertImputedTo012 <- function(X){
 ##' Allele frequencies
 ##'
 ##' Estimate allele frequencies of bi-allelic SNPs.
+##' If previous sample sizes and counts per SNP are provided, it updates them.
 ##' @param X matrix of bi-allelic SNP genotypes encoded in allele doses in [0,2], with genotypes in rows and SNPs in columns; missing values should be encoded as NA
-##' @return vector
+##' @param allow.updating if TRUE, the sample sizes and counts per SNP will be kept to allow further updating
+##' @param prev.nb.genos vector of number of genotypes (sample sizes per SNP); the length and names should correspond to the columns of the X matrix
+##' @param prev.nb.refalls vector of number of reference alleles (counts per SNP); the length and names should correspond to the columns of the X matrix
+##' @return vector, with sample sizes and counts per SNP as attributes if updating is allowed
 ##' @seealso \code{\link{estimSnpMaf}}
 ##' @author Timothee Flutre
 ##' @export
-estimSnpAf <- function(X){
-  stopIfNotValidGenosDose(X, check.hasColNames=FALSE, check.hasRowNames=FALSE,
-                          check.noNA=FALSE)
+estimSnpAf <- function(X, allow.updating=FALSE,
+                       prev.nb.genos=NULL, prev.nb.refalls=NULL){
+  stopIfNotValidGenosDose(X, check.hasColNames=FALSE,
+                          check.hasRowNames=FALSE, check.noNA=FALSE)
+  stopifnot(is.logical(allow.updating),
+            xor(all(is.null(prev.nb.genos),
+                    is.null(prev.nb.refalls)),
+                all(! is.null(prev.nb.genos),
+                    ! is.null(prev.nb.refalls))))
+  if(! is.null(prev.nb.genos)){
+    stopifnot(is.vector(prev.nb.genos),
+              length(prev.nb.genos) == ncol(X),
+              ! is.null(colnames(X)),
+              ! is.null(names(prev.nb.genos)),
+              all(names(prev.nb.genos) == colnames(X)),
+              all(! is.na(prev.nb.genos)),
+              all(prev.nb.genos >= 0, na.rm=TRUE))
+    stopifnot(is.vector(prev.nb.refalls),
+              length(prev.nb.refalls) == ncol(X),
+              ! is.null(names(prev.nb.refalls)),
+              all(names(prev.nb.refalls) == colnames(X)),
+              all(! is.na(prev.nb.refalls)),
+              all(prev.nb.refalls >= 0, na.rm=TRUE))
+  }
 
-  N <- nrow(X)
-  P <- ncol(X)
+  ## compute inputs allowing allele frequencies to be easily updated
+  tot.nb.genos <- colSums(! is.na(X))
+  tot.nb.refalls <- colSums(X, na.rm=TRUE)
 
-  afs <- colMeans(X, na.rm=TRUE) / 2
+  ## update inputs if necessary
+  if(! is.null(prev.nb.genos)){
+    tot.nb.genos <- tot.nb.genos + prev.nb.genos
+    tot.nb.refalls <- tot.nb.refalls + prev.nb.refalls
+  }
+
+  ## compute allele frequencies
+  afs <- tot.nb.refalls / (2 * tot.nb.genos)
+
+  ## keep inputs to allow update later on
+  if(allow.updating){
+    attr(x=afs, which="nb.genos") <- tot.nb.genos
+    attr(x=afs, which="nb.refalls") <- tot.nb.refalls
+  }
 
   return(afs)
 }

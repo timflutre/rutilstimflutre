@@ -1034,6 +1034,26 @@ test_that("estimSnpAf", {
   expect_equal(observed, expected)
 })
 
+test_that("estimSnpAf_update", {
+  N <- 4 # individuals
+  P <- 3 # SNPs
+  X <- matrix(c(1,0,0,1, 1,2,NA,0, 0,2,2,NA), nrow=N, ncol=P,
+              dimnames=list(paste0("ind", 1:N), paste0("snp", 1:P)))
+
+  (expected <- setNames(c(2/(2*4), 3/(2*3), 4/(2*3)), colnames(X)))
+  attr(expected, "nb.genos") <- setNames(c(4, 3, 3), colnames(X))
+  attr(expected, "nb.refalls") <- setNames(c(2, 3, 4), colnames(X))
+
+  observed <- estimSnpAf(X=X, allow.updating=TRUE)
+  expect_equal(observed, expected)
+
+  prev.afs <- estimSnpAf(X=X[1:(N-1), , drop=FALSE], allow.updating=TRUE)
+  observed <- estimSnpAf(X=X[N, , drop=FALSE], allow.updating=TRUE,
+                         prev.nb.genos=attr(prev.afs, "nb.genos"),
+                         prev.nb.refalls=attr(prev.afs, "nb.refalls"))
+  expect_equal(observed, expected)
+})
+
 test_that("estimSnpMaf", {
   N <- 2 # individuals
   P <- 4 # SNPs

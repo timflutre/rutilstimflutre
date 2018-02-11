@@ -4,16 +4,24 @@
 \alias{estimSnpAf}
 \title{Allele frequencies}
 \usage{
-estimSnpAf(X)
+estimSnpAf(X, allow.updating = FALSE, prev.nb.genos = NULL,
+  prev.nb.refalls = NULL)
 }
 \arguments{
 \item{X}{matrix of bi-allelic SNP genotypes encoded in allele doses in [0,2], with genotypes in rows and SNPs in columns; missing values should be encoded as NA}
+
+\item{allow.updating}{if TRUE, the sample sizes and counts per SNP will be kept to allow further updating}
+
+\item{prev.nb.genos}{vector of number of genotypes (sample sizes per SNP); the length and names should correspond to the columns of the X matrix}
+
+\item{prev.nb.refalls}{vector of number of reference alleles (counts per SNP); the length and names should correspond to the columns of the X matrix}
 }
 \value{
-vector
+vector, with sample sizes and counts per SNP as attributes if updating is allowed
 }
 \description{
 Estimate allele frequencies of bi-allelic SNPs.
+If previous sample sizes and counts per SNP are provided, it updates them.
 }
 \seealso{
 \code{\link{estimSnpMaf}}
