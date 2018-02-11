@@ -430,7 +430,6 @@ simulTraits12 <- function(dat,
             ! is.unsorted(order(dat$year)),
             any(! is.null(sigma.alpha2), ! is.null(Alpha)),
             rownames(X) == levels(dat$ind),
-            is.vector(afs),
             is.numeric(afs),
             length(afs) == ncol(X),
             ! is.null(names(afs)),
@@ -575,7 +574,6 @@ simulTraits12 <- function(dat,
   out$sigma.alpha2 <- sigma.alpha2
   out$Alpha <- Alpha
   out$Z.I <- Z.I
-  out$afs <- afs
   out$Beta <- Beta
   out$G.A <- G.A
   out$h2 <- h2
