@@ -3280,8 +3280,7 @@ plotHistAllelFreq <- function(X=NULL, afs=NULL, main=NULL, xlim=c(0,1),
     }
     afs <- estimSnpAf(X)
   } else # is.null(X)
-    stopifnot(is.vector(afs),
-              is.numeric(afs),
+    stopifnot(is.numeric(afs),
               all(afs >= 0, afs <= 1))
 
   if(is.null(main))
