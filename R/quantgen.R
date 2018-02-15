@@ -8609,6 +8609,73 @@ readBiomercator <- function(file){
     return(gmap)
 }
 
+##' Subset a pedigree
+##'
+##' From a pedigree, extract a subset of individuals.
+##' @param in.ped data frame containing the input pedigree with three columns named "parent1", "parent2" and "child"; if "parent1" is different than "parent2", it is an allofecundation; if "parent1" is the same as "parent2" it is an autofecundation; if "parent2" is missing it is a haplodiploidization
+##' @param inds vector of individual names (present in the "child" column of "in.ped") for which their ancestors will be retrieved, up to the founders
+##' @return data frame
+##' @author Julien Diot [cre,aut], Timothee Flutre [ctb]
+##' @seealso \code{\link{plotPedigree}}
+##' @export
+subsetPedigree <- function(in.ped, inds){
+  stopifnot(is.data.frame(in.ped),
+            all(c("child","parent1","parent2") %in% colnames(in.ped)),
+            all(! is.na(in.ped$parent1)),
+            all(! is.na(in.ped$child)),
+            is.character(inds),
+            all(inds %in% in.ped$child))
+
+  if(any(in.ped$parent2 == "NA"))
+    in.ped$parent2[in.ped$parent2 == "NA"] <- NA
+
+  ancestors <- unique(c(in.ped$parent1[! in.ped$parent1 %in% in.ped$child],
+                        in.ped$parent2[! in.ped$parent2 %in% in.ped$child]))
+
+  getParents <- function(in.ped, inds){
+    p1 <- in.ped$parent1[in.ped$child %in% inds]
+    p2 <- in.ped$parent2[in.ped$child %in% inds]
+
+    if(length(p1) == 0)
+      p1 <- rep(NA, length(inds))
+    if(length(p2) == 0)
+      p2 <- rep(NA, length(inds))
+
+    res <- list(p1=p1, p2=p2)
+    return(res)
+  }
+
+  ## initialisation
+  gen <- 0
+  parents <- getParents(in.ped, inds)
+  out.ped <- data.frame(parent1=parents$p1,
+                        parent2=parents$p2,
+                        child=inds,
+                        generation=rep(gen, length(inds)))
+
+  ## ascend genealogy
+  inds <- unique(c(parents$p1, parents$p2))
+  inds <- inds[! is.na(inds)]
+  while(length(inds) > 0){
+    gen <- gen + 1
+    parents <- getParents(in.ped, inds)
+    out.ped <- rbind(out.ped,
+                     data.frame(parent1=parents$p1,
+                                parent2=parents$p2,
+                                child=inds,
+                                generation=rep(gen, length(inds))))
+    inds <- unique(c(parents$p1, parents$p2))
+    inds <- inds[! is.na(inds)]
+  }
+
+  ## recalculate generation
+  out.ped$generation <- max(out.ped$generation) - out.ped$generation
+  out.ped <- out.ped[order(out.ped$generation, out.ped$parent1,
+                           out.ped$parent2, out.ped$child),]
+
+  return(out.ped)
+}
+
 ##' Plot pedigree
 ##'
 ##' Plot a pedigree using the "igraph" package.
@@ -8643,6 +8710,12 @@ plotPedigree <- function(inds, mothers, fathers, generations, sexes=NULL,
                          edge.arrow.width=0.75, edge.arrow.size=0.75,
                          ...){
   requireNamespace("igraph")
+  if(is.factor(inds))
+    inds <- as.vector(inds)
+  if(is.factor(mothers))
+    mothers <- as.vector(mothers)
+  if(is.factor(fathers))
+    fathers <- as.vector(fathers)
   stopifnot(is.vector(inds),
             is.vector(mothers),
             is.vector(fathers),
