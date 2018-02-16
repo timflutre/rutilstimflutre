@@ -54,6 +54,9 @@ Plot a pedigree using the "igraph" package.
 This function was inspired by plot.pedigree() from the "synbreed" package (under GPL-3).
 It add options for monoecious species and auto-fecondation.
 }
+\seealso{
+\code{\link{subsetPedigree}}
+}
 \author{
 Timothee Flutre
 }

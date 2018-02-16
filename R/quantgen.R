@@ -8700,6 +8700,7 @@ subsetPedigree <- function(in.ped, inds){
 ##' @param ... other plotting options; see ?plot.igraph and ?igraph.plotting
 ##' @return invisible list with objects required to plot the pedigree
 ##' @author Timothee Flutre
+##' @seealso \code{\link{subsetPedigree}}
 ##' @export
 plotPedigree <- function(inds, mothers, fathers, generations, sexes=NULL,
                          plot.it=TRUE,
@@ -8728,7 +8729,7 @@ plotPedigree <- function(inds, mothers, fathers, generations, sexes=NULL,
   if(length(unique(inds)) != length(inds)){
     msg <- paste0(length(inds), " genotypes, but only ",
                   length(unique(inds)), " unique")
-    stop(msg)
+    warning(msg)
   }
 
   ## check mothers
