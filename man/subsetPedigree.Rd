@@ -4,12 +4,12 @@
 \alias{subsetPedigree}
 \title{Subset a pedigree}
 \usage{
-subsetPedigree(in.ped, inds)
+subsetPedigree(ped, inds)
 }
 \arguments{
-\item{in.ped}{data frame containing the input pedigree with three columns named "parent1", "parent2" and "child"; if "parent1" is different than "parent2", it is an allofecundation; if "parent1" is the same as "parent2" it is an autofecundation; if "parent2" is missing it is a haplodiploidization}
+\item{ped}{data frame containing the input pedigree with three columns named "parent1", "parent2" and "child"; if "parent1" is different than "parent2", it is an allofecundation; if "parent1" is the same as "parent2" it is an autofecundation; if "parent2" is missing it is a haplodiploidization}
 
-\item{inds}{vector of individual names (present in the "child" column of "in.ped") for which their ancestors will be retrieved, up to the founders}
+\item{inds}{vector of individual names (present in the "child" column of "ped") for which their ancestors will be retrieved, up to the founders}
 }
 \value{
 data frame

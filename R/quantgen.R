@@ -8612,63 +8612,58 @@ readBiomercator <- function(file){
 ##' Subset a pedigree
 ##'
 ##' From a pedigree, extract a subset of individuals.
-##' @param in.ped data frame containing the input pedigree with three columns named "parent1", "parent2" and "child"; if "parent1" is different than "parent2", it is an allofecundation; if "parent1" is the same as "parent2" it is an autofecundation; if "parent2" is missing it is a haplodiploidization
-##' @param inds vector of individual names (present in the "child" column of "in.ped") for which their ancestors will be retrieved, up to the founders
+##' @param ped data frame containing the input pedigree with three columns named "parent1", "parent2" and "child"; if "parent1" is different than "parent2", it is an allofecundation; if "parent1" is the same as "parent2" it is an autofecundation; if "parent2" is missing it is a haplodiploidization
+##' @param inds vector of individual names (present in the "child" column of "ped") for which their ancestors will be retrieved, up to the founders
 ##' @return data frame
 ##' @author Julien Diot [cre,aut], Timothee Flutre [ctb]
 ##' @seealso \code{\link{plotPedigree}}
 ##' @export
-subsetPedigree <- function(in.ped, inds){
-  stopifnot(is.data.frame(in.ped),
-            all(c("child","parent1","parent2") %in% colnames(in.ped)),
-            all(! is.na(in.ped$parent1)),
-            all(! is.na(in.ped$child)),
+subsetPedigree <- function(ped, inds){
+  if(is.factor(inds))
+    inds <- as.character(inds)
+  stopifnot(is.data.frame(ped),
+            all(c("child","parent1","parent2") %in% colnames(ped)),
+            all(! is.na(ped$parent1)),
+            all(! is.na(ped$child)),
+            all(! duplicated(ped$child)),
             is.character(inds),
-            all(inds %in% in.ped$child))
+            all(inds %in% ped$child))
+  if(any(ped$parent2 == "NA"))
+    ped$parent2[ped$parent2 == "NA"] <- NA
+  ped <- ped[, c("parent1", "parent2", "child")]
+  ped <- convertFactorColumnsToCharacter(ped)
 
-  if(any(in.ped$parent2 == "NA"))
-    in.ped$parent2[in.ped$parent2 == "NA"] <- NA
-
-  ancestors <- unique(c(in.ped$parent1[! in.ped$parent1 %in% in.ped$child],
-                        in.ped$parent2[! in.ped$parent2 %in% in.ped$child]))
-
-  getParents <- function(in.ped, inds){
-    p1 <- in.ped$parent1[in.ped$child %in% inds]
-    p2 <- in.ped$parent2[in.ped$child %in% inds]
-
-    if(length(p1) == 0)
-      p1 <- rep(NA, length(inds))
-    if(length(p2) == 0)
-      p2 <- rep(NA, length(inds))
-
-    res <- list(p1=p1, p2=p2)
-    return(res)
+  getParents <- function(ped, inds, gen){
+    out <- data.frame(parent1=rep(NA, length(inds)),
+                      parent2=NA,
+                      child=inds,
+                      generation=gen,
+                      stringsAsFactors=FALSE)
+    for(i in seq_along(inds)){
+      idx <- which(ped$child == inds[i])
+      if(length(idx) > 0)
+        out[i, 1:2] <- ped[idx, 1:2]
+    }
+    return(out)
   }
 
   ## initialisation
   gen <- 0
-  parents <- getParents(in.ped, inds)
-  out.ped <- data.frame(parent1=parents$p1,
-                        parent2=parents$p2,
-                        child=inds,
-                        generation=rep(gen, length(inds)))
+  out.ped <- getParents(ped, inds, gen)
 
   ## ascend genealogy
-  inds <- unique(c(parents$p1, parents$p2))
+  inds <- unique(c(out.ped$parent1, out.ped$parent2))
   inds <- inds[! is.na(inds)]
   while(length(inds) > 0){
     gen <- gen + 1
-    parents <- getParents(in.ped, inds)
     out.ped <- rbind(out.ped,
-                     data.frame(parent1=parents$p1,
-                                parent2=parents$p2,
-                                child=inds,
-                                generation=rep(gen, length(inds))))
-    inds <- unique(c(parents$p1, parents$p2))
+                     getParents(ped, inds, gen))
+    inds <- unique(c(out.ped$parent1[out.ped$generation == gen],
+                     out.ped$parent2[out.ped$generation == gen]))
     inds <- inds[! is.na(inds)]
   }
 
-  ## recalculate generation
+  ## recalculate generation, and order
   out.ped$generation <- max(out.ped$generation) - out.ped$generation
   out.ped <- out.ped[order(out.ped$generation, out.ped$parent1,
                            out.ped$parent2, out.ped$child),]
@@ -8727,9 +8722,9 @@ plotPedigree <- function(inds, mothers, fathers, generations, sexes=NULL,
   ## check inds
   inds <- as.character(inds)
   if(length(unique(inds)) != length(inds)){
-    msg <- paste0(length(inds), " genotypes, but only ",
-                  length(unique(inds)), " unique")
-    warning(msg)
+    msg <- paste0("note that ", length(inds), " entries are in 'inds',",
+                  " but only ", length(unique(inds)), " are unique")
+    message(msg)
   }
 
   ## check mothers
@@ -8781,31 +8776,47 @@ plotPedigree <- function(inds, mothers, fathers, generations, sexes=NULL,
   igraph::add_shape("triangle", clip=igraph::shapes("circle")$clip,
                     plot=mytriangle)
 
-  ## make "igraph" object
-  relations <- rbind(cbind(mothers[! is.na(mothers)], inds[! is.na(mothers)]),
-                     cbind(fathers[! is.na(fathers)], inds[! is.na(fathers)]))
-  colnames(relations) <- c("parent","child")
-  v.df <- data.frame(ind=inds,
-                     mother=mothers,
-                     father=fathers,
-                     generation=generations,
-                     stringsAsFactors=FALSE)
+  ## make "igraph" object:
+  ## use unique identifiers (ind_|_gen) because, in plants,
+  ## a given individual can be present at multiple generations
+  inds.gen <- paste0("gen", generations, "_|_", inds)
+  stopifnot(all(! duplicated(inds.gen)))
+  mothers.gen <- paste0("gen", generations - 1, "_|_", mothers)
+  fathers.gen <- paste0("gen", generations - 1, "_|_", fathers)
+  relations <- rbind(cbind(mothers.gen[! is.na(mothers)],
+                           inds.gen[! is.na(mothers)]),
+                     cbind(fathers.gen[! is.na(fathers)],
+                           inds.gen[! is.na(fathers)]))
+  colnames(relations) <- c("from","to")
+  relations <- as.data.frame(relations, stringsAsFactors=FALSE)
+  relations$type <- c(rep("maternal", sum(! is.na(mothers))),
+                      rep("paternal", sum(! is.na(fathers))))
+  ## TODO: add relations$status for allof/autof/haplodiplo
+  relations <- relations[order(relations$from),]
+  rownames(relations) <- NULL
+  tmp <- unique(c(relations$from, relations$to))
+  vertices <- data.frame(name=tmp,
+                         generation=as.numeric(sub("gen", "",
+                                                   sapply(strsplit(tmp, "_\\|_"),
+                                                          `[`, 1))),
+                         stringsAsFactors=FALSE)
   if(is.null(sexes)){
-    v.df[["label"]] <- inds
+    vertices[["label"]] <- sapply(strsplit(tmp, "_\\|_"), `[`, 2)
   } else{
-    v.df[["sex"]] <- sexes
-    v.df[["label"]] <- paste0(inds, "\n(", sexes, ")")
+    vertices[["sex"]] <- sexes
+    vertices[["label"]] <- paste0(sapply(strsplit(tmp, "_\\|_"), `[`, 2),
+                                  "\n(", sexes, ")")
   }
-  v.df[["shape"]] <- rep(vertex.shape, length(inds))
-  v.df[["size"]] <- rep(vertex.size, length(inds))
-  v.df[["color"]] <- vertex.color
-  v.df[["label.color"]] <- vertex.label.color
-  v.df[["label.family"]] <- vertex.label.family
+  vertices[["shape"]] <- vertex.shape
+  vertices[["size"]] <- vertex.size
+  vertices[["color"]] <- vertex.color
+  vertices[["label.color"]] <- vertex.label.color
+  vertices[["label.family"]] <- vertex.label.family
   ped.graph <- igraph::graph_from_data_frame(d=relations,
                                              directed=TRUE,
-                                             vertices=v.df)
+                                             vertices=vertices)
 
-  ## check multiplicity corresponding to auto-fecondation
+  ## check multiplicity corresponding to auto-fecundation
   has.autof <- FALSE
   if(igraph::has.multiple(ped.graph)){
     has.autof <- TRUE
@@ -8813,13 +8824,12 @@ plotPedigree <- function(inds, mothers, fathers, generations, sexes=NULL,
   }
 
   ## set plot coordinates for vertices
-  coords <- matrix(data=NA, nrow=length(inds), ncol=2,
-                   dimnames=list(inds, c("x", "y")))
-  coords[, "y"] <- max(generations) - generations
-  ## coords[, "x"] <- order(generations, partial=order(inds, decreasing=TRUE)) -
-  ##   cumsum(c(0, table(generations)))[generations + 1]
-  coords[, "x"] <- order(generations) -
-    cumsum(c(0, table(generations)))[generations + 1]
+  vertices <- vertices[order(vertices$generation),]
+  coords <- matrix(data=NA, nrow=nrow(vertices), ncol=2,
+                   dimnames=list(vertices$name, c("x", "y")))
+  coords[, "y"] <- max(vertices$generation) - vertices$generation
+  coords[, "x"] <- order(vertices$generation) -
+    cumsum(c(0, table(vertices$generation)))[vertices$generation + 1]
   coords[nrow(coords):1, "x"] <-
     unlist(tapply(coords[, "x"], coords[,"y"], function(x){
       if(length(x) == 1){
@@ -8830,16 +8840,16 @@ plotPedigree <- function(inds, mothers, fathers, generations, sexes=NULL,
     }))
 
   ## set edge color depending on parental sex
-  nb.rel.mother <- sum(! is.na(mothers))
-  nb.rel.father <- sum(! is.na(fathers))
-  edge.cols <- c(rep(edge.col.mother, nb.rel.mother),
-                 rep(edge.col.father, nb.rel.father))
+  edge.cols <- relations$type
+  edge.cols <- gsub("maternal", edge.col.mother, edge.cols)
+  edge.cols <- gsub("paternal", edge.col.father, edge.cols)
 
   ## tune curvature in case of auto-fecondation
   edge.curvatures <- rep(0, igraph::ecount(ped.graph))
   if(has.autof){
     idx.mult <- which(igraph::count_multiple(ped.graph) > 1)
     stopifnot(length(idx.mult) %% 2 == 0)
+    nb.rel.mother <- sum(! is.na(mothers))
     edge.curvatures[idx.mult[idx.mult <= nb.rel.mother]] <- mult.edge.curve
     edge.curvatures[idx.mult[idx.mult > nb.rel.mother]] <- - mult.edge.curve
   }
@@ -8854,6 +8864,8 @@ plotPedigree <- function(inds, mothers, fathers, generations, sexes=NULL,
                         edge.arrow.size=edge.arrow.size,
                         ...)
 
-  invisible(list(graph=ped.graph, layout=coords, edge.color=edge.cols,
+  invisible(list(relations=relations,
+                 vertices=vertices,
+                 graph=ped.graph, layout=coords, edge.color=edge.cols,
                  edge.curved=edge.curvatures))
 }
