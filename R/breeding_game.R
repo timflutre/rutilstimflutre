@@ -1,5 +1,5 @@
 ## Contains functions useful for the "breeding game"
-## https://github.com/timflutre/atelier-prediction-genomique
+## https://github.com/timflutre/PlantSelBreedGame
 
 ##' Set up breeding game
 ##'
@@ -7,59 +7,38 @@
 ##' Already-existing directories are not re-created.
 ##' @param root.dir path to the root directory
 ##' @param shared.dir path to the shared directory (e.g. via Dropbox; root.dir if NULL)
-##' @param nb.breeders number of breeders (an default "test" breeder is always created)
-##' @param lang language to be used (en/fr)
+##' @param nb.breeders number of breeders; by default, the "admin" (which will have the "game master" status in "setup.Rmd") and "test" (which will have the "tester" status) breeders will be created, and other regular players can be created via the interface
 ##' @return list
 ##' @author Timothee Flutre
 ##' @export
-setUpBreedingGame <- function(root.dir, shared.dir=NULL, nb.breeders=0,
-                              lang="en"){
+setUpBreedingGame <- function(root.dir, shared.dir=NULL, nb.breeders=0){
   stopifnot(is.character(root.dir),
-            dir.exists(root.dir),
-            lang %in% c("fr", "en"))
+            dir.exists(root.dir))
   if(! is.null(shared.dir))
     stopifnot(is.character(shared.dir),
               dir.exists(shared.dir))
 
   out <- list(root.dir=root.dir)
 
-  if(lang == "fr"){
-    truth.dir <- paste0(root.dir, "/", "verite")
-  } else if(lang == "en"){
-    truth.dir <- paste0(root.dir, "/", "truth")
-  }
+  truth.dir <- paste0(root.dir, "/", "truth")
   if(! dir.exists(truth.dir))
     dir.create(truth.dir)
   out$truth.dir <- truth.dir
 
-  if(is.null(shared.dir)){
-    if(lang == "fr"){
-      shared.dir <- paste0(root.dir, "/", "partage")
-    } else if(lang == "en"){
-      shared.dir <- paste0(root.dir, "/", "shared")
-    }
-  }
+  if(is.null(shared.dir))
+    shared.dir <- paste0(root.dir, "/", "shared")
   if(! dir.exists(shared.dir))
     dir.create(shared.dir)
   out$shared.dir <- shared.dir
 
-  if(lang == "fr"){
-    init.dir <- paste0(shared.dir, "/", "donnees_initiales")
-  } else if(lang == "en"){
-    init.dir <- paste0(shared.dir, "/", "initial_data")
-  }
+  init.dir <- paste0(shared.dir, "/", "initial_data")
   if(! dir.exists(init.dir))
     dir.create(init.dir)
   out$init.dir <- init.dir
 
-  breeders <- c("test")
-  if(nb.breeders > 0){
-    if(lang == "fr"){
-      breeders <- c(breeders, paste0("selectionneur", 1:nb.breeders))
-    } else if(lang == "en"){
-      breeders <- c(breeders, paste0("breeder", 1:nb.breeders))
-    }
-  }
+  breeders <- c("admin", "test")
+  if(nb.breeders > 0)
+    breeders <- c(breeders, paste0("breeder", 1:nb.breeders))
   breeder.dirs <- c()
   for(breeder in breeders){
     truth.breeder.dir <- paste0(truth.dir, "/", breeder)
@@ -78,33 +57,6 @@ setUpBreedingGame <- function(root.dir, shared.dir=NULL, nb.breeders=0,
   return(out)
 }
 
-##' Check breeding game
-##'
-##' Check if the given breeder is part of the game.
-##' @param breeder name of the breeder (e.g. "breeder3" or "selectionneur2", depending on the language)
-##' @param root.dir path to the root directory
-##' @param lang language to be used (fr/en)
-##' @return logical
-##' @author Timothee Flutre
-##' @export
-doesBreederExist <- function(breeder, root.dir, lang="en"){
-  stopifnot(is.character(breeder),
-            is.character(root.dir),
-            dir.exists(root.dir),
-            is.character(lang),
-            lang %in% c("fr", "en"))
-
-  path.to.dir <- root.dir
-  if(lang == "fr"){
-    path.to.dir <- paste0(path.to.dir, "/partage")
-  } else if(lang == "en"){
-    path.to.dir <- paste0(path.to.dir, "/shared")
-  }
-  path.to.dir <- paste0(path.to.dir, "/", breeder)
-
-  return(dir.exists(path.to.dir))
-}
-
 ##' Get the breeding game setup
 ##'
 ##' Retrieve the paths to the directories used for the breeding game.
@@ -119,28 +71,14 @@ getBreedingGameSetup <- function(root.dir){
 
   out <- list(root.dir=root.dir)
 
-  if(dir.exists(paste0(root.dir, "/verite"))){
-    lang <- "fr"
-    out$truth.dir <- paste0(root.dir, "/verite")
-    out$shared.dir <- paste0(root.dir, "/partage")
-    out$init.dir <- paste0(out$shared.dir, "/donnees_initiales")
-    out$breeders <- c("test")
-    tmp <- length(Sys.glob(paste0(out$shared.dir, "/selectionneur*")))
-    if(tmp > 0)
-      out$breeders <- c(out$breeders, paste0("selectionneur", 1:tmp))
-
-  } else if(dir.exists(paste0(root.dir, "/truth"))){
-    lang <- "en"
-    out$truth.dir <- paste0(root.dir, "/truth")
-    out$shared.dir <- paste0(root.dir, "/shared")
-    out$init.dir <- paste0(out$shared.dir, "/initial_data")
-    out$breeders <- c("test")
-    tmp <- length(Sys.glob(paste0(out$shared.dir, "/breeder*")))
-    if(tmp > 0)
-      out$breeders <- c(out$breeders, paste0("breeder", 1:tmp))
-
-  } else
-    stop("can't determine the langage used for the breeding game")
+  out$truth.dir <- paste0(root.dir, "/truth")
+  out$shared.dir <- paste0(root.dir, "/shared")
+  out$init.dir <- paste0(out$shared.dir, "/initial_data")
+  tmp <- basename(Sys.glob(paste0(out$shared.dir, "/*")))
+  for(x in tmp){
+    if(x != "initial_data")
+      out$breeders <- c(out$breeders, x)
+  }
 
   out$breeder.dirs <- c()
   for(breeder in out$breeders)
@@ -663,14 +601,12 @@ simulTrait3 <- function(dat, X, afs=NULL, subset.snps=NULL,
 ##'
 ##' Make a file with examples of plant material to request (autofecundation, allofecundation, haplodiploidization)
 ##' @param out.dir path to the directory in which the file will be saved
-##' @param lang language to be used (fr/en)
 ##' @return invisible data.frame
 ##' @author Timothee Flutre
 ##' @seealso \code{\link{readCheckBreedPlantFile}}
 ##' @export
-makeExamplePlantFile <- function(out.dir, lang="en"){
-  stopifnot(dir.exists(out.dir),
-            lang %in% c("fr", "en"))
+makeExamplePlantFile <- function(out.dir){
+  stopifnot(dir.exists(out.dir))
 
   plants <-
     data.frame(parent1=c("Coll0037", "37-8.1", "37-8.1"),
@@ -680,10 +616,7 @@ makeExamplePlantFile <- function(out.dir, lang="en"){
                               "haplodiploidization"),
                stringsAsFactors=FALSE)
 
-  if(lang == "fr"){
-    f <- paste0(out.dir, "/exemple_requete_materiel_vegetal.txt")
-  } else if(lang == "en")
-    f <- paste0(out.dir, "/example_request_plant_material.txt")
+  f <- paste0(out.dir, "/example_request_plant_material.txt")
 
   cat("# the table (below) contains the requested plant material\n",
       file=f, append=FALSE)
@@ -712,24 +645,19 @@ makeExamplePlantFile <- function(out.dir, lang="en"){
 ##'
 ##' Make a file with examples of data to request (phenotypes, genotypes).
 ##' @param out.dir path to the directory in which the file will be saved
-##' @param lang language to be used (fr/en)
 ##' @return invisible data.frame
 ##' @author Timothee Flutre
 ##' @seealso \code{\link{readCheckBreedDataFile}}
 ##' @export
-makeExampleDataFile <- function(out.dir, lang="en"){
-  stopifnot(dir.exists(out.dir),
-            lang %in% c("fr", "en"))
+makeExampleDataFile <- function(out.dir){
+  stopifnot(dir.exists(out.dir))
 
   dat <- data.frame(ind=c(paste0("ind", 7:10), "ind7", "ind31"),
                     task=c(rep("pheno-field", 2), "pheno-patho", "geno", "geno", "geno"),
                     details=c("2", "5", "1", "hd", "snp15492", "ld"),
                     stringsAsFactors=FALSE)
 
-  if(lang == "fr"){
-    f <- paste0(out.dir, "/exemple_requete_donnees.txt")
-  } else if(lang == "en")
-    f <- paste0(out.dir, "/example_request_data.txt")
+  f <- paste0(out.dir, "/example_request_data.txt")
 
   cat("# the list (below) contains individuals to genotype and/or phenotype\n",
       file=f, append=FALSE)
@@ -757,137 +685,4 @@ makeExampleDataFile <- function(out.dir, lang="en"){
                                sep="\t", row.names=FALSE, col.names=TRUE))
 
   invisible(dat)
-}
-
-##' Read for breeding game
-##'
-##' Read and check a file supposed to contain requests about plant material.
-##' It should have 3 columns named \code{parent1}, \code{parent2} and \code{child}.
-##' @param f path to the input file (columns should be separated by a tabulation)
-##' @param df data.frame (if the file was already read)
-##' @param max.nb.hd maximum number of haplodiploidization to request in a single file
-##' @return invisible data.frame
-##' @author Timothee Flutre
-##' @seealso \code{\link{makeExamplePlantFile}}
-##' @export
-readCheckBreedPlantFile <- function(f=NULL, df=NULL, max.nb.hd=800){
-  stopifnot(! is.null(f) || ! is.null(df),
-            is.numeric(max.nb.hd),
-            length(max.nb.hd) == 1,
-            max.nb.hd > 0)
-
-  if(is.null(df)){
-    stopifnot(file.exists(f))
-    df <- utils::read.table(f, header=TRUE, sep="\t", stringsAsFactors=FALSE)
-  }
-
-  stopifnot(is.data.frame(df),
-            ncol(df) >= 3,
-            all(c("parent1", "parent2", "child") %in% colnames(df)),
-            all(! is.na(df$parent1)),
-            ! any(df$parent1 == ""),
-            all(! is.na(df$child)),
-            ! any(df$child == ""),
-            anyDuplicated(df$child) == 0,
-            all(! grepl("[^[:alnum:]._-]", df$child)),
-            sum(is.na(df$parent2)) <= max.nb.hd)
-
-  df$parent2[df$parent2 == ""] <- NA
-
-  invisible(df)
-}
-
-##' Read for breeding game
-##'
-##' Read and check a file supposed to contain requests about pheno/geno data.
-##' It should have 3 columns named \code{ind}, \code{task} and \code{details}.
-##' @param f path to the input file (columns should be separated by a tabulation)
-##' @param df data.frame (if the file was already read)
-##' @param max.nb.plots maximum number of plots
-##' @param subset.snps list with two components named "ld" and "hd" containing vector of SNP identifiers
-##' @param max.nb.inds maximum number of unique individuals for which at least one request is made
-##' @return invisible data.frame
-##' @author Timothee Flutre
-##' @seealso \code{\link{makeExampleDataFile}}
-##' @export
-readCheckBreedDataFile <- function(f=NULL, df=NULL, max.nb.plots=300,
-                                   subset.snps, max.nb.inds=1000){
-  stopifnot(! is.null(f) || ! is.null(df),
-            is.numeric(max.nb.plots),
-            length(max.nb.plots) == 1,
-            max.nb.plots > 0,
-            is.list(subset.snps),
-            all(names(subset.snps) %in% c("ld", "hd")))
-
-  if(is.null(df)){
-    stopifnot(file.exists(f))
-    df <- utils::read.table(f, header=TRUE, sep="\t", stringsAsFactors=FALSE)
-  }
-
-  stopifnot(is.data.frame(df),
-            ncol(df) >= 3,
-            all(c("ind", "task", "details") %in% colnames(df)),
-            all(! is.na(df$ind)),
-            length(unique(df$ind)) <= max.nb.inds,
-            all(! grepl("[^[:alnum:]._-]", df$ind)),
-            all(! is.na(df$task)),
-            all(df$task %in% c("pheno", "geno")))
-
-  if("pheno" %in% df$task){
-    tmp <- suppressWarnings(as.numeric(df$details[df$task ==
-                                                  "pheno"]))
-    stopifnot(all(! is.na(tmp)),
-              ! anyDuplicated(df$ind[df$task == "pheno"]),
-              sum(as.numeric(df$details[df$task == "pheno"])) <=
-              max.nb.plots)
-  }
-
-  if("geno" %in% df$task){
-    stopifnot(all(grepl("hd|ld|snp", df$details[df$task == "geno"])))
-    idx.notsnp <- df$task == "geno" & ! grepl("snp", df$details)
-    stopifnot(! anyDuplicated(df$ind[idx.notsnp]),
-              all(df$details[df$task == "geno" &
-                             ! df$details %in% c("ld","hd")]
-                  %in% subset.snps[["hd"]]))
-  }
-
-  invisible(df)
-}
-
-##' Count types
-##'
-##' Count the types of breeding requests.
-##' @param df data.frame from \code{\link{readCheckBreedPlantFile}} or \code{\link{readCheckBreedDataFile}}
-##' @return named vector
-##' @author Timothee Flutre
-##' @export
-countRequestedBreedTypes <- function(df){
-  stopifnot(is.data.frame(df),
-            ! is.null(colnames(df)))
-
-  types <- NULL
-
-  if("parent1" %in% colnames(df)){
-    types <- stats::setNames(c(sum(df$parent1 != df$parent2 &
-                            ! is.na(df$parent2)),
-                        sum(df$parent1 == df$parent2 &
-                            ! is.na(df$parent2)),
-                        sum(is.na(df$parent2))),
-                      c("allofecundation", "autofecundation",
-                        "haplodiploidization"))
-  } else if("ind" %in% colnames(df)){
-    types <- stats::setNames(c(ifelse("pheno" %in% df$task,
-                               sum(as.numeric(df$details[df$task ==
-                                                                "pheno"])),
-                               0),
-                        sum(df$task == "geno" &
-                            df$details == "hd"),
-                        sum(df$task == "geno" &
-                            df$details == "ld"),
-                        sum(df$task == "geno" &
-                            ! df$details %in% c("hd", "ld"))),
-                      c("pheno", "geno-hd", "geno-ld", "geno-single-snp"))
-  }
-
-  return(types)
 }

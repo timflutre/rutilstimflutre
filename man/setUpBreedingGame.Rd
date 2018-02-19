@@ -4,17 +4,14 @@
 \alias{setUpBreedingGame}
 \title{Set up breeding game}
 \usage{
-setUpBreedingGame(root.dir, shared.dir = NULL, nb.breeders = 0,
-  lang = "en")
+setUpBreedingGame(root.dir, shared.dir = NULL, nb.breeders = 0)
 }
 \arguments{
 \item{root.dir}{path to the root directory}
 
 \item{shared.dir}{path to the shared directory (e.g. via Dropbox; root.dir if NULL)}
 
-\item{nb.breeders}{number of breeders (an default "test" breeder is always created)}
-
-\item{lang}{language to be used (en/fr)}
+\item{nb.breeders}{number of breeders; by default, the "admin" (which will have the "game master" status in "setup.Rmd") and "test" (which will have the "tester" status) breeders will be created, and other regular players can be created via the interface}
 }
 \value{
 list

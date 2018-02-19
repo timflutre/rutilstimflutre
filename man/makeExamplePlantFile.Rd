@@ -4,12 +4,10 @@
 \alias{makeExamplePlantFile}
 \title{Example for breeding game}
 \usage{
-makeExamplePlantFile(out.dir, lang = "en")
+makeExamplePlantFile(out.dir)
 }
 \arguments{
 \item{out.dir}{path to the directory in which the file will be saved}
-
-\item{lang}{language to be used (fr/en)}
 }
 \value{
 invisible data.frame
