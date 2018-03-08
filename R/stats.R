@@ -798,8 +798,7 @@ qqplotPval <- function(pvalues, plot.conf.int=TRUE,
       write(msg, stdout())
     }
     if(plot.signif){
-      lim.pv.bonf <- sort(pvalues[pv.bonf <= thresh], decreasing=TRUE)[1]
-      ## graphics::abline(h=-log10(lim.pv.bonf), lty=2)
+      lim.pv.bonf <- thresh / length(pvalues)
       graphics::segments(x0=graphics::par("usr")[1], y0=-log10(lim.pv.bonf),
                          x1=-log10(lim.pv.bonf), y1=-log10(lim.pv.bonf),
                          lty=2)
@@ -817,7 +816,6 @@ qqplotPval <- function(pvalues, plot.conf.int=TRUE,
     }
     if(plot.signif){
       lim.pv.bh <- sort(pvalues[pv.bh <= thresh], decreasing=TRUE)[1]
-      ## graphics::abline(h=-log10(lim.pv.bh), lty=3)
       graphics::segments(x0=graphics::par("usr")[1], y0=-log10(lim.pv.bh),
                          x1=-log10(lim.pv.bh), y1=-log10(lim.pv.bh),
                          lty=3)
@@ -836,7 +834,6 @@ qqplotPval <- function(pvalues, plot.conf.int=TRUE,
     }
     if(plot.signif){
       lim.pv.st <- sort(pvalues[out.st$qvalues <= thresh], decreasing=TRUE)[1]
-      ## graphics::abline(h=-log10(lim.pv.st), lty=3)
       graphics::segments(x0=graphics::par("usr")[1], y0=-log10(lim.pv.st),
                          x1=-log10(lim.pv.st), y1=-log10(lim.pv.st),
                          lty=4)
@@ -848,15 +845,18 @@ qqplotPval <- function(pvalues, plot.conf.int=TRUE,
     lgd <- c()
     lty <- c()
     if(ctl.fwer.bonf){
-      lgd <- c(lgd, "FWER controlled via Bonferroni")
+      lgd <- c(lgd,
+               "threshold (FWER-Bonferroni)")
       lty <- c(lty, 2)
     }
     if(ctl.fdr.bh){
-      lgd <- c(lgd, "FDR controlled via BH")
+      lgd <- c(lgd,
+               expression(largest~significant~italic(p)~"value (FDR-BH)"))
       lty <- c(lty, 3)
     }
     if(ctl.fdr.storey){
-      lgd <- c(lgd, "FDR controlled via Storey")
+      lgd <- c(lgd,
+               expression(largest~significant~italic(p)~"value (FDR-Storey)"))
       lty <- c(lty, 4)
     }
     graphics::legend("bottomright", legend=lgd,

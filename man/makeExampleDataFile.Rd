@@ -15,9 +15,6 @@ invisible data.frame
 \description{
 Make a file with examples of data to request (phenotypes, genotypes).
 }
-\seealso{
-\code{\link{readCheckBreedDataFile}}
-}
 \author{
 Timothee Flutre
 }

@@ -603,7 +603,6 @@ simulTrait3 <- function(dat, X, afs=NULL, subset.snps=NULL,
 ##' @param out.dir path to the directory in which the file will be saved
 ##' @return invisible data.frame
 ##' @author Timothee Flutre
-##' @seealso \code{\link{readCheckBreedPlantFile}}
 ##' @export
 makeExamplePlantFile <- function(out.dir){
   stopifnot(dir.exists(out.dir))
@@ -647,7 +646,6 @@ makeExamplePlantFile <- function(out.dir){
 ##' @param out.dir path to the directory in which the file will be saved
 ##' @return invisible data.frame
 ##' @author Timothee Flutre
-##' @seealso \code{\link{readCheckBreedDataFile}}
 ##' @export
 makeExampleDataFile <- function(out.dir){
   stopifnot(dir.exists(out.dir))
