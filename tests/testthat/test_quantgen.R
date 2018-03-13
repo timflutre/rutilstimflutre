@@ -112,6 +112,47 @@ test_that("genoClasses2JoinMap", {
   expect_equal(observed, expected)
 })
 
+test_that("genoClasses2JoinMap_threshCounts", {
+  nb.offs <- 7 # offsprings
+  N <- 2 + nb.offs
+  P <- 1 # SNPs
+  x <- data.frame(par1=c("AA"),
+                  par2=c("AT"),
+                  off1=c("AA"),
+                  off2=c("AA"),
+                  off3=c("AA"),
+                  off4=c("AT"),
+                  off5=c("AT"),
+                  off6=c("AT"),
+                  off7=c("TT"), # <- should become NA in the observed output
+                  row.names=paste0("snp", 1:P),
+                  stringsAsFactors=FALSE)
+
+  expected <- data.frame(par1=c("nn"),
+                         par2=c("np"),
+                         p1.A=c("A"),
+                         p1.B=c("A"),
+                         p2.C=c("A"),
+                         p2.D=c("T"),
+                         seg.pars=c("<nnxnp>"),
+                         seg.offs=c("<lmxll>_<nnxnp>"),
+                         seg=c("<nnxnp>"),
+                         off1=c("nn"),
+                         off2=c("nn"),
+                         off3=c("nn"),
+                         off4=c("np"),
+                         off5=c("np"),
+                         off6=c("np"),
+                         off7=c(as.character(NA)),
+                         row.names=rownames(x),
+                         stringsAsFactors=FALSE)
+
+  observed <- genoClasses2JoinMap(x=x, reformat.input=TRUE,
+                                  thresh.counts=2, verbose=0)
+
+  expect_equal(observed, expected)
+})
+
 test_that("genoClasses2JoinMap_F2", {
   nb.offs <- 4 # offsprings
   N <- 2 + 1 + nb.offs

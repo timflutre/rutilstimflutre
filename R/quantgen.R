@@ -332,7 +332,7 @@ genoClasses2JoinMap <- function(x, reformat.input=TRUE, na.string="--",
   par.alleles <- lapply(par.alleles, sort, na.last=NA)
   two.par.alleles <- sapply(par.alleles, length) == 2
 
-  ## assess conditions before identifying parental segregations
+  ## assess conditions before identifying offspring segregations
   if(nrow(x) == 1){
     tmp <- apply(x[, 3:ncol(x)], 1, table, useNA="always")
     nb.gclasses.offs <- list()
@@ -446,7 +446,7 @@ genoClasses2JoinMap <- function(x, reformat.input=TRUE, na.string="--",
                                         ! offs.het &
                                         ! offs.hom1] <- "B"
 
-  } else{
+  } else{ # is.F2 == FALSE
     ## identify proper segregation per SNP based on parents
     proper.seg.pars <- ! (par1.hom & par2.hom) & ! is.na.pars & two.par.alleles
 
@@ -503,38 +503,46 @@ genoClasses2JoinMap <- function(x, reformat.input=TRUE, na.string="--",
 
     ## set segregation classes of offsprings when seg type is <hkxhk>
     gclasses.hh <- paste0(output[is.hkhk, "p1.A"], output[is.hkhk, "p2.C"])
-    tmp <- t(apply(cbind(gclasses.hh, output[is.hkhk, 8:ncol(output)]), 1,
+    tmp1 <- t(apply(cbind(gclasses.hh, output[is.hkhk, 10:ncol(output)]), 1,
                    function(in.row){in.row[-1] == in.row[1]}))
-    tmp[is.na(tmp)] <- FALSE
-    if(any(tmp))
-      output[is.hkhk, 8:ncol(output)][tmp] <- "hh"
+    tmp1[is.na(tmp1)] <- FALSE
+    if(any(tmp1))
+      output[is.hkhk, 10:ncol(output)][tmp1] <- "hh"
     gclasses.kk <- paste0(output[is.hkhk, "p1.B"], output[is.hkhk, "p2.D"])
-    tmp <- t(apply(cbind(gclasses.kk, output[is.hkhk, 8:ncol(output)]), 1,
+    tmp2 <- t(apply(cbind(gclasses.kk, output[is.hkhk, 10:ncol(output)]), 1,
                    function(in.row){in.row[-1] == in.row[1]}))
-    tmp[is.na(tmp)] <- FALSE
-    if(any(tmp))
-      output[is.hkhk, 8:ncol(output)][tmp] <- "kk"
+    tmp2[is.na(tmp2)] <- FALSE
+    if(any(tmp2))
+      output[is.hkhk, 10:ncol(output)][tmp2] <- "kk"
     gclasses.hk <- paste0(output[is.hkhk, "p1.A"], output[is.hkhk, "p2.D"])
-    tmp <- t(apply(cbind(gclasses.hk, output[is.hkhk, 8:ncol(output)]), 1,
+    tmp3 <- t(apply(cbind(gclasses.hk, output[is.hkhk, 10:ncol(output)]), 1,
                    function(in.row){in.row[-1] == in.row[1]}))
-    tmp[is.na(tmp)] <- FALSE
-    if(any(tmp))
-      output[is.hkhk, 8:ncol(output)][tmp] <- "hk"
+    tmp3[is.na(tmp3)] <- FALSE
+    if(any(tmp3))
+      output[is.hkhk, 10:ncol(output)][tmp3] <- "hk"
+    ## handle bad offspring segregations and thresh.counts != NULL
+    tmp4 <- ! (tmp1 | tmp2 | tmp3)
+    if(any(tmp4))
+      output[is.hkhk, 10:ncol(output)][tmp4] <- NA
 
     ## set segregation classes of offsprings when seg type is <lmxll> or <nnxnp>
     lmll.or.nnnp <- is.lmll | is.nnnp
-    tmp <- t(apply(cbind(x[,1], output[, 8:ncol(output)])[lmll.or.nnnp,], 1,
-                   function(in.row){in.row[-1] == in.row[1]}))
-    tmp[is.na(tmp)] <- FALSE
-    if(any(tmp))
-      output[lmll.or.nnnp, 8:ncol(output)][tmp] <-
-        rep(output[lmll.or.nnnp, 1], ncol(tmp))[tmp]
-    tmp <- t(apply(cbind(x[,2], output[, 8:ncol(output)])[lmll.or.nnnp,], 1,
-                   function(in.row){in.row[-1] == in.row[1]}))
-    tmp[is.na(tmp)] <- FALSE
-    if(any(tmp))
-      output[lmll.or.nnnp, 8:ncol(output)][tmp] <-
-        rep(output[lmll.or.nnnp, 2], ncol(tmp))[tmp]
+    tmp1 <- t(apply(cbind(x[,1], output[, 10:ncol(output)])[lmll.or.nnnp,], 1,
+                    function(in.row){in.row[-1] == in.row[1]}))
+    tmp1[is.na(tmp1)] <- FALSE
+    if(any(tmp1))
+      output[lmll.or.nnnp, 10:ncol(output)][tmp1] <-
+        rep(output[lmll.or.nnnp, 1], ncol(tmp1))[tmp1]
+    tmp2 <- t(apply(cbind(x[,2], output[, 10:ncol(output)])[lmll.or.nnnp,], 1,
+                    function(in.row){in.row[-1] == in.row[1]}))
+    tmp2[is.na(tmp2)] <- FALSE
+    if(any(tmp2))
+      output[lmll.or.nnnp, 10:ncol(output)][tmp2] <-
+        rep(output[lmll.or.nnnp, 2], ncol(tmp2))[tmp2]
+    ## handle bad offspring segregations and thresh.counts != NULL
+    tmp3 <- ! xor(tmp1, tmp2)
+    if(any(tmp3))
+      output[lmll.or.nnnp, 10:ncol(output)][tmp3] <- NA
   }
 
   ## -------------------------------------------------------
@@ -1809,7 +1817,7 @@ barplotGeneticMap <- function(counts,
       tmp[1] <- x[is.nonzero][1] / 2
       i <- 2
       while(i <= sum(is.nonzero)){
-        tmp[i] <- cumsum(x[is.nonzero][1:(i-1)]) + x[is.nonzero][i] / 2
+        tmp[i] <- sum(x[is.nonzero][1:(i-1)]) + x[is.nonzero][i] / 2
         i <- i + 1
       }
       tmp
