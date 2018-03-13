@@ -6140,12 +6140,14 @@ lmerAM <- function(formula, data, relmat, REML=TRUE, na.action=stats::na.exclude
   stopifnot(is.data.frame(data),
             all(! duplicated(colnames(data))),
             is.list(relmat),
-            all(! duplicated(names(names(relmat)))),
+            ! is.null(names(relmat)),
             all(names(relmat) %in% colnames(data)),
             is.logical(REML))
   for(i in seq_along(relmat))
     stopifnot(is.matrix(relmat[[i]]) ||
               Matrix::isSymmetric(relmat[[i]]), # if nearPD()
+              ! is.null(rownames(relmat[[i]])),
+              ! is.null(colnames(relmat[[i]])),
               rownames(relmat[[i]]) == colnames(relmat[[i]]),
               all(rownames(relmat[[i]]) %in% data[,names(relmat)[i]]))
   if(! is.null(ci.meth))
