@@ -7251,56 +7251,6 @@ simulBslmm <- function(Q=3, mu=50, mean.a=5, sd.a=2,
               betat=betat, u=u))
 }
 
-##' Logistic growth
-##'
-##' Simulate phenotypes via the following model (\href{http://www.genetics.org/content/161/4/1751.abstract}{Ma et al (2002)}): y(t) = g(t) + epsilon(t) where g(t) = a / (1 + b exp(-r t))) and epsilon(t) ~ N(0, sigma^2).
-##' TODO: add QTL effect(s) + add AR(1) process on errors
-##' @param t vector of time points
-##' @param a asymptotic value of g when t tends to infinity
-##' @param g.t0 initial value of g at time t = 0
-##' @param r relative rate of growth
-##' @param sigma2 variance of the errors
-##' @return list
-##' @author Timothee Flutre
-##' @examples
-##' \dontrun{## without noise
-##' model <- simulLogistic(t=1:20, a=50, g.t0=1, r=0.6, sigma2=0)
-##' plot(x=model$t, y=model$g.t, type="b", las=1, xlab="time (t)", ylab="g(t)")
-##'
-##' ## with noise
-##' set.seed(1859)
-##' model <- simulLogistic(t=1:20, a=50, g.t0=1, r=0.6, sigma2=1)
-##' plot(x=model$t, y=model$g.t, type="b", las=1, xlab="time (t)", ylab="g(t)")
-##' }
-##' @export
-simulLogistic <- function(t=1:20, a=50, g.t0=1, r=0.6, sigma2=0){
-  stopifnot(is.numeric(t),
-            length(t) > 0,
-            is.numeric(a),
-            length(a) == 1,
-            is.numeric(g.t0),
-            length(g.t0) == 1,
-            is.numeric(r),
-            length(r) == 1,
-            is.numeric(sigma2),
-            length(sigma2) == 1,
-            sigma2 >= 0)
-
-  t <- t[! is.na(t)]
-
-  b <- (a - g.t0) / g.t0
-
-  g.t <- a / (1 + b * exp(- r * t))
-  if(sigma2 > 0)
-    g.t <- g.t + stats::rnorm(n=length(t), mean=0, sd=sqrt(sigma2))
-
-  tI <- log(b) / r
-  g.tI <- a / 2
-
-  return(list(t=t, a=a, g.t0=g.t0, r=r, b=b,
-              g.t=g.t, tI=tI, g.tI=g.tI))
-}
-
 ##' Plant association genetics
 ##'
 ##' Subset and sort inputs necessary to perform an analysis of plant association genetics, that is, the subset of cultivars with genotypes and phenotypes, and the subset of markers having genotypes and coordinates.
