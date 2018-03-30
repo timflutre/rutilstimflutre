@@ -18,7 +18,7 @@ matrix
 Make Henderson's MME's right-hand side.
 }
 \seealso{
-\code{link{solveMme}}
+\code{\link{solveMme}}
 }
 \author{
 Timothee Flutre

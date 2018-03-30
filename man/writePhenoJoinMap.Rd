@@ -22,7 +22,7 @@ nothing
 Writes the given phenotypes in the JoinMap/MapQTL format.
 }
 \seealso{
-\code{link{writeGenMapJoinMap}}, \code{link{writeSegregJoinMap}}
+\code{\link{writeGenMapJoinMap}}, \code{\link{writeSegregJoinMap}}
 }
 \author{
 Timothee Flutre

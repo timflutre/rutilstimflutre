@@ -48,7 +48,7 @@ cor(model$G.A, fit[4:length(fit)])
 }
 }
 \seealso{
-\code{link{makeMmeElements}}, \code{\link{makeMmeRhs}}, \code{\link{makeMmeLhs}}
+\code{\link{makeMmeElements}}, \code{\link{makeMmeRhs}}, \code{\link{makeMmeLhs}}
 }
 \author{
 Timothee Flutre

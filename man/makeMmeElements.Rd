@@ -20,7 +20,7 @@ list of matrices
 Make elements of Henderson's MME.
 }
 \seealso{
-\code{link{solveMme}}
+\code{\link{solveMme}}
 }
 \author{
 Timothee Flutre

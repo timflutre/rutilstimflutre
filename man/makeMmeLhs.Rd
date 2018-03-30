@@ -26,7 +26,7 @@ matrix
 Make Henderson's MME's left-hand side.
 }
 \seealso{
-\code{link{solveMme}}
+\code{\link{solveMme}}
 }
 \author{
 Timothee Flutre

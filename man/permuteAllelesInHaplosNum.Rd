@@ -24,7 +24,7 @@ At this step, one may not want to always count the number of copies of the deriv
 It hence is useful to permute alleles beforehand.
 }
 \seealso{
-\code{\link{simulCoalescent}}, \code{\link{segSites2allDoses}}, \code{link{haplosAlleles2num}}
+\code{\link{simulCoalescent}}, \code{\link{segSites2allDoses}}, \code{\link{haplosAlleles2num}}
 }
 \author{
 Timothee Flutre

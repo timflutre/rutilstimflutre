@@ -34,7 +34,7 @@ Finally, those being homozygous for the second allele are "2" and will be "BB".
 The code is not particularly efficient, but at least it exists.
 }
 \seealso{
-\code{link{genoClasses2genoDoses}}
+\code{\link{genoClasses2genoDoses}}
 }
 \author{
 Timothee Flutre

@@ -34,7 +34,7 @@ Additive and dominance effects are handled, but epistasis is ignored.
 Only additive effects are handled.
 }
 \seealso{
-\code{link{genoClasses2JoinMap}}, \code{\link{writeSegregJoinMap}}, \code{\link{updateJoinMap}}
+\code{\link{genoClasses2JoinMap}}, \code{\link{writeSegregJoinMap}}, \code{\link{updateJoinMap}}
 }
 \author{
 Timothee Flutre

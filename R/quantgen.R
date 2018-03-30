@@ -9,7 +9,7 @@
 ##' @param verbose verbosity level (0/1)
 ##' @return matrix with SNPs in rows and genotypes in columns
 ##' @author Eric Duchene [aut], Timothee Flutre [ctb]
-##' @seealso \code{link{genoClasses2genoDoses}}, \code{\link{genoClasses2JoinMap}}
+##' @seealso \code{\link{genoClasses2genoDoses}}, \code{\link{genoClasses2JoinMap}}
 ##' @export
 reformatGenoClasses <- function(file=NULL, x=NULL, na.string="--", verbose=1){
   stopifnot(xor(! is.null(file), ! is.null(x)))
@@ -259,7 +259,7 @@ updateJoinMap <- function(x, verbose=1){
 ##' @param verbose verbosity level (0/1)
 ##' @return data.frame
 ##' @author Timothee Flutre
-##' @seealso \code{link{\reformatGenoClasses}}, \code{\link{writeSegregJoinMap}}
+##' @seealso \code{\link{\reformatGenoClasses}}, \code{\link{writeSegregJoinMap}}
 ##' @examples
 ##' \dontrun{
 ##' nb.snps <- 6
@@ -1409,7 +1409,7 @@ readSegregJoinMap <- function(file, na.string="--", verbose=1){
 ##' @param verbose verbosity level (0/1)
 ##' @return nothing
 ##' @author Timothee Flutre
-##' @seealso \code{\link{genoClasses2JoinMap}}, \code{\link{readSegregJoinMap}}, \code{link{writeGenMapJoinMap}}, \code{link{writePhenoJoinMap}}
+##' @seealso \code{\link{genoClasses2JoinMap}}, \code{\link{readSegregJoinMap}}, \code{\link{writeGenMapJoinMap}}, \code{\link{writePhenoJoinMap}}
 ##' @examples
 ##' \dontrun{## make fake data
 ##' nb.snps <- 6
@@ -1521,7 +1521,7 @@ writeSegregJoinMap <- function(pop.name, pop.type="CP",
 ##' @param verbose verbosity level (0/1)
 ##' @return nothing
 ##' @author Timothee Flutre
-##' @seealso \code{link{writePhenoJoinMap}}, \code{link{writeSegregJoinMap}}
+##' @seealso \code{\link{writePhenoJoinMap}}, \code{\link{writeSegregJoinMap}}
 ##' @export
 writeGenMapJoinMap <- function(genmap, file, verbose=1){
   stopifnot(is.data.frame(genmap),
@@ -1570,7 +1570,7 @@ writeGenMapJoinMap <- function(genmap, file, verbose=1){
 ##' @param verbose verbosity level (0/1)
 ##' @return nothing
 ##' @author Timothee Flutre
-##' @seealso \code{link{writeGenMapJoinMap}}, \code{link{writeSegregJoinMap}}
+##' @seealso \code{\link{writeGenMapJoinMap}}, \code{\link{writeSegregJoinMap}}
 ##' @export
 writePhenoJoinMap <- function(phenos, file, alias.miss=".", verbose=1){
   stopifnot(is.data.frame(phenos),
@@ -2210,7 +2210,7 @@ setJoinMapPhasesFromParentalLinkGroups <- function(x, lg.par1, lg.par2){
 ##' @param verbose verbosity level (0/1)
 ##' @return matrix, with genotypes in rows and markers in columns
 ##' @author Timothee Flutre
-##' @seealso \code{link{genoClasses2JoinMap}}, \code{\link{writeSegregJoinMap}}, \code{\link{updateJoinMap}}
+##' @seealso \code{\link{genoClasses2JoinMap}}, \code{\link{writeSegregJoinMap}}, \code{\link{updateJoinMap}}
 ##' @export
 joinMap2designMatrix <- function(jm, use.phase=FALSE,
                                  parameterization="allele",
@@ -2668,7 +2668,7 @@ stopIfNotValidGenosDose <- function(X, check.hasColNames=TRUE,
 ##' @param verbose verbosity level (0/1)
 ##' @return data.frame with SNPs in rows and genotypes in columns
 ##' @author Timothee Flutre
-##' @seealso \code{link{genoClasses2genoDoses}}
+##' @seealso \code{\link{genoClasses2genoDoses}}
 ##' @export
 genoDoses2genoClasses <- function(X=NULL, tX=NULL, alleles, na.string="--",
                                   nb.cores=1, verbose=1){
@@ -3531,7 +3531,7 @@ haplosList2Matrix <- function(haplos){
 ##' @param verbose verbosity level (0/1)
 ##' @return list of haplotypes
 ##' @author Timothee Flutre
-##' @seealso \code{\link{simulCoalescent}}, \code{\link{segSites2allDoses}}, \code{link{haplosAlleles2num}}
+##' @seealso \code{\link{simulCoalescent}}, \code{\link{segSites2allDoses}}, \code{\link{haplosAlleles2num}}
 ##' @export
 permuteAllelesInHaplosNum <- function(haplos, snps.toperm, verbose=0){
   stopIfNotValidHaplos(haplos=haplos, check.hasColNames=FALSE, check.noNA=TRUE)
@@ -5799,7 +5799,7 @@ simulAnimalModel <- function(T=1,
 ##' @param Z incidence matrix of random variables
 ##' @return list of matrices
 ##' @author Timothee Flutre
-##' @seealso \code{link{solveMme}}
+##' @seealso \code{\link{solveMme}}
 ##' @export
 makeMmeElements <- function(y, X, Z){
   if(is.vector(y))
@@ -5832,7 +5832,7 @@ makeMmeElements <- function(y, X, Z){
 ##' @param tZ.y Z being the incidence matrix of random variables
 ##' @return matrix
 ##' @author Timothee Flutre
-##' @seealso \code{link{solveMme}}
+##' @seealso \code{\link{solveMme}}
 ##' @export
 makeMmeRhs <- function(tX.y, tZ.y){
   stopifnot(is.matrix(tX.y),
@@ -5860,7 +5860,7 @@ makeMmeRhs <- function(tX.y, tZ.y){
 ##' @param Ainv inverse of A, the matrix of additive genetic relationships
 ##' @return matrix
 ##' @author Timothee Flutre
-##' @seealso \code{link{solveMme}}
+##' @seealso \code{\link{solveMme}}
 ##' @export
 makeMmeLhs <- function(tX.X, tZ.X, tX.Z, tZ.Z, lambda, Ainv){
   stopifnot(is.matrix(tX.X),
@@ -5896,7 +5896,7 @@ makeMmeLhs <- function(tX.X, tZ.X, tX.Z, tZ.Z, lambda, Ainv){
 ##' @param sigma2 variance component of the errors
 ##' @return vector of length PQ containing the BLUEs of beta and the BLUPs of u
 ##' @author Timothee Flutre
-##' @seealso \code{link{makeMmeElements}}, \code{\link{makeMmeRhs}}, \code{\link{makeMmeLhs}}
+##' @seealso \code{\link{makeMmeElements}}, \code{\link{makeMmeRhs}}, \code{\link{makeMmeLhs}}
 ##' @examples
 ##' \dontrun{## simulate genotypes
 ##' set.seed(1859)
@@ -5962,7 +5962,7 @@ solveMme <- function(y, X, Z, sigma.u2, Ainv, sigma2){
 ##' @return vector
 ##' @author Goto Morota [aut], Timothee Flutre [ctb]
 ##' @note Unknown parents should be coded as zero. Last modified by Morota on April 8, 2010.
-##' @seealso \code{link{makeMmeElements}}, \code{\link{makeMmeRhs}}, \code{\link{makeMmeLhs}}
+##' @seealso \code{\link{makeMmeElements}}, \code{\link{makeMmeRhs}}, \code{\link{makeMmeLhs}}
 ##' @export
 emreml <- function(Ainv, y, X, Z, initE, initU, verbose=0){
 	n <- length(y)
