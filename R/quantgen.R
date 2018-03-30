@@ -259,7 +259,7 @@ updateJoinMap <- function(x, verbose=1){
 ##' @param verbose verbosity level (0/1)
 ##' @return data.frame
 ##' @author Timothee Flutre
-##' @seealso \code{link{reformatGenoClasses}}, \code{\link{writeSegregJoinMap}}
+##' @seealso \code{link{\reformatGenoClasses}}, \code{\link{writeSegregJoinMap}}
 ##' @examples
 ##' \dontrun{
 ##' nb.snps <- 6
