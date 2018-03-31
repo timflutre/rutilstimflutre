@@ -259,7 +259,7 @@ updateJoinMap <- function(x, verbose=1){
 ##' @param verbose verbosity level (0/1)
 ##' @return data.frame
 ##' @author Timothee Flutre
-##' @seealso \code{\link{\reformatGenoClasses}}, \code{\link{writeSegregJoinMap}}
+##' @seealso \code{\link{reformatGenoClasses}}, \code{\link{writeSegregJoinMap}}
 ##' @examples
 ##' \dontrun{
 ##' nb.snps <- 6
@@ -8637,11 +8637,12 @@ subsetPedigree <- function(ped, inds){
 ##' This function was inspired by plot.pedigree() from the "synbreed" package (under GPL-3).
 ##' It add options for monoecious species and auto-fecondation.
 ##' @param inds identifiers of the genotypes
-##' @param mothers identifiers of their mother; can be NA
-##' @param fathers identifiers of their father; can be NA
+##' @param mothers identifiers of their mother; can be NA (case of the founders and haplodiploidization)
+##' @param fathers identifiers of their father; can be NA (case of the founders and haplodiploidization)
 ##' @param generations should start at 0
 ##' @param sexes "F" for female (circle), "M" for male (square) and "H" for hermaphrodite (triangle); can also be NA (no shape)
 ##' @param plot.it if TRUE, the pedigree will be plotted
+##' @param verbose verbosity level (0/1/2)
 ##' @param edge.col.mother see ?igraph.plotting
 ##' @param edge.col.father see ?igraph.plotting
 ##' @param vertex.label.color see ?igraph.plotting
@@ -8652,18 +8653,23 @@ subsetPedigree <- function(ped, inds){
 ##' @param mult.edge.curve see ?igraph.plotting
 ##' @param edge.arrow.width see ?igraph.plotting
 ##' @param edge.arrow.size see ?igraph.plotting
+##' @param xmin see \code{norm_coords} in the "igraph" package
+##' @param xmax see \code{norm_coords} in the "igraph" package
+##' @param ymin see \code{norm_coords} in the "igraph" package
+##' @param ymax see \code{norm_coords} in the "igraph" package
 ##' @param ... other plotting options; see ?plot.igraph and ?igraph.plotting
 ##' @return invisible list with objects required to plot the pedigree
 ##' @author Timothee Flutre
 ##' @seealso \code{\link{subsetPedigree}}
 ##' @export
 plotPedigree <- function(inds, mothers, fathers, generations, sexes=NULL,
-                         plot.it=TRUE,
+                         plot.it=TRUE, verbose=1,
                          edge.col.mother="black", edge.col.father="darkgrey",
                          vertex.label.color="darkblue", vertex.color="white",
                          vertex.size=20, vertex.shape="none",
                          vertex.label.family="Helvetica", mult.edge.curve=0.25,
                          edge.arrow.width=0.75, edge.arrow.size=0.75,
+                         xmin=-1, xmax=1, ymin=-1, ymax=1,
                          ...){
   requireNamespace("igraph")
   if(is.factor(inds))
@@ -8679,28 +8685,61 @@ plotPedigree <- function(inds, mothers, fathers, generations, sexes=NULL,
   if(! is.null(sexes))
     stopifnot(is.vector(sexes))
 
+  ## add "triangle" as shape
+  mytriangle <- function(coords, v=NULL, params) {
+    vertex.color <- params("vertex", "color")
+    if(length(vertex.color) != 1 && !is.null(v))
+      vertex.color <- vertex.color[v]
+    vertex.size <- 1/200 * params("vertex", "size")
+    if(length(vertex.size) != 1 && !is.null(v))
+      vertex.size <- vertex.size[v]
+    graphics::symbols(x=coords[,1], y=coords[,2], bg=vertex.color,
+            stars=cbind(vertex.size, vertex.size, vertex.size),
+            add=TRUE, inches=FALSE)
+  }
+  igraph::add_shape("triangle", clip=igraph::shapes("circle")$clip,
+                    plot=mytriangle)
+
   ## check inds
   inds <- as.character(inds)
+  if(verbose > 0){
+    msg <- paste0("nb of individuals: ", length(inds))
+    write(msg, stdout())
+  }
   if(length(unique(inds)) != length(inds)){
-    msg <- paste0("note that ", length(inds), " entries are in 'inds',",
-                  " but only ", length(unique(inds)), " are unique")
-    message(msg)
+    msg <- paste0("only ", length(unique(inds)), " individuals are unique")
+    warning(msg)
   }
 
   ## check mothers
   mothers <- as.character(mothers)
   stopifnot(length(mothers) == length(inds),
             all(mothers[! is.na(mothers)] %in% inds))
+  if(verbose > 0){
+    uniq.mothers <- unique(mothers[! is.na(mothers)])
+    msg <- paste0("nb of unique mothers: ", length(uniq.mothers))
+    write(msg, stdout())
+  }
 
   ## check fathers
   fathers <- as.character(fathers)
   stopifnot(length(fathers) == length(inds),
             all(fathers[! is.na(fathers)] %in% inds))
+  if(verbose > 0){
+    uniq.fathers <- unique(fathers[! is.na(fathers)])
+    msg <- paste0("nb of unique fathers: ", length(uniq.fathers))
+    write(msg, stdout())
+  }
 
   ## check generations
   generations <- as.numeric(generations)
   stopifnot(length(generations) == length(inds))
-  generations <- generations - min(generations)
+  if(verbose > 0){
+    msg <- paste0("nb of generations: ", length(unique(generations)))
+    write(msg, stdout())
+    if(verbose > 1)
+      print(table(generations))
+  }
 
   ## check sexes
   if(! is.null(sexes)){
@@ -8721,39 +8760,69 @@ plotPedigree <- function(inds, mothers, fathers, generations, sexes=NULL,
   if(! is.null(sexes))
     sexes <- sexes[idx]
 
-  ## add "triangle" as shape
-  mytriangle <- function(coords, v=NULL, params) {
-    vertex.color <- params("vertex", "color")
-    if(length(vertex.color) != 1 && !is.null(v))
-      vertex.color <- vertex.color[v]
-    vertex.size <- 1/200 * params("vertex", "size")
-    if(length(vertex.size) != 1 && !is.null(v))
-      vertex.size <- vertex.size[v]
-    graphics::symbols(x=coords[,1], y=coords[,2], bg=vertex.color,
-            stars=cbind(vertex.size, vertex.size, vertex.size),
-            add=TRUE, inches=FALSE)
-  }
-  igraph::add_shape("triangle", clip=igraph::shapes("circle")$clip,
-                    plot=mytriangle)
+  ## set up a data frame containing the whole pedigree
+  ped.df <- data.frame(ind=inds,
+                       par1=mothers,
+                       par2=fathers,
+                       gen=generations,
+                       reprod=NA,
+                       founder=FALSE,
+                       stringsAsFactors=FALSE)
 
-  ## make "igraph" object:
-  ## use unique identifiers (ind_|_gen) because, in plants,
-  ## a given individual can be present at multiple generations
-  inds.gen <- paste0("gen", generations, "_|_", inds)
-  stopifnot(all(! duplicated(inds.gen)))
-  mothers.gen <- paste0("gen", generations - 1, "_|_", mothers)
-  fathers.gen <- paste0("gen", generations - 1, "_|_", fathers)
-  relations <- rbind(cbind(mothers.gen[! is.na(mothers)],
-                           inds.gen[! is.na(mothers)]),
-                     cbind(fathers.gen[! is.na(fathers)],
-                           inds.gen[! is.na(fathers)]))
-  colnames(relations) <- c("from","to")
-  relations <- as.data.frame(relations, stringsAsFactors=FALSE)
-  relations$type <- c(rep("maternal", sum(! is.na(mothers))),
-                      rep("paternal", sum(! is.na(fathers))))
-  ## TODO: add relations$status for allof/autof/haplodiplo
+  ## categorize the modes of reproduction
+  idx <- which(! is.na(ped.df$par1) & ! is.na(ped.df$par2) &
+               ped.df$par1 != ped.df$par2)
+  ped.df$reprod[idx] <- "allofecundation"
+  idx <- which(! is.na(ped.df$par1) & ! is.na(ped.df$par2) &
+               ped.df$par1 == ped.df$par2)
+  ped.df$reprod[idx] <- "autofecundation"
+  idx <- which(xor(is.na(ped.df$par1), is.na(ped.df$par2)))
+  ped.df$reprod[idx] <- "haplodiploidization"
+  if(verbose > 0){
+    msg <- "nb of occurrences per reproduction mode:"
+    cat(msg)
+    print(table(ped.df$reprod, useNA="no"))
+  }
+
+  ## identify the founders
+  ped.df$founder <- is.na(ped.df$par1) & is.na(ped.df$par2)
+  if(verbose > 0){
+    msg <- paste0("nb of founders: ", sum(ped.df$founder))
+    write(msg, stdout())
+    msg <- paste0("nb of non-founding generations: ",
+                  length(unique(ped.df$gen[! ped.df$founder])))
+    write(msg, stdout())
+  }
+
+  ## set up edges (from "ped.df")
+  ## need to (1) discard founders and (2) use unique identifiers
+  ## "gen_|_ind" because a given individual can be present at multiple
+  ## generations, thus also need to (3) update generations
+  ped.df.nofnd <- ped.df[! ped.df$founder,
+                         c("ind","par1","par2","gen")]
+  ped.df.nofnd$gen <- ped.df.nofnd$gen - min(ped.df.nofnd$gen) + 1
+  sep <- "_|_"
+  ped.df.nofnd$ind.id <- paste0("gen", ped.df.nofnd$gen,
+                                sep, ped.df.nofnd$ind)
+  stopifnot(all(! duplicated(ped.df.nofnd$ind.id)))
+  ped.df.nofnd$par1.id <- paste0("gen", ped.df.nofnd$gen - 1,
+                                 sep, ped.df.nofnd$par1)
+  ped.df.nofnd$par2.id <- paste0("gen", ped.df.nofnd$gen - 1,
+                                 sep, ped.df.nofnd$par2)
+  relations <- data.frame(from=c(ped.df.nofnd$par1.id,
+                                 ped.df.nofnd$par2.id),
+                          to=rep(ped.df.nofnd$ind.id, 2),
+                          type=rep(c("maternal","paternal"),
+                                   each=nrow(ped.df.nofnd)),
+                          stringsAsFactors=FALSE)
   relations <- relations[order(relations$from),]
   rownames(relations) <- NULL
+  if(verbose > 0){
+    msg <- paste0("nb of relations: ", nrow(relations))
+    write(msg, stdout())
+  }
+
+  ## set up vertices (from "relations")
   tmp <- unique(c(relations$from, relations$to))
   vertices <- data.frame(name=tmp,
                          generation=as.numeric(sub("gen", "",
@@ -8772,6 +8841,8 @@ plotPedigree <- function(inds, mothers, fathers, generations, sexes=NULL,
   vertices[["color"]] <- vertex.color
   vertices[["label.color"]] <- vertex.label.color
   vertices[["label.family"]] <- vertex.label.family
+
+  ## make "igraph" object
   ped.graph <- igraph::graph_from_data_frame(d=relations,
                                              directed=TRUE,
                                              vertices=vertices)
@@ -8798,6 +8869,9 @@ plotPedigree <- function(inds, mothers, fathers, generations, sexes=NULL,
         x <- rev(scale(x))
       return(x)
     }))
+  coords <- igraph::norm_coords(layout=coords,
+                                xmin=xmin, xmax=xmax,
+                                ymin=ymin, ymax=ymax)
 
   ## set edge color depending on parental sex
   edge.cols <- relations$type
@@ -8817,7 +8891,7 @@ plotPedigree <- function(inds, mothers, fathers, generations, sexes=NULL,
   ## plot, finally
   if(plot.it)
     igraph::plot.igraph(x=ped.graph,
-                        layout=coords,
+                        layout=coords, rescale=FALSE,
                         edge.color=edge.cols,
                         edge.curved=edge.curvatures,
                         edge.arrow.width=edge.arrow.width,
@@ -8826,6 +8900,8 @@ plotPedigree <- function(inds, mothers, fathers, generations, sexes=NULL,
 
   invisible(list(relations=relations,
                  vertices=vertices,
-                 graph=ped.graph, layout=coords, edge.color=edge.cols,
+                 graph=ped.graph,
+                 layout=coords,
+                 edge.color=edge.cols,
                  edge.curved=edge.curvatures))
 }
