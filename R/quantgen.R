@@ -5394,7 +5394,7 @@ createA <- function(s, d){
 		A[i,i] <- 1 + A[s[i], d[i]]/2
 		for(j in (i+1):n){
 			if (j > n) break
-			A[i,j] <- ( A[i, s[j]] + A[i,d[j]] )/2
+			A[i,j] <- (A[i, s[j]] + A[i,d[j]]) / 2
       A[j,i] <- A[i,j]
 		}
 	}
@@ -5431,18 +5431,18 @@ quass <- function(s, d){
   ## construct L
 	for(t in 1:n){
 
-		if (s[t] == N && d[t] == N){
+		if(s[t] == N && d[t] == N){
 			L[t,t] <- 1.0
-			if(t!=1) {
+			if(t != 1){
 				for(j in 1:(t-1)){
 					L[t,j] <- 0
 				}
 			}
 		}
 
-		if (s[t] != N && d[t] == N){
-			for (j in 1:s[t]){
-				L[t,j] <- 0.5*L[s[t], j]
+		if(s[t] != N && d[t] == N){
+			for(j in 1:s[t]){
+				L[t,j] <- 0.5 * L[s[t], j]
 			}
 			tmp <- 0.0
 			for(j in 1:s[t]){
@@ -5451,9 +5451,9 @@ quass <- function(s, d){
 			L[t,t] <- sqrt(1- tmp)
 		}
 
-		if (s[t] == N && d[t] != N){
-			for (j in 1:d[t]){
-				L[t,j] <- 0.5*L[d[t], j]
+		if(s[t] == N && d[t] != N){
+			for(j in 1:d[t]){
+				L[t,j] <- 0.5 * L[d[t], j]
 			}
 			tmp <- 0.0
 			for(j in 1:d[t]){
@@ -5462,8 +5462,8 @@ quass <- function(s, d){
 			L[t,t] <- sqrt(1- tmp)
 		}
 
-		if (s[t] != N && d[t] != N ){
-			if (s[t] < d[t]){
+		if(s[t] != N && d[t] != N ){
+			if(s[t] < d[t]){
 				p <- s[t]
 				q <- d[t]
 			}
@@ -5473,20 +5473,20 @@ quass <- function(s, d){
 			}
 
 			for(j in 1:t-1){
-				L[t,j] <- 0.5*(L[p,j] + L[q,j])
+				L[t,j] <- 0.5 * (L[p,j] + L[q,j])
 			}
 
 			tmp <- 0.0
-			for (j in 1:p){
-				tmp <- tmp + L[p,j]*L[q,j]
+			for(j in 1:p){
+				tmp <- tmp + L[p,j] * L[q,j]
 			}
 
 			tmp2 <- 0.0
-			for (j in 1:q){
+			for(j in 1:q){
 				tmp2 <- tmp2 + L[t,j]^2
 			}
 
-			L[t,t] <- 	sqrt(1+0.5*tmp - tmp2)
+			L[t,t] <- 	sqrt(1 + 0.5 * tmp - tmp2)
 		}
 
 	}
@@ -5499,7 +5499,7 @@ quass <- function(s, d){
 
 		tmp <- 1/L[i,i]^2
 
-		if (s[i] != N && d[i] != N ){
+		if(s[i] != N && d[i] != N ){
 			A[i,i] <- A[i,i] + tmp
 			A[i, s[i]] <- A[i, s[i]] - tmp/2.0
 			A[s[i], i] <- A[s[i], i] - tmp/2.0
@@ -5512,21 +5512,21 @@ quass <- function(s, d){
 			A[d[i], d[i]] <- A[d[i], d[i]] + tmp/4.0
 		}
 
-		if (s[i] != N && d[i] == N){
+		if(s[i] != N && d[i] == N){
 			A[i,i] <- A[i,i] + tmp
 			A[s[i], i] <- A[s[i], i] - tmp/2.0
 			A[i, s[i]] <- A[i, s[i]] - tmp/2.0
 			A[s[i], s[i]] <- A[s[i], s[i]] + tmp/4.0
 		}
 
-		if (s[i] == N && d[i] != N){
+		if(s[i] == N && d[i] != N){
 			A[i,i] <- A[i,i] + tmp
 			A[d[i], i] <- A[d[i], i] - tmp/2.0
 			A[i, d[i]] <- A[i, d[i]] - tmp/2.0
 			A[d[i], d[i]] <- A[d[i], d[i]] + tmp/4.0
 		}
 
-		if (s[i] == N && d[i] == N){
+		if(s[i] == N && d[i] == N){
 			A[i,i] <- A[i,i] + tmp
 		}
 

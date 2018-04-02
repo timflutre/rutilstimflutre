@@ -1168,3 +1168,165 @@ summaryMcmcChain <- function(res.mcmc, param.names){
 
   return(out)
 }
+
+##' Generic EM algorithm
+##'
+##' Run a generic EM algorithm.
+##' @param data data
+##' @param params list with the initial values of the parameters
+##' @param stepE function implementing the E step taking \code{data} and \code{params} as inputs
+##' @param stepM function implementing the M step taking \code{data}, \code{params} and the output of the E step as inputs
+##' @param loglik function taking \code{data} and \code{params} as inputs, and returning the value of the log likelihood
+##' @param thresh.cvg threshold on the absolute difference between the log likelihood of two successive iterations below which convergence is reached
+##' @param nb.iters number of iterations
+##' @param verbose verbosity level (0/1/2)
+##' @return list with MLEs of the parameters and values of the log likelihood
+##' @author Timothee Flutre
+##' @examples
+##' \dontrun{## example of the EM algorithm for univariate Gaussian mixture
+##'
+##' ## 1. simulate some data
+##' simulDat <- function(K=2, N=100, gap=6){
+##'   means <- seq(0, gap*(K-1), gap)
+##'   stdevs <- runif(n=K, min=0.5, max=1.5)
+##'   tmp <- floor(rnorm(n=K-1, mean=floor(N/K), sd=5))
+##'   ns <- c(tmp, N - sum(tmp))
+##'   memberships <- as.factor(matrix(unlist(lapply(1:K, function(k){rep(k, ns[k])})),
+##'                            ncol=1))
+##'   data <- matrix(unlist(lapply(1:K, function(k){
+##'     rnorm(n=ns[k], mean=means[k], sd=stdevs[k])
+##'   })))
+##'   new.order <- sample(1:N, N)
+##'   data <- data[new.order]
+##'   rownames(data) <- NULL
+##'   memberships <- memberships[new.order]
+##'   return(list(data=data, memberships=memberships,
+##'               means=means, stdevs=stdevs, weights=ns/N))
+##' }
+##' set.seed(1859)
+##' K <- 3
+##' N <- 300
+##' simul <- simulDat(K, N)
+##' simul$means
+##' simul$stdevs
+##' simul$weights
+##'
+##' ## 2. visualize the data
+##' hist(simul$data, breaks=30, freq=FALSE, col="grey", border="white",
+##'      main="", ylab="", xlab="data", las=1, xlim=c(-4,15), ylim=c(0,0.28))
+##'
+##' ## 3. define functions required to run the EM algorithm
+##'
+##' loglik <- function(data, params){
+##'   sum(sapply(data, function(datum){
+##'     log(sum(unlist(Map(function(mu, sigma, weight){
+##'       weight * dnorm(x=datum, mean=mu, sd=sigma)
+##'     }, params$means, params$stdevs, params$weights))))
+##'   }))
+##' }
+##' loglik(simul$data, simul[-c(1,2)])
+##'
+##' ## function performing the E step
+##' stepE <- function(data, params){
+##'   N <- length(data)
+##'   K <- length(params$means)
+##'   tmp <- matrix(unlist(lapply(data, function(datum){
+##'     norm.const <- sum(unlist(Map(function(mu, sigma, weight){
+##'       weight * dnorm(x=datum, mean=mu, sd=sigma)
+##'     }, params$means, params$stdevs, params$weights)))
+##'     unlist(Map(function(mu, sigma, weight){
+##'         weight * dnorm(x=datum, mean=mu, sd=sigma) / norm.const
+##'       }, params$means[-K], params$stdevs[-K], params$weights[-K]))
+##'   })), ncol=K-1, byrow=TRUE)
+##'   membership.probas <- cbind(tmp, apply(tmp, 1, function(x){1 - sum(x)}))
+##'   names(membership.probas) <- NULL
+##'   return(membership.probas)
+##' }
+##' head(mb.pr <- stepE(simul$data, simul[-c(1,2)]))
+##'
+##' stepM <- function(data, params, out.stepE){
+##'   N <- length(data)
+##'   K <- length(params$means)
+##'   sum.membership.probas <- apply(out.stepE, 2, sum)
+##'   ## MLEs of the means
+##'   new.means <- sapply(1:K, function(k){
+##'     sum(unlist(Map("*", out.stepE[,k], data))) /
+##'     sum.membership.probas[k]
+##'   })
+##'   ## MLEs of the standard deviations
+##'   new.stdevs <- sapply(1:K, function(k){
+##'       sqrt(sum(unlist(Map(function(p.ki, x.i){
+##'       p.ki * (x.i - new.means[k])^2
+##'     }, out.stepE[,k], data))) /
+##'     sum.membership.probas[k])
+##'   })
+##'   ## MLEs of the weights
+##'   new.weights <- sapply(1:K, function(k){
+##'     1/N * sum.membership.probas[k]
+##'   })
+##'   return(list(means=new.means, stdevs=new.stdevs, weights=new.weights))
+##' }
+##' stepM(simul$data, simul[-c(1,2)], mb.pr)
+##'
+##' ## 4. run the EM algorithm
+##' params0 <- list(means=runif(n=K, min=min(simul$data), max=max(simul$data)),
+##'                 stdevs=rep(1, K),
+##'                 weights=rep(1/K, K))
+##' fit <- gem(data=simul$data, params=params0,
+##'            stepE=stepE, stepM=stepM, loglik=loglik,
+##'            verbose=1)
+##'
+##' ## 5. plot the log likelihood per iteration
+##' plot(fit$logliks, xlab="iterations", ylab="log-likelihood",
+##'      main="Convergence of the EM algorithm", type="b")
+##'
+##' ## 6. plot the data along with the inferred density
+##' hist(simul$data, breaks=30, freq=FALSE, col="grey", border="white",
+##'      main="", ylab="", xlab="data", las=1, xlim=c(-4,15), ylim=c(0,0.28))
+##' rx <- seq(from=min(simul$data), to=max(simul$data), by=0.1)
+##' ds <- lapply(1:K, function(k){dnorm(x=rx, mean=fit$params$means[k], sd=fit$params$stdevs[k])})
+##' f <- sapply(1:length(rx), function(i){
+##'   fit$params$weights[1] * ds[[1]][i] + fit$params$weights[2] * ds[[2]][i] + fit$params$weights[3] * ds[[3]][i]
+##' })
+##' lines(rx, f, col="red", lwd=2)
+##'
+##' ## 7. look at the classification of the data
+##' mb.pr <- stepE(simul$data, fit$params)
+##' memberships <- apply(mb.pr, 1, function(x){which(x > 0.8)})
+##' table(memberships)
+##' }
+##' @export
+gem <- function(data, params, stepE, stepM, loglik, thresh.cvg=10^(-3), nb.iters=10^3, verbose=1){
+  stopifnot(is.function(stepE),
+            is.function(stepM),
+            is.function(loglik))
+
+  logliks <- vector()
+
+  i <- 0
+  while(i < nb.iters){
+    i <- i + 1
+
+    outE <- stepE(data, params)
+    params <- stepM(data, params, outE)
+
+    logliks <- append(logliks, loglik(data, params))
+    if(verbose > 0)
+      write(paste0("iter ", i, ":",
+                   " loglik=", round(logliks[length(logliks)], 2)),
+            stdout())
+    if(i > 1){
+      if(logliks[length(logliks)] < logliks[length(logliks) - 1]){
+        msg <- paste("the log-likelihood is decreasing (",
+                     logliks[length(logliks)], "<",
+                     logliks[length(logliks) - 1], ")")
+        stop(msg)
+      }
+      if(abs(logliks[length(logliks)] - logliks[length(logliks) - 1]) <=
+         thresh.cvg)
+        break
+    }
+  }
+
+  return(list(params=params, logliks=logliks))
+}
