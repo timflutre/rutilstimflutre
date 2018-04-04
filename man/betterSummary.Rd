@@ -2,7 +2,7 @@
 % Please edit documentation in R/stats.R
 \name{betterSummary}
 \alias{betterSummary}
-\title{Summary}
+\title{Better summary}
 \usage{
 betterSummary(x)
 }
@@ -10,10 +10,13 @@ betterSummary(x)
 \item{x}{vector (or 1-column matrix) of numbers}
 }
 \value{
-vector
+vector of 12 values
 }
 \description{
-Format the output of \code{\link{summary}} in a single line, as well as the total number of observations and the number of missing data.
+Format the output of \code{\link{summary}} in a single line, as well as the total number of observations, the number and percentage of missing data, the variance and standard deviation, and the coefficient of variation.
+}
+\seealso{
+\code{\link{prettyPrintBetterSummary}}
 }
 \author{
 Timothee Flutre

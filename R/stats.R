@@ -1,11 +1,12 @@
 ## Contains functions useful for statistics.
 
-##' Summary
+##' Better summary
 ##'
-##' Format the output of \code{\link{summary}} in a single line, as well as the total number of observations and the number of missing data.
+##' Format the output of \code{\link{summary}} in a single line, as well as the total number of observations, the number and percentage of missing data, the variance and standard deviation, and the coefficient of variation.
 ##' @param x vector (or 1-column matrix) of numbers
-##' @return vector
+##' @return vector of 12 values
 ##' @author Timothee Flutre
+##' @seealso \code{\link{prettyPrintBetterSummary}}
 ##' @export
 betterSummary <- function(x){
   if(is.matrix(x)){
@@ -15,41 +16,67 @@ betterSummary <- function(x){
   stopifnot(is.vector(x),
             is.numeric(x))
 
-  out <- stats::setNames(rep(NA, 8),
-                         c("n", "na", "min", "q1", "med", "mean", "q3", "max"))
+  out <- stats::setNames(rep(NA, 12),
+                         c("n", "num.na", "perc.na",
+                           "mean", "var", "sd", "cv",
+                           "min", "q1", "med", "q3", "max"))
 
   out["n"] <- length(x)
   isNa <- is.na(x)
   if(any(isNa))
     x <- x[! isNa]
-  out["na"] <- sum(isNa)
+  out["num.na"] <- sum(isNa)
+  out["perc.na"] <- 100 * out["num.na"] / out["n"]
+  out["mean"] <- mean(x)
+  out["var"] <- stats::var(x)
+  out["sd"] <- stats::sd(x)
+  out["cv"] <- out["sd"] / out["mean"]
   out["min"] <- min(x)
   out["q1"] <- stats::quantile(x, 0.25)
   out["med"] <- stats::median(x)
-  out["mean"] <- mean(x)
   out["q3"] <- stats::quantile(x, 0.75)
   out["max"] <- max(x)
 
   return(out)
 }
 
-##' Summary
+##' Print better summary
 ##'
-##' Print the output of \code{\link{betterSummary}} in a single line, as well as the total number of observations and the number of missing data.
-##' @param x vector of numbers
-##' @param spec specifier, see \code{\link{sprintf}}
+##' Print the output of \code{\link{betterSummary}} in a single line.
+##' @param x vector of numbers; if NULL, \code{smy} should be provided
+##' @param smy output of \code{\link{betterSummary}}; if NULL, \code{x} should be provided; if data frame, will be converted to vector
+##' @param spec specifier to format floats, see \code{\link{sprintf}}
+##' @param header optional character to be placed in front of what will be printed
 ##' @return invisible summary
 ##' @author Timothee Flutre
 ##' @export
-prettyPrintSummary <- function(x, spec="%.2f"){
-  out <- betterSummary(x)
+prettyPrintBetterSummary <- function(x=NULL, smy=NULL, spec="%.2f", header=NULL){
+  stopifnot(xor(is.null(x), is.null(smy)),
+            ifelse(is.null(header), TRUE, is.character(header)))
 
-  fmt <- paste(paste0(names(out), "=", spec), collapse=" ")
-  txt <- sprintf(fmt=fmt, out["n"], out["na"], out["min"], out["q1"], out["med"],
-                 out["mean"], out["q3"], out["max"])
+  if(is.null(smy))
+    smy <- betterSummary(x)
+  else if(is.data.frame(smy))
+    smy <- unlist(smy)
+
+  txt <- ""
+  if(! is.null(header))
+    txt <- paste0(txt, header)
+
+  fmt <- paste(paste0(c("n","num.na"), "=", "%i"), collapse=" ")
+  txt <- paste(txt,
+               sprintf(fmt=fmt,
+                       smy["n"], smy["num.na"]))
+  fmt <- paste(paste0(names(smy)[-c(1,2)], "=", spec), collapse=" ")
+  txt <- paste(txt,
+               sprintf(fmt=fmt,
+                       smy["perc.na"],
+                       smy["mean"], smy["var"], smy["sd"], smy["cv"],
+                       smy["min"], smy["q1"], smy["med"],
+                       smy["q3"], smy["max"]))
   print(txt)
 
-  invisible(out)
+  invisible(smy)
 }
 
 ##' Root mean squared error
