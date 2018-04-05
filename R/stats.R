@@ -1196,23 +1196,23 @@ summaryMcmcChain <- function(res.mcmc, param.names){
   return(out)
 }
 
-##' Generic EM algorithm
+##' EM algorithm
 ##'
-##' Run a generic EM algorithm.
+##' Run the EM algorithm.
 ##' @param data data
 ##' @param params list with the initial values of the parameters
-##' @param stepE function implementing the E step taking \code{data} and \code{params} as inputs
-##' @param stepM function implementing the M step taking \code{data}, \code{params} and the output of the E step as inputs
-##' @param loglik function taking \code{data} and \code{params} as inputs, and returning the value of the log likelihood
-##' @param thresh.cvg threshold on the absolute difference between the log likelihood of two successive iterations below which convergence is reached
+##' @param stepE function implementing the E step taking \code{data} and \code{params} as inputs; can be parallelized
+##' @param stepM function implementing the M step taking \code{data}, \code{params} and the output of \code{stepE} as inputs; can be parallelized
+##' @param loglik function taking \code{data} and \code{params} as inputs, and returning the value of the observed-data log-likelihood; can be parallelized
+##' @param thresh.cvg threshold on the absolute difference between the observed-data log-likelihood of two successive iterations below which convergence is reached
 ##' @param nb.iters number of iterations
 ##' @param verbose verbosity level (0/1/2)
-##' @return list with MLEs of the parameters and values of the log likelihood
+##' @return list with MLEs of the parameters and values of the observed-data log-likelihood
 ##' @author Timothee Flutre
 ##' @examples
-##' \dontrun{## example of the EM algorithm for univariate Gaussian mixture
+##' \dontrun{## I. example of the EM algorithm for univariate Gaussian mixture
 ##'
-##' ## 1. simulate some data
+##' ## I.1. simulate some data
 ##' simulDat <- function(K=2, N=100, gap=6){
 ##'   means <- seq(0, gap*(K-1), gap)
 ##'   stdevs <- runif(n=K, min=0.5, max=1.5)
@@ -1238,11 +1238,13 @@ summaryMcmcChain <- function(res.mcmc, param.names){
 ##' simul$stdevs
 ##' simul$weights
 ##'
-##' ## 2. visualize the data
+##' ## I.2. visualize the data
 ##' hist(simul$data, breaks=30, freq=FALSE, col="grey", border="white",
-##'      main="", ylab="", xlab="data", las=1, xlim=c(-4,15), ylim=c(0,0.28))
+##'      main="Simulated data from univariate Gaussian mixture",
+##'      ylab="", xlab="data", las=1,
+##'      xlim=c(-4,15), ylim=c(0,0.28))
 ##'
-##' ## 3. define functions required to run the EM algorithm
+##' ## I.3. define functions required to run the EM algorithm
 ##'
 ##' loglik <- function(data, params){
 ##'   sum(sapply(data, function(datum){
@@ -1295,21 +1297,23 @@ summaryMcmcChain <- function(res.mcmc, param.names){
 ##' }
 ##' stepM(simul$data, simul[-c(1,2)], mb.pr)
 ##'
-##' ## 4. run the EM algorithm
+##' ## I.4. run the EM algorithm
 ##' params0 <- list(means=runif(n=K, min=min(simul$data), max=max(simul$data)),
 ##'                 stdevs=rep(1, K),
 ##'                 weights=rep(1/K, K))
-##' fit <- gem(data=simul$data, params=params0,
-##'            stepE=stepE, stepM=stepM, loglik=loglik,
-##'            verbose=1)
+##' fit <- em(data=simul$data, params=params0,
+##'           stepE=stepE, stepM=stepM, loglik=loglik,
+##'           verbose=1)
 ##'
-##' ## 5. plot the log likelihood per iteration
+##' ## I.5. plot the log likelihood per iteration
 ##' plot(fit$logliks, xlab="iterations", ylab="log-likelihood",
 ##'      main="Convergence of the EM algorithm", type="b")
 ##'
-##' ## 6. plot the data along with the inferred density
+##' ## I.6. plot the data along with the inferred density
 ##' hist(simul$data, breaks=30, freq=FALSE, col="grey", border="white",
-##'      main="", ylab="", xlab="data", las=1, xlim=c(-4,15), ylim=c(0,0.28))
+##'      main="Simulated data from univariate Gaussian mixture",
+##'      ylab="", xlab="data", las=1,
+##'      xlim=c(-4,15), ylim=c(0,0.28))
 ##' rx <- seq(from=min(simul$data), to=max(simul$data), by=0.1)
 ##' ds <- lapply(1:K, function(k){dnorm(x=rx, mean=fit$params$means[k], sd=fit$params$stdevs[k])})
 ##' f <- sapply(1:length(rx), function(i){
@@ -1317,42 +1321,96 @@ summaryMcmcChain <- function(res.mcmc, param.names){
 ##' })
 ##' lines(rx, f, col="red", lwd=2)
 ##'
-##' ## 7. look at the classification of the data
+##' ## I.7. look at the classification of the data
 ##' mb.pr <- stepE(simul$data, fit$params)
 ##' memberships <- apply(mb.pr, 1, function(x){which(x > 0.8)})
 ##' table(memberships)
+##'
+##' ## II. example of the EM algorithm for univariate linear mixed model
+##'
+##' ## II.1. simulate some data
+##' ## TODO
+##'
+##' ## II.2. visualize the data
+##' ## TODO
+##'
+##' ## II.3. define functions required to run the EM algorithm
+##' ## TODO
+##'
+##' loglik <- function(data, params){
+##' }
+##'
+##' stepE <- function(data, params){
+##' }
+##'
+##' stepM <- function(data, params, out.stepE){
+##' }
+##'
+##' ## II.4. run the EM algorithm
+##' params0 <- list()
+##' fit <- em(data=simul$data, params=params0,
+##'           stepE=stepE, stepM=stepM, loglik=loglik,
+##'           verbose=1)
+##'
+##' ## II.5. plot the log likelihood per iteration
+##' plot(fit$logliks, xlab="iterations", ylab="log-likelihood",
+##'      main="Convergence of the EM algorithm", type="b")
+##'
+##' ## III. other possible examples of the EM algorithm
+##' ## * factor analysis
+##' ## * hidden Markov models
+##' ## * multivariate Student distribution
+##' ## * robust regression models
+##' ## * censored/truncated models
+##' ## * ...
 ##' }
 ##' @export
-gem <- function(data, params, stepE, stepM, loglik, thresh.cvg=10^(-3), nb.iters=10^3, verbose=1){
-  stopifnot(is.function(stepE),
+em <- function(data, params, stepE, stepM, loglik,
+               thresh.cvg=10^(-3), nb.iters=10^3, verbose=1){
+  ## check inputs
+  stopifnot(is.list(params),
+            is.function(stepE),
             is.function(stepM),
-            is.function(loglik))
+            is.function(loglik),
+            is.numeric(thresh.cvg),
+            length(thresh.cvg) == 1,
+            thresh.cvg > 0,
+            is.numeric(nb.iters),
+            length(nb.iters) == 1,
+            nb.iters >= 0)
 
-  logliks <- vector()
-
+  ## compute the observed-data log-likelihood of the initial parameters
   i <- 0
-  while(i < nb.iters){
+  logliks <- loglik(data, params)
+
+  ## iterate
+  while(i <= nb.iters){
     i <- i + 1
 
+    ## E step
     outE <- stepE(data, params)
+
+    ## M step
     params <- stepM(data, params, outE)
 
+    ## compute the observed-data log-likelihood of the new parameters
     logliks <- append(logliks, loglik(data, params))
     if(verbose > 0)
       write(paste0("iter ", i, ":",
                    " loglik=", round(logliks[length(logliks)], 2)),
             stdout())
-    if(i > 1){
-      if(logliks[length(logliks)] < logliks[length(logliks) - 1]){
-        msg <- paste("the log-likelihood is decreasing (",
-                     logliks[length(logliks)], "<",
-                     logliks[length(logliks) - 1], ")")
-        stop(msg)
-      }
-      if(abs(logliks[length(logliks)] - logliks[length(logliks) - 1]) <=
-         thresh.cvg)
-        break
+    ## check for bug(s) in the input functions
+    if(logliks[length(logliks)] < logliks[length(logliks) - 1]){
+      msg <- paste("the observed-data log-likelihood is decreasing (",
+                   logliks[length(logliks)], "<",
+                   logliks[length(logliks) - 1], ")")
+      stop(msg)
     }
+
+    ## check for convergence
+    if(abs(logliks[length(logliks)] - logliks[length(logliks) - 1]) <=
+       thresh.cvg)
+      break
   }
 
   return(list(params=params, logliks=logliks))
