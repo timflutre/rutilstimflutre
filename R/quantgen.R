@@ -3397,15 +3397,17 @@ plotHistMinAllelFreq <- function(X=NULL, mafs=NULL, main=NULL, xlim=c(0,0.5),
 
 ##' Minor allele frequencies
 ##'
-##' Discard the SNPs with a minor allele frequency below the given threshold.
+##' Discard the SNPs with a minor allele frequency below the given threshold, as well as monomorphic SNPs.
 ##' @param X matrix of bi-allelic SNP genotypes encoded in allele doses in [0,2], with genotypes in rows and SNPs in columns; missing values should be encoded as NA
 ##' @param mafs vector of minor allele frequencies; if NULL, will be estimated with \code{\link{estimSnpMaf}}
 ##' @param thresh threshold on minor allele frequencies strictly below which SNPs are ignored
+##' @param rmv.mono if TRUE, monomorphic SNPs are also removed
 ##' @param verbose verbosity level (0/1)
 ##' @return matrix similar to X but possibly with less columns
 ##' @author Timothee Flutre
 ##' @export
-discardSnpsLowMaf <- function(X, mafs=NULL, thresh=0.01, verbose=1){
+discardSnpsLowMaf <- function(X, mafs=NULL, thresh=0.01, rmv.mono=FALSE,
+                              verbose=1){
   stopIfNotValidGenosDose(X, check.hasColNames=FALSE, check.hasRowNames=FALSE,
                           check.noNA=FALSE)
   if(! is.null(mafs))
@@ -3415,6 +3417,10 @@ discardSnpsLowMaf <- function(X, mafs=NULL, thresh=0.01, verbose=1){
               all(mafs <= 0.5),
               all(names(mafs) %in% colnames(X)),
               all(colnames(X) %in% names(mafs)))
+  stopifnot(is.numeric(thresh),
+            thresh >= 0,
+            thresh <= 0.5,
+            is.logical(rmv.mono))
 
   if(is.null(mafs)){
     mafs <- estimSnpMaf(X=X)
@@ -3429,6 +3435,20 @@ discardSnpsLowMaf <- function(X, mafs=NULL, thresh=0.01, verbose=1){
     }
     idx.rm <- which(snps.low)
     X <- X[, -idx.rm, drop=FALSE]
+  }
+
+  if(rmv.mono){
+    nb.alleles <- apply(X, 2, unique)
+    nb.alleles <- sapply(nb.alleles, length)
+    snps.mono <- nb.alleles == 1
+    if(any(snps.mono)){
+      if(verbose > 0){
+        msg <- paste0("discard ", sum(snps.mono), " monomorphic SNPs")
+        write(msg, stdout())
+      }
+      idx.rm <- which(snps.mono)
+      X <- X[, -idx.rm, drop=FALSE]
+    }
   }
 
   return(X)

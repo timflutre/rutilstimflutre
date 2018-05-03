@@ -4,7 +4,8 @@
 \alias{discardSnpsLowMaf}
 \title{Minor allele frequencies}
 \usage{
-discardSnpsLowMaf(X, mafs = NULL, thresh = 0.01, verbose = 1)
+discardSnpsLowMaf(X, mafs = NULL, thresh = 0.01, rmv.mono = FALSE,
+  verbose = 1)
 }
 \arguments{
 \item{X}{matrix of bi-allelic SNP genotypes encoded in allele doses in [0,2], with genotypes in rows and SNPs in columns; missing values should be encoded as NA}
@@ -13,13 +14,15 @@ discardSnpsLowMaf(X, mafs = NULL, thresh = 0.01, verbose = 1)
 
 \item{thresh}{threshold on minor allele frequencies strictly below which SNPs are ignored}
 
+\item{rmv.mono}{if TRUE, monomorphic SNPs are also removed}
+
 \item{verbose}{verbosity level (0/1)}
 }
 \value{
 matrix similar to X but possibly with less columns
 }
 \description{
-Discard the SNPs with a minor allele frequency below the given threshold.
+Discard the SNPs with a minor allele frequency below the given threshold, as well as monomorphic SNPs.
 }
 \author{
 Timothee Flutre
