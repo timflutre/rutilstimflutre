@@ -40,11 +40,22 @@ suppressPackageStartupMessages(library(qqman))
 suppressPackageStartupMessages(library(qvalue))
 suppressPackageStartupMessages(library(ashr))
 suppressPackageStartupMessages(library(mlmm))
+suppressPackageStartupMessages(library(mlmm.gwas))
 suppressPackageStartupMessages(library(varbvs))
+stopifnot(compareVersion("2.5",
+                         as.character(packageVersion("varbvs")))
+          != 1)
 suppressPackageStartupMessages(library(coda))
 suppressPackageStartupMessages(library(BGLR))
 suppressPackageStartupMessages(library(rgs3))
+stopifnot(compareVersion("0.5.5",
+                         as.character(packageVersion("rgs3")))
+          != 1)
+suppressPackageStartupMessages(library(glmnet))
 suppressPackageStartupMessages(library(rutilstimflutre))
+stopifnot(compareVersion("0.160.0",
+                         as.character(packageVersion("rutilstimflutre")))
+          != 1)
 ```
 
 This R chunk is used to assess how much time it takes to execute the R code in this document until the end:
@@ -55,7 +66,7 @@ t0 <- proc.time()
 
 # Simulate some data
 
-## Genotypes
+## Genotypes (bi-allelic SNPs)
 
 ```{r}
 set.seed(1859)
@@ -72,8 +83,10 @@ system.time(
                                pop.recomb.rate=4 * Ne * c.rec * chrom.len,
                                chrom.len=chrom.len,
                                get.alleles=TRUE))
-plotHistAllelFreq(X=genomes$genos)
+afs <- estimSnpAf(X=genomes$genos)
+plotHistAllelFreq(afs=afs)
 X <- discardSnpsLowMaf(X=genomes$genos, thresh=0.01)
+afs <- afs[colnames(X)]
 A.vr <- estimGenRel(X=X, relationships="additive", method="vanraden1")
 A.cs <- estimGenRel(X=X, relationships="additive", method="center-std")
 table(genomes$snp.coords$chr)
@@ -81,7 +94,7 @@ cn2i <- chromNames2integers(x=genomes$snp.coords$chr,
                             prefix="chr")
 ```
 
-## Phenotypes
+## Phenotypes (single trait, no dominance, no weight)
 
 ```{r}
 set.seed(1859)
@@ -130,7 +143,7 @@ system.time(
                        maf=0.01, recode.genos=FALSE,
                        snp.coords=snp.coords,
                        alleles=genomes$alleles,
-                       W=phenos$W, clean="all"))
+                       W=phenos$W, weights=NULL, clean="all"))
 stopifnot(all(names(phenos$a) == rownames(fit.gemma$tests)))
 system.time(
     fit.gemma.chr <- gemmaUlmmPerChr(y=phenos$Y[,1], X=X,
@@ -139,27 +152,6 @@ system.time(
                                      alleles=genomes$alleles,
                                      W=phenos$W, clean="all"))
 stopifnot(all(names(phenos$a) == rownames(fit.gemma.chr)))
-```
-
-## Results concerning the QTL percentage
-
-```{r}
-plotHistPval(pvalues=fit.gemma$tests$p_wald)
-plotHistPval(pvalues=fit.gemma.chr$p_wald)
-cols <- setNames(rep("black", ncol(X)), colnames(X))
-cols[true.qtls] <- "red"
-pvadj <- qqplotPval(pvalues=setNames(fit.gemma$tests$p_wald,
-                                     rownames(fit.gemma$tests)),
-                    thresh=0.05,
-                    ctl.fwer.bonf=TRUE, ctl.fdr.bh=TRUE, ctl.fdr.storey=TRUE,
-                    plot.signif=TRUE, col=cols)
-1 - qvalue(fit.gemma$tests$p_wald, fdr.level=0.05)$pi0
-pvadj.chr <- qqplotPval(pvalues=setNames(fit.gemma.chr$p_wald,
-                                         rownames(fit.gemma.chr)),
-                        thresh=0.05,
-                        ctl.fwer.bonf=TRUE, ctl.fdr.bh=TRUE, ctl.fdr.storey=TRUE,
-                        plot.signif=TRUE, col=cols)
-1 - qvalue(fit.gemma.chr$p_wald, fdr.level=0.05)$pi0
 ```
 
 Look at the Manhattan plot:
@@ -174,6 +166,31 @@ manhattan(x=tmp,
           genomewideline=-log10(0.05 / nrow(fit.gemma.chr)),
           highlight=true.qtls, main="GEMMA per chr")
 legend("topright", legend="Bonferroni threshold", col="red", lty=1, bty="n")
+```
+
+## Results concerning the QTL percentage
+
+```{r}
+plotHistPval(pvalues=fit.gemma$tests$p_wald,
+             main="GEMMA (all chromosomes)")
+plotHistPval(pvalues=fit.gemma.chr$p_wald,
+             main="GEMMA (per chromosome)")
+cols <- setNames(rep("black", ncol(X)), colnames(X))
+cols[true.qtls] <- "red"
+pvadj <- qqplotPval(pvalues=setNames(fit.gemma$tests$p_wald,
+                                     rownames(fit.gemma$tests)),
+                    thresh=0.05,
+                    ctl.fwer.bonf=TRUE, ctl.fdr.bh=TRUE, ctl.fdr.storey=TRUE,
+                    plot.signif=TRUE, col=cols,
+                    main="GEMMA (all chromosomes)")
+1 - qvalue(fit.gemma$tests$p_wald, fdr.level=0.05)$pi0
+pvadj.chr <- qqplotPval(pvalues=setNames(fit.gemma.chr$p_wald,
+                                         rownames(fit.gemma.chr)),
+                        thresh=0.05,
+                        ctl.fwer.bonf=TRUE, ctl.fdr.bh=TRUE, ctl.fdr.storey=TRUE,
+                        plot.signif=TRUE, col=cols,
+                        main="GEMMA (per chromosome)")
+1 - qvalue(fit.gemma.chr$p_wald, fdr.level=0.05)$pi0
 ```
 
 Try ashr:
@@ -221,7 +238,7 @@ cor(phenos$a[true.qtls],
     fit.gemma.chr[true.qtls, "beta"])
 plot(x=phenos$a[true.qtls],
      y=fit.gemma$tests[true.qtls, "beta"], asp=1,
-     xlab="true", ylab="estimated", main="SNP effects (GEMMA)")
+     xlab="true", ylab="estimated", main="SNP effects (GEMMA all chrs)")
 abline(h=0, v=0, a=0, b=1, lty=2)
 plot(x=phenos$a[true.qtls],
      y=fit.gemma.chr[true.qtls, "beta"], asp=1,
@@ -288,6 +305,21 @@ plot_opt_GWAS(fit.mlmm, opt="extBIC", snp_info=snp.info, pval_filt=0.1,
               main="optimal (EBIC)")
 ```
 
+Look at the Manhattan plot:
+```{r, fig.width=12}
+tmp <- data.frame(P=fit.mlmm$pval_step[[1]]$out$pval,
+                  SNP=rownames(fit.mlmm$pval_step[[1]]$out),
+                  stringsAsFactors=FALSE)
+tmp$CHR <- snp.coords[tmp$SNP, "chr"]
+tmp$BP <- snp.coords[tmp$SNP, "coord"]
+manhattan(x=tmp,
+          chrlabs=unique(cn2i$original[order(cn2i$renamed)]),
+          suggestiveline=FALSE,
+          genomewideline=-log10(0.05 / nrow(fit.mlmm$pval_step[[1]]$out)),
+          highlight=true.qtls, main="MLMM")
+legend("topright", legend="Bonferroni threshold", col="red", lty=1, bty="n")
+```
+
 ## Results concerning non-null effects
 
 ```{r}
@@ -307,6 +339,34 @@ plot(x=phenos$a[true.qtls],
      y=tmp, asp=1,
      xlab="true", ylab="estimated", main="SNP effects (MLMM)")
 abline(h=0, v=0, a=0, b=1, lty=2)
+```
+
+
+
+# Perform inference all SNPs jointly with MLMM-GWAS
+
+Ref: [Bonnafous et al (2017)](https://doi.org/10.1007/s00122-017-3003-4)
+
+## Fit
+
+```{r}
+Xa <- scale(phenos$X.A, center=TRUE, scale=FALSE)
+K.add <- Xa %*% t(Xa)
+system.time(
+    fit.mlmmgwas <- mlmm_allmodels(Y=phenos$Y[,1],
+                                   XX=list(Xa), KK=list(K.add),
+                                   nbchunks=2, maxsteps=20))
+manhattan.plot(fit.mlmmgwas)
+sel.XX <- frommlmm_toebic(list(Xa), fit.mlmmgwas)
+system.time(
+    res.eBIC <- eBIC_allmodels(phenos$Y[,1], sel.XX, list(K.add), ncol(Xa)))
+res.eBIC
+sel.XXclass <- fromeBICtoEstimation(sel.XX, res.eBIC)
+effects <- Estimation_allmodels(phenos$Y[,1], sel.XXclass, list(K.add))
+effects
+genotypes.boxplot(Xa, phenos$Y[,1], rownames(res.eBIC)[2], effects,
+                  c("0","1","2"), xlab="genotypic classes",
+                  las=1, ylab="phenotypic values")
 ```
 
 
@@ -467,44 +527,52 @@ Ref: [Legarra et al (2014)](http://dx.doi.org/10.1016/j.livsci.2014.04.029)
 
 ## Fit
 
-Prepare the input files:
+Set up the configuration:
 ```{r}
 task.id <- "test"
 dat <- data.frame(geno.id=rownames(phenos$Y),
                   overall.mean=1,
-                  pheno=phenos$Y[,1],
-                  weight=NA)
-inds <- setNames(object=1:nlevels(dat$geno.id),
-                 nm=levels(dat$geno.id))
-data.GS3.file <- paste0(task.id, "_data.tsv")
-writeDataForGs3(x=dat, file=data.GS3.file, inds=inds,
-                col.id=which(colnames(dat) == "geno.id"),
-                col.traits=which(colnames(dat) == "pheno"))
-genos.GS3.file <- paste0(task.id, "_genos.tsv")
-writeGenosForGs3(x=X, file=genos.GS3.file, inds=inds)
-```
-
-Set up the configuration:
-```{r}
-ptl <- data.frame(position=c(2, ncol(dat) + 1),
-                  type=c("cross", "add_SNP"),
-                  nlevels=c(1, 0))
+                  pheno=phenos$Y[,1])#,
+                  ## weight=NA)
+ptl <- data.frame(position=c(2,
+                             ncol(dat) + 1),
+                             ## ncol(dat) + 1),
+                  type=c("cross",
+                         "add_SNP"),
+                         ## "dom_SNP"),
+                  nlevels=c(1,
+                            0))
+                            ## 0))
 config <- getDefaultConfig(
     nb.snps=ncol(X),
     rec.id=which(colnames(dat) == "geno.id"),
-    twc=c(which(colnames(dat) == "pheno"), 0),
+    twc=c(which(colnames(dat) == "pheno"),
+          0),#which(colnames(dat) == "weight")),
     method="VCE",
     ptl=ptl,
-    use.mix="T")
+    use.mix="T",
+    task.id=task.id)
 config$niter <- 30 * 10^3
 config$burnin <- 15 * 10^3
 config$thin <- 2
 config$ap
 getMeanVarBetaDist(1, 10)
 stopifnot(isValidConfig(config))
+```
+
+Prepare the input files:
+```{r}
+inds <- setNames(object=1:nlevels(dat$geno.id),
+                 nm=levels(dat$geno.id))
+data.GS3.file <- paste0(task.id, "_data.tsv")
+config$data.file <- data.GS3.file
+writeDataForGs3(x=dat, file=data.GS3.file, inds=inds,
+                col.id=which(colnames(dat) == "geno.id"),
+                col.traits=which(colnames(dat) == "pheno"))
+genos.GS3.file <- paste0(task.id, "_genos.tsv")
+config$genos.file <- genos.GS3.file
+writeGenosForGs3(x=X, file=genos.GS3.file, inds=inds)
 config.file <- writeConfigForGs3(config=config,
-                                 data.file=data.GS3.file,
-                                 genos.file=genos.GS3.file,
                                  task.id=task.id)
 ```
 
@@ -516,9 +584,8 @@ system.time(
 
 Assess convergence:
 ```{r, fig.height=15}
-vcs <- vcs2mcmc(config$vcs.file)
-vcs <- vcs[, c("vara","vare","pa_1","2varapqpi")]
-plot(vcs)
+vcs <- vcs2mcmc(config, afs)
+plot(vcs[, grep("^vara$|vare|pa_1", colnames(vcs[[1]]))])
 raftery.diag(vcs, q=0.5, r=0.05, s=0.9)
 geweke.diag(vcs) # should not be too far from [-2;2]
 effectiveSize(vcs)
@@ -527,10 +594,7 @@ summary(vcs)
 
 Look at the proportion of variance explained by breeding values:
 ```{r}
-pve.bv <- vcs[[1]][,"2varapqpi"] / (vcs[[1]][,"2varapqpi"] +
-                                    vcs[[1]][,"vare"])
-summary(pve.bv)
-plot(pve.bv)
+plot(vcs[, grep("h2", colnames(vcs[[1]]))], main="h2")
 ```
 
 ## Results concerning the QTL percentage
@@ -578,6 +642,15 @@ cleanGs3(config, config.file, task.id)
 file.remove(data.GS3.file)
 file.remove(genos.GS3.file)
 ```
+
+
+
+# Perform inference all SNPs jointly with glmnet
+
+Ref: [Friedman et al (2010)](http://dx.doi.org/10.18637/jss.v033.i01)
+
+TODO
+
 
 
 # Appendix
