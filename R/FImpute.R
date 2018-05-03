@@ -372,8 +372,8 @@ readGenosFimpute <- function(file, snp.ids, input.haplos=TRUE,
 
 ##' Read outputs from FImpute
 ##'
-##' @param out.dir directory in which the output files are saved
 ##' Read output files from FImpute.
+##' @param out.dir directory in which the output files are saved
 ##' @return list
 ##' @author Timothee Flutre
 ##' @export
@@ -405,8 +405,9 @@ readOutputsFimpute <- function(out.dir){
                                             snp.ids=out$stats.snps.imp[,1])
   }
 
-  f <- paste0(out.dir, "/org_vs_imp.txt")
+  f <- paste0(out.dir, "/parentage_test.txt")
   if(file.exists(f)){
+    out$parentage.test <- readLines(f)
   }
 
   f <- paste0(out.dir, "/ref_pop.txt")

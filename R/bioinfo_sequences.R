@@ -4,12 +4,12 @@
 ##'
 ##' Rename chromosomes into integers, especially useful with FImpute, GEMMA, qqman, SNPRelate, etc.
 ##' @param x vector of chromosome names (if factor, will be converted to character)
-##' @param basic if TRUE, the unique chromosome identifiers will be sorted alphanumerically, and will be renamed as 1, ..., nb of chromosomes (for SNPRelate)
+##' @param basic if TRUE, the unique chromosome identifiers will be sorted alphanumerically (which requires gtools), and will be renamed as 1, ..., nb of chromosomes (for SNPRelate)
 ##' @param prefix characters to be removed at the start of each chromosome name (case will be ignored)
 ##' @param toreplace2 second set of characters to be removed in chromosome names (start or end), especially useful for "random" chromosomes (case will be ignored)
 ##' @param prefix2 second prefix to be removed at the start of each chromosome name for those for which "prefix" didn't work (case will be ignored)
 ##' @param thresh.max.chr.int threshold on the maximum chromosome integer, above which the renaming will simply be the sequence from 1 to the number of chromosomes
-##' @return data frame with the same number of rows as \code{x}, and two columns named "original" and "renamed"
+##' @return data frame with the same length as \code{x}, and two columns named "original" and "renamed"
 ##' @author Timothee Flutre
 ##' @examples
 ##' \dontrun{## example from grapevine

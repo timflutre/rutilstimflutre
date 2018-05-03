@@ -12,7 +12,7 @@ pruneSnpsLd(X = NULL, snp.coords = NULL, gds = NULL, ld.threshold = 0.2,
 \arguments{
 \item{X}{matrix of bi-allelic SNP genotypes encoded, for each SNP, in number of copies of its second allele, i.e. as allele doses in {0,1,2}, with genotypes in rows and SNPs in columns; the "second" allele is arbitrary, it can correspond to the minor (least frequent) or the major (most frequent) allele; will be transformed into a "gds" object (see next argument)}
 
-\item{snp.coords}{data frame which row names are SNP identifiers, the first column should contain chromosomes as integers, and the second column should contain positions; compulsory if the X argument is specified}
+\item{snp.coords}{data frame which row names are SNP identifiers, the first column should contain chromosomes as integers (otherwise \code{\link{chromNames2integers}} will be used), and the second column should contain positions; compulsory if the X argument is specified}
 
 \item{gds}{object of class "SNPGDSFileClass" from the SNPRelate package}
 

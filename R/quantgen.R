@@ -5149,7 +5149,7 @@ thinSnps <- function(method, threshold, snp.coords, only.chr=NULL){
 ##'
 ##' Prune SNPs based on their pairwise linkage disequilibriums via sliding windows using the "snpgdsLDpruning" function from the "SNPRelate" package..
 ##' @param X matrix of bi-allelic SNP genotypes encoded, for each SNP, in number of copies of its second allele, i.e. as allele doses in {0,1,2}, with genotypes in rows and SNPs in columns; the "second" allele is arbitrary, it can correspond to the minor (least frequent) or the major (most frequent) allele; will be transformed into a "gds" object (see next argument)
-##' @param snp.coords data frame which row names are SNP identifiers, the first column should contain chromosomes as integers, and the second column should contain positions; compulsory if the X argument is specified
+##' @param snp.coords data frame which row names are SNP identifiers, the first column should contain chromosomes as integers (otherwise \code{\link{chromNames2integers}} will be used), and the second column should contain positions; compulsory if the X argument is specified
 ##' @param gds object of class "SNPGDSFileClass" from the SNPRelate package
 ##' @param ld.threshold the LD threshold below which SNPs are discarded; will be passed to "snpgdsLDpruning"
 ##' @param remove.monosnp will be passed to "snpgdsLDpruning"
@@ -5179,13 +5179,29 @@ pruneSnpsLd <- function(X=NULL, snp.coords=NULL, gds=NULL,
               is.data.frame(snp.coords),
               ! is.null(rownames(snp.coords)),
               all(colnames(X) %in% rownames(snp.coords)),
-              ncol(snp.coords) >= 2)
+              ncol(snp.coords) >= 2,
+              all(! is.na(snp.coords[,1])),
+              all(! is.na(snp.coords[,2])),
+              is.numeric(snp.coords[,2]))
+    conv.chr2int <- FALSE
+    if(! is.numeric(snp.coords[,1])){
+      tmp <- suppressWarnings(as.integer(snp.coords[,1]))
+      ## if(any(is.na(tmp))){
+      ##   msg <- "chromosomes in 'snp.coords' should be coded as integers"
+      ##   stop(msg)
+      ## }
+      conv.chr2int <- TRUE
+    }
   }
 
   gds.file <- NULL
   if(is.null(gds)){
     gds.file <- tempfile()
     snp.coords <- snp.coords[colnames(X),] # re-order the rows
+    if(conv.chr2int){
+      cn2i <- chromNames2integers(snp.coords[,1], basic=TRUE)
+      snp.coords[,1] <- cn2i$renamed
+    }
     SNPRelate::snpgdsCreateGeno(gds.fn=gds.file,
                                 genmat=X,
                                 sample.id=rownames(X),

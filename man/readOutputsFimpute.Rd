@@ -7,14 +7,13 @@
 readOutputsFimpute(out.dir)
 }
 \arguments{
-\item{out.dir}{directory in which the output files are saved
-Read output files from FImpute.}
+\item{out.dir}{directory in which the output files are saved}
 }
 \value{
 list
 }
 \description{
-Read outputs from FImpute
+Read output files from FImpute.
 }
 \author{
 Timothee Flutre

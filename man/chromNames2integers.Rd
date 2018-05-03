@@ -10,7 +10,7 @@ chromNames2integers(x, basic = FALSE, prefix = "chr",
 \arguments{
 \item{x}{vector of chromosome names (if factor, will be converted to character)}
 
-\item{basic}{if TRUE, the unique chromosome identifiers will be sorted alphanumerically, and will be renamed as 1, ..., nb of chromosomes (for SNPRelate)}
+\item{basic}{if TRUE, the unique chromosome identifiers will be sorted alphanumerically (which requires gtools), and will be renamed as 1, ..., nb of chromosomes (for SNPRelate)}
 
 \item{prefix}{characters to be removed at the start of each chromosome name (case will be ignored)}
 
@@ -21,7 +21,7 @@ chromNames2integers(x, basic = FALSE, prefix = "chr",
 \item{thresh.max.chr.int}{threshold on the maximum chromosome integer, above which the renaming will simply be the sequence from 1 to the number of chromosomes}
 }
 \value{
-data frame with the same number of rows as \code{x}, and two columns named "original" and "renamed"
+data frame with the same length as \code{x}, and two columns named "original" and "renamed"
 }
 \description{
 Rename chromosomes into integers, especially useful with FImpute, GEMMA, qqman, SNPRelate, etc.
