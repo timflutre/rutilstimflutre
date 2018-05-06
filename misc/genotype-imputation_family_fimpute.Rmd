@@ -1,5 +1,5 @@
 ---
-title: "Genotype imputation"
+title: "Imputation of SNP genotypes in a family with FImpute"
 author: "Timothée Flutre (INRA)"
 date: "`r format(Sys.time(), '%d/%m/%Y %H:%M:%S')`"
 colorlinks: true
@@ -34,8 +34,8 @@ opts_chunk$set(echo=TRUE, warning=TRUE, message=TRUE, cache=FALSE, fig.align="ce
 
 This document requires external packages to be available:
 ```{r load_pkg}
-library(rutilstimflutre)
-library(scrm)
+suppressPackageStartupMessages(library(scrm))
+suppressPackageStartupMessages(library(rutilstimflutre))
 stopifnot(file.exists(Sys.which("FImpute")))
 ```
 
@@ -191,9 +191,9 @@ In that case, we don't retrieve the theoretical coancestry coefficient of 1/4.
 But note that for predicting BLUPs of breeding values, it should not matter (see Stranden and Christensen, 2011).
 
 
-# Mimick genotyping by sequencing
+# Mimick RAD-seq
 
-Discard SNP genotypes according to a "GBS" design, i.e. all genotypes and SNPs have NA, but with a skewed distribution (30% of the sites with 0-0.05% NA, 17% of the sites with 0.05-0.1% NA, 8% with 0.1-0.15% NA, and the remaining sites with a uniformly-increasing amount of NA):
+Discard SNP genotypes according to a "RAD-seq" design, i.e. all genotypes and SNPs have NA, but with a skewed distribution (30% of the sites with 0-0.05% NA, 17% of the sites with 0.05-0.1% NA, 8% with 0.1-0.15% NA, and the remaining sites with a uniformly-increasing amount of NA):
 ```{r, gbs}
 dim(X <- rbind(genos.gdparents, genos.par, genos.offs))
 X.na <- X
@@ -227,7 +227,7 @@ Plot grid of missing SNP genotypes:
 plotGridMissGenos(X=X.na)
 ```
 
-Plot histogram of NA proportions (same as fig S4 of Chan et al, 2016):
+Plot histogram of NA proportions (same as fig S4 of [Chan et al, 2016](http://dx.plos.org/10.1371/journal.pone.0160733)):
 ```{r}
 miss.snps <- calcFreqMissSnpGenosPerSnp(X=X.na)
 hist(miss.snps, breaks=seq(0,1,0.05), col="grey", border="white",
@@ -267,7 +267,8 @@ X.imp.FI.ped <- out.FI.ped$genos.imp
 
 # Assess accuracy
 
-Accuracy of imputation without the pedigree:
+## Without the pedigree
+
 ```{r, assess_accuracy}
 length(X)
 sum(X.na == X, na.rm=TRUE)
@@ -284,7 +285,8 @@ summary(A.vr.cross.imp[name.par1, grep("off", colnames(A.vr.cross.imp))])
 summary(A.vr.cross.imp[name.par2, grep("off", colnames(A.vr.cross.imp))])
 ```
 
-Accuracy of imputation with the pedigree:
+## With the pedigree
+
 ```{r, assess_accuracy_ped}
 sum(X.imp.FI.ped == X)
 sum(X.imp.FI.ped != X)
