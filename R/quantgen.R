@@ -113,7 +113,7 @@ genoClasses2genoDoses <- function(x, na.string="--", verbose=1){
     distinct.alleles <- sort(unique(tmp))
     allele.counts <- sort(table(tmp))
     if(length(distinct.alleles) > 2){ # SNP with more than 2 alleles
-      msg <- paste0("SNP ", colnames(x)[p], " has more than 2 alleles")
+      msg <- paste0("SNP ", x[p,1], " has more than 2 alleles")
       stop(msg)
     } else if(length(distinct.alleles) == 2){ # SNP with exactly 2 alleles
       alleles[p, "minor"] <- names(allele.counts)[1]
@@ -2787,8 +2787,8 @@ genoDoses2genoClasses <- function(X=NULL, tX=NULL, alleles, na.string="--",
 ##'
 ##' Convert SNP genotypes from "allele doses" into the \href{http://samtools.github.io/hts-specs/}{VCF} format.
 ##' @param X matrix of bi-allelic SNP genotypes encoded, for each SNP, in number of copies of its second allele, i.e. as allele doses in {0,1,2}, with genotypes in rows and SNPs in columns; the "second" allele corresponds to the second column of \code{alleles} and will be interpreted as 'alt'
-##' @param snp.coords data.frame with SNP identifiers as row names, and two columns, "chr" and "pos"
-##' @param alleles data.frame with SNPs in rows (names as row names) and alleles in columns (exactly 2 columns are required); the first column will be interpreted as 'ref' and the second column, which should correspond to the allele which number of copies is counted at each SNP in \code{X}, will be interpretd as 'alt'
+##' @param snp.coords data.frame with SNP identifiers as row names, and two columns, "chr" and "pos" (or "coord")
+##' @param alleles data.frame (or matrix) with SNPs in rows (names as row names) and alleles in columns (exactly 2 columns are required); the first column will be interpreted as 'ref' and the second column, which should correspond to the allele which number of copies is counted at each SNP in \code{X}, will be interpreted as 'alt'
 ##' @param verbose verbosity level (0/1)
 ##' @return CollapsedVCF (see pkg \href{http://bioconductor.org/packages/VariantAnnotation/}{VariantAnnotation})
 ##' @author Timothee Flutre
@@ -2798,7 +2798,7 @@ genoDoses2Vcf <- function(X, snp.coords, alleles, verbose=1){
   stopIfNotValidGenosDose(X=X, check.noNA=FALSE)
   stopifnot(.isValidSnpCoords(snp.coords),
             all(colnames(X) %in% rownames(snp.coords)),
-            is.data.frame(alleles),
+            is.data.frame(alleles) | is.matrix(alleles),
             ncol(alleles) == 2,
             ! is.null(row.names(alleles)),
             all(colnames(X) %in% rownames(alleles)))
@@ -2808,7 +2808,13 @@ genoDoses2Vcf <- function(X, snp.coords, alleles, verbose=1){
   snp.ids <- colnames(X)
   nb.snps <- length(snp.ids)
   snp.coords <- snp.coords[snp.ids,]
+  stopifnot(all(! is.na(snp.coords[,1])),
+            all(! is.na(snp.coords[,2])))
+  if("coord" %in% colnames(snp.coords))
+    colnames(snp.coords)[colnames(snp.coords) == "coord"] <- "pos"
   alleles <- alleles[snp.ids,]
+  stopifnot(all(! is.na(alleles[,1])),
+            all(! is.na(alleles[,2])))
   if(verbose > 0){
     msg <- paste0("convert SNP genotypes of ", nb.inds, " genotypes at ",
                   nb.snps, " SNPs into VCF ...")

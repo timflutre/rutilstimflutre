@@ -47,6 +47,19 @@ test_that("genoClasses2genoDoses", {
   expect_equal(observed, expected)
 })
 
+test_that("genoClasses2genoDoses_error-3alleles", {
+  N <- 3 # individuals
+  P <- 5 # SNPs
+  genoClasses <- data.frame(snp=paste0("snp", 1:P),
+                            ind1=c("AA", "GC", "AA", "GC", "AA"),
+                            ind2=c("AA", "GC", "AT", "??", "AT"),
+                            ind3=c("TT", "GG", "AA", "CC", "AG"),
+                            stringsAsFactors=FALSE)
+
+  expect_error(genoClasses2genoDoses(x=genoClasses, na.string="??", verbose=0),
+               "SNP snp5 has more than 2 alleles")
+})
+
 test_that("updateJoinMap", {
   N <- 4 # individuals
   P <- 5 # loci
@@ -825,7 +838,7 @@ test_that("genoDoses2genoClasses", {
                VariantAnnotation::geno(expected)$GT)
 }
 
-test_that("genoDoses2vcf", {
+test_that("genoDoses2Vcf", {
   if(all(requireNamespace("Biostrings"),
          requireNamespace("VariantAnnotation"),
          requireNamespace("S4Vectors"))){
