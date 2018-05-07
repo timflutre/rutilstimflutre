@@ -37,6 +37,9 @@ This document requires external packages to be available:
 suppressPackageStartupMessages(library(scrm))
 suppressPackageStartupMessages(library(VariantAnnotation))
 suppressPackageStartupMessages(library(rutilstimflutre))
+stopifnot(compareVersion("0.160.5",
+                         as.character(packageVersion("rutilstimflutre")))
+          != 1)
 stopifnot(file.exists(Sys.which("beagle.jar")))
 suppressPackageStartupMessages(library(parallel))
 nb.cores <- detectCores() - 1
@@ -58,7 +61,7 @@ set.seed(1859)
 Simulate haplotypes and genotypes in a single population:
 ```{r simul_haplos_genos}
 nb.genos <- 1*10^3
-nb.chrs <- 6
+nb.chrs <- 5
 Ne <- 10^4
 chrom.len <- 1*10^6
 mu <- 10^(-8)
@@ -122,7 +125,7 @@ Plot grid of missing SNP genotypes:
 plotGridMissGenos(X=X.na)
 ```
 
-Plot histogram of NA proportions (same as fig S4 of [Chan et al, 2016](http://dx.plos.org/10.1371/journal.pone.0160733)):
+Plot histogram of NA proportions, similar to figure S4 of [Chan et al (2016)](http://dx.plos.org/10.1371/journal.pone.0160733)):
 ```{r}
 miss.snps <- calcFreqMissSnpGenosPerSnp(X=X.na)
 hist(miss.snps, breaks=seq(0,1,0.05), col="grey", border="white",
@@ -159,7 +162,8 @@ f <- paste0(prefix.vcf.imp, ".vcf.gz.tbi")
 if(file.exists(f))
   file.remove(f)
 vcf.imp <- readVcf(paste0(prefix.vcf.imp, ".vcf.gz"))
-X.imp <- t(gtVcf2dose(vcf=vcf.imp))
+## X.imp <- t(gtVcf2dose(vcf=vcf.imp))
+X.imp <- t(dsVcf2dose(vcf=vcf.imp))
 dim(X.imp)
 ```
 
@@ -170,6 +174,7 @@ dim(X.imp)
 length(X)
 sum(X.na == X, na.rm=TRUE)
 sum(is.na(X.na))
+sum(is.na(X.na)) / length(X)
 sum(X.imp == X)
 sum(X.imp != X)
 sum(X.imp != X) / sum(is.na(X.na))
@@ -191,6 +196,9 @@ summary(A.vr.imp[upper.tri(A.vr.imp)])
 file.remove(p2f.vcf.na)
 for(suffix in c("log", "vcf.gz"))
   file.remove(paste0(prefix.vcf.imp, ".", suffix))
+for(f in c(gdose.file, ca.file))
+  if(file.exists(f))
+    file.remove(f)
 ```
 
 

@@ -2052,9 +2052,9 @@ subsetVcfOnAllelicity <- function(vcf, single.ref=TRUE, single.alt=TRUE){
 ##' Non-bi-allelic variants are discarded.
 ##' From Martin Morgan (see http://grokbase.com/t/r/bioconductor/135b460s2b/bioc-how-to-convert-genotype-snp-matrix-to-nucleotide-genotypes).
 ##' @param vcf CollapsedVCF (see pkg \href{http://bioconductor.org/packages/VariantAnnotation/}{VariantAnnotation})
-##' @return matrix with variants in rows and samples in columns
+##' @return matrix (in integer \code{\link{mode}}) with variants in rows and samples in columns
 ##' @author Timothee Flutre
-##' @seealso \code{\link{vcf2dosage}}, \code{\link{gtVcf2genoClasses}}
+##' @seealso \code{\link{vcf2dosage}}, \code{\link{gtVcf2genoClasses}}, \code{\link{dsVcf2dose}}
 ##' @export
 gtVcf2dose <- function(vcf){
   requireNamespace("VariantAnnotation")
@@ -2069,6 +2069,26 @@ gtVcf2dose <- function(vcf){
   mode(gt) <- "integer"
 
   return(gt)
+}
+
+##' Convert DS to dosage
+##'
+##' Non-bi-allelic variants are discarded.
+##' From Martin Morgan (see http://grokbase.com/t/r/bioconductor/135b460s2b/bioc-how-to-convert-genotype-snp-matrix-to-nucleotide-genotypes).
+##' @param vcf CollapsedVCF (see pkg \href{http://bioconductor.org/packages/VariantAnnotation/}{VariantAnnotation})
+##' @return matrix (in numeric \code{\link{mode}}) with variants in rows and samples in columns
+##' @author Timothee Flutre
+##' @seealso \code{\link{vcf2dosage}}, \code{\link{gtVcf2dose}}
+##' @export
+dsVcf2dose <- function(vcf){
+  requireNamespace("VariantAnnotation")
+
+  vcf <- subsetVcfOnAllelicity(vcf=vcf, single.ref=TRUE, single.alt=TRUE)
+
+  ds <- VariantAnnotation::geno(vcf)$DS
+  mode(ds) <- "numeric"
+
+  return(ds)
 }
 
 ##' Convert ranges to data.frame
@@ -2122,33 +2142,35 @@ rngVcf2df <- function(vcf, with.coords=TRUE, with.alleles=TRUE,
 ##' Convert genotypes at bi-allelic variants from a VCF file into allele doses.
 ##' @param vcf.file path to the VCF file (if the bgzip index doesn't exist in the same directory, it will be created)
 ##' @param genome genome identifier (e.g. "VITVI_12x2")
-##' @param gdose.file path to the output file to record genotypes as allele doses (will be gzipped)
+##' @param gdose.file path to the output file to record genotypes as allele doses (will be gzipped); variants will be in rows and samples in columns
 ##' @param ca.file path to the output file to record SNP 1-based coordinates and alleles (will be gzipped)
 ##' @param yieldSize number of records to yield each time the file is read from (see ?TabixFile) if seq.id is NULL
 ##' @param dict.file path to the SAM dict file (see \url{https://broadinstitute.github.io/picard/command-line-overview.html#CreateSequenceDictionary}) if seq.id is specified with no start/end
 ##' @param seq.id see \code{\link{seqIdStartEnd2GRanges}}
 ##' @param seq.start see \code{\link{seqIdStartEnd2GRanges}}
 ##' @param seq.end see \code{\link{seqIdStartEnd2GRanges}}
-##' @param uncertain logical indicating whether the genotypes to convert should come from the "GT" field (uncertain=FALSE) or the "GP" or "GL" field (uncertain=TRUE)
+##' @param field the genotypes to convert should come from the "GT" or "DS" fields
 ##' @param verbose verbosity level (0/1)
 ##' @return an invisible list with both output file paths
 ##' @author Timothee Flutre
-##' @seealso \code{\link{gtVcf2dose}}, \code{\link{filterVariantCalls}}
+##' @seealso \code{\link{gtVcf2dose}},  \code{\link{dsVcf2dose}}, \code{\link{filterVariantCalls}}
 ##' @export
 vcf2dosage <- function(vcf.file, genome="", gdose.file, ca.file,
                        yieldSize=NA_integer_, dict.file=NULL,
                        seq.id=NULL, seq.start=NULL, seq.end=NULL,
-                       uncertain=FALSE, verbose=1){
+                       field="GT", verbose=1){
   requireNamespaces(c("IRanges", "GenomicRanges", "VariantAnnotation",
                       "Rsamtools"))
   stopifnot(file.exists(vcf.file),
-            xor(is.na(yieldSize), is.null(seq.id)))
+            xor(is.na(yieldSize), is.null(seq.id)),
+            field %in% c("GT", "DS"))
   if(! is.null(seq.id) & is.null(seq.start) & is.null(seq.end))
     stopifnot(! is.null(dict.file),
               file.exists(dict.file))
 
   if(verbose > 0){
-    msg <- "read VCF to convert genotypes into allele doses ..."
+    msg <- paste0("read VCF to convert genotypes into allele doses",
+                  " (field=", field, ")...")
     write(msg, stdout()); flush(stdout())
   }
 
@@ -2172,7 +2194,10 @@ vcf2dosage <- function(vcf.file, genome="", gdose.file, ca.file,
     vcf <- VariantAnnotation::readVcf(file=tabix.file, genome=genome,
                                       param=vcf.params)
     nb.variants <- nrow(vcf)
-    gtmp <- gtVcf2dose(vcf=vcf)
+    if(field == "GT"){
+      gtmp <- gtVcf2dose(vcf=vcf)
+    } else if(field == "DS")
+      gtmp <- dsVcf2dose(vcf=vcf)
     catmp <- rngVcf2df(vcf=vcf, with.coords=TRUE, with.alleles=TRUE,
                        single.ref=TRUE, single.alt=TRUE)
     cat(paste(colnames(gtmp), collapse="\t"), file=gdose.con,
@@ -2189,7 +2214,10 @@ vcf2dosage <- function(vcf.file, genome="", gdose.file, ca.file,
     nb.variants <- 0
     while(nrow(vcf <- VariantAnnotation::readVcf(file=tabix.file,
                                                  genome=genome))){
-      gtmp <- gtVcf2dose(vcf=vcf)
+      if(field == "GT"){
+        gtmp <- gtVcf2dose(vcf=vcf)
+      } else if(field == "DS")
+        gtmp <- dsVcf2dose(vcf=vcf)
       catmp <- rngVcf2df(vcf=vcf, with.coords=TRUE, with.alleles=TRUE,
                          single.ref=TRUE, single.alt=TRUE)
       if(nb.variants == 0)

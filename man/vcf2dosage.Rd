@@ -6,14 +6,14 @@
 \usage{
 vcf2dosage(vcf.file, genome = "", gdose.file, ca.file,
   yieldSize = NA_integer_, dict.file = NULL, seq.id = NULL,
-  seq.start = NULL, seq.end = NULL, uncertain = FALSE, verbose = 1)
+  seq.start = NULL, seq.end = NULL, field = "GT", verbose = 1)
 }
 \arguments{
 \item{vcf.file}{path to the VCF file (if the bgzip index doesn't exist in the same directory, it will be created)}
 
 \item{genome}{genome identifier (e.g. "VITVI_12x2")}
 
-\item{gdose.file}{path to the output file to record genotypes as allele doses (will be gzipped)}
+\item{gdose.file}{path to the output file to record genotypes as allele doses (will be gzipped); variants will be in rows and samples in columns}
 
 \item{ca.file}{path to the output file to record SNP 1-based coordinates and alleles (will be gzipped)}
 
@@ -27,7 +27,7 @@ vcf2dosage(vcf.file, genome = "", gdose.file, ca.file,
 
 \item{seq.end}{see \code{\link{seqIdStartEnd2GRanges}}}
 
-\item{uncertain}{logical indicating whether the genotypes to convert should come from the "GT" field (uncertain=FALSE) or the "GP" or "GL" field (uncertain=TRUE)}
+\item{field}{the genotypes to convert should come from the "GT" or "DS" fields}
 
 \item{verbose}{verbosity level (0/1)}
 }
@@ -38,7 +38,7 @@ an invisible list with both output file paths
 Convert genotypes at bi-allelic variants from a VCF file into allele doses.
 }
 \seealso{
-\code{\link{gtVcf2dose}}, \code{\link{filterVariantCalls}}
+\code{\link{gtVcf2dose}},  \code{\link{dsVcf2dose}}, \code{\link{filterVariantCalls}}
 }
 \author{
 Timothee Flutre
