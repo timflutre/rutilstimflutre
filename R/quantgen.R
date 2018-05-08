@@ -2884,7 +2884,8 @@ calcFreqMissSnpGenosPerSnp <- function(X=NULL, vcf.file=NULL, yieldSize=10000){
   out <- c()
 
   if(! is.null(X)){
-    stopIfNotValidGenosDose(X, check.hasColNames=FALSE, check.hasRowNames=FALSE,
+    stopIfNotValidGenosDose(X, check.hasColNames=FALSE,
+                            check.hasRowNames=FALSE,
                             check.noNA=FALSE, check.isDose=FALSE)
     N <- nrow(X) # number of genotypes
     out <- colSums(is.na(X)) / N
@@ -2916,7 +2917,8 @@ calcFreqMissSnpGenosPerSnp <- function(X=NULL, vcf.file=NULL, yieldSize=10000){
 ##' @author Timothee Flutre
 ##' @export
 calcFreqMissSnpGenosPerGeno <- function(X){
-  stopIfNotValidGenosDose(X, check.hasColNames=FALSE, check.hasRowNames=FALSE,
+  stopIfNotValidGenosDose(X, check.hasColNames=FALSE,
+                          check.hasRowNames=FALSE,
                           check.noNA=FALSE, check.isDose=FALSE)
 
   P <- ncol(X) # number of markers
@@ -2937,7 +2939,8 @@ calcFreqMissSnpGenosPerGeno <- function(X){
 ##' @export
 plotGridMissGenos <- function(X, main="Missing marker genotypes",
                               xlab="Genotypes", ylab="markers"){
-  stopIfNotValidGenosDose(X, check.hasColNames=FALSE, check.hasRowNames=FALSE,
+  stopIfNotValidGenosDose(X, check.hasColNames=FALSE,
+                          check.hasRowNames=FALSE,
                           check.noNA=FALSE, check.isDose=FALSE)
 
   graphics::image(1:nrow(X), 1:ncol(X), is.na(X), col=c("white","black"),
@@ -2973,6 +2976,61 @@ discardMarkersMissGenos <- function(X, verbose=1){
   X.out <- X[, tokeep]
 
   return(X.out)
+}
+
+##' Quantiles of allelic R2 after binning
+##'
+##' Calculate the quantiles of allelic R2 after binning.
+##' @param snp.data numeric vector of SNP data (one value per SNP) with SNP identifiers as names
+##' @param snp.bins factor as returned by \code{\link{cut}} applied to SNP data (percentage of missing data, minor allele frequencies, etc) with SNP identifiers as names
+##' @param quant.probs numeric vector of probabilities with values in [0,1] to be used with \code{\link[stats]{quantile}}
+##' @param verbose verbosity level (0/1)
+##' @return list with the quantiles per bin, as well as the midpoint of each bin
+##' @author Timothee Flutre
+##' @export
+quantilesBinnedSnpData <- function(snp.data, snp.bins,
+                                   quant.probs=seq(0, 1, 0.25),
+                                   verbose=1){
+  stopifnot(is.vector(snp.data),
+            is.numeric(snp.data),
+            ! is.null(names(snp.data)),
+            is.factor(snp.bins),
+            length(snp.bins) == length(snp.data),
+            ! is.null(names(snp.bins)),
+            all(names(snp.bins) == names(snp.data)),
+            is.vector(quant.probs),
+            is.numeric(quant.probs),
+            all(quant.probs >= 0),
+            all(quant.probs <= 1),
+            ! anyDuplicated(quant.probs))
+
+  ## quantiles of SNP data
+  quant.probs <- sort(quant.probs)
+  quant.bin.snp.dat <-
+    tapply(snp.data, list(snp.bins), function(subset.dat){
+      stats::quantile(subset.dat, probs=quant.probs, na.rm=TRUE)
+    })
+  for(i in which(sapply(quant.bin.snp.dat, is.null)))
+    quant.bin.snp.dat[[i]] <- rep(NA, length(quant.probs))
+  quant.bin.snp.dat <- do.call(rbind, quant.bin.snp.dat)
+  quant.bin.snp.dat <- quant.bin.snp.dat[! is.na(quant.bin.snp.dat[,1]),]
+
+  ## midpoint of each bin
+  bin.lowers <- regmatches(levels(snp.bins),
+                           regexec("\\(([0-9\\.]{1,4}),",
+                                   levels(snp.bins)))
+  bin.lowers <- as.numeric(sapply(bin.lowers, function(x){x[length(x)]}))
+  bin.uppers <- regmatches(levels(snp.bins),
+                           regexec(",([0-9\\.]{1,4})\\]",
+                                   levels(snp.bins)))
+  bin.uppers <- as.numeric(sapply(bin.uppers, function(x){x[length(x)]}))
+  bin.lengths <- bin.uppers - bin.lowers
+  bin.mids <- bin.lowers + (bin.lengths / 2)
+  names(bin.mids) <- levels(snp.bins)
+  bin.mids <- bin.mids[rownames(quant.bin.snp.dat)]
+
+  return(list(quant.bin.snp.dat=quant.bin.snp.dat,
+              bin.mids=bin.mids))
 }
 
 ##' Convert imputed genotypes to 0/1/2

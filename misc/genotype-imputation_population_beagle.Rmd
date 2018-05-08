@@ -37,7 +37,7 @@ This document requires external packages to be available:
 suppressPackageStartupMessages(library(scrm))
 suppressPackageStartupMessages(library(VariantAnnotation))
 suppressPackageStartupMessages(library(rutilstimflutre))
-stopifnot(compareVersion("0.160.5",
+stopifnot(compareVersion("0.161.0",
                          as.character(packageVersion("rutilstimflutre")))
           != 1)
 stopifnot(file.exists(Sys.which("beagle.jar")))
@@ -72,19 +72,19 @@ genomes <- simulCoalescent(nb.inds=nb.genos,
                            pop.recomb.rate=4 * Ne * c.rec * chrom.len,
                            chrom.len=chrom.len,
                            get.alleles=TRUE)
-afs.hwe <- estimSnpAf(X=genomes$genos)
-plotHistAllelFreq(afs=afs.hwe,
+afs.pop <- estimSnpAf(X=genomes$genos)
+plotHistAllelFreq(afs=afs.pop,
                   main="Allele frequencies at HWE")
-mafs.hwe <- estimSnpMaf(afs=afs.hwe)
-plotHistMinAllelFreq(mafs=mafs.hwe,
+mafs.pop <- estimSnpMaf(afs=afs.pop)
+plotHistMinAllelFreq(mafs=mafs.pop,
                      main="Minor allele frequencies at HWE")
-A.vr.hwe <- estimGenRel(X=genomes$genos, afs=afs.hwe, method="vanraden1")
-imageWithScale(A.vr.hwe,
+A.vr.pop <- estimGenRel(X=genomes$genos, afs=afs.pop, method="vanraden1")
+imageWithScale(A.vr.pop,
                main="Additive genetic relationships at HWE")
-summary(diag(A.vr.hwe))
-hist(diag(A.vr.hwe), col="grey", border="white")
-summary(A.vr.hwe[upper.tri(A.vr.hwe)])
-hist(A.vr.hwe[upper.tri(A.vr.hwe)], col="grey", border="white")
+summary(diag(A.vr.pop))
+hist(diag(A.vr.pop), col="grey", border="white")
+summary(A.vr.pop[upper.tri(A.vr.pop)])
+hist(A.vr.pop[upper.tri(A.vr.pop)], col="grey", border="white")
 ```
 
 
@@ -116,8 +116,6 @@ idx2 <- do.call(c, lapply(1:length(idx1), function(j){
   ((j-1) * nrow(X)) + idx1[[j]]
 }))
 X.na[idx2] <- NA
-sum(is.na(X.na))
-sum(is.na(X.na)) / length(X.na)
 ```
 
 Plot grid of missing SNP genotypes:
@@ -128,10 +126,39 @@ plotGridMissGenos(X=X.na)
 Plot histogram of NA proportions, similar to figure S4 of [Chan et al (2016)](http://dx.plos.org/10.1371/journal.pone.0160733)):
 ```{r}
 miss.snps <- calcFreqMissSnpGenosPerSnp(X=X.na)
+summary(miss.snps)
 hist(miss.snps, breaks=seq(0,1,0.05), col="grey", border="white",
      main="Distribution of the proportion of missing data per biallelic SNP",
      xlab="proportion of missing data at a given SNP",
      ylab="number of SNPs")
+```
+
+Stats on the mask of NA's:
+```{r}
+mask.na <- is.na(X.na)
+sum(mask.na) # number of NA's
+sum(mask.na) / length(mask.na) # percentage of NA's
+perc.NAs.snp <- apply(mask.na, 2, function(mask.snp){
+  100 * sum(mask.snp) / length(mask.snp)
+})
+smoothScatter(x=mafs.pop, y=perc.NAs.snp, ylim=c(0,100),
+              xlab="minor allele frequencies",
+              ylab="%NA", las=1,
+              main="Percentage of NA's as a function of MAF")
+bin.snps.maf <- cut(mafs.pop, breaks=seq(0, 0.5, 0.02))
+names(bin.snps.maf) <- names(mafs.pop)
+table(bin.snps.maf)
+tmp <- quantilesBinnedSnpData(perc.NAs.snp, bin.snps.maf)
+points(tmp$bin.mids, tmp$quant.bin.snp.dat[,"25%"],
+       pch=4, col="black")
+points(tmp$bin.mids, tmp$quant.bin.snp.dat[,"75%"],
+       pch=4, col="black")
+segments(x0=tmp$bin.mids, y0=tmp$quant.bin.snp.dat[,"25%"],
+         x1=tmp$bin.mids, y1=tmp$quant.bin.snp.dat[,"75%"], lty=2)
+points(tmp$bin.mids, tmp$quant.bin.snp.dat[,"50%"],
+       pch=19, col="red")
+legend("topright", legend=c("median", "first/third quartile"),
+       col=c("red","black"), pch=c(19,4), bty="n")
 ```
 
 
@@ -149,8 +176,8 @@ cmd <- paste0("java -Xms", "1G", " -Xmx", "3G",
               " out=", prefix.vcf.imp,
               " nthreads=", nb.cores,
               " window=1000 overlap=100 gprobs=true ne=10000")
-system.time(ret <- system(cmd)) # ~ 15 min with 3 cores
-ret
+if(! file.exists(paste0(prefix.vcf.imp, ".vcf.gz")))
+  system.time(ret <- system(cmd)) # ~ 15 min with 3 cores
 gdose.file <- paste0(file.prefix, "_beagle_gdose.tsv.gz")
 ca.file <- paste0(file.prefix, "_beagle_coords-alleles.tsv.gz")
 ## the following lines are commented because of a bug in Rsamtools::indexTabix
@@ -165,6 +192,7 @@ vcf.imp <- readVcf(paste0(prefix.vcf.imp, ".vcf.gz"))
 ## X.imp <- t(gtVcf2dose(vcf=vcf.imp))
 X.imp <- t(dsVcf2dose(vcf=vcf.imp))
 dim(X.imp)
+stopifnot(all(dim(X.imp) == dim(X)))
 ```
 
 
@@ -184,9 +212,51 @@ Checks:
 ```{r}
 afs.imp <- estimSnpAf(X.imp)
 summary(afs.imp)
-A.vr.imp <- estimGenRel(X=X.imp, afs=afs.hwe)
+A.vr.imp <- estimGenRel(X=X.imp, afs=afs.pop)
 summary(diag(A.vr.imp))
 summary(A.vr.imp[upper.tri(A.vr.imp)])
+```
+
+Plot of allelic $R^2$ as a function of the amount of missing SNP genotypes:
+```{r}
+allelic.r2 <- sapply(colnames(X.imp), function(snp){
+  suppressWarnings(cor(X[,snp], X.imp[,snp]))
+})
+stopifnot(all(names(miss.snps) == names(allelic.r2)))
+smoothScatter(x=100 * miss.snps, y=allelic.r2, xlim=c(0,100),
+              xlab="percentage of missing genotypes",
+              ylab="allelic R2", las=1,
+              main="Imputation accuracy (Beagle 4.1)")
+bin.snps.perc.na <- cut(miss.snps, breaks=seq(0, 1, 0.05))
+names(bin.snps.perc.na) <- names(miss.snps)
+table(bin.snps.perc.na)
+tmp <- quantilesBinnedSnpData(allelic.r2, bin.snps.perc.na)
+points(100 * tmp$bin.mids, tmp$quant.bin.snp.dat[,"25%"],
+       pch=4, col="black")
+points(100 * tmp$bin.mids, tmp$quant.bin.snp.dat[,"75%"],
+       pch=4, col="black")
+segments(x0=100 * tmp$bin.mids, y0=tmp$quant.bin.snp.dat[,"25%"],
+         x1=100 * tmp$bin.mids, y1=tmp$quant.bin.snp.dat[,"75%"], lty=2)
+points(100 * tmp$bin.mids, tmp$quant.bin.snp.dat[,"50%"],
+       pch=19, col="red")
+legend("bottomleft", legend=c("median", "first/third quartile"),
+       col=c("red","black"), pch=c(19,4), bty="n")
+```
+
+Plot of allelic $R^2$ as a function of the minor allele frequencies, similar to figure 3 of [Browning and Browning (2009)](http://linkinghub.elsevier.com/retrieve/pii/S0002929709000123):
+```{r}
+smoothScatter(mafs.pop, allelic.r2,
+              xlab="minor allele frequencies",
+              ylab="allelic R2", las=1,
+              main="Imputation accuracy (Beagle 4.1)")
+tmp <- quantilesBinnedSnpData(allelic.r2, bin.snps.maf)
+points(tmp$bin.mids, tmp$quant.bin.snp.dat[,"25%"], pch=4, col="black")
+points(tmp$bin.mids, tmp$quant.bin.snp.dat[,"75%"], pch=4, col="black")
+segments(x0=tmp$bin.mids, y0=tmp$quant.bin.snp.dat[,"25%"],
+         x1=tmp$bin.mids, y1=tmp$quant.bin.snp.dat[,"75%"], lty=2)
+points(tmp$bin.mids, tmp$quant.bin.snp.dat[,"50%"], pch=19, col="red")
+legend("bottomright", legend=c("median", "first/third quartile"),
+       col=c("red","black"), pch=c(19,4), bty="n")
 ```
 
 
