@@ -841,7 +841,8 @@ test_that("genoDoses2genoClasses", {
 test_that("genoDoses2Vcf", {
   if(all(requireNamespace("Biostrings"),
          requireNamespace("VariantAnnotation"),
-         requireNamespace("S4Vectors"))){
+         requireNamespace("S4Vectors"),
+         requireNamespace("IRanges"))){
     nb.snps <- 4
     snp.ids <- paste0("snp", 1:nb.snps)
     snp.coords <- data.frame(chr=c(rep("chr1", 2), rep("chr2", 2)),
@@ -864,6 +865,13 @@ test_that("genoDoses2Vcf", {
     expected <- VariantAnnotation::VCF(rowRanges=gr, colData=Df)
     VariantAnnotation::header(expected) <-
       VariantAnnotation::VCFHeader(samples=ind.ids)
+    file.date <- format(Sys.Date(), "%Y%m%d")
+    VariantAnnotation::meta(VariantAnnotation::header(expected)) <-
+      IRanges::DataFrameList(
+                   META=S4Vectors::DataFrame(Value=c("VCFv4.2",
+                                                     file.date),
+                                             row.names=c("fileformat",
+                                                         "fileDate")))
     VariantAnnotation::geno(VariantAnnotation::header(expected)) <-
       S4Vectors::DataFrame(Number="1", Type="String",
                            Description="Genotype",
@@ -881,7 +889,7 @@ test_that("genoDoses2Vcf", {
                                dimnames=list(snp.ids, ind.ids)))
 
     observed <- genoDoses2Vcf(X=X, snp.coords=snp.coords, alleles=alleles,
-                              verbose=0)
+                              file.date=file.date, verbose=0)
 
     .expect_equal_VCFfile(observed, expected)
   }

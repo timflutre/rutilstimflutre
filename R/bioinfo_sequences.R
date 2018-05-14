@@ -2153,7 +2153,7 @@ rngVcf2df <- function(vcf, with.coords=TRUE, with.alleles=TRUE,
 ##' @param verbose verbosity level (0/1)
 ##' @return an invisible list with both output file paths
 ##' @author Timothee Flutre
-##' @seealso \code{\link{gtVcf2dose}},  \code{\link{dsVcf2dose}}, \code{\link{filterVariantCalls}}
+##' @seealso \code{\link{gtVcf2dose}}, \code{\link{dsVcf2dose}}, \code{\link{filterVariantCalls}}
 ##' @export
 vcf2dosage <- function(vcf.file, genome="", gdose.file, ca.file,
                        yieldSize=NA_integer_, dict.file=NULL,
@@ -2255,6 +2255,110 @@ vcf2dosage <- function(vcf.file, genome="", gdose.file, ca.file,
                  ca.file=paste0(ca.file, ".gz")))
 }
 
+##' Samples from VCF file
+##'
+##' Return the samples from a VCF file using \code{\link{pipe}} and \code{cat} or \code{zcat} (depending on the file extension).
+##' @param vcf.file path to the VCF file
+##' @return vector of samples
+##' @author Timothee Flutre
+##' @export
+getSamplesFromVcfFile <- function(vcf.file){
+  stopifnot(file.exists(vcf.file))
+
+  cmd <- ""
+  if(grepl("gz", tools::file_ext(vcf.file)))
+    cmd <- "z"
+  cmd <- paste0(cmd, "cat")
+  stopifnot(file.exists(Sys.which(cmd)))
+  cmd <- paste0(cmd, " ", vcf.file, " | grep '#CHROM'")
+  con <- pipe(cmd)
+  samples <- scan(con, what="character", quiet=TRUE)
+  close(con)
+  samples <- samples[-c(1:9)]
+
+  return(samples)
+}
+
+##' Rename VCF samples
+##'
+##' Rename samples in a VCF file with \code{bcftools reheader}.
+##' Variants can also be sorted.
+##' @param in.vcf.file path to the input VCF file
+##' @param samples data frame with (at least) two columns, the first corresponding to the old names (same order as in the VCF file) and the second to the new names; spaces inside names are forbidden
+##' @param out.vcf.file path to the output VCF file
+##' @param skip.check if TRUE, no comparison is done to check that \code{samples} is coherent with the data in the VCF file
+##' @param sort.variants if TRUE, variants are also sorted, with \code{bcftools sort} (requires bcftools >= 1.6)
+##' @return invisible \code{out.vcf.file}
+##' @author Timothee Flutre
+##' @export
+renameVcfSamples <- function(in.vcf.file, samples, out.vcf.file,
+                             skip.check=FALSE, sort.variants=TRUE){
+  exe.name <- "bcftools"
+  stopifnot(file.exists(Sys.which(exe.name)))
+  if(is.matrix(samples))
+    samples <- as.data.frame(samples)
+  stopifnot(file.exists(in.vcf.file),
+            is.data.frame(samples),
+            ncol(samples) >= 2,
+            all(! grepl(" ", samples[,1])),
+            all(! grepl(" ", samples[,2])),
+            all(! is.na(samples[,2])),
+            out.vcf.file != in.vcf.file,
+            is.logical(skip.check),
+            is.logical(sort.variants))
+
+  samples <- convertFactorColumnsToCharacter(samples)
+  if(! skip.check){
+    samples.init <- getSamplesFromVcfFile(in.vcf.file)
+    if(nrow(samples) != length(samples.init)){
+      msg <- "number of rows in 'samples' different than the number of samples in the VCF file"
+      stop(msg)
+    }
+    if(any(! samples[,1] %in% samples.init)){
+      msg <- "some old names in 'samples' are absent from the VCF file"
+      stop(msg)
+    }
+    if(! all(samples[,1] == samples.init)){
+      msg <- "some old names different than names in the VCF file"
+      stop(msg)
+    }
+  }
+
+  tmpf <- tempfile(pattern="renameVcfSamples", fileext=".txt")
+  tmp.df <- data.frame(old_name=samples[,1],
+                       new_name=samples[,2])
+  utils::write.table(tmp.df, tmpf, quote=FALSE, sep=" ", row.names=FALSE)
+
+  if(sort.variants){
+    ## (1) convert vcf to bcf, (2) sort, (3) rename samples
+    cmd <- paste0(exe.name, " view",
+                  " -O u", # export as BCF
+                  " ", in.vcf.file,
+                  " | ", exe.name, " sort",
+                  " -O z", # export as compressed VCF
+                  " -",
+                  " | ", exe.name, " reheader",
+                  " -s ", tmpf,
+                  " -o ", out.vcf.file, # will be compressed VCF
+                  " -")
+  } else{
+    cmd <- paste0(exe.name, " reheader",
+                  " -s ", tmpf,
+                  " -o ", out.vcf.file,
+                  " ", in.vcf.file)
+  }
+  if(file.exists(out.vcf.file))
+    file.remove(out.vcf.file)
+  ret <- system(cmd)
+  if(ret != 0){
+    msg <- paste0(exe.name, " returned ", ret)
+    warning(msg)
+  }
+
+  file.remove(tmpf)
+
+  invisible(out.vcf.file)
+}
 
 ##' Parse VCF
 ##'

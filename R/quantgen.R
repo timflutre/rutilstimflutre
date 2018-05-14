@@ -2789,19 +2789,24 @@ genoDoses2genoClasses <- function(X=NULL, tX=NULL, alleles, na.string="--",
 ##' @param X matrix of bi-allelic SNP genotypes encoded, for each SNP, in number of copies of its second allele, i.e. as allele doses in {0,1,2}, with genotypes in rows and SNPs in columns; the "second" allele corresponds to the second column of \code{alleles} and will be interpreted as 'alt'
 ##' @param snp.coords data.frame with SNP identifiers as row names, and two columns, "chr" and "pos" (or "coord"); columns as factors will be converted into characters
 ##' @param alleles data.frame (or matrix) with SNPs in rows (names as row names) and alleles in columns (exactly 2 columns are required); the first column will be interpreted as 'ref' and the second column, which should correspond to the allele which number of copies is counted at each SNP in \code{X}, will be interpreted as 'alt'; columns as factors will be converted into characters
+##' @param file.date date to indicate into the object
 ##' @param verbose verbosity level (0/1)
 ##' @return CollapsedVCF (see pkg \href{http://bioconductor.org/packages/VariantAnnotation/}{VariantAnnotation})
 ##' @author Timothee Flutre
 ##' @export
-genoDoses2Vcf <- function(X, snp.coords, alleles, verbose=1){
-  requireNamespaces(c("S4Vectors", "Biostrings", "VariantAnnotation"))
+genoDoses2Vcf <- function(X, snp.coords, alleles,
+                          file.date=format(Sys.Date(), "%Y%m%d"),
+                          verbose=1){
+  requireNamespaces(c("IRanges", "S4Vectors", "Biostrings",
+                      "VariantAnnotation"))
   stopIfNotValidGenosDose(X=X, check.noNA=FALSE)
   stopifnot(.isValidSnpCoords(snp.coords),
             all(colnames(X) %in% rownames(snp.coords)),
             is.data.frame(alleles) | is.matrix(alleles),
             ncol(alleles) == 2,
             ! is.null(row.names(alleles)),
-            all(colnames(X) %in% rownames(alleles)))
+            all(colnames(X) %in% rownames(alleles)),
+            is.character(file.date))
 
   ind.ids <- rownames(X)
   nb.inds <- length(ind.ids)
@@ -2835,6 +2840,13 @@ genoDoses2Vcf <- function(X, snp.coords, alleles, verbose=1){
 
   VariantAnnotation::header(vcf) <-
     VariantAnnotation::VCFHeader(samples=ind.ids)
+  VariantAnnotation::meta(VariantAnnotation::header(vcf)) <-
+    IRanges::DataFrameList(
+                 META=S4Vectors::DataFrame(Value=c("VCFv4.2",
+                                                   file.date),
+                                           row.names=c("fileformat",
+                                                       "fileDate")))
+  ## also possible to add reference and assembly to META
   VariantAnnotation::geno(VariantAnnotation::header(vcf)) <-
     S4Vectors::DataFrame(Number="1", Type="String",
                          Description="Genotype",
