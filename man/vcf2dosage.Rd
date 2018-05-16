@@ -36,6 +36,7 @@ an invisible list with both output file paths
 }
 \description{
 Convert genotypes at bi-allelic variants from a VCF file into allele doses.
+This is also doable with \code{bcftools +dosage}.
 }
 \seealso{
 \code{\link{gtVcf2dose}}, \code{\link{dsVcf2dose}}, \code{\link{filterVariantCalls}}

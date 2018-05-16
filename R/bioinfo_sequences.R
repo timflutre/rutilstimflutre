@@ -2140,6 +2140,7 @@ rngVcf2df <- function(vcf, with.coords=TRUE, with.alleles=TRUE,
 ##' Convert VCF to dose
 ##'
 ##' Convert genotypes at bi-allelic variants from a VCF file into allele doses.
+##' This is also doable with \code{bcftools +dosage}.
 ##' @param vcf.file path to the VCF file (if the bgzip index doesn't exist in the same directory, it will be created)
 ##' @param genome genome identifier (e.g. "VITVI_12x2")
 ##' @param gdose.file path to the output file to record genotypes as allele doses (will be gzipped); variants will be in rows and samples in columns
@@ -2270,7 +2271,8 @@ getSamplesFromVcfFile <- function(vcf.file){
     cmd <- "z"
   cmd <- paste0(cmd, "cat")
   stopifnot(file.exists(Sys.which(cmd)))
-  cmd <- paste0(cmd, " ", vcf.file, " | grep '#CHROM'")
+  cmd <- paste0(cmd, " ", vcf.file, " 2>/dev/null",
+                " | grep -m 1 '^#CHROM'")
   con <- pipe(cmd)
   samples <- scan(con, what="character", quiet=TRUE)
   close(con)
