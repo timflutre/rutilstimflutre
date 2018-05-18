@@ -5248,7 +5248,7 @@ thinSnps <- function(method, threshold, snp.coords, only.chr=NULL){
 ##' Prune SNPs based on LD
 ##'
 ##' Prune SNPs based on their pairwise linkage disequilibriums via sliding windows using the "snpgdsLDpruning" function from the "SNPRelate" package..
-##' @param X matrix of bi-allelic SNP genotypes encoded, for each SNP, in number of copies of its second allele, i.e. as allele doses in {0,1,2}, with genotypes in rows and SNPs in columns; the "second" allele is arbitrary, it can correspond to the minor (least frequent) or the major (most frequent) allele; will be transformed into a "gds" object (see next argument)
+##' @param X matrix of bi-allelic SNP genotypes encoded, for each SNP, in number of copies of its second allele, i.e. as allele doses in [0,2], with genotypes in rows and SNPs in columns; the "second" allele is arbitrary, it can correspond to the minor (least frequent) or the major (most frequent) allele; will be transformed into a "gds" object (see next argument); if some values were imputed, they will be automatically thresholded using \code{\link{convertImputedTo012}} (required by the SNPRelate function)
 ##' @param snp.coords data frame which row names are SNP identifiers, the first column should contain chromosomes as integers (otherwise \code{\link{chromNames2integers}} will be used), and the second column should contain positions; compulsory if the X argument is specified
 ##' @param gds object of class "SNPGDSFileClass" from the SNPRelate package
 ##' @param ld.threshold the LD threshold below which SNPs are discarded; will be passed to "snpgdsLDpruning"
@@ -5274,6 +5274,8 @@ pruneSnpsLd <- function(X=NULL, snp.coords=NULL, gds=NULL,
   requireNamespace("SNPRelate")
   stopifnot(xor(is.null(X), is.null(gds)))
   if(is.null(gds)){
+    if(any(! X %in% c(0,1,2)))
+      X <- convertImputedTo012(X)
     stopIfNotValidGenosDose(X=X, check.noNA=FALSE, check.notImputed=TRUE)
     stopifnot(! is.null(snp.coords),
               is.data.frame(snp.coords),
@@ -5286,10 +5288,6 @@ pruneSnpsLd <- function(X=NULL, snp.coords=NULL, gds=NULL,
     conv.chr2int <- FALSE
     if(! is.numeric(snp.coords[,1])){
       tmp <- suppressWarnings(as.integer(snp.coords[,1]))
-      ## if(any(is.na(tmp))){
-      ##   msg <- "chromosomes in 'snp.coords' should be coded as integers"
-      ##   stop(msg)
-      ## }
       conv.chr2int <- TRUE
     }
   }
