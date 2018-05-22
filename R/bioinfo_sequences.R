@@ -1063,6 +1063,99 @@ readBcftoolsCounts <- function(files){
   return(out)
 }
 
+##' Convert VCF file to dosage file
+##'
+##' Convert a VCF file to a genotype dosage file with \code{bcftools +dosage} and \code{datamash}.
+##' @param in.vcf.file path to the input VCF file (gzip-compressed)
+##' @param out.txt.file path to the output file (gzip-compressed)
+##' @param nb.cores number of threads for bcftools
+##' @return nothing
+##' @author Timothee Flutre
+##' @export
+convertVcfToGenoDoseWithBcftools <- function(in.vcf.file, out.txt.file, nb.cores=1){
+  stopifnot(file.exists(Sys.which("bcftools")),
+            file.exists(Sys.which("datamash")),
+            file.exists(Sys.which("tr")),
+            file.exists(Sys.which("gzip")),
+            file.exists(in.vcf.file),
+            out.txt.file != in.vcf.file)
+
+  cmd <- paste0("bcftools +dosage",
+                " --threads ", nb.cores,
+                " ", in.vcf.file,
+                " | tr ' ' '\t'",
+                " | datamash transpose",
+                " | gzip > ", out.txt.file)
+  system(cmd)
+}
+
+##' Read SNP genotypes as dosage from bcftools
+##'
+##' Read an input file with genotypes as allele dosage as written by \code{bcftools +dosage genos.vcf.gz | tr ' ' '\t' | datamash transpose | gzip > genos_dosage.tsv.gz}.
+##' Caution, depending on the file size, this may require the allocation of too much RAM for your system.
+##' @param genos.file path to the input file containing the SNP genotype data
+##' @param get.coords if TRUE, SNP coordinates will also be extracted
+##' @param get.alleles if TRUE, SNP alleles will also be extracted
+##' @param use.fread if TRUE, \code{\link[data.table]{fread}} will be used to speed-up
+##' @return list with a matrix of SNP genotypes and optional data frames of SNP coordinates and alleles
+##' @author Timothee Flutre
+##' @seealso \code{\link{convertVcfToGenoDoseWithBcftools}}
+##' @export
+readGenoDoseFileFromBcftools <- function(genos.file, get.coords=TRUE,
+                                         get.alleles=TRUE, use.fread=TRUE){
+  stopifnot(file.exists(genos.file),
+            is.logical(get.coords),
+            is.logical(get.alleles),
+            is.logical(use.fread))
+  if(use.fread){
+    requireNamespace("data.table")
+    requireNamespace("tools")
+  }
+
+  if(use.fread){
+    if(tools::file_ext(genos.file) == "gz"){
+      cmd <- paste0("zcat ", genos.file)
+      genos <- data.table::fread(input=cmd, sep="\t", header=FALSE)
+    } else
+      genos <- data.table::fread(input=genos.file, sep="\t", header=FALSE)
+    genos <- as.data.frame(genos)
+  } else
+    genos <- utils::read.table(file=genos.file, sep="\t", comment.char="",
+                               stringsAsFactors=FALSE)
+  stopifnot(nrow(genos) >= 5,
+            genos[1,1] == "#[1]CHROM",
+            genos[2,1] == "[2]POS",
+            genos[3,1] == "[3]REF",
+            genos[4,1] == "[4]ALT")
+
+  colnames(genos)[-1] <- paste0(t(genos[1,-1]), ":", t(genos[2,-1]), "_",
+                                t(genos[3,-1]), "/", t(genos[4,-1]))
+
+  ind.names <- gsub("\\[[0-9]+\\]", "", genos[-c(1:4), 1])
+  stopifnot(all(! duplicated(ind.names)))
+  genos <- as.matrix(genos[-c(1:4), -1])
+  mode(genos) <- "numeric"
+  rownames(genos) <- ind.names
+
+  coords <- NULL
+  if(get.coords){
+    coords <- utils::strcapture("^([0-9a-zA-Z]+):([0-9]+)_",
+                                colnames(genos),
+                                list(chr=character(), coord=double()))
+    rownames(coords) <- colnames(genos)
+  }
+
+  alleles <- NULL
+  if(get.alleles){
+    alleles <- utils::strcapture("_([A-Z])/([A-Z])$",
+                                 colnames(genos),
+                                 list(ref=character(), alt=character()))
+    rownames(alleles) <- colnames(genos)
+  }
+
+  return(list(genos=genos, coords=coords, alleles=alleles))
+}
+
 ##' VCF dimensions
 ##'
 ##' Return the dimensions of a VCF file, i.e. the number of sites (rows) and samples (columns)
@@ -2281,11 +2374,94 @@ getSamplesFromVcfFile <- function(vcf.file){
   return(samples)
 }
 
+##' Sort a VCF file
+##'
+##' Sort a VCF file with \code{bcftools sort} (requires bcftools >= 1.6)
+##' @param in.vcf.file path to the input VCF file
+##' @param out.vcf.file path to the output VCF file (if it is the same as \code{in.vcf.file}, the input VCF file will be sorted into a temporary file which will then be copied back to it)
+##' @return invisible path to the output file
+##' @author Timothee Flutre
+##' @seealso \code{\link{indexVcfFile}}
+##' @export
+sortVcfFile <- function(in.vcf.file, out.vcf.file){
+  exe.name <- "bcftools"
+  stopifnot(file.exists(Sys.which(exe.name)))
+  stopifnot(file.exists(in.vcf.file),
+            tools::file_ext(in.vcf.file) == "gz",
+            tools::file_ext(out.vcf.file) == "gz")
+
+  tmp.file <- out.vcf.file
+  if(out.vcf.file == in.vcf.file)
+    tmp.file <- tempfile(pattern="sortVcfFile_", fileext=".vcf.gz")
+
+  cmd <- paste0(exe.name, " view",
+                " -O u", # export as BCF
+                " ", in.vcf.file,
+                " | ", exe.name, " sort",
+                " -O z", # export as compressed VCF
+                " -o ", tmp.file,
+                " -")
+  ret <- system(cmd)
+
+  if(out.vcf.file == in.vcf.file){
+    file.copy(from=tmp.file, to=out.vcf.file)
+    file.remove(tmp.file)
+  }
+
+  invisible(out.vcf.file)
+}
+
+##' Index a VCF file
+##'
+##' Index a VCF file if it exists and if its index file doesn't already exist or is older.
+##' @param vcf.file path to a VCF file (must be sorted!)
+##' @param software name of the sofwatre with which to index the file (Rsamtools/bcftools)
+##' @param nb.cores number of threads for "bcftools"
+##' @return invisible path to the index file
+##' @author Timothee Flutre
+##' @seealso \code{\link{sortVcfFile}}
+##' @export
+indexVcfFile <- function(vcf.file, software="Rsamtools", nb.cores=1){
+  idx.file <- paste0(vcf.file, ".tbi")
+  need.to.index <- FALSE
+
+  if(file.exists(vcf.file)){
+    if(! file.exists(idx.file)){
+      need.to.index <- TRUE
+    } else{
+      mtime.vcf <- file.mtime(vcf.file)
+      mtime.idx <- file.mtime(idx.file)
+      if(as.POSIXlt(mtime.idx) < as.POSIXlt(mtime.vcf)){
+        need.to.index <- TRUE
+      }
+    }
+  } else{
+    msg <- paste0("can't index ", vcf.file, " because it doesn't exist")
+    warning(msg)
+  }
+
+  if(need.to.index){
+    stopifnot(software %in% c("Rsamtools", "bcftools"))
+    if(software == "Rsamtools"){
+      requireNamespace("Rsamtools")
+      Rsamtools::indexTabix(file=vcf.file, format="vcf")
+    } else if(software == "bcftools"){
+      cmd <- paste0("bcftools index",
+                    " -f -t",
+                    " --threads ", nb.cores,
+                    " ", vcf.file)
+      ret <- system(cmd)
+    }
+  }
+
+  invisible(idx.file)
+}
+
 ##' Rename VCF samples
 ##'
 ##' Rename samples in a VCF file with \code{bcftools reheader}.
 ##' Variants can also be sorted.
-##' @param in.vcf.file path to the input VCF file
+##' @param in.vcf.file path to the input VCF file (will be automatically indexed if necessary)
 ##' @param samples data frame with (at least) two columns, the first corresponding to the old names (same order as in the VCF file) and the second to the new names; spaces inside names are forbidden
 ##' @param out.vcf.file path to the output VCF file
 ##' @param skip.check if TRUE, no comparison is done to check that \code{samples} is coherent with the data in the VCF file
