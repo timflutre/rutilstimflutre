@@ -34,7 +34,9 @@
 chromNames2integers <- function(x, basic=FALSE,
                                 prefix="chr", toreplace2="_random",
                                 prefix2=NULL, thresh.max.chr.int=+Inf){
+  names.of.x <- names(x)
   x <- as.character(x)
+  names(x) <- names.of.x
   stopifnot(is.vector(x),
             is.logical(basic))
   if(basic){
@@ -52,6 +54,8 @@ chromNames2integers <- function(x, basic=FALSE,
   output <- data.frame(original=x,
                        renamed=NA,
                        stringsAsFactors=FALSE)
+  if(! is.null(names(x)))
+    rownames(output) <- names(x)
 
   if(basic){
 

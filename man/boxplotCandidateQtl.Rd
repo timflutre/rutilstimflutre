@@ -5,8 +5,9 @@
 \title{Boxplot of QTL}
 \usage{
 boxplotCandidateQtl(y, X, snp, simplify.imputed = TRUE, xlab = "Genotype",
-  ylab = "Phenotype", show.points = FALSE, notch = TRUE, verbose = 1,
-  ...)
+  ylab = "Phenotype", show.points = FALSE, notch = TRUE,
+  suppress.warnings = TRUE, regline.intercept = NA, regline.slope = NA,
+  regline.col = "red", regline.lty = 1, verbose = 1, ...)
 }
 \arguments{
 \item{y}{vector of phenotypes with genotype names}
@@ -24,6 +25,16 @@ boxplotCandidateQtl(y, X, snp, simplify.imputed = TRUE, xlab = "Genotype",
 \item{show.points}{if TRUE, individual points will be shown, with \code{\link{jitter}}, especially useful if some genotypic classes have very low counts}
 
 \item{notch}{if TRUE, a notch is drawn in each side of the boxes (see \code{\link[graphics]{boxplot}})}
+
+\item{suppress.warnings}{if TRUE, \code{\link{suppressWarnings}} is used for \code{\link[graphics]{boxplot}}}
+
+\item{regline.intercept}{intercept of the regression line}
+
+\item{regline.slope}{slope of the regression line}
+
+\item{regline.col}{color of the regression line}
+
+\item{regline.lty}{style of the regression line}
 
 \item{verbose}{verbosity level (0/1)}
 
@@ -67,7 +78,8 @@ boxplotCandidateQtl(y=modelA$Y[,1], X=X, snp=snp, main=snp, notch=FALSE,
                     show.points=TRUE)
 fit <- lm(modelA$Y[,1] ~ X[,snp])
 abline(fit, col="red")
-abline(a=fit.u$global.mean["beta.hat"], b=fit.u$tests[snp,"beta"])
+abline(a=fit.u$global.mean["beta.hat"] - mean(X[snp]) * fit.u$tests[snp,"beta"],
+       b=fit.u$tests[snp,"beta"])
 legend("topright", legend=c("lm","gemma"), col=c("red","black"), lty=1, bty="n")
 }
 }

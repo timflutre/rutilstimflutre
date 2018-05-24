@@ -96,8 +96,8 @@ genoDoses2bimbam <- function(X=NULL, tX=NULL, alleles, file=NULL, format="mean")
 ##' summary(abs(modelA$a[modelA$gamma == 1]))
 ##'
 ##' ## test SNPs one by one with the univariate LMM
-##' fit.u <- gemma(model="ulmm", y=modelA$Y[,1], X=X, snp.coords, alleles,
-##'                W=modelA$W, out.dir=tempdir(), clean="all")
+##' fit.u <- gemma(model="ulmm", y=modelA$Y[,1], X=X, snp.coords=snp.coords,
+##'                alleles=alleles, W=modelA$W, out.dir=tempdir(), clean="all")
 ##' fit.u$global.mean
 ##' fit.u$pve
 ##' cor(modelA$a[modelA$gamma == 1], fit.u$tests$beta[modelA$gamma == 1])
@@ -106,6 +106,10 @@ genoDoses2bimbam <- function(X=NULL, tX=NULL, alleles, file=NULL, format="mean")
 ##'                        plot.signif=TRUE)
 ##' t(binaryClassif(known.nulls=modelA$gamma == 0,
 ##'                 called.nulls=pvadj.AA$pv.bh > 0.05))
+##' qtl <- names(sort(modelA$a[modelA$gamma == 1], decreasing=TRUE))[1]
+##' boxplotCandidateQtl(y=modelA$Y[,1], X=X, snp=qtl, show.points=TRUE, main=qtl)
+##' abline(a=fit.u$global.mean["beta.hat"] - mean(X[,qtl])*fit.u$tests[qtl,"beta"],
+##'        b=fit.u$tests[qtl,"beta"])
 ##'
 ##' ## fit all SNPs jointly with the BSLMM
 ##' burnin <- 10^3

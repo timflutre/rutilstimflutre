@@ -7465,8 +7465,9 @@ rearrangeInputsForAssoGenet <- function(ids, y, X, snp.coords, alleles,
   ## rename chromosome names as integers
   cn2i <- NULL
   if(! is.null(rename.chr.prefix)){
-    cn2i <- chromNames2integers(x=snp.coords$chr,
-                                prefix=rename.chr.prefix)
+    cn2i <- chromNames2integers(
+        x=stats::setNames(snp.coords$chr, rownames(snp.coords)),
+        prefix=rename.chr.prefix)
     snp.coords$chr <- cn2i$renamed
   }
 
@@ -8495,6 +8496,11 @@ calcL10ApproximateBayesFactorWen <- function(Y, Xg, Xc,
 ##' @param ylab label of the y-axis
 ##' @param show.points if TRUE, individual points will be shown, with \code{\link{jitter}}, especially useful if some genotypic classes have very low counts
 ##' @param notch if TRUE, a notch is drawn in each side of the boxes (see \code{\link[graphics]{boxplot}})
+##' @param suppress.warnings if TRUE, \code{\link{suppressWarnings}} is used for \code{\link[graphics]{boxplot}}
+##' @param regline.intercept intercept of the regression line
+##' @param regline.slope slope of the regression line
+##' @param regline.col color of the regression line
+##' @param regline.lty style of the regression line
 ##' @param verbose verbosity level (0/1)
 ##' @param ... other arguments to \code{\link[graphics]{boxplot}}
 ##' @return invisible list with \code{y} and \code{x} used to make the boxplot (same order, with no missing data)
@@ -8531,13 +8537,18 @@ calcL10ApproximateBayesFactorWen <- function(Y, Xg, Xc,
 ##'                     show.points=TRUE)
 ##' fit <- lm(modelA$Y[,1] ~ X[,snp])
 ##' abline(fit, col="red")
-##' abline(a=fit.u$global.mean["beta.hat"], b=fit.u$tests[snp,"beta"])
+##' abline(a=fit.u$global.mean["beta.hat"] - mean(X[snp]) * fit.u$tests[snp,"beta"],
+##'        b=fit.u$tests[snp,"beta"])
 ##' legend("topright", legend=c("lm","gemma"), col=c("red","black"), lty=1, bty="n")
 ##' }
 ##' @export
 boxplotCandidateQtl <- function(y, X, snp, simplify.imputed=TRUE,
                                 xlab="Genotype", ylab="Phenotype",
-                                show.points=FALSE, notch=TRUE, verbose=1, ...){
+                                show.points=FALSE,
+                                notch=TRUE, suppress.warnings=TRUE,
+                                regline.intercept=NA, regline.slope=NA,
+                                regline.col="red", regline.lty=1,
+                                verbose=1, ...){
   if(! is.vector(y)){
     if(is.matrix(y)){
       stopifnot(ncol(y) == 1,
@@ -8593,14 +8604,24 @@ boxplotCandidateQtl <- function(y, X, snp, simplify.imputed=TRUE,
   }
 
   ## make boxplot
-  bp <- graphics::boxplot(y ~ x, las=1, varwidth=TRUE, notch=notch,
-                          xlab=xlab, ylab=ylab, at=sort(unique(x)), ...)
+  if(suppress.warnings){
+    bp <- suppressWarnings(
+        graphics::boxplot(y ~ x, las=1, varwidth=TRUE, notch=notch,
+                          xlab=xlab, ylab=ylab, at=sort(unique(x)), ...))
+  } else
+    bp <- graphics::boxplot(y ~ x, las=1, varwidth=TRUE, notch=notch,
+                            xlab=xlab, ylab=ylab, at=sort(unique(x)), ...)
 
   if(show.points){
     for(ct in sort(unique(x))){
       tmp <- y[x == ct]
       graphics::points(x=jitter(rep(ct, length(tmp))), y=tmp)
     }
+  }
+
+  if(all(! is.na(regline.intercept), ! is.na(regline.slope))){
+    graphics::abline(a=regline.intercept, b=regline.slope,
+                     col=regline.col, lty=regline.lty)
   }
 
   invisible(list(y=y, x=x))
