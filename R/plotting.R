@@ -269,6 +269,7 @@ plotWithScale <- function(z, zlim, col = grDevices::heat.colors(12),
 ##' @param breaks vector of breaks (if NULL, will be \code{seq(min(z), max(z), length.out=nb.breaks)})
 ##' @param nb.breaks number of breaks
 ##' @param left.text.at vector which names and values will be used to label the left side of the plot; if not NULL, takes precedence over idx.rownames
+##' @param col.pal output of \code{\link[grDevices]{colorRampPalette}}
 ##' @author Timothee Flutre
 ##' @examples
 ##' \dontrun{set.seed(1859)
@@ -280,7 +281,9 @@ plotWithScale <- function(z, zlim, col = grDevices::heat.colors(12),
 ##' }
 ##' @export
 imageWithScale <- function(z, main=NULL, idx.rownames=NULL, idx.colnames=NULL,
-                           breaks=NULL, nb.breaks=20, left.text.at=NULL){
+                           breaks=NULL, nb.breaks=20, left.text.at=NULL,
+                           col.pal=grDevices::colorRampPalette(c("black", "red", "yellow"),
+                                                               space="rgb")){
   stopifnot(is.matrix(z))
   if(! is.null(left.text.at))
     stopifnot(is.null(idx.rownames))
@@ -295,8 +298,6 @@ imageWithScale <- function(z, main=NULL, idx.rownames=NULL, idx.colnames=NULL,
 
   graphics::layout(matrix(c(1,2), nrow=1, ncol=2), widths=c(7,1))
   ## layout.show(2) # for debugging purposes
-
-  col.pal <- grDevices::colorRampPalette(c("black", "red", "yellow"), space="rgb")
 
   ## plot the heatmap
   custom.mar <- c(1, 5, 6, 1)

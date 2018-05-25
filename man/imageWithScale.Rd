@@ -7,7 +7,9 @@ scale on the right side, and optionally using its dimension names for
 rows and columns}
 \usage{
 imageWithScale(z, main = NULL, idx.rownames = NULL, idx.colnames = NULL,
-  breaks = NULL, nb.breaks = 20, left.text.at = NULL)
+  breaks = NULL, nb.breaks = 20, left.text.at = NULL,
+  col.pal = grDevices::colorRampPalette(c("black", "red", "yellow"), space =
+  "rgb"))
 }
 \arguments{
 \item{z}{matrix to be plotted}
@@ -23,6 +25,8 @@ imageWithScale(z, main = NULL, idx.rownames = NULL, idx.colnames = NULL,
 \item{nb.breaks}{number of breaks}
 
 \item{left.text.at}{vector which names and values will be used to label the left side of the plot; if not NULL, takes precedence over idx.rownames}
+
+\item{col.pal}{output of \code{\link[grDevices]{colorRampPalette}}}
 }
 \description{
 To print all row names, choose idx.rownames=1:nrow(z). To print a subset
