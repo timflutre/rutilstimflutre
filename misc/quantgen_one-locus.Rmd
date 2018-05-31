@@ -1,0 +1,917 @@
+---
+title: "Quantitative genetics of a single locus"
+author: "Timothée Flutre (INRA)"
+date: "`r format(Sys.time(), '%d/%m/%Y %H:%M:%S')`"
+runtime: shiny
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    toc_depth: 4
+    number_sections: true
+---
+
+<!--
+## to run the code:
+## (1) download this Rmd file
+## (2) open an R session
+## (3) load the "rmarkdown" package
+library(rmarkdown)
+## (4) execute the following command
+run("quantgen_one-locus.Rmd")
+-->
+
+<!-- =========================================================================
+functions
+-->
+
+```{r, echo=FALSE}
+meanGenVal <- function(gen.val, gen.freq){
+  stopifnot(all(names(gen.val) == c("11","12","22")),
+            all(names(gen.freq) == c("11","12","22")),
+            sum(gen.freq) == 1)
+  Gbar <- gen.freq["11"] * gen.val["11"] +
+    gen.freq["12"] * gen.val["12"] +
+    gen.freq["22"] * gen.val["22"]
+  names(Gbar) <- NULL
+  return(Gbar)
+}
+genFreqHwe <- function(f){
+  stopifnot(f >= 0, f <= 1)
+  gen.freq.hwe <- c("11"=(1 - f)^2,
+                    "12"=2 * f * (1 - f),
+                    "22"=1 - (1 - f)^2 - 2 * f * (1 - f))
+  return(gen.freq.hwe)
+}
+genValToFuncAllEff <- function(gen.val){
+  stopifnot(all(names(gen.val) == c("11","12","22")))
+  a <- abs(gen.val["22"] - gen.val["11"]) / 2
+  d <- gen.val["12"] - (gen.val["11"] + gen.val["22"]) / 2
+  func.all.freq <- c(a, d)
+  names(func.all.freq) <- c("a", "d")
+  return(func.all.freq)
+}
+genValToFuncAllEffAsHtml <- function(G11, G12, G22){
+  all.eff <- genValToFuncAllEff(c("11"=G11, "12"=G12, "22"=G22))
+  txt <- paste0("\\(G_{11}\\) = ", G11,
+                "<br/>\\(G_{12}\\) = ", G12,
+                "<br/>\\(G_{22}\\) = ", G22,
+                "<br/>\\(a\\) = ", all.eff["a"],
+                "<br/>\\(d\\) = ", all.eff["d"],
+                "<br/>\\(k\\) = ", round(all.eff["d"] / all.eff["a"],
+                                         digits=3))
+  return(withMathJax(HTML(txt)))
+}
+funcScalMat <- function(gen.freq){
+  stopifnot(all(names(gen.freq) == c("11","12","22")),
+            sum(gen.freq) == 1)
+  p11 <- gen.freq["11"]
+  p12 <- gen.freq["12"]
+  p22 <- gen.freq["22"]
+  S.F <- matrix(
+      data=c(1, 1, 1,
+             0-p12-2*p22, 1-p12-2*p22, 2-p12-2*p22,
+             -p12, 1-p12, -p12),
+      nrow=3, ncol=3)
+  return(S.F)
+}
+statScalMat <- function(gen.freq){
+  stopifnot(all(names(gen.freq) == c("11","12","22")),
+            sum(gen.freq) == 1)
+  p11 <- gen.freq["11"]
+  p12 <- gen.freq["12"]
+  p22 <- gen.freq["22"]
+  denom <- p11+p22-(p11-p22)^2
+  S.S <- matrix(
+      data=c(1, 1, 1,
+             0-p12-2*p22, 1-p12-2*p22, 2-p12-2*p22,
+             -(2*p12*p22)/denom, (4*p11*p22)/denom, -(2*p11*p12)/denom),
+      nrow=3, ncol=3)
+  return(S.S)
+}
+funcAllEffToGenVal <- function(func.all.eff){
+  stopifnot(all(names(func.all.eff) == c("a", "d")))
+  G11 <- - func.all.eff["a"]
+  G12 <- func.all.eff["d"]
+  G22 <- func.all.eff["a"]
+  gen.val <- c(G11, G12, G22)
+  names(gen.val) <- c("11", "12", "22")
+  return(gen.val)
+}
+funcAllEffToGenValAsHtml <- function(a, d){
+  gen.val <- funcAllEffToGenVal(c("a"=a, "d"=d))
+  txt <- paste0("\\(a\\) = ", a,
+                "<br/>\\(d\\) = ", d,
+                "<br/>\\(k\\) = ", round(d / a, digits=3),
+                "<br/>\\(G_{11}\\) = ", gen.val["11"],
+                "<br/>\\(G_{12}\\) = ", gen.val["12"],
+                "<br/>\\(G_{22}\\) = ", gen.val["22"])
+  return(withMathJax(HTML(txt)))
+}
+
+plotAllCount2GenVal <- function(all.eff=NULL, gen.val=NULL){
+  stopifnot(any(! is.null(all.eff), ! is.null(gen.val)))
+
+  if(is.null(all.eff))
+    all.eff <- genValToFuncAllEff(gen.val)
+  if(is.null(gen.val))
+    gen.val <- funcAllEffToGenVal(all.eff)
+
+  a <- all.eff["a"]
+  d <- all.eff["d"]
+
+  par(mar=c(5, 4, 3, 1))
+  plot(x=0, y=0, xlim=c(0, 2.2), xaxt="n",
+       ylim=c(min(gen.val), max(gen.val)),
+       xlab=expression("count of the alternative allele ("*N[2]*")"),
+       ylab=expression("genotypic value ("*G[ij]*")"),
+       main=paste0("a=", round(a, digits=2),
+                   " d=", round(d, digits=2)),
+       type="n", las=1)
+  axis(side=1, at=c(0,1,2), labels=c("0","1","2"))
+  points(x=c(0, 1, 2), y=c(gen.val["11"], 0, gen.val["22"]), type="l", lty=3)
+  ## abline(h=0, lty=2)
+  segments(x0=0, y0=0, x1=2, y1=0, lty=2)
+  segments(x0=2, y0=0, x1=2, y1=all.eff["a"], col="green", lwd=2)
+  segments(x0=0, y0=-all.eff["a"], x1=0, y1=0, col="green", lwd=2)
+  if(all.eff["d"] != 0){
+    segments(x0=1, y0=0, x1=1, y1=all.eff["d"], col="orange", lwd=2)
+    legend("topright", legend=c("a", "d"), col=c("green", "orange"), lwd=2, bty="n")
+  } else
+    legend("topright", legend="a", col="green", lwd=2, bty="n")
+  points(x=c(0, 1, 2), y=c(gen.val["11"], gen.val["12"], gen.val["22"]),
+         type="b", lty=1, pch=19, cex=2)
+}
+
+getAlphaRef <- function(f, a, d){
+  alpha.ref <- - f * a - f * (1 - 2 * f) * d
+  return(alpha.ref)
+}
+getAlphaAlt <- function(f, a, d){
+  alpha.alt <- (1 - f) * a + (1 - f) * (1 - 2 * f) * d
+  return(alpha.alt)
+}
+getAlpha <- function(alpha.ref, alpha.alt){
+  alpha <- alpha.alt - alpha.ref
+  return(alpha)
+}
+getAddGenVar <- function(f, alpha){
+  sigma.A2 <- 2 * f * (1 - f) * alpha^2
+  return(sigma.A2)
+}
+getDomGenVar <- function(f, d){
+  sigma.D2 <- (2 * f * (1 - f) * d)^2
+  return(sigma.D2)
+}
+val2html <- function(G11, G12, G22, f){
+  all.eff <- genValToFuncAllEff(c("11"=G11, "12"=G12, "22"=G22))
+  a <- all.eff["a"]
+  d <- all.eff["d"]
+  alpha.ref <- getAlphaRef(f, a, d)
+  alpha.alt <- getAlphaAlt(f, a, d)
+  alpha <- getAlpha(alpha.ref, alpha.alt)
+  sigma.A2 <- getAddGenVar(f, alpha)
+  sigma.D2 <- getDomGenVar(f, d)
+  txt <- paste0("\\(a\\) = ", a,
+                "<br/>\\(d\\) = ", d,
+                "<br/>\\(f\\) = ", f,
+                "<br/>\\(\\alpha_1\\) = ", round(alpha.ref, digits=3),
+                "<br/>\\(\\alpha_2\\) = ", round(alpha.alt, digits=3),
+                "<br/>\\(\\alpha\\) = ", round(alpha, digits=3),
+                "<br/>\\(\\sigma_A^2\\) = ", round(sigma.A2, digits=3),
+                "<br/>\\(\\sigma_D^2\\) = ", round(sigma.D2, digits=3))
+  return(withMathJax(HTML(txt)))
+}
+plotAllFreq2GenVar <- function(gen.val){
+  all.eff <- genValToFuncAllEff(gen.val)
+  a <- all.eff["a"]
+  d <- all.eff["d"]
+  f <- seq(from=0, to=1, by=0.01)
+  alpha.ref <- getAlphaRef(f, a, d)
+  alpha.alt <- getAlphaAlt(f, a, d)
+  alpha <- getAlpha(alpha.ref, alpha.alt)
+  sigma.A2 <- getAddGenVar(f, alpha)
+  sigma.D2 <- getDomGenVar(f, d)
+  par(mar=c(5, 4, 3, 1))
+  plot(x=f, y=sigma.A2,
+       xlim=c(0, 1.1),
+       ylim=c(0, max(sigma.A2, sigma.D2)),
+       xlab="allele frequency of the alternative allele (f)",
+       ylab="genetic variance",
+       main=paste0("a=", round(a, digits=2),
+                   " d=", round(d, digits=2)),
+       type="n", las=1)
+  lines(x=f, y=sigma.A2, lty=1, lwd=2, col="red")
+  lines(x=f, y=sigma.D2, lty=2, lwd=2, col="blue")
+  legend("topright", legend=c("additive", "dominance"),
+         lty=c(1, 2), lwd=2, col=c("red", "blue"),
+         bty="n")
+}
+
+isHwe <- function(gen.freq, f){
+  stopifnot(all(names(gen.freq) == c("11","12","22")),
+            sum(gen.freq) == 1,
+            f >= 0, f <= 1)
+
+  gen.freq.hwe <- genFreqHwe(f)
+
+  if(all(all.equal(gen.freq["11"], gen.freq.hwe["11"], check.names=FALSE) == TRUE,
+         all.equal(gen.freq["12"], gen.freq.hwe["12"], check.names=FALSE) == TRUE,
+         all.equal(1 - gen.freq["11"] - gen.freq["12"], gen.freq.hwe["22"],
+                   check.names=FALSE) == TRUE)){
+    return(TRUE)
+  } else
+    return(FALSE)
+}
+
+isOrthogonal <- function(gen.freq){
+  stopifnot(all(names(gen.freq) == c("11","12","22")),
+            sum(gen.freq) == 1)
+
+  if(gen.freq["11"] == gen.freq["22"] | gen.freq["12"] == 0){
+    return(TRUE)
+  } else
+    return(FALSE)
+}
+```
+
+This document simply is a pedagogical effort built upon original work from the references listed in the end.
+
+# Two alleles
+
+## Notations
+
+We focus here on a **single locus** with **two alleles**:
+
+* the reference allele, $A_1$;
+
+* the alternative allele, $A_2$, which **allele frequency** is noted $f$.
+
+Such a locus gives rise to three **genotypes**, each having its own **genotypic value and frequency**:
+
+* genotype $A_1A_1$ with genotypic value $G_{11}$ and frequency $p_{11}$;
+
+* genotype $A_1A_2$ with genotypic value $G_{12}$ and frequency $p_{12}$;
+
+* genotype $A_2A_2$ with genotypic value $G_{22}$ and frequency $p_{22}$.
+
+such that the **mean genotypic value** is $\bar{G} = p_{11} G_{11} + p_{12} G_{12} + p_{22} G_{22}$.
+
+The genotypic values are gathered into a vector, $\boldsymbol{g}$.
+Several parameterizations exist but, in all, this vector of genotypic values corresponds to the vector of **allelic effects**, $\boldsymbol{e}_r$, scaled by a design matrix, $S_r$:
+
+\[
+\boldsymbol{g} = S_r \; \boldsymbol{e}_r
+\; \; \Leftrightarrow \; \;
+\begin{bmatrix}
+G_{11} \\
+G_{12} \\
+G_{22}
+\end{bmatrix}
+=
+\begin{bmatrix}
+S_{r,11} & S_{r,12} & S_{r,13} \\
+S_{r,21} & S_{r,22} & S_{r,23} \\
+S_{r,31} & S_{r,32} & S_{r,33}
+\end{bmatrix}
+\times
+\begin{bmatrix}
+r \\
+e_{r, \text{add}} \\
+e_{r, \text{dom}}
+\end{bmatrix}
+\]
+
+where $r$ indicates the reference point of the chosen parameterization.
+
+
+## Data analysis procedure
+
+**The main goal is to estimate the allelic effects**, so that we can (i) identifiy QTLs to understand the genetic architecture of the trait, and (ii) predict the genotypic values of new genotypes based on their genotype at the locus.
+
+In practice, we sample $I$ genotypes from a population to genotype them at the locus and phenotype them.
+The $N$ **phenotypic observations** are gathered into a vector, $\boldsymbol{y}$, with $N$ possibly larger than $I$, for instance $N = I \times J$ when $J$ observations are collected per genotype.
+
+Using a linear mixed model, the **likelihood** for such a dataset is often written as:
+
+\[
+\boldsymbol{y} = X \boldsymbol{\beta} + Z \, \boldsymbol{u} + \boldsymbol{\epsilon} \text{ with } \boldsymbol{u} \sim \mathcal{N}_I(\boldsymbol{0}, G) \text{ and } \boldsymbol{\epsilon} \sim \mathcal{N}_N(\boldsymbol{0}, R)
+\]
+
+where:
+
+* $X$ is the $N \times Q$ design matrix relating the phenotypic observations to known experimental factors, if any (at least a column of $1$'s);
+
+* $\boldsymbol{\beta}$ is the $Q$-vector of factor effects, modeled as *fixed effects* (at least the global intercept);
+
+* $Z$ is the $N \times I$ design matrix relating the phenotypic observations to the genotypes;
+
+* $\boldsymbol{u}$ is the vector of genotypic values (one per genotype) modeled as *random variables*, assumed to come from a Normal distribution where $G$ is the $I \times I$ variance-covariance matrix (in the simplest case, $G = \sigma_A^2 A$, more explanations below);
+
+* $\boldsymbol{\epsilon}$ is the vector of errors (in the simplest case, $R = \sigma^2 \, \text{Id}$).
+
+To estimate the allelic effects, we can introduce the $I \times 3$ design matrix $Z_g$ relating the genotypic values of all genotypes, $\boldsymbol{u}$, to the vector of unique genotypic values, $\boldsymbol{g}$:
+
+\[
+\boldsymbol{y} = X \boldsymbol{\beta} + Z \, \boldsymbol{u} + \boldsymbol{\epsilon}
+\; \; \Leftrightarrow \; \;
+\boldsymbol{y} = X \boldsymbol{\beta} + Z \, Z_g \, \boldsymbol{g} + \boldsymbol{\epsilon}
+\; \; \Leftrightarrow \; \;
+\boldsymbol{y} = X \boldsymbol{\beta} + Z \, Z_g \, S_r \, \boldsymbol{e}_r + \boldsymbol{\epsilon}
+\]
+
+As the number of allelic effects is small ($\boldsymbol{e}_r$ is of length 3), we should modeling them as fixed effects.
+To simplify, let us also assume that there is no experimental factor to be controlled and that phenotypic observations have been centered, that is $Q=0$.
+We also introduce $Z_{g,r} = Z \, Z_g \, S_r$.
+
+**Estimates** of the allelic effects can then be readily obtained, for instance by **ordinary least-squares** (OLS):
+
+\[
+\hat{\boldsymbol{e}}_r = (Z_{g,r}^T \, Z_{g,r})^{-1} Z_{g,r}^T \, \boldsymbol{y}
+\]
+
+But at this stage, in practice, it is necessary to specify $S_r$ and, for this, to choose a reference point.
+
+## Functional parameterization
+
+As a reference point, let us start by choosing the first genotypic value, $r = G_{11}$:
+
+\[
+\boldsymbol{g} = S_{G_{11}} \, \boldsymbol{e}_{G_{11}}
+\; \; \Leftrightarrow \; \;
+\begin{bmatrix}
+G_{11} \\
+G_{12} \\
+G_{22}
+\end{bmatrix}
+=
+\begin{bmatrix}
+1 & 0 & 0 \\
+1 & 1 & 1 \\
+1 & 2 & 0
+\end{bmatrix}
+\times
+\begin{bmatrix}
+G_{11} \\
+a \\
+d
+\end{bmatrix}
+\]
+
+where $a$ is the **additive** allelic effect, here based on the number of copies of the alternative allele, and $d$ the **dominance** allelic effect.
+Moreover, an often-used scaled measure of dominance is: $k = \frac{d}{a}$.
+
+The first column of $S_{G_{11}}$ indicates that all genotypic values are interpreted as deviations from $G_{11}$.
+The other columns allows to interpret the allelic effects as the effects of substituting allele(s) with respect to the reference genotype, $A_1A_1$.
+
+But we may want to choose any genotype $G_{uv}$ as the reference, even the fictitious "mean genotype" $\bar{G}$.
+This is made possible thanks to the **general scaling matrix for the functional parameterization**:
+
+\[
+S_F = \begin{bmatrix}
+1 & 0 - p_{12} - 2 p_{22} & 0 - p_{12} \\
+1 & 1 - p_{12} - 2 p_{22} & 1 - p_{12} \\
+1 & 2 - p_{12} - 2 p_{22} & 0 - p_{12}
+\end{bmatrix}
+\]
+
+and its inverse:
+
+\[
+S_F^{-1} = \begin{bmatrix}
+p_{11}       & p_{12} & p_{22} \\
+-\frac{1}{2} & 0      & \frac{1}{2} \\
+-\frac{1}{2} & 1      & -\frac{1}{2}
+\end{bmatrix}
+\]
+
+Given that $\boldsymbol{e}_F = S_F^{-1} \, \boldsymbol{g}$, we see that $r = \bar{G}$.
+
+To choose $G_{11}$ as the reference point, we simply replace the generic entries of $S_F$ using $p_{12} = p_{22} = 0 \Rightarrow p_{11} = 1 \Rightarrow r = G_{11}$.
+Similarly when choosing $G_{12}$ or $G_{22}$ as the reference point.
+
+Keeping $r = \bar{G}$, if we are dealing with an $F_2$ experimental population, we can replace the generic entries of $S_F$ using the expected genotypic values: $p_{11} = p_{22} = \frac{1}{4}$ and $p_{12} = \frac{1}{2}$.
+Still keeping $r = \bar{G}$, if we are now dealing with a population at the Hardy-Weinberg equilibrium and we know the value of the allele frequency $f$, we can use it to replace the generic entries of $S_F$.
+
+Transforming allelic effects from one reference ($r$) to another ($r'$) is straightforward: $\boldsymbol{e}_{r'} = S_{r'}^{-1} \, S_r \, \boldsymbol{e}_r$.
+
+More importantly, we can also deduce the formulas of the functional allelic effects:
+
+* $a = \frac{G_{22} - G_{11}}{2}$
+
+* $d = G_{12} - \frac{G_{11} + G_{22}}{2}$
+
+Note that the resulting allelic effects, $a$ and $d$, are always defined the same way, regardless of the reference point and scaling matrix.
+These allelic effects $a$ and $d$ hence are known as **functional allelic effects** (also as "mechanistic", "physiological" or "biological").
+
+## Orthogonality
+
+At this stage, we can think of replacing $S_r$ in the OLS estimator above by $S_F$ .
+However, for statistical reasons, among all possible parameterizations, we should use one allowing to obtain estimates of allelic effects that are independent from each other (this is even more important with more than one locus in the presence of epistasis).
+Such a parameterization, qualified as **orthogonal**, also provides estimates of effects which remain consistent when comparing nested models.
+
+Unfortunately, for the $S_F$ matrix above to correspond to an orthogonal parameterization, the following conditions must be fulfilled: $p_{11} = p_{22}$ or $p_{12} = 0$.
+More details are in Alvarez-Castro and Carlborg (2007).
+If these conditions hold, the $S_F$ matrix can be used in a statistical model to estimate allelic effects.
+Otherwise, another scaling matrix must be used.
+
+## Statistical parameterization
+
+Hopefully there exists a **general scaling matrix for the statistical parameterization**, noted $S_S$, equal to $S_F$ except for the dominance scaling, which always leads to orthogonality:
+
+\[
+S_S = \begin{bmatrix}
+1 & 0 - p_{12} - 2 p_{22} & - \frac{2 p_{12} p_{22}}{p_{11} + p_{22} - (p_{11} - p_{22})^2} \\
+1 & 1 - p_{12} - 2 p_{22} & \frac{4 p_{11} p_{22}}{p_{11} + p_{22} - (p_{11} - p_{22})^2} \\
+1 & 2 - p_{12} - 2 p_{22} & - \frac{2 p_{11} p_{12}}{p_{11} + p_{22} - (p_{11} - p_{22})^2}
+\end{bmatrix}
+\]
+
+and its inverse:
+
+\[
+S_S^{-1} = \begin{bmatrix}
+p_{11}       & p_{12} & p_{22} \\
+-\frac{-p_{11}(p_{12}+2p_{22})}{p_{11}+p_{22}-(p_{11}-p_{22})^2} & \frac{p_{12}(p_{11}-p_{22})}{p_{11}+p_{22}-(p_{11}-p_{22})^2} & \frac{p_{22}(p_{12}+2p_{11})}{p_{11}+p_{22}-(p_{11}-p_{22})^2} \\
+-\frac{1}{2} & 1      & -\frac{1}{2}
+\end{bmatrix}
+\]
+
+so that:
+
+\[
+\boldsymbol{e}_S = S_S^{-1} \, \boldsymbol{g}
+\; \; \Leftrightarrow \; \;
+\begin{bmatrix}
+\bar{G} \\
+\alpha \\
+\delta
+\end{bmatrix}
+=
+S_S^{-1}
+\times
+\begin{bmatrix}
+G_{11} \\
+G_{12} \\
+G_{22}
+\end{bmatrix}
+\]
+
+where $\alpha$ and $\delta$ are the new notation of the allelic effects in this statistical parameterization, and hence are known as **statistical allelic effects**.
+
+The reference point in $S_S$ also is $\bar{G}$, as in $S_F$.
+But more importantly, the additive effect $\alpha$ now depends on the genotypic frequencies.
+It still is the effect of substituting one allele for another, but now averaged over the population.
+
+Once properly estimated, the statistical allelic effects can be transformed into their functional counterparts: $\boldsymbol{e}_F = S_F^{-1} \, S_S \, \boldsymbol{e}_S$.
+Moreover, if the conditions above for orthogonality hold, $S_S$ reduces to $S_F$.
+
+## Interactive plot of the NOIA model
+
+NOIA stands for "natural and orthogonal interactions".
+The NOIA model hence corresponds to the unified model described above, allowing to transform allelic effects from the functional to the statistical parameterization, and inversely.
+
+```{r, echo=FALSE}
+if(FALSE){
+  input <- list("G11"=-1.4, "G12"=1.4, "G22"=0.6,
+                "p11"=0.09, "p12"=0.42, "f"=0.7) # HWE
+                ## "p11"=1/4, "p12"=1/2, f=0.7) # F2
+  gen.val <- c("11"=input$G11, "12"=input$G12, "22"=input$G22)
+  gen.freq <- c("11"=input$p11, "12"=input$p12,
+                "22"=1 - input$p11 - input$p12)
+  S.F <- funcScalMat(gen.freq)
+  S.S <- statScalMat(gen.freq)
+  (e.F <- solve(S.F) %*% gen.val)
+  (func.all.eff <- genValToFuncAllEff(gen.val))
+  (e.S <- solve(S.S) %*% S.F %*% e.F)
+  (stat.all.eff <- solve(S.S) %*% gen.val)
+}
+inputPanel(
+  sliderInput("G11",
+              label=HTML("genotypic value G<sub>11</sub>:"),
+              min=-5,
+              max=5,
+              value=-1.4,
+              step=0.2,
+              round=FALSE),
+  sliderInput("G12",
+              label=HTML("genotypic value G<sub>12</sub>:"),
+              min=-5,
+              max=5,
+              value=0.6,
+              step=0.2,
+              round=FALSE),
+  sliderInput("G22",
+              label=HTML("genotypic value G<sub>22</sub>:"),
+              min=-5,
+              max=5,
+              value=1.4,
+              step=0.2,
+              round=FALSE),
+  sliderInput("p11",
+              label=HTML("genotypic frequency p<sub>11</sub>:"),
+              min=0,
+              max=1,
+              value=0.09,
+              step=0.01,
+              round=FALSE),
+  sliderInput("p12",
+              label=HTML("genotypic frequency p<sub>12</sub>:"),
+              min=0,
+              max=1,
+              value=0.42,
+              step=0.01,
+              round=FALSE),
+  sliderInput("f",
+              label=HTML("allelic frequency f:"),
+              min=0,
+              max=1,
+              value=0.7,
+              step=0.1,
+              round=FALSE),
+  sliderInput("I",
+              label=HTML("#genotypes I:"),
+              min=10^2,
+              max=10^3,
+              value=500,
+              step=100,
+              round=FALSE),
+  sliderInput("J",
+              label=HTML("#data per genotype J:"),
+              min=2,
+              max=10,
+              value=4,
+              step=2,
+              round=FALSE)
+)
+
+runSimul <- function(gen.val, gen.freq, I, J, sigma=1){
+  stopifnot(all(names(gen.val) == c("11","12","22")),
+            all(names(gen.freq) == c("11","12","22")),
+            sum(gen.freq) == 1)
+
+  S.F <- funcScalMat(gen.freq)
+  S.S <- statScalMat(gen.freq)
+  (e.F <- solve(S.F) %*% gen.val)
+  ## (func.all.eff <- genValToFuncAllEff(gen.val))
+  (e.S <- solve(S.S) %*% S.F %*% e.F)
+  ## (stat.all.eff <- solve(S.S) %*% gen.val)
+
+  N <- I * J
+  I11 <- round(gen.freq["11"] * I)
+  I12 <- round(gen.freq["12"] * I)
+  I22 <- I - I11 - I12
+  geno.names <- c(paste0("geno11.", 1:I11),
+                  paste0("geno12.", 1:I12),
+                  paste0("geno22.", 1:I22))
+  dat <- data.frame(geno=c(rep("11", I11),
+                           rep("12", I12),
+                           rep("22", I22)),
+                    N2=c(rep(0, I11),
+                         rep(1, I12),
+                         rep(2, I22)),
+                    id=rep(geno.names, J),
+                    rep=rep(1:J, each=I),
+                    pheno=NA)
+  Z <- model.matrix(~ -1 + id, data=dat)
+  g <- c(rep(gen.val["11"], I11),
+         rep(gen.val["12"], I12),
+         rep(gen.val["22"], I22))
+  y <- Z %*% g + rnorm(n=N, mean=0, sd=sigma)
+  dat$pheno <- as.numeric(y)
+  out <- list(dat=dat)
+  return(out)
+}
+
+plotNoia <- function(gen.val, gen.freq, f, I, J){
+  stopifnot(all(names(gen.val) == c("11","12","22")),
+            all(names(gen.freq) == c("11","12","22")),
+            sum(gen.freq) == 1)
+
+  all.eff <- genValToFuncAllEff(gen.val)
+  a <- all.eff["a"]
+  d <- all.eff["d"]
+  ref.pt <- meanGenVal(gen.val, gen.freq)
+  is.hwe <- isHwe(gen.freq, f)
+  is.ortho <- isOrthogonal(gen.freq)
+  simul <- runSimul(gen.val, gen.freq, I, J, sigma=1)
+
+  par(mar=c(5, 4, 4, 1))
+  plot(x=0, y=0, xlim=c(0, 2.7),
+       ylim=c(ifelse(min(gen.val) >= 0, 0.9, 1.1) * min(gen.val),
+              1.1 * max(gen.val)),
+       xlab=expression("count of the alternative allele ("*N[2]*")"),
+       ylab=expression("genotypic value ("*G[uv]*")"),
+       main=paste0("a=", round(a, digits=2),
+                   " d=", round(d, digits=2),
+                   " HWE=", ifelse(is.hwe, "yes", "no"),
+                   " orthogonal=", ifelse(is.ortho, "yes", "no")),
+       xaxt="n", #yaxt="n",
+       type="n", las=1)
+  axis(side=1, at=c(0,1,2), labels=c("0","1","2"))
+  tmp <- c(gen.val, r=ref.pt)
+  names(tmp) <- c(names(gen.val), "r")
+  tmp <- sort(tmp)
+  segments(x0=0, y0=gen.val["11"], x1=2, y1=gen.val["22"], lty=2)
+  func.linreg <- lm(formula=g ~ N2,
+                    data=data.frame(g=c(gen.val["11"], gen.val["22"]),
+                                    N2=c(0, 2)))
+  ## abline(func.linreg, lwd=2, col="black")
+  stat.linreg <- lm(formula=pheno ~ N2, data=simul$dat)
+  abline(stat.linreg, lwd=2, col="grey")
+  ## N2.ref.pt <- predict(object=lin.reg, newdata=data.frame(N2=))
+  ## points(x=N2.ref.pt, y=ref.pt, pch=17, col="black")
+  symbols(x=c(0, 1, 2), y=gen.val, circles=gen.freq,
+          inches=1/3, fg=NULL, bg="black", add=TRUE)
+  legend("topright",
+         legend=c("functional regression","statistical regression"),
+         lwd=c(2,2), col=c("black","grey"), bty="n")
+}
+renderPlot(
+  plotNoia(c("11"=input$G11, "12"=input$G12, "22"=input$G22),
+           c("11"=input$p11, "12"=input$p12, "22"=1 - input$p11 - input$p12),
+           input$f, input$I, input$J)
+)
+```
+
+## Statistical parameterization under HWE
+
+In the $S_S$ definition above, we can replace the genotypic frequencies by their values in terms of the allele frequency under HWE:
+
+\[
+S_{S,HWE} = \begin{bmatrix}
+1 & 0 - 2 f & -2 f^2\\
+1 & 1 - 2 f & 2 f (1-f) \\
+1 & 2 - 2 f & -2 (1-f)^2
+\end{bmatrix}
+\]
+
+As shown below, it happens that this scaling matrix encodes the classical model of quantitative genetics dating back to Fisher.
+It usually is motivated in a very different way than what is described above, but both ways are interesting and important to know.
+
+### Fisher model
+
+As already said, we are often interested in quantifying the allelic effects inherited from parents to offsprings.
+In this aim, any genotypic value $G_{uv}$ is decomposed into a part that can be genetically transmitted, named **additive genotypic value**, noted $G_{uv,A}$, and a part that cannot, named **dominance genotypic value**, $G_{uv,D}$:
+\[
+\forall u,v \in \{1,2\}, \; G_{uv} = \text{E}[G_{uv}] + G_{uv,A} + G_{uv,D}
+\]
+
+The key point is to realize that, under sexual reproduction, at a given locus, a parent passes along to an offspring not its genotype but a single one of its alleles, randomly sampled according to the Mendelian rules.
+Therefore, for the parent of genotype $A_uA_v$, the transmittable part of its genotypic value, $G_{uv,A}$, must be defined as a sum of two variables, one for each of its two alleles, and each parent only transmits one of them to their offspring.
+As a result, what is mostly known as the **breeding value**, is defined as the sum of the so-called **average allelic effects**:
+\[
+G_{uv,A} = \alpha_u + \alpha_v
+\]
+It allows to predict the genotypic value of an individual based on the alleles it inherited: $\text{E}[G_{uv}] + \alpha_u + \alpha_v = \hat{G}_{uv}$.
+
+The second part, $G_{uv,D}$, ends up being defined as the resulting deviation:
+\[
+G_{uv,D} = G_{uv} - (\text{E}[G_{uv}] + G_{uv,A}) = \delta_{uv}
+\]
+
+Note that the definition of the genotypic value is in fact a linear regression on the number of copies of the alternative allele, $N_2$ (also called "gene content", "gene" being the old way of saying "allele"):
+\[
+G_{uv} = \mu  +\alpha \, N_2 + \delta_{uv}
+\]
+where $\mu = \text{E}[G_{uv}] + 2 \alpha_1$ is the intercept and $\alpha = \alpha_2 - \alpha_1$ is known as the **substitution effect of the gene**.
+
+From the theory of simple linear regression, it is known that:
+
+$\alpha = \frac{\text{Cov}[G_{uv}, N_2]}{\text{Var}[N_2]} = \frac{\text{E}[G_{uv} N_2] - \text{E}[G_{uv}] \text{E}[N_2]}{\text{E}[N_2^2] - \text{E}[N_2]^2}$
+
+At this stage of the explanation of the Fisher model, the so-called "mechanistic" or "functional" allelic effects have to be introduced.
+It is common to choose the following parameterization: $G_{11} = -a$, $G_{12} = d$ and $G_{22} = a$.
+Another is: $G_{11} = 0$, $G_{12} = a + d$ and $G_{22} = 2 a$.
+No mention is usually made of the reference point.
+In these cases, it happens to be $r = 0$, but this may not be the case.
+This omission maybe comes from the fact that the definition of $a$ and $d$ is independent of it, as described above: $a = \frac{G_{22} - G_{11}}{2}$ and $d = G_{12} - \frac{G_{11} + G_{22}}{2}$.
+
+Assuming the Hardy-Weinberg equilibrium, the various quantities are easy to calculate as $G_{uv}$ and $N_2$ are discrete random variables:
+
+genotype | frequency | $N_2$ | $N_2^2$ | $G_{uv}$ | $G_{uv} \times N_2$
+:-------:|:----:|:-----:|:-------:|:--------:|:------------:
+$A_1A_1$  | $(1-f)^2$| $0$ | $0$ | $-a$ | $0$
+$A_1A_2$ | $2f(1-f)$| $1$ | $1$ | $d$  | $d$
+$A_2A_2$ | $f^2$| $2$ | $4$ | $a$  | $2a$
+
+With some elementary algebra:
+
+* $\text{E}[N_2] = 2f(1-f) + 2 f^2 = 2f$;
+
+* $\text{E}[N_2^2] = 2f(1-f) + 4 f^2 = 2f (1 + f)$;
+
+* $\text{E}[G_{uv}] = -(1-f)^2 a + 2f(1-f) d + f^2 a = (2f - 1) a + 2f (1 - f) d$;
+
+* $\text{E}[G_{uv} N_2] = 2f(1-f) d + 2 f^2 a$;
+
+* $\text{Cov}[G_{uv}, N_2] = 2f (1-f) [a + (1-2f)d]$;
+
+* $\text{Var}[N_2] = 2f(1-f)$.
+
+Thus:
+\[
+\alpha = a + (1 - 2f) d
+\]
+
+Then:
+
+* $\alpha_1 = -f \alpha = -f a -f(1-2f) d$;
+
+* $\alpha_2 = (1 - f) \alpha = (1-f)a + (1-f)(1-2f)d$.
+
+Note that these effects, $\alpha_1$ and $\alpha_2$, because they depend on the allele frequency $f$, change from one population to another.
+That is why they are also called "statistical" effects compare to $a$ and $d$ which are the "functional" effects.
+
+From all this, the additive genotypic value can be calculated for each genotype:
+
+* $G_{11,A} = 2 \alpha_1 = (0 - 2f) \alpha$;
+
+* $G_{12,A} = 2 \alpha_1 + \alpha = (1 - 2f) \alpha$;
+
+* $G_{22,A} = 2 \alpha_1 + 2 \alpha = (2 - 2f) \alpha$.
+
+Importantly, because $\alpha$ depends on both $a$ and $d$, *all additive genotypic values depend not only on the additive functional allelic effect but also on the dominance functional allelic effect*!
+
+Furthermore, the dominance genotypic values can be calculated in a similar way:
+
+* $G_{11,D} = \delta_{11} = G_{11} - (\text{E}[G_{uv}] + 2 \alpha_1) = -2f^2 d$;
+
+* $G_{12,D} = \delta_{12} = 2f(1-f) d$;
+
+* $G_{22,D} = \delta_{22} = -2(1-f)^2 d$.
+
+Note that these formulas correspond to what is obtained using $\boldsymbol{g} = S_{S,HWE} \, \boldsymbol{e}_S$, with $r = \bar{G} = \text{E}[G_{uv}]$ and $\delta = d$ (caution, $\delta \neq \delta_{uv}$...).
+
+We can now calculate the **genetic variances**, starting with:
+
+$\sigma_G^2 = \text{Var}[G_{uv}] = \text{Var}[{G}_{uv,A} + G_{uv,D}] = \text{Var}[G_{uv,A}] + \text{Var}[G_{uv,D}] + 2 \text{Cov}[G_{uv,A}, G_{uv,D}]$
+
+Moreover, we assume that there is no inbreeding: $\text{Cov}[G_{uv,A}, G_{uv,D}] = 0$.
+
+Therefore: $\sigma_G^2 = \text{Var}[G_{uv,A}] + \text{Var}[G_{uv,D}] = \sigma_A^2 + \sigma_D^2$
+
+Calculating the additive and dominance genotypic variances requires various terms:
+
+* $\text{E}[G_{uv,A}] = -2 f (1-f)^2 \alpha + 2 f (1-f) (1-2f) \alpha + 2 f^2 (1-f) \alpha = 0$
+
+* $\text{E}[G_{uv,A}^2] = 2 f (1-f) \alpha^2$
+
+* $\text{E}[G_{uv,D}] = -2 f^2 (1-f)^2 d + 4 f^2 (1-f)^2 d -2 f^2 (1-f)^2 d = 0$
+
+* $\text{E}[G_{uv,D}^2] = 4 f^2 (1-f)^2 d^2$
+
+Thus:
+
+* $\sigma_A^2 = 2 f (1-f) \alpha^2$
+
+* $\sigma_D^2 = (2 f (1-f) d)^2$
+
+### Interactive plots for Fisher model under HWE
+
+```{r, echo=FALSE}
+inputPanel(
+  sliderInput("in1.G11",
+              label=HTML("genotypic value G<sub>11</sub>:"),
+              min=-5,
+              max=5,
+              value=-1.4,
+              step=0.2,
+              round=FALSE),
+  sliderInput("in1.G12",
+              label=HTML("genotypic value G<sub>12</sub>:"),
+              min=-5,
+              max=5,
+              value=1,
+              step=0.2,
+              round=FALSE),
+  sliderInput("in1.G22",
+              label=HTML("genotypic value G<sub>22</sub>:"),
+              min=-5,
+              max=5,
+              value=1.4,
+              step=0.2,
+              round=FALSE)
+)
+renderPlot(
+  plotAllCount2GenVal(gen.val=c("11"=input$in1.G11,
+                                "12"=input$in1.G12,
+                                "22"=input$in1.G22))
+)
+renderPlot(
+  plotAllFreq2GenVar(gen.val=c("11"=input$in1.G11,
+                               "12"=input$in1.G12,
+                               "22"=input$in1.G22))
+)
+```
+
+
+# More than two alleles
+
+## Functional parameterization
+
+We can manage any number of alleles, $R$, but let us focus on the often-encountered situation of a biparental cross between outbreds, where both parents can be heterozygous at the locus, with no allele in common.
+This corresponds to the segregation type `<abxcd>` in the JoinMap format.
+
+In the case with $R$=`r (R <- 4)` alleles, there are $R(R+1)/2$=`r R*(R+1)/2` genotypes: $R$=`r R` homozygotes ($G_{11}, G_{22}, G_{33}, G_{44}$) and $R(R-1)/2$=`r R*(R-1)/2` heterozygotes ($G_{12}, G_{13}, G_{23}, G_{14}, G_{24}, G_{34}$).
+
+The functional allelic effects can be defined for each pair of alleles $(u,v)$ where $u,v \in \{1,\ldots,R\}$ and $u \neq v$.
+As for the two-allele case, the additive effects are defined as half the difference between the two homozygotes, and the dominance effects as the difference between the heterozygote and the average of the two homozygotes:
+
+* $a_{uvj} = \frac{G_{vv} - G_{uu}}{2}$
+
+* $d_{uv} = G_{uv} - \frac{G_{uu} + G_{vv}}{2}$
+
+This corresponds to two effects for $R(R-1)/2$ pairs of alleles, hence a total of `r R*(R-1)` effects in total.
+Given that there are only `r R*(R+1)/2` genotypic values, constraints need to be added to avoid a collinear matrix.
+
+Let us choose again $G_{11}$ as the reference point.
+Then, we only need to specify $(R-1)$=`r R-1` additive effects as differences between $G_{11}$ and the other homozygotes:
+
+* $\forall j \in \{2,\ldots,R\}, \; a_{1j} = \frac{G_{jj} - G_{11}}{2}$
+
+The remaining $(R-1)(R-2)/2$=`r (R-1)*(R-2)/2` additive effects can be obtained like this:
+
+* $\forall i,j \in \{2,\ldots,R\}, \; a_{ij} = a_{1j} - a_{1i}$
+
+This results in:
+
+1. $G_{11} = G_{11}$
+
+2. $G_{12} = G_{11} + a_{12} + d_{12}$
+
+3. $G_{22} = G_{11} + 2 a_{12}$
+
+4. $G_{13} = G_{11} + a_{13} + d_{13}$
+
+5. $G_{23} = G_{11} + (a_{12} - a_{13}) + d_{23}$
+
+6. $G_{33} = G_{11} + 2 a_{13}$
+
+7. $G_{14} = G_{11} + a_{14} + d_{14}$
+
+8. $G_{24} = G_{11} + (a_{12} - a_{14}) + d_{24}$
+
+9. $G_{34} = G_{11} + (a_{13} - a_{14}) + d_{34}$
+
+10. $G_{44} = G_{11} + 2 a_{14}$
+
+In matrix form:
+
+\[
+\begin{bmatrix}
+G_{11} \\
+G_{12} \\
+G_{22} \\
+G_{13} \\
+G_{23} \\
+G_{33} \\
+G_{14} \\
+G_{24} \\
+G_{34} \\
+G_{44}
+\end{bmatrix}
+= \begin{bmatrix}
+1 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0  \\ % G11 = G11
+1 & 1 & 1 & 0 & 0 & 0 & 0 & 0 & 0 & 0  \\ % G12 = G11 + a12 + d12
+1 & 2 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0  \\ % G22 = G11 + 2 a12
+1 & 0 & 0 & 1 & 1 & 0 & 0 & 0 & 0 & 0  \\ % G13 = G11 + a13 + d13
+1 & 1 & 0 & -1 & 0 & 0 & 0 & 1 & 0 & 0 \\ % G23 = G11 + (a12 - a13) + d23
+1 & 0 & 0 & 2 & 0 & 0 & 0 & 0 & 0 & 0  \\ % G33 = G11 + 2 a13
+1 & 0 & 0 & 0 & 1 & 1 & 0 & 0 & 0 & 0  \\ % G14 = G11 + a14 + d14
+1 & 1 & 0 & 0 & -1 & 0 & 0 & 0 & 1 & 0 \\ % G24 = G11 + (a12 - a14) + d24
+1 & 0 & 1 & 0 & -1 & 0 & 0 & 0 & 0 & 1 \\ % G34 = G11 + (a13 - a14) + d34
+1 & 0 & 0 & 0 & 2 & 0 & 0 & 0 & 0 & 0     % G44 = G11 + 2 a14
+\end{bmatrix}
+\times \begin{bmatrix}
+G_{11} \\
+a_{12} \\
+d_{12} \\
+a_{13} \\
+d_{13} \\
+a_{14} \\
+d_{14} \\
+d_{23} \\
+d_{24} \\
+d_{34}
+\end{bmatrix}
+\]
+
+## Statistical parameterization
+
+As for the two-allele case: $\forall i,j \in \{1,\ldots,R\}, \; G_{ij} = \text{E}[G_{ij}] + \alpha_i + \alpha_j + \delta_{ij}$.
+
+
+# References
+
+* Lynch and Walsh (1998)
+
+* Alvarez-Castro and Carlborg (2007)
+
+* Yang and Alvarez-Castro (2008)
+
+* Alvarez-Castro and Yang (2011)
+
+* Vitezica et al (2013)
+
+* Vitezica et al (2017)
