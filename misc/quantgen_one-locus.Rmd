@@ -818,7 +818,7 @@ In the case with $R$=`r (R <- 4)` alleles, there are $R(R+1)/2$=`r R*(R+1)/2` ge
 The functional allelic effects can be defined for each pair of alleles $(u,v)$ where $u,v \in \{1,\ldots,R\}$ and $u \neq v$.
 As for the two-allele case, the additive effects are defined as half the difference between the two homozygotes, and the dominance effects as the difference between the heterozygote and the average of the two homozygotes:
 
-* $a_{uvj} = \frac{G_{vv} - G_{uu}}{2}$
+* $a_{uv} = \frac{G_{vv} - G_{uu}}{2}$
 
 * $d_{uv} = G_{uv} - \frac{G_{uu} + G_{vv}}{2}$
 
@@ -828,11 +828,11 @@ Given that there are only `r R*(R+1)/2` genotypic values, constraints need to be
 Let us choose again $G_{11}$ as the reference point.
 Then, we only need to specify $(R-1)$=`r R-1` additive effects as differences between $G_{11}$ and the other homozygotes:
 
-* $\forall j \in \{2,\ldots,R\}, \; a_{1j} = \frac{G_{jj} - G_{11}}{2}$
+* $\forall v \in \{2,\ldots,R\}, \; a_{1v} = \frac{G_{vv} - G_{11}}{2}$
 
 The remaining $(R-1)(R-2)/2$=`r (R-1)*(R-2)/2` additive effects can be obtained like this:
 
-* $\forall i,j \in \{2,\ldots,R\}, \; a_{ij} = a_{1j} - a_{1i}$
+* $\forall u,v \in \{2,\ldots,R\}, \; a_{uv} = a_{1v} - a_{1u}$
 
 This results in:
 
@@ -899,7 +899,7 @@ d_{34}
 
 ## Statistical parameterization
 
-As for the two-allele case: $\forall i,j \in \{1,\ldots,R\}, \; G_{ij} = \text{E}[G_{ij}] + \alpha_i + \alpha_j + \delta_{ij}$.
+As for the two-allele case: $\forall u,v \in \{1,\ldots,R\}, \; G_{uv} = \text{E}[G_{duv}] + \alpha_u + \alpha_v + \delta_{uv}$.
 
 
 # References
