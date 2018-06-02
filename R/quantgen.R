@@ -4682,15 +4682,37 @@ subsetDiffHaplosWithinParent <- function(haplos.chr, snps.tokeep){
       "coord" %in% colnames(snp.coords) | "pos" %in% colnames(snp.coords))
 }
 
-.df2gr <- function(snp.coords.df){
-  requireNamespaces(c("GenomicRanges", "S4Vectors", "IRanges"))
-  stopifnot(.isValidSnpCoords(snp.coords.df))
-  snp.coords.gr <-
-    GenomicRanges::GRanges(seqnames=S4Vectors::Rle(snp.coords.df$chr),
-                           ranges=IRanges::IRanges(start=snp.coords.df$coord,
-                                                   end=snp.coords.df$coord))
-  names(snp.coords.gr) <- rownames(snp.coords.df)
-  return(snp.coords.gr)
+##' SNP coordinates from data frame to GRanges
+##'
+##' Convert a data frame of SNP coordinates to GRanges.
+##' @param x data frame of SNP coordinates
+##' @param si output from the "seqinfo" function from the GenomeInfoDb package
+##' @return GRanges
+##' @author Timothee Flutre
+##' @export
+snpCoordsDf2Gr <- function(x, si=NULL){
+  requireNamespace("GenomicRanges")
+  requireNamespace("S4Vectors")
+  requireNamespace("IRanges")
+  requireNamespace("GenomeInfoDb")
+  stopifnot(.isValidSnpCoords(x))
+  if(! is.null(si))
+    stopifnot(class(si) == "Seqinfo")
+
+  out.gr <-
+    GenomicRanges::GRanges(seqnames=S4Vectors::Rle(x$chr),
+                           ranges=IRanges::IRanges(start=x$coord,
+                                                   end=x$coord))
+  names(out.gr) <- rownames(x)
+  out.gr <- GenomeInfoDb::sortSeqlevels(out.gr)
+
+  if(! is.null(si)){
+    stopifnot(all(GenomeInfoDb::seqlevels(out.gr) ==
+                  GenomeInfoDb::seqlevels(si)))
+    GenomeInfoDb::seqinfo(out.gr) <- si
+  }
+
+  return(out.gr)
 }
 
 ##' Distance between SNP pairs
@@ -4718,7 +4740,7 @@ distSnpPairs <- function(snp.pairs, snp.coords, nb.cores=1, verbose=1){
 
   if(verbose > 0)
     message("make GRanges ...")
-  snp.granges <- .df2gr(snp.coords)
+  snp.granges <- snpCoordsDf2Gr(snp.coords)
 
   if(verbose > 0)
     message("calculate pairwise distances ...")
@@ -5235,7 +5257,7 @@ thinSnps <- function(method, threshold, snp.coords, only.chr=NULL){
       tiles <- GenomicRanges::tileGenome(seqlengths=stats::setNames(max(tmp$coord),
                                                              chr.id),
                                          tilewidth=threshold)
-      tmp.gr <- .df2gr(tmp)
+      tmp.gr <- snpCoordsDf2Gr(tmp)
       ovl <- GenomicRanges::findOverlaps(tiles, tmp.gr)
       idx <- sapply(as.list(ovl), `[`, 1)
       names(tmp.gr[idx[! is.na(idx)]])
