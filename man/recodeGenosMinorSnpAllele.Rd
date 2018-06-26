@@ -14,7 +14,7 @@ recodeGenosMinorSnpAllele(X, alleles, verbose = 1)
 \item{verbose}{verbosity level (0/1)}
 }
 \value{
-list with a matrix of SNP genotypes encoded, for each SNP, in number of copies of its minor allele, with genotypes in rows and SNPs in columns, and a data.frame of alleles which columns are named "minor" and "major"
+list with a matrix of SNP genotypes encoded, for each SNP, in number of copies of its minor allele, with genotypes in rows and SNPs in columns, a data.frame of alleles which columns are named "minor" and "major", and a vector of logicals indicating which SNPs have been recoded
 }
 \description{
 Recode bi-allelic SNP genotypes in terms of the number of copies of the minor allele.

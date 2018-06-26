@@ -47,7 +47,7 @@ gemma(model = "ulmm", y, X, snp.coords, recode.genos = TRUE,
 \item{thin}{thining (if model="bslmm")}
 }
 \value{
-invisible list
+list with the following components: recoded, cmd, log, global mean, pve, tests (and hyperparams and params for BSLMM)
 }
 \description{
 See Zhou & Stephens (Nature Genetics, 2012), and Zhou et al (PLoS Genetics, 2013).
@@ -60,8 +60,9 @@ P <- 2000
 X <- simulGenosDose(nb.genos=I, nb.snps=P)
 
 ## make fake SNP coordinates and alleles
-snp.coords <- data.frame(coord=1:ncol(X),
-                         chr="chr1",
+nb.snps.per.chr <- ncol(X) / 2
+snp.coords <- data.frame(coord=rep(1:nb.snps.per.chr, 2),
+                         chr=rep(c("chr1","chr2"), each=nb.snps.per.chr),
                          row.names=colnames(X),
                          stringsAsFactors=FALSE)
 alleles <- data.frame(major=rep("A", ncol(X)),
@@ -86,15 +87,22 @@ t(binaryClassif(known.nulls=modelA$gamma == 0,
                 called.nulls=pvadj.AA$pv.bh > 0.05))
 qtl <- names(sort(modelA$a[modelA$gamma == 1], decreasing=TRUE))[1]
 boxplotCandidateQtl(y=modelA$Y[,1], X=X, snp=qtl, show.points=TRUE, main=qtl)
-abline(a=fit.u$global.mean["beta.hat"] - mean(X[,qtl])*fit.u$tests[qtl,"beta"],
-       b=fit.u$tests[qtl,"beta"])
+slope <- fit.u$tests[qtl,"beta"] *
+  ifelse(fit.u$recode[qtl], -1, 1)
+abline(a=fit.u$global.mean["beta.hat"] - mean(X[,qtl]) * slope,
+       b=slope, col="red")
+
+## same but per chrom
+## fit.u2 <- gemmaUlmmPerChr(y=modelA$Y[,1], X=X, snp.coords=snp.coords,
+##                           alleles=alleles, W=modelA$W,
+##                           out.dir=tempdir(), clean="all")
 
 ## fit all SNPs jointly with the BSLMM
 burnin <- 10^3
 nb.iters <- 10^4
 thin <- 10^2
-fit.bs <- gemma(model="bslmm", y=modelA$Y[,1], X, snp.coords, alleles,
-                W=modelA$W, out.dir=tempdir(), clean="all",
+fit.bs <- gemma(model="bslmm", y=modelA$Y[,1], X=X, snp.coords=snp.coords,
+                alleles=alleles, W=modelA$W, out.dir=tempdir(), clean="all",
                 burnin=burnin, nb.iters=nb.iters, thin=thin)
 posterior.samples <- coda::mcmc(data=fit.bs$hyperparams, start=burnin + 1,
                                 end=burnin + nb.iters, thin=thin)

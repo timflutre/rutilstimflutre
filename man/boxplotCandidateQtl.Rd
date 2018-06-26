@@ -4,10 +4,11 @@
 \alias{boxplotCandidateQtl}
 \title{Boxplot of QTL}
 \usage{
-boxplotCandidateQtl(y, X, snp, simplify.imputed = TRUE, xlab = "Genotype",
-  ylab = "Phenotype", show.points = FALSE, notch = TRUE,
-  suppress.warnings = TRUE, regline.intercept = NA, regline.slope = NA,
-  regline.col = "red", regline.lty = 1, verbose = 1, ...)
+boxplotCandidateQtl(y, X, snp, simplify.imputed = TRUE,
+  xlab = "SNP genotypes", maf.xlab = TRUE, ylab = "Phenotypes",
+  show.points = FALSE, notch = TRUE, suppress.warnings = TRUE,
+  regline.intercept = NA, regline.slope = NA, regline.col = "red",
+  regline.lty = 1, verbose = 1, ...)
 }
 \arguments{
 \item{y}{vector of phenotypes with genotype names}
@@ -18,7 +19,9 @@ boxplotCandidateQtl(y, X, snp, simplify.imputed = TRUE, xlab = "Genotype",
 
 \item{simplify.imputed}{if TRUE, imputed genotypes will be transformed back to {0,1,2}}
 
-\item{xlab}{label ox the x-axis}
+\item{xlab}{label of the x-axis}
+
+\item{maf.xlab}{if TRUE, the minor allele frequency will appear in the label of the x-axis}
 
 \item{ylab}{label of the y-axis}
 

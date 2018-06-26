@@ -1169,7 +1169,8 @@ test_that("recodeGenosMinorSnpAllele", {
                    alleles=data.frame(major=c("T", "G", "T"),
                                       minor=c("A", "C", "A"),
                                       row.names=colnames(X),
-                                      stringsAsFactors=FALSE))
+                                      stringsAsFactors=FALSE),
+                   recoded=setNames(c(TRUE, FALSE, FALSE), colnames(X)))
 
   observed <- recodeGenosMinorSnpAllele(X=X, alleles=alleles, verbose=0)
 

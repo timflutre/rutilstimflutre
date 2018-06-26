@@ -71,7 +71,7 @@ genoDoses2bimbam <- function(X=NULL, tX=NULL, alleles, file=NULL, format="mean")
 ##' @param burnin number of iterations to discard as burn-in (if model="bslmm")
 ##' @param nb.iters number of iterations (if model="bslmm")
 ##' @param thin thining (if model="bslmm")
-##' @return invisible list
+##' @return list with the following components: recoded, cmd, log, global mean, pve, tests (and hyperparams and params for BSLMM)
 ##' @author Timothee Flutre [aut,cre], Dalel Ahmed [ctb]
 ##' @seealso \code{\link{gemmaUlmmPerChr}}
 ##' @examples
@@ -82,8 +82,9 @@ genoDoses2bimbam <- function(X=NULL, tX=NULL, alleles, file=NULL, format="mean")
 ##' X <- simulGenosDose(nb.genos=I, nb.snps=P)
 ##'
 ##' ## make fake SNP coordinates and alleles
-##' snp.coords <- data.frame(coord=1:ncol(X),
-##'                          chr="chr1",
+##' nb.snps.per.chr <- ncol(X) / 2
+##' snp.coords <- data.frame(coord=rep(1:nb.snps.per.chr, 2),
+##'                          chr=rep(c("chr1","chr2"), each=nb.snps.per.chr),
 ##'                          row.names=colnames(X),
 ##'                          stringsAsFactors=FALSE)
 ##' alleles <- data.frame(major=rep("A", ncol(X)),
@@ -108,15 +109,22 @@ genoDoses2bimbam <- function(X=NULL, tX=NULL, alleles, file=NULL, format="mean")
 ##'                 called.nulls=pvadj.AA$pv.bh > 0.05))
 ##' qtl <- names(sort(modelA$a[modelA$gamma == 1], decreasing=TRUE))[1]
 ##' boxplotCandidateQtl(y=modelA$Y[,1], X=X, snp=qtl, show.points=TRUE, main=qtl)
-##' abline(a=fit.u$global.mean["beta.hat"] - mean(X[,qtl])*fit.u$tests[qtl,"beta"],
-##'        b=fit.u$tests[qtl,"beta"])
+##' slope <- fit.u$tests[qtl,"beta"] *
+##'   ifelse(fit.u$recode[qtl], -1, 1)
+##' abline(a=fit.u$global.mean["beta.hat"] - mean(X[,qtl]) * slope,
+##'        b=slope, col="red")
+##'
+##' ## same but per chrom
+##' ## fit.u2 <- gemmaUlmmPerChr(y=modelA$Y[,1], X=X, snp.coords=snp.coords,
+##' ##                           alleles=alleles, W=modelA$W,
+##' ##                           out.dir=tempdir(), clean="all")
 ##'
 ##' ## fit all SNPs jointly with the BSLMM
 ##' burnin <- 10^3
 ##' nb.iters <- 10^4
 ##' thin <- 10^2
-##' fit.bs <- gemma(model="bslmm", y=modelA$Y[,1], X, snp.coords, alleles,
-##'                 W=modelA$W, out.dir=tempdir(), clean="all",
+##' fit.bs <- gemma(model="bslmm", y=modelA$Y[,1], X=X, snp.coords=snp.coords,
+##'                 alleles=alleles, W=modelA$W, out.dir=tempdir(), clean="all",
 ##'                 burnin=burnin, nb.iters=nb.iters, thin=thin)
 ##' posterior.samples <- coda::mcmc(data=fit.bs$hyperparams, start=burnin + 1,
 ##'                                 end=burnin + nb.iters, thin=thin)
@@ -198,7 +206,7 @@ gemma <- function(model="ulmm", y, X, snp.coords, recode.genos=TRUE,
               all(names(weights) == names(y)),
               all(weights[! is.na(weights)] >= 0))
 
-  output <- list()
+  out <- list()
 
   ## generate or reformat alleles
   if(is.null(alleles)){
@@ -211,14 +219,17 @@ gemma <- function(model="ulmm", y, X, snp.coords, recode.genos=TRUE,
 
   ## for GEMMA, recode SNP genotypes in terms of minor alleles, if necessary
   afs <- estimSnpAf(X=X)
+  recoded <- stats::setNames(rep(FALSE, ncol(X)), colnames(X))
   if(recode.genos){
     if(any(afs > 0.5)){
       msg <- paste0(sum(afs > 0.5), " SNPs in X are not encoded",
                     " in terms of their minor allele")
       write(msg, stdout())
-      tmp <- recodeGenosMinorSnpAllele(X=X, alleles=alleles, verbose=verbose)
-      X <- tmp$X
-      alleles <- tmp$alleles
+      out.recode <- recodeGenosMinorSnpAllele(X=X, alleles=alleles,
+                                              verbose=verbose)
+      X <- out.recode$X
+      alleles <- out.recode$alleles
+      recoded <- out.recode$recoded
     }
   }
 
@@ -226,6 +237,8 @@ gemma <- function(model="ulmm", y, X, snp.coords, recode.genos=TRUE,
   mafs <- estimSnpMaf(afs=afs)
   X <- discardSnpsLowMaf(X=X, mafs=mafs, thresh=maf, verbose=verbose)
   alleles <- alleles[colnames(X),]
+  recoded <- recoded[colnames(X)]
+  out[["recoded"]] <- recoded
 
   ## reformat snp.coords
   snp.coords <- snp.coords[colnames(X),]
@@ -302,27 +315,36 @@ gemma <- function(model="ulmm", y, X, snp.coords, recode.genos=TRUE,
                    stdoe=paste0(out.dir, "/stdouterr_gemma_", task.id, ".txt"))
     cmd <- paste0(cmd, " > ", tmp.files["stdoe"], " 2>&1")
   }
-  if(verbose > 0)
+  if(verbose > 1)
     write(cmd, stdout())
   system(cmd)
-  output[["cmd"]] <- cmd
+  out[["cmd"]] <- cmd
 
   ## load output files
   f <- paste0(out.dir, "/results_", task.id, ".log.txt")
-  output[["log"]] <- readLines(f)
-  idx <- grep("beta estimate in the null model", output[["log"]])
-  if(length(idx) == 1){
-    tmp1 <- strsplit(output$log[idx], " ")[[1]]
-    tmp2 <- strsplit(output$log[idx+1], " ")[[1]]
-    output[["global.mean"]] <- c(beta.hat=as.numeric(tmp1[length(tmp1)]),
-                                 se.beta.hat=as.numeric(tmp2[length(tmp2)]))
+  out[["log"]] <- readLines(f)
+  if(model == "ulmm"){
+    idx <- grep("beta estimate in the null model", out[["log"]])
+    if(length(idx) == 1){
+      tmp1 <- strsplit(out$log[idx], " ")[[1]]
+      tmp2 <- strsplit(out$log[idx+1], " ")[[1]]
+      out[["global.mean"]] <- c(beta.hat=as.numeric(tmp1[length(tmp1)]),
+                                se.beta.hat=as.numeric(tmp2[length(tmp2)]))
+    }
+  } else if(model == "bslmm"){
+    idx <- grep("estimated mean", out[["log"]])
+    if(length(idx) == 1){
+      tmp1 <- strsplit(out$log[idx], " ")[[1]]
+      out[["global.mean"]] <- c(beta.hat=as.numeric(tmp1[length(tmp1)]),
+                                se.beta.hat=NA)
+    }
   }
-  idx <- grep("pve estimate in the null model", output[["log"]])
+  idx <- grep("pve estimate in the null model", out[["log"]])
   if(length(idx) == 1){
-    tmp1 <- strsplit(output$log[idx], " ")[[1]]
-    tmp2 <- strsplit(output$log[idx+1], " ")[[1]]
-    output[["pve"]] <- c(pve.hat=as.numeric(tmp1[length(tmp1)]),
-                         se.pve.hat=as.numeric(tmp2[length(tmp2)]))
+    tmp1 <- strsplit(out$log[idx], " ")[[1]]
+    tmp2 <- strsplit(out$log[idx+1], " ")[[1]]
+    out[["pve"]] <- c(pve.hat=as.numeric(tmp1[length(tmp1)]),
+                      se.pve.hat=as.numeric(tmp2[length(tmp2)]))
   }
   if(clean == "all")
     file.remove(f)
@@ -330,21 +352,21 @@ gemma <- function(model="ulmm", y, X, snp.coords, recode.genos=TRUE,
     f <- paste0(out.dir, "/results_", task.id, ".assoc.txt")
     tmp <- utils::read.table(file=f, sep="\t", header=TRUE, stringsAsFactors=FALSE)
     rownames(tmp) <- tmp$rs
-    output[["tests"]] <- tmp
+    out[["tests"]] <- tmp
     if(clean == "all")
       file.remove(f)
   } else if(model == "bslmm"){
     f <- paste0(out.dir, "/results_", task.id, ".hyp.txt")
-    output[["hyperparams"]] <-
+    out[["hyperparams"]] <-
       utils::read.table(file=f, header=FALSE, sep="\t", skip=1,
                         stringsAsFactors=FALSE,
                         col.names=c("h", "pve", "rho", "pge",
                                     "pi", "n_gamma", ""))
-    output[["hyperparams"]][7] <- NULL
+    out[["hyperparams"]][7] <- NULL
     if(clean == "all")
       file.remove(f)
     f <- paste0(out.dir, "/results_", task.id, ".param.txt")
-    output[["params"]] <-
+    out[["params"]] <-
       utils::read.table(file=f, header=FALSE, sep="\t", skip=1,
                         stringsAsFactors=FALSE,
                         col.names=c("chr", "rs", "ps", "n_miss",
@@ -358,7 +380,7 @@ gemma <- function(model="ulmm", y, X, snp.coords, recode.genos=TRUE,
     for(f in tmp.files)
       file.remove(f)
 
-  invisible(output)
+  return(out)
 }
 
 ##' GEMMA uLMM per chromosome
@@ -437,14 +459,17 @@ gemmaUlmmPerChr <- function(y, X, snp.coords, recode.genos=TRUE,
 
   ## for GEMMA, recode SNP genotypes in terms of minor alleles, if necessary
   afs <- estimSnpAf(X=X)
+  recoded <- stats::setNames(rep(FALSE, ncol(X)), colnames(X))
   if(recode.genos){
     if(any(afs > 0.5)){
       msg <- paste0(sum(afs > 0.5), " SNPs in X are not encoded",
                     " in terms of their minor allele")
       write(msg, stdout())
-      tmp <- recodeGenosMinorSnpAllele(X=X, alleles=alleles, verbose=verbose)
-      X <- tmp$X
-      alleles <- tmp$alleles
+      out.recode <- recodeGenosMinorSnpAllele(X=X, alleles=alleles,
+                                              verbose=verbose)
+      X <- out.recode$X
+      alleles <- out.recode$alleles
+      recoded <- out.recode$recoded
     }
   }
 
@@ -452,6 +477,8 @@ gemmaUlmmPerChr <- function(y, X, snp.coords, recode.genos=TRUE,
   mafs <- estimSnpMaf(afs=afs)
   X <- discardSnpsLowMaf(X=X, mafs=mafs, thresh=maf, verbose=verbose)
   alleles <- alleles[colnames(X),]
+  recoded <- recoded[colnames(X)]
+  out[["recoded"]] <- recoded
 
   ## reformat snp.coords
   snp.coords <- snp.coords[colnames(X),]
@@ -462,6 +489,7 @@ gemmaUlmmPerChr <- function(y, X, snp.coords, recode.genos=TRUE,
     chr.ids <- sort(unique(as.character(snp.coords$chr)))
 
   ## launch GEMMA for each chromosome
+  out.pc <- list()
   for(chr.id in chr.ids){
     subset.snp.ids <- (snp.coords$chr == chr.id)
     if(verbose > 0)
@@ -479,11 +507,17 @@ gemmaUlmmPerChr <- function(y, X, snp.coords, recode.genos=TRUE,
                         out.dir=out.dir,
                         task.id=paste0(task.id, "-", chr.id),
                         verbose=verbose-1, clean=clean)
-    out[[chr.id]] <- out.chr.id$tests
+    out.pc[[chr.id]] <- out.chr.id
   }
-  out <- do.call(rbind, out)
-  rownames(out) <- out$rs
-  out <- out[colnames(X),]
+
+  ## combine the outputs of each chromosome
+  out[["cmd"]] <- sapply(out.pc, `[[`, "cmd")
+  out[["log"]] <- lapply(out.pc, `[[`, "log")
+  out[["global.mean"]] <- t(sapply(out.pc, `[[`, "global.mean"))
+  out[["pve"]] <- t(sapply(out.pc, `[[`, "pve"))
+  out[["tests"]] <- do.call(rbind, lapply(out.pc, `[[`, "tests"))
+  rownames(out$tests) <- out$tests$rs
+  out$tests <- out$tests[colnames(X),]
 
   return(out)
 }

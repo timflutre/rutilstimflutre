@@ -3157,7 +3157,7 @@ estimSnpMaf <- function(X=NULL, afs=NULL){
 ##' @param X matrix of bi-allelic SNP genotypes encoded, for each SNP, in number of copies of its second allele, i.e. as allele doses in [0,2], with genotypes in rows and SNPs in columns; missing values should be encoded as NA; the "second" allele is arbitrary, it corresponds to the second column of \code{alleles}, which can be the minor or the major allele
 ##' @param alleles data.frame with SNPs in rows (names as row names) and alleles in columns (exactly 2 columns are required); the second column should correspond to the allele which number of copies is counted at each SNP in \code{X}
 ##' @param verbose verbosity level (0/1)
-##' @return list with a matrix of SNP genotypes encoded, for each SNP, in number of copies of its minor allele, with genotypes in rows and SNPs in columns, and a data.frame of alleles which columns are named "minor" and "major"
+##' @return list with a matrix of SNP genotypes encoded, for each SNP, in number of copies of its minor allele, with genotypes in rows and SNPs in columns, a data.frame of alleles which columns are named "minor" and "major", and a vector of logicals indicating which SNPs have been recoded
 ##' @author Timothee Flutre
 ##' @export
 recodeGenosMinorSnpAllele <- function(X, alleles, verbose=1){
@@ -3169,7 +3169,10 @@ recodeGenosMinorSnpAllele <- function(X, alleles, verbose=1){
 
   alleles <- alleles[colnames(X),] # put in same order
   alleles <- convertFactorColumnsToCharacter(alleles)
-  out <- list(X=X, alleles=alleles)
+  out <- list(X=X,
+              alleles=alleles,
+              recoded=stats::setNames(rep(FALSE, ncol(X)),
+                                      colnames(X)))
   colnames(out$alleles) <- c("major", "minor")
 
   afs <- estimSnpAf(X=X)
@@ -3185,6 +3188,7 @@ recodeGenosMinorSnpAllele <- function(X, alleles, verbose=1){
     out$X[, idx.snps] <- abs(X[, idx.snps] - 2)
     out$alleles[idx.snps, "minor"] <- alleles[idx.snps, 1]
     out$alleles[idx.snps, "major"] <- alleles[idx.snps, 2]
+    out$recoded[idx.snps] <- TRUE
   }
 
   return(out)
@@ -8514,7 +8518,8 @@ calcL10ApproximateBayesFactorWen <- function(Y, Xg, Xc,
 ##' @param X matrix of bi-allelic SNP genotypes encoded in allele doses in [0,2], with genotypes in rows and SNPs in columns; missing values should be encoded as NA
 ##' @param snp character with SNP name corresponding to the candidate QTL to plot
 ##' @param simplify.imputed if TRUE, imputed genotypes will be transformed back to {0,1,2}
-##' @param xlab label ox the x-axis
+##' @param xlab label of the x-axis
+##' @param maf.xlab if TRUE, the minor allele frequency will appear in the label of the x-axis
 ##' @param ylab label of the y-axis
 ##' @param show.points if TRUE, individual points will be shown, with \code{\link{jitter}}, especially useful if some genotypic classes have very low counts
 ##' @param notch if TRUE, a notch is drawn in each side of the boxes (see \code{\link[graphics]{boxplot}})
@@ -8565,7 +8570,8 @@ calcL10ApproximateBayesFactorWen <- function(Y, Xg, Xc,
 ##' }
 ##' @export
 boxplotCandidateQtl <- function(y, X, snp, simplify.imputed=TRUE,
-                                xlab="Genotype", ylab="Phenotype",
+                                xlab="SNP genotypes", maf.xlab=TRUE,
+                                ylab="Phenotypes",
                                 show.points=FALSE,
                                 notch=TRUE, suppress.warnings=TRUE,
                                 regline.intercept=NA, regline.slope=NA,
@@ -8607,6 +8613,8 @@ boxplotCandidateQtl <- function(y, X, snp, simplify.imputed=TRUE,
   }
 
   counts <- table(x)
+  af <- mean(x) / 2
+  maf <- ifelse(af <= 0.5, af, 1 - af)
   if(verbose > 0){
     msg <- paste0("marker '", snp, "'",
                   "\ngenotypic classes:")
@@ -8615,8 +8623,6 @@ boxplotCandidateQtl <- function(y, X, snp, simplify.imputed=TRUE,
     msg <- paste0(msg, " (total=", sum(counts), ")")
     write(msg, stdout())
 
-    af <- mean(x) / 2
-    maf <- ifelse(af <= 0.5, af, 1 - af)
     msg <- sprintf("minor allele frequency: maf = %.3f", maf)
     write(msg, stdout())
 
@@ -8626,6 +8632,8 @@ boxplotCandidateQtl <- function(y, X, snp, simplify.imputed=TRUE,
   }
 
   ## make boxplot
+  if(maf.xlab)
+    xlab <- paste0(xlab, " (MAF=", format(maf, digits=3), ")")
   if(suppress.warnings){
     bp <- suppressWarnings(
         graphics::boxplot(y ~ x, las=1, varwidth=TRUE, notch=notch,

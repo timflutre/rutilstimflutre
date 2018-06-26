@@ -164,10 +164,10 @@ getMeanVarBetaDist <- function(alpha, beta){
 ##' false negatives, true positive proportion (sensitivity), false positive
 ##' proportion, accuracy, true negative proportion (specificity), false
 ##' discovery proportion, false negative proportion and positive predictive
-##' value (precision)
-##' Both input vectors should be sorted beforehand
+##' value (precision).
+##' More details on \href{http://en.wikipedia.org/wiki/Sensitivity_and_specificity}{Wikipedia}.
 ##' @param known.nulls vector of booleans (TRUE if the null is true)
-##' @param called.nulls vector of booleans (TRUE if the null is accepted)
+##' @param called.nulls vector of booleans (TRUE if the null is accepted); should be in the same order as the othr vector!
 ##' @return vector with names
 ##' @author Timothee Flutre
 ##' @export

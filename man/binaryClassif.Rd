@@ -9,7 +9,7 @@ binaryClassif(known.nulls, called.nulls)
 \arguments{
 \item{known.nulls}{vector of booleans (TRUE if the null is true)}
 
-\item{called.nulls}{vector of booleans (TRUE if the null is accepted)}
+\item{called.nulls}{vector of booleans (TRUE if the null is accepted); should be in the same order as the othr vector!}
 }
 \value{
 vector with names
@@ -19,8 +19,8 @@ Return the number of true positives, false positives, true negatives,
 false negatives, true positive proportion (sensitivity), false positive
 proportion, accuracy, true negative proportion (specificity), false
 discovery proportion, false negative proportion and positive predictive
-value (precision)
-Both input vectors should be sorted beforehand
+value (precision).
+More details on \href{http://en.wikipedia.org/wiki/Sensitivity_and_specificity}{Wikipedia}.
 }
 \author{
 Timothee Flutre
