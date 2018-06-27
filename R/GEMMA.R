@@ -371,6 +371,7 @@ gemma <- function(model="ulmm", y, X, snp.coords, recode.genos=TRUE,
                         stringsAsFactors=FALSE,
                         col.names=c("chr", "rs", "ps", "n_miss",
                                     "alpha", "beta", "gamma"))
+    rownames(out[["params"]]) <- out[["params"]]$rs
     if(clean == "all")
       file.remove(f)
   }
