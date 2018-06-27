@@ -8528,6 +8528,7 @@ calcL10ApproximateBayesFactorWen <- function(Y, Xg, Xc,
 ##' @param regline.slope slope of the regression line
 ##' @param regline.col color of the regression line
 ##' @param regline.lty style of the regression line
+##' @param regline.legend legend of the regression line
 ##' @param verbose verbosity level (0/1)
 ##' @param ... other arguments to \code{\link[graphics]{boxplot}}
 ##' @return invisible list with \code{y} and \code{x} used to make the boxplot (same order, with no missing data)
@@ -8576,6 +8577,7 @@ boxplotCandidateQtl <- function(y, X, snp, simplify.imputed=TRUE,
                                 notch=TRUE, suppress.warnings=TRUE,
                                 regline.intercept=NA, regline.slope=NA,
                                 regline.col="red", regline.lty=1,
+                                regline.legend=NULL,
                                 verbose=1, ...){
   if(! is.vector(y)){
     if(is.matrix(y)){
@@ -8652,6 +8654,13 @@ boxplotCandidateQtl <- function(y, X, snp, simplify.imputed=TRUE,
   if(all(! is.na(regline.intercept), ! is.na(regline.slope))){
     graphics::abline(a=regline.intercept, b=regline.slope,
                      col=regline.col, lty=regline.lty)
+    if(! is.null(regline.legend)){
+      legend.location <- "bottomright"
+      if(regline.slope < 0)
+        legend.location <- "topright"
+      graphics::legend(legend.location, legend=regline.legend,
+                       col=regline.col, lty=regline.lty, bty="n")
+    }
   }
 
   invisible(list(y=y, x=x))
