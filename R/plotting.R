@@ -269,6 +269,8 @@ plotWithScale <- function(z, zlim, col = grDevices::heat.colors(12),
 ##' @param breaks vector of breaks (if NULL, will be \code{seq(min(z), max(z), length.out=nb.breaks)})
 ##' @param nb.breaks number of breaks
 ##' @param left.text.at vector which names and values will be used to label the left side of the plot; if not NULL, takes precedence over idx.rownames
+##' @param cex.txt numeric character expansion factor used with "left.text.at"
+##' @param cex.sc numeric character expansion factor used with the scale
 ##' @param col.pal output of \code{\link[grDevices]{colorRampPalette}}
 ##' @author Timothee Flutre
 ##' @examples
@@ -282,6 +284,7 @@ plotWithScale <- function(z, zlim, col = grDevices::heat.colors(12),
 ##' @export
 imageWithScale <- function(z, main=NULL, idx.rownames=NULL, idx.colnames=NULL,
                            breaks=NULL, nb.breaks=20, left.text.at=NULL,
+                           cex.txt=1, cex.sc=1,
                            col.pal=grDevices::colorRampPalette(c("black", "red", "yellow"),
                                                                space="rgb")){
   stopifnot(is.matrix(z))
@@ -319,15 +322,15 @@ imageWithScale <- function(z, main=NULL, idx.rownames=NULL, idx.colnames=NULL,
                     las=2)
   if(! is.null(left.text.at))
     graphics::mtext(text=names(left.text.at), side=2, line=1,
-                    at=left.text.at, las=2)
+                    at=left.text.at, las=2, cex=cex.txt)
 
   ## plot the scale
-  graphics::par(mar=c(1,0,6,3), no.readonly=TRUE)
+  graphics::par(mar=c(1,0,6,4), no.readonly=TRUE)
   plotWithScale(z, col=col.pal(length(breaks)-1), breaks=breaks, horiz=FALSE,
                 yaxt="n")
   graphics::axis(4, at=format(breaks[seq.int(1, length(breaks), length.out=5)],
                               digits=2),
-       las=2, lwd=0, lwd.ticks=1)
+       las=2, lwd=0, lwd.ticks=1, cex.axis=cex.sc)
 
   on.exit(graphics::par(def.par))
 }

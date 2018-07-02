@@ -7,9 +7,9 @@ scale on the right side, and optionally using its dimension names for
 rows and columns}
 \usage{
 imageWithScale(z, main = NULL, idx.rownames = NULL, idx.colnames = NULL,
-  breaks = NULL, nb.breaks = 20, left.text.at = NULL,
-  col.pal = grDevices::colorRampPalette(c("black", "red", "yellow"), space =
-  "rgb"))
+  breaks = NULL, nb.breaks = 20, left.text.at = NULL, cex.txt = 1,
+  cex.sc = 1, col.pal = grDevices::colorRampPalette(c("black", "red",
+  "yellow"), space = "rgb"))
 }
 \arguments{
 \item{z}{matrix to be plotted}
@@ -25,6 +25,10 @@ imageWithScale(z, main = NULL, idx.rownames = NULL, idx.colnames = NULL,
 \item{nb.breaks}{number of breaks}
 
 \item{left.text.at}{vector which names and values will be used to label the left side of the plot; if not NULL, takes precedence over idx.rownames}
+
+\item{cex.txt}{numeric character expansion factor used with "left.text.at"}
+
+\item{cex.sc}{numeric character expansion factor used with the scale}
 
 \item{col.pal}{output of \code{\link[grDevices]{colorRampPalette}}}
 }
