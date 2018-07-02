@@ -2790,12 +2790,14 @@ genoDoses2genoClasses <- function(X=NULL, tX=NULL, alleles, na.string="--",
 ##' @param snp.coords data.frame with SNP identifiers as row names, and two columns, "chr" and "pos" (or "coord"); columns as factors will be converted into characters
 ##' @param alleles data.frame (or matrix) with SNPs in rows (names as row names) and alleles in columns (exactly 2 columns are required); the first column will be interpreted as 'ref' and the second column, which should correspond to the allele which number of copies is counted at each SNP in \code{X}, will be interpreted as 'alt'; columns as factors will be converted into characters
 ##' @param file.date date to indicate into the object
+##' @param si output from the "seqinfo" function from the GenomeInfoDb package
 ##' @param verbose verbosity level (0/1)
 ##' @return CollapsedVCF (see pkg \href{http://bioconductor.org/packages/VariantAnnotation/}{VariantAnnotation})
 ##' @author Timothee Flutre
 ##' @export
 genoDoses2Vcf <- function(X, snp.coords, alleles,
                           file.date=format(Sys.Date(), "%Y%m%d"),
+                          si=NULL,
                           verbose=1){
   requireNamespaces(c("IRanges", "S4Vectors", "Biostrings",
                       "VariantAnnotation"))
@@ -2807,6 +2809,10 @@ genoDoses2Vcf <- function(X, snp.coords, alleles,
             ! is.null(row.names(alleles)),
             all(colnames(X) %in% rownames(alleles)),
             is.character(file.date))
+  if(! is.null(si)){
+    requireNamespace("GenomeInfoDb")
+    stopifnot(class(si) == "Seqinfo")
+  }
 
   ind.ids <- rownames(X)
   nb.inds <- length(ind.ids)
@@ -2855,6 +2861,15 @@ genoDoses2Vcf <- function(X, snp.coords, alleles,
   VariantAnnotation::alt(vcf) <- Biostrings::DNAStringSetList(
                                                  as.list(alleles[,2]))
   VariantAnnotation::fixed(vcf)[c("REF", "ALT")]
+  GenomeInfoDb::seqlevels(vcf) <-
+    GenomeInfoDb::sortSeqlevels(GenomeInfoDb::seqlevels(vcf))
+  if(! is.null(si)){
+    GenomeInfoDb::seqlevels(si) <-
+      GenomeInfoDb::sortSeqlevels(GenomeInfoDb::seqlevels(si))
+    stopifnot(all(GenomeInfoDb::seqlevels(vcf) ==
+                  GenomeInfoDb::seqlevels(si)))
+    GenomeInfoDb::seqinfo(vcf) <- si
+  }
 
   boundaries <- seq(from=0, to=2, length.out=4)
   is.0 <- (X <= boundaries[2]) # homozygotes for the first allele (ref)
@@ -4711,6 +4726,8 @@ snpCoordsDf2Gr <- function(x, si=NULL){
   out.gr <- GenomeInfoDb::sortSeqlevels(out.gr)
 
   if(! is.null(si)){
+    GenomeInfoDb::seqlevels(si) <-
+      GenomeInfoDb::sortSeqlevels(GenomeInfoDb::seqlevels(si))
     stopifnot(all(GenomeInfoDb::seqlevels(out.gr) ==
                   GenomeInfoDb::seqlevels(si)))
     GenomeInfoDb::seqinfo(out.gr) <- si

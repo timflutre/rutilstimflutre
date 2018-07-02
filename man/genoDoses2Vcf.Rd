@@ -5,7 +5,7 @@
 \title{Convert genotypes}
 \usage{
 genoDoses2Vcf(X, snp.coords, alleles, file.date = format(Sys.Date(),
-  "\%Y\%m\%d"), verbose = 1)
+  "\%Y\%m\%d"), si = NULL, verbose = 1)
 }
 \arguments{
 \item{X}{matrix of bi-allelic SNP genotypes encoded, for each SNP, in number of copies of its second allele, i.e. as allele doses in {0,1,2}, with genotypes in rows and SNPs in columns; the "second" allele corresponds to the second column of \code{alleles} and will be interpreted as 'alt'}
@@ -15,6 +15,8 @@ genoDoses2Vcf(X, snp.coords, alleles, file.date = format(Sys.Date(),
 \item{alleles}{data.frame (or matrix) with SNPs in rows (names as row names) and alleles in columns (exactly 2 columns are required); the first column will be interpreted as 'ref' and the second column, which should correspond to the allele which number of copies is counted at each SNP in \code{X}, will be interpreted as 'alt'; columns as factors will be converted into characters}
 
 \item{file.date}{date to indicate into the object}
+
+\item{si}{output from the "seqinfo" function from the GenomeInfoDb package}
 
 \item{verbose}{verbosity level (0/1)}
 }
