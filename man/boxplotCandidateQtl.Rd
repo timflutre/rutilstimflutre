@@ -8,7 +8,8 @@ boxplotCandidateQtl(y, X, snp, simplify.imputed = TRUE,
   xlab = "SNP genotypes", maf.xlab = TRUE, ylab = "Phenotypes",
   show.points = FALSE, notch = TRUE, suppress.warnings = TRUE,
   regline.intercept = NA, regline.slope = NA, regline.col = "red",
-  regline.lty = 1, regline.legend = NULL, verbose = 1, ...)
+  regline.lty = 1, regline.legend = NULL, alleles = NULL, verbose = 1,
+  ...)
 }
 \arguments{
 \item{y}{vector of phenotypes with genotype names}
@@ -40,6 +41,8 @@ boxplotCandidateQtl(y, X, snp, simplify.imputed = TRUE,
 \item{regline.lty}{style of the regression line}
 
 \item{regline.legend}{legend of the regression line}
+
+\item{alleles}{vector of characters of length 2, the second element being the allele which copies are counted in X}
 
 \item{verbose}{verbosity level (0/1)}
 

@@ -8546,6 +8546,7 @@ calcL10ApproximateBayesFactorWen <- function(Y, Xg, Xc,
 ##' @param regline.col color of the regression line
 ##' @param regline.lty style of the regression line
 ##' @param regline.legend legend of the regression line
+##' @param alleles vector of characters of length 2, the second element being the allele which copies are counted in X
 ##' @param verbose verbosity level (0/1)
 ##' @param ... other arguments to \code{\link[graphics]{boxplot}}
 ##' @return invisible list with \code{y} and \code{x} used to make the boxplot (same order, with no missing data)
@@ -8595,6 +8596,7 @@ boxplotCandidateQtl <- function(y, X, snp, simplify.imputed=TRUE,
                                 regline.intercept=NA, regline.slope=NA,
                                 regline.col="red", regline.lty=1,
                                 regline.legend=NULL,
+                                alleles=NULL,
                                 verbose=1, ...){
   if(! is.vector(y)){
     if(is.matrix(y)){
@@ -8616,6 +8618,11 @@ boxplotCandidateQtl <- function(y, X, snp, simplify.imputed=TRUE,
   X.snp <- X[names(y), snp, drop=FALSE]
   stopIfNotValidGenosDose(X.snp, check.noNA=FALSE,
                           check.notImputed=ifelse(simplify.imputed, FALSE, TRUE))
+  if(! is.null(alleles))
+    stopifnot(is.vector(alleles),
+              is.character(alleles),
+              length(alleles) == 2,
+              all(alleles %in% c("A","T","G","C")))
 
   ## reformat the inputs
   x <- stats::setNames(as.vector(X.snp), rownames(X.snp))
@@ -8653,13 +8660,25 @@ boxplotCandidateQtl <- function(y, X, snp, simplify.imputed=TRUE,
   ## make boxplot
   if(maf.xlab)
     xlab <- paste0(xlab, " (MAF=", format(maf, digits=3), ")")
+  x.new <- factor(x, levels=c(0, 1, 2))
+  x.all <- NULL
+  if(! is.null(alleles)){
+    x.all <- as.character(x)
+    all.hom.0 <- paste(rep(alleles[1], 2), collapse="")
+    all.het <- paste(c(alleles[1], alleles[2]), collapse="")
+    all.hom.2 <- paste(rep(alleles[2], 2), collapse="")
+    x.all[x == 0] <- all.hom.0
+    x.all[x == 1] <- all.het
+    x.all[x == 2] <- all.hom.2
+    x.new <- factor(x.all, levels=c(all.hom.0, all.het, all.hom.2))
+  }
   if(suppress.warnings){
     bp <- suppressWarnings(
-        graphics::boxplot(y ~ x, las=1, varwidth=TRUE, notch=notch,
-                          xlab=xlab, ylab=ylab, at=sort(unique(x)), ...))
+        graphics::boxplot(y ~ x.new, las=1, varwidth=TRUE, notch=notch,
+                          xlab=xlab, ylab=ylab, at=c(0,1,2), ...))
   } else
-    bp <- graphics::boxplot(y ~ x, las=1, varwidth=TRUE, notch=notch,
-                            xlab=xlab, ylab=ylab, at=sort(unique(x)), ...)
+    bp <- graphics::boxplot(y ~ x.new, las=1, varwidth=TRUE, notch=notch,
+                            xlab=xlab, ylab=ylab, at=c(0,1,2), ...)
 
   if(show.points){
     for(ct in sort(unique(x))){
@@ -8680,7 +8699,7 @@ boxplotCandidateQtl <- function(y, X, snp, simplify.imputed=TRUE,
     }
   }
 
-  invisible(list(y=y, x=x))
+  invisible(list(y=y, x=x, x.all=x.all))
 }
 
 ##' Returns the genetic map contained in a BioMercator TXT file.
