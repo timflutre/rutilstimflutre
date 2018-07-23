@@ -480,34 +480,12 @@ sigma2 <- 5   # variance of the errors
 
 ```{r ar1xar1.sim.cond}
 set.seed(1859)
-ar1xar1.sim.cond <- function(N, R, C, rho.r, rho.c, sigma2){
-  stopifnot(R > 1, C > 1, abs(rho.r) <= 1, abs(rho.c) <= 1, sigma2 >= 0)
-  epsilons <- array(data=rnorm(n=R*C*N, mean=0, sd=sqrt(sigma2)),
-                    dim=c(R, C, N))
-  tmp <- lapply(1:N, function(i){
-    Xi <- matrix(data=NA, nrow=R, ncol=C)
-    Xi[1,1] <- sqrt(1/sigma2) * epsilons[1,1,i] # first cell
-    for(c in 2:C) # first row
-      Xi[1,c] <- rho.c * Xi[1,c-1] + sqrt((1 - rho.c^2) * 1 / sigma2) *
-        epsilons[1,c,i]
-    for(r in 2:R) # first column
-      Xi[r,1] <- rho.r * Xi[r-1,1] + sqrt((1 - rho.r^2) * 1 / sigma2) *
-        epsilons[r,1,i]
-    for(r in 2:R)
-      for(c in 2:C)
-        Xi[r,c] <- rho.r * Xi[r-1,c] + rho.c * Xi[r,c-1] -
-          rho.r * rho.c * Xi[r-1,c-1] + epsilons[r,c,i]
-    return(Xi)
-  })
-  x <- array(data=do.call(c, tmp),
-             dim=c(R, C, N))
-  return(x)
-}
+ar1xar1.sim.cond <- simulAr1Ar1 # inside package
 ```
 
 Check the code by simulating with only column correlation:
 ```{r ar1xar1.sim.cond.onlyC}
-X1 <- ar1xar1.sim.cond(N, R=2, C=500, rho.r=0, rho.c, sigma2)
+X1 <- ar1xar1.sim.cond(N, R=2, C=500, sigma2, rho.r=0, rho.c)
 prettyPrintSummary(apply(X1, 3, function(Xi){
   acf(Xi[1,], lag.max=1, type="correlation", plot=FALSE)$acf[2]
 }))
@@ -515,7 +493,7 @@ prettyPrintSummary(apply(X1, 3, function(Xi){
 
 Idem, with only row correlation:
 ```{r ar1xar1.sim.cond.onlyR}
-X1 <- ar1xar1.sim.cond(N, R=500, C=2, rho.r, rho.c=0.0, sigma2)
+X1 <- ar1xar1.sim.cond(N, R=500, C=2, sigma2, rho.r, rho.c=0.0)
 prettyPrintSummary(apply(X1, 3, function(Xi){
   acf(Xi[,1], lag.max=1, type="correlation", plot=FALSE)$acf[2]
 }))
@@ -523,7 +501,7 @@ prettyPrintSummary(apply(X1, 3, function(Xi){
 
 Now with both row and column correlations:
 ```{r ar1xar1.sim.cond.bothRC}
-X1 <- ar1xar1.sim.cond(N, R, C, rho.r, rho.c, sigma2)
+X1 <- ar1xar1.sim.cond(N, R, C, sigma2, rho.r, rho.c)
 prettyPrintSummary(apply(X1, 3, function(Xi){
   acf(Xi[1,], lag.max=1, type="correlation", plot=FALSE)$acf[2]
 }))
@@ -536,8 +514,8 @@ prettyPrintSummary(apply(X1, 3, function(Xi){
 
 ```{r ar1xar1.sim.mv, eval=FALSE}
 set.seed(1859)
-ar1xar1.sim.mv <- function(N, R, C, rho.r, rho.c, sigma2){
-  stopifnot(R > 1, C > 1, abs(rho.r) <= 1, abs(rho.c) <= 1, sigma2 >= 0)
+ar1xar1.sim.mv <- function(N, R, C, sigma2, rho.r, rho.c){
+  stopifnot(R > 1, C > 1, abs(rho.r) <= 1, abs(rho.c) <= 1, sigma2 > 0)
   ## ... TODO ...
 }
 ```
