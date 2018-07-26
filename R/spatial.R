@@ -3,7 +3,7 @@
 ##' AR1xAR1 simulation
 ##'
 ##' Simulate random samples from a separable AR1xAR1 process as in \href{https://dx.doi.org/10.1016/0378-3758(95)00066-6}{Martin (1996)}.
-##' @param N number of samples
+##' @param n number of samples
 ##' @param R number of rows
 ##' @param C number of columns
 ##' @param rho.r correlation between rows

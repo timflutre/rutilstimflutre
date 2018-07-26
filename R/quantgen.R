@@ -5115,6 +5115,7 @@ estimLd <- function(X, snp.coords, K=NULL, pops=NULL,
 ##' @param add.sved add the analytical approximation by Sved (1971); requires Ne and c
 ##' @param Ne effective population size
 ##' @param c recomb rate in events per base per generation
+##' @param xlim numeric vector of length 2 specifying the x-axis limit (optional)
 ##' @return nothing
 ##' @author Timothee Flutre
 ##' @export
@@ -5124,7 +5125,8 @@ plotLd <- function(x, y, main="", estim="r2",
                    ylab=paste0("Linkage disequilibrium (", estim, ")"),
                    span=1/10, degree=1, evaluation=50,
                    sample.size=NULL,
-                   add.ohta.kimura=FALSE, add.sved=FALSE, Ne=NULL, c=NULL){
+                   add.ohta.kimura=FALSE, add.sved=FALSE, Ne=NULL, c=NULL,
+                   xlim){
   stopifnot(is.vector(x),
             is.vector(y),
             estim %in% c("r2","r"),
@@ -5142,13 +5144,16 @@ plotLd <- function(x, y, main="", estim="r2",
                   main=main,
                   xlab=xlab,
                   ylab=ylab,
-                  las=1)
-    pred <- stats::loess.smooth(x, y, span=span, degree=degree, evaluation=evaluation)
+                  las=1,
+                  xlim=xlim)
+    pred <- stats::loess.smooth(x, y, span=span, degree=degree,
+                                evaluation=evaluation)
     do.call(graphics::lines, c(list(pred), lpars))
   } else{
     stats::scatter.smooth(x, y, lpars=lpars,
-                   main=main, xlab=xlab, ylab=ylab, las=1,
-                   span=span, degree=degree, evaluation=evaluation)
+                          main=main, xlab=xlab, ylab=ylab, las=1,
+                          span=span, degree=degree, evaluation=evaluation,
+                          xlim=xlim)
   }
 
   ## add the "significance" horizontal line

@@ -7,6 +7,8 @@
 simulAr1Ar1(n = 1, R, C, sigma2, rho.r = 0, rho.c = 0)
 }
 \arguments{
+\item{n}{number of samples}
+
 \item{R}{number of rows}
 
 \item{C}{number of columns}
@@ -16,8 +18,6 @@ simulAr1Ar1(n = 1, R, C, sigma2, rho.r = 0, rho.c = 0)
 \item{rho.r}{correlation between rows}
 
 \item{rho.c}{correlation between columns}
-
-\item{N}{number of samples}
 }
 \value{
 array

@@ -8,7 +8,7 @@ plotLd(x, y, main = "", estim = "r2", use.density = TRUE,
   xlab = "Physical distance (bp)", ylab = paste0("Linkage disequilibrium (",
   estim, ")"), span = 1/10, degree = 1, evaluation = 50,
   sample.size = NULL, add.ohta.kimura = FALSE, add.sved = FALSE,
-  Ne = NULL, c = NULL)
+  Ne = NULL, c = NULL, xlim)
 }
 \arguments{
 \item{x}{vector of distances between SNPs (see \code{\link{distSnpPairs}})}
@@ -40,6 +40,8 @@ plotLd(x, y, main = "", estim = "r2", use.density = TRUE,
 \item{Ne}{effective population size}
 
 \item{c}{recomb rate in events per base per generation}
+
+\item{xlim}{numeric vector of length 2 specifying the x-axis limit (optional)}
 }
 \value{
 nothing
