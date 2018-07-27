@@ -1,0 +1,1283 @@
+---
+title: "Two-phase analysis in quantitative genetics"
+author: "Timothée Flutre (INRA)"
+date: "`r format(Sys.time(), '%d/%m/%Y %H:%M:%S')`"
+colorlinks: true
+output:
+  html_document:
+    toc: true
+    toc_depth: 3
+    toc_float: true
+    number_sections: TRUE
+  pdf_document:
+    toc: true
+    toc_depth: 3
+    number_sections: TRUE
+urlcolor: blue
+---
+
+<!--
+This R chunk is used to set up some options.
+-->
+```{r setup, include=FALSE}
+##`
+R.v.maj <- as.numeric(R.version$major)
+R.v.min.1 <- as.numeric(strsplit(R.version$minor, "\\.")[[1]][1])
+if(R.v.maj < 2 || (R.v.maj == 2 && R.v.min.1 < 15))
+  stop("requires R >= 2.15", call.=FALSE)
+
+suppressPackageStartupMessages(library(knitr))
+opts_chunk$set(echo=TRUE, warning=TRUE, message=TRUE, cache=FALSE, fig.align="center")
+```
+
+
+# Overview
+
+This document aims at exploring two-phase analysis in quantitative genetics as seen with perennial plant species, depending on the amount of missing data, that is when the data set is more or less unbalanced, and the discrepancy between the generative and statistical models.
+
+This document requires external packages to be available:
+```{r load_pkg}
+suppressPackageStartupMessages(library(parallel))
+nb.cores <- detectCores() - 1
+suppressPackageStartupMessages(library(scrm))
+suppressPackageStartupMessages(library(sp))
+suppressPackageStartupMessages(library(gstat))
+suppressPackageStartupMessages(library(beanplot))
+suppressPackageStartupMessages(library(lme4))
+suppressPackageStartupMessages(library(MuMIn))
+suppressPackageStartupMessages(library(boot))
+suppressPackageStartupMessages(library(lattice))
+suppressPackageStartupMessages(library(lmerTest))
+stopifnot(compareVersion("3.0",
+                         as.character(packageVersion("lmerTest")))
+          != 1)
+suppressPackageStartupMessages(library(emmeans))
+suppressPackageStartupMessages(library(mlmm.gwas))
+suppressPackageStartupMessages(library(varbvs))
+stopifnot(compareVersion("2.5.7",
+                         as.character(packageVersion("varbvs")))
+          != 1)
+suppressPackageStartupMessages(library(rutilstimflutre)) # on GitHub
+stopifnot(compareVersion("0.163.7",
+                         as.character(packageVersion("rutilstimflutre")))
+          != 1)
+stopifnot(file.exists(Sys.which("gemma"))) # https://github.com/genetics-statistics/GEMMA/
+```
+
+This R chunk is used to assess how much time it takes to execute the R code in this document until the end:
+```{r time_0}
+t0 <- proc.time()
+```
+
+
+
+# Generative model
+
+## Phenotypic level
+
+* $I$: number of genotypes
+
+* $Q = J + K$: number of known, non-genetic factors and covariates
+
+    * $J$: number of blocks
+    
+    * $K$: number of years
+
+* $R, C$: number of rows and columns of the field layout
+
+* $N = I * J * K$: number of phenotypes
+
+* $X$: $N \times Q$ design matrix for factors and covariates
+
+* $\boldsymbol{\beta}$: $Q$-vector of factor and covariate effects, modeled as fixed
+
+    * $\boldsymbol{\beta} \sim \mathcal{N}(\boldsymbol{0}, \sigma_\beta^2 \, \text{Id})$ where $\sigma_\beta^2$ is fixed at a "large" value
+
+* $Z_S$: design matrix for spatial heterogeneity
+
+* $\boldsymbol{\eta}$: vector of spatial heterogeneity, here AR1xAR1
+
+    * $\rho_r$: correlation between rows
+
+    * $\rho_c$: correlation between columns
+
+* $\boldsymbol{\epsilon}$: $N$-vector of errors if no spatial heterogeneity ("nugget effect" otherwise)
+
+    * $\boldsymbol{\epsilon} \sim \mathcal{N}(\boldsymbol{0}, \sigma^2 \, \text{Id})$
+
+* $Z$: $N \times I$ design matrix for genotypic values
+
+* $\boldsymbol{g}$: $I$-vector of genotypic values, modeled as random
+    
+    * $\boldsymbol{g} \sim \mathcal{N}(\boldsymbol{0}, \sigma_g^2 \, \text{Id})$
+  
+    * $H^2 = \frac{\sigma_g^2}{\sigma_g^2 + \sigma^2 / rep}$: broad-sense heritability
+
+* TODO: geno-year interactions
+
+* $\boldsymbol{y}$: $N$-vector of phenotypic values
+
+    * $\boldsymbol{y} = X \, \boldsymbol{\beta} + Z \, \boldsymbol{g} + Z_S \, \boldsymbol{\eta} + \boldsymbol{\epsilon}$
+
+## Genotypic level
+
+* $P$: number of biallelic SNPs
+
+* $\boldsymbol{f}$: $P$-vector of SNP allele frequencies
+
+* $M_a$: $I \times P$ matrix of SNP genotypes coded additively in $[0,2]$
+
+    * $M_{a,c}$: after centering by the $f_p$'s
+
+* $\boldsymbol{\alpha}$: $P$-vector of additive SNP effects
+
+    * dense architecture: $\forall p \in \{1,\ldots,P\}, \; \alpha_p \sim \mathcal{N}(0, \sigma_\alpha^2)$
+  
+    * sparse architecture: $\forall p \in \{1,\ldots,P\}, \; \alpha_p \sim \pi_0 \, \delta_0 + \pi_1 \, \mathcal{N}(0, \sigma_\alpha^2)$ with $\gamma_{a,p}$ the indicator variable for $\alpha_p \neq 0$
+  
+    * TODO: BSLMM
+
+* $\boldsymbol{a} = M_{a,c} \, \boldsymbol{\alpha}$: $I$-vector of additive genotypic values
+
+    * $\boldsymbol{a} \sim \mathcal{N}(\boldsymbol{0}, \sigma_a^2 \, A)$
+  
+    * $A = \frac{M_{a,c} M_{a,c}^T}{2 \, \sum_{p=1}^P f_p (1 - f_p)}$
+    
+* $M_d$: $I \times P$ matrix of SNP genotypes coded for dominance in $[0,1]$
+
+    * $M_{d,c}$: after centering by the $f_p$'s
+
+* $\boldsymbol{\delta}$: $P$-vector of dominance SNP effects
+
+    * dense architecture: $\forall p \in \{1,\ldots,P\}, \; \delta_p \sim \mathcal{N}(0, \sigma_\delta^2)$
+  
+    * sparse architecture: $\forall p \in \{1,\ldots,P\}, \; \delta_p \sim \pi_{0,d} \, \delta_0 + \pi_{1,d} \, \mathcal{N}(0, \sigma_\delta^2)$ with $\gamma_{d,p}$ the indicator variable for $\delta_p \neq 0$
+
+* $\boldsymbol{d} = M_{d,c} \, \boldsymbol{\delta}$: $I$-vector of dominance genotypic values
+
+    * $\boldsymbol{d} \sim \mathcal{N}(\boldsymbol{0}, \sigma_d^2 \, D)$
+  
+    * TODO: $D$
+
+* TODO: epistatic SNP effects (start with additive x additive)
+
+* TODO: epistatic genotypic values
+    
+* $\boldsymbol{g}$: $I$-vector of (total) genotypic values
+
+    * $\boldsymbol{g} = \boldsymbol{a} + \boldsymbol{d} = M_{a,c} \, \boldsymbol{\alpha} + M_{d,c} \, \boldsymbol{\delta}$ (assuming no epistasis)
+  
+    * $h^2 = \frac{\sigma_a^2}{\sigma_g^2 + \sigma^2}$: narrow-sense heritability
+
+
+# Strategy
+
+No unified statistical model can be currently used to reliably perform inference of SNP effects in the presence of genotype-year interactions and spatial heterogeneity.
+As a result, a two-phase strategy should be used.
+
+Phases:
+
+1. estimate/predict $\boldsymbol{g}$ as "average" $\boldsymbol{y}$ per genotype;
+
+2. regress $\hat{\boldsymbol{g}}$ on $M$ to infer $\boldsymbol{\alpha}$.
+
+Questions:
+
+* use BLUEs or BLUPs of $\boldsymbol{g}$ in phase 2?
+
+* use weights in phase 2 in the presence of missing data?
+
+
+# Simulation of genetic data
+
+## Initial population
+
+Set the seed:
+```{r set_seed_geno}
+set.seed(1859)
+```
+
+Simulate haplotypes and genotypes in one population at the Hardy-Weinberg equilibrium:
+```{r simul_haplos_genos}
+nb.genos <- 1 * 10^3
+nb.chrs <- 10
+chr.len.phy <- 10^5     # chromosome physical length in base pairs
+mu <- 5 * 10^(-8)       # neutral mutation rate in events / base / generation
+u <- mu * chr.len.phy   #  in events / chrom / gen
+chr.len.gen <- 10^(-1)  # chromosome genetic length in Morgans
+c.r <- chr.len.gen / chr.len.phy # recomb rate in events / base / gen
+r <- c.r * chr.len.phy  #  in events / chrom / gen
+Ne <- 10^4              # effective population size
+theta <- 4 * Ne * u     # scaled neutral mutation rate in events / chrom
+rho <- 4 * Ne * r       # scaled recomb rate in events / chrom
+p2f <- "two-phase_quantgen_genomes.RData"
+if(! file.exists(p2f)){
+  genomes <- simulCoalescent(nb.inds=nb.genos,
+                             nb.reps=nb.chrs,
+                             pop.mut.rate=theta,
+                             pop.recomb.rate=rho,
+                             chrom.len=chr.len.phy,
+                             get.alleles=TRUE)
+  save(genomes, file=p2f)
+  print(tools::md5sum(path.expand(p2f)))
+} else{
+  print(tools::md5sum(path.expand(p2f)))
+  load(p2f)
+}
+afs.pop <- estimSnpAf(X=genomes$genos)
+mafs.pop <- estimSnpMaf(afs=afs.pop)
+A.vr <- estimGenRel(X=genomes$genos, afs=afs.pop, method="vanraden1")
+mrk2chr <- setNames(genomes$snp.coords$chr, rownames(genomes$snp.coords))
+```
+
+Look at some visual checks:
+```{r check_simul_genos}
+plotHistAllelFreq(afs=afs.pop, main="Allele frequencies")
+plotHistMinAllelFreq(mafs=mafs.pop, main="Minor allele frequencies")
+imageWithScale(A.vr, main="Additive genetic relationships")
+summary(diag(A.vr))
+hist(diag(A.vr), col="grey", border="white")
+summary(A.vr[upper.tri(A.vr)])
+hist(A.vr[upper.tri(A.vr)], col="grey", border="white")
+```
+
+## Bi-parental cross
+
+Choose two individuals as parents:
+```{r choose_parents}
+## (idx.parents <- sample(x=1:nb.genos, size=2, replace=FALSE))
+## A.vr[idx.parents, idx.parents]
+## genos.parents <- genomes$genos[idx.parents,]
+## names.parents <- rownames(genos.parents)
+## haplos.parents <- getHaplosInds(haplos=genomes$haplos,
+##                                 ind.names=names.parents)
+```
+
+Cross them several times to make offsprings:
+```{r crosse_to_make_offsprings}
+## nb.offs <- 200
+## names.offs <- paste0("off-",
+##                      sprintf(fmt=paste0("%0", floor(log10(nb.offs))+1, "i"),
+##                              1:nb.offs))
+## head(crosses.off <- data.frame(parent1=rep(names.parents[1], nb.offs),
+##                                parent2=rep(names.parents[2], nb.offs),
+##                                child=names.offs,
+##                                stringsAsFactors=FALSE))
+## loc.crovers.off <- drawLocCrossovers(crosses=crosses.off,
+##                                      nb.snps=sapply(haplos.parents, ncol),
+##                                      simplistic=FALSE,
+##                                      verbose=1)
+## haplos.offs <- makeCrosses(haplos=haplos.parents, crosses=crosses.off,
+##                            loc.crossovers=loc.crovers.off,
+##                            howto.start.haplo=0)
+## genos.offs <- segSites2allDoses(seg.sites=haplos.offs,
+##                                 ind.ids=getIndNamesFromHaplos(haplos.offs),
+##                                 snp.ids=rownames(genomes$snp.coords))
+## dim(genos.doses <- rbind(genos.parents, genos.offs))
+## genos.classes <- genoDoses2genoClasses(X=genos.doses,
+##                                        alleles=genomes$alleles)
+## genos.jm <- genoClasses2JoinMap(x=genos.classes)
+## genos.jm[1:3, 1:14]
+## tests.seg <- filterSegreg(genos.jm[,-c(1:8)], return.counts=TRUE)
+```
+
+The JoinMap format will be used to encode genotypes from both parents and offsprings as it allows to specify segregation types and phases, and can be natively read by the R `qtl` package.
+
+Plot pedigree:
+```{r plot_ped}
+## ped <- data.frame(ind=c(names.parents,
+##                         crosses.off$child),
+##                   mother=c(rep(NA, length(names.parents)),
+##                            crosses.off$parent1),
+##                   father=c(rep(NA, length(names.parents)),
+##                            crosses.off$parent2),
+##                   gen=c(rep(0, length(names.parents)),
+##                         rep(1, nrow(crosses.off))),
+##                   stringsAsFactors=FALSE)
+## ped.tmp <- rbind(ped[1:5,],
+##                  c(ind="off-...", ped[5, -1]),
+##                  c(ind="off-....", ped[5, -1]),
+##                  ped[nrow(ped),])
+## plotPedigree(inds=ped.tmp$ind, mothers=ped.tmp$mother, fathers=ped.tmp$father,
+##              generations=ped.tmp$gen, main="Pedigree of the controlled cross")
+```
+
+Check additive genetic relationships:
+```{r add_gen_rel}
+## A.vr.cross <- estimGenRel(X=genos.doses, afs=afs.pop, method="vanraden1")
+## A.t.cross <- estimGenRel(X=genos.doses, afs=afs.pop, method="toro2011_eq10")
+## cor(c(A.vr.cross), c(A.t.cross))
+## imageWithScale(A.vr.cross, main="Additive genetic relationships of crosses")
+## imageWithScale(A.vr.cross[1:10, 1:10],
+##                main="Additive genetic relationships of crosses (subset)",
+##                idx.rownames=1:10, idx.colnames=1:10)
+## summary(diag(A.vr.cross))
+## summary(A.vr.cross[upper.tri(A.vr.cross)])
+## summary(A.vr.cross[names.parents[1], grep("off", colnames(A.vr.cross))])
+## summary(A.vr.cross[names.parents[2], grep("off", colnames(A.vr.cross))])
+## summary(A.t.cross[names.parents[1], grep("off", colnames(A.t.cross))])
+## summary(A.t.cross[names.parents[2], grep("off", colnames(A.t.cross))])
+```
+
+Under HWE in a single population, the additive genetic relationships between all parent-child pairs should be centered around 0.5, corresponding to a coancestry coefficient of 1/4.
+
+
+# Simulation of phenotypic data
+
+## Experimental design
+
+Set the seed:
+```{r set_seed_pheno}
+set.seed(1859)
+```
+
+Make the structure of the data set for a given year:
+```{r set_exp_design_year}
+I.p <- 279       # nb of genotypes in the panel
+I.c <- 1         # control
+I <- I.p + I.c   # total nb of genotypes
+stopifnot(I <= nb.genos)
+J <- 5           # nb of blocks
+nb.controls.per.block <- 20
+I.block <- I.p + I.c * nb.controls.per.block # total nb of plants in a block
+(N <- I.block * J) # nb of phenotypic data per year
+uniq.geno.names <- sample(x=rownames(genomes$genos),
+                          size=I, replace=FALSE)
+(control.name <- uniq.geno.names[1])
+uniq.geno.p.names <- uniq.geno.names[-1] # panel names, w/o the control
+uniq.block.names <- LETTERS[1:J]
+block.geno.names <- c(uniq.geno.p.names,
+                      rep(control.name, nb.controls.per.block))
+stopifnot(length(block.geno.names) == I.block)
+dat.year <- data.frame(geno=do.call(c, lapply(1:J, function(j){
+                              sample(x=block.geno.names, size=I.block)
+                            })),
+                       control=FALSE,
+                       block=rep(uniq.block.names, each=I.block),
+                       rank=NA,
+                       location=NA,
+                       year=NA)
+dat.year$control[dat.year$geno == control.name] <- TRUE
+str(dat.year)
+```
+
+Block layout in the field:
+```{r set_block_layout}
+## field view:
+## tions  C (F) ...
+## ca     B  E  ...
+## lo     A  D  ...
+##     ranks ->
+## matrix view: ranks are columns, locations are rows
+## A D
+## B E
+## C NA
+nb.block.rows <- 3
+(nb.block.cols <- ceiling(J / nb.block.rows))
+lay.blocks <- matrix(data=NA,
+                     nrow=nb.block.rows,
+                     ncol=nb.block.cols)
+block.idx <- 0
+for(j in 1:nb.block.cols){
+  for(i in 1:nb.block.rows){
+    block.idx <- block.idx + 1
+    if(i * j > J)
+      next
+    lay.blocks[i, j] <- uniq.block.names[block.idx]
+  }
+}
+lay.blocks
+```
+
+Add spatial coordinates of the genotypes in each block:
+```{r set_spatial_coords}
+ranks.per.block <- 20
+(locs.per.block <- ceiling(I.block / ranks.per.block))
+count.blocks <- 1
+dat.idx <- 1
+for(block.j in 1:nb.block.cols){
+  for(block.i in 1:nb.block.rows){
+    if(count.blocks <= J){
+      block <- lay.blocks[block.i, block.j]
+      rank.first <- 1 + (block.j - 1) * ranks.per.block
+      rank.last <- rank.first + ranks.per.block - 1
+      loc.first <- 1 + (block.i - 1) * locs.per.block
+      loc.last <- loc.first + locs.per.block - 1
+      message(paste0("block=", block, " [", block.i, ",", block.j, "]",
+                     " ranks=", rank.first, "-", rank.last,
+                     " locs=", loc.first, "-", loc.last,
+                     " (", dat.idx, ")"))
+      ranks <- rank.first:rank.last
+      locs <- loc.first:loc.last
+      count.genos <- 1
+      for(rank in ranks){
+        for(loc in locs){
+          if(count.genos <= I.block){
+            dat.year$rank[dat.idx] <- rank
+            dat.year$location[dat.idx] <- loc
+            dat.idx <- dat.idx + 1
+            count.genos <- count.genos + 1
+          }
+        }
+      }
+      count.blocks <- count.blocks + 1
+    }
+  }
+}
+range(dat.year$rank, na.rm=TRUE)
+(nb.ranks <- length(unique(dat.year$rank[! is.na(dat.year$rank)])))
+range(dat.year$location, na.rm=TRUE)
+(nb.locs <- length(unique(dat.year$location[! is.na(dat.year$location)])))
+```
+
+Plot the field layout:
+```{r}
+lay <- SpatialPointsDataFrame(coords=dat.year[, c("rank","location")],
+                              data=dat.year[, c("geno","control","block")])
+summary(lay)
+spplot(obj=lay, zcol="block", scales=list(draw=TRUE),
+       xlab="ranks", ylab="locations",
+       main="Field layout",
+       key.space="right", aspect="fill")
+spplot(obj=lay, zcol="control", scales=list(draw=TRUE),
+       xlab="ranks", ylab="locations",
+       main="Controls",
+       key.space="right", aspect="fill")
+```
+
+Duplicate the data structure per year:
+```{r}
+dat <- dat.year
+first.year <- 2011
+dat$year <- first.year
+K <- 3 # nb of years
+if(K > 1){
+  uniq.year.names <- as.character(first.year:(first.year + K - 1))
+  for(year in uniq.year.names[-1]){
+    dat <- rbind(dat, dat.year)
+    dat$year[is.na(dat$year)] <- year
+  }
+}
+dat$year <- factor(dat$year)
+str(dat)
+summary(dat)
+```
+
+Add the other regressors:
+```{r}
+(N <- I.block * J * K) # nb of phenotypic data for all years
+stopifnot(N == nrow(dat))
+dat$covar1 <- rnorm(n=N, mean=17, sd=5)
+dat$covar2 <- rnorm(n=N, mean=-3, sd=3)
+dat$fact1 <- sample(x=c("pos","neg"), size=N, replace=TRUE,
+                    prob=c(0.7, 1-0.7))
+dat$fact1 <- as.factor(dat$fact1)
+dat$fact2 <- sample(x=c("pos","neg"), size=N, replace=TRUE,
+                    prob=c(0.9, 1-0.9))
+dat$fact2 <- as.factor(dat$fact2)
+```
+
+## Simulation of trait1
+
+Fix some values to obtain realistic data:
+```{r fix_simul_val}
+mu <- 100    # intercept
+y.min <- 20  # minimal phenotypic value
+CV.g <- 0.10 # genotypic coef of variation
+h2 <- 0.3    # narrow-sense heritability
+```
+
+Deduce the variances:
+```{r deduce_var}
+(sigma.p2 <- ((mu - y.min) / 3)^2) # phenotypic variance
+(sigma.g2 <- (CV.g * mu)^2)        # total genetic variance
+stopifnot(sigma.g2 < sigma.p2)
+sigma.a2 <- sigma.g2               # additive genetic variance
+(sigma2 <- ((1 - h2) / h2) * sigma.a2) # error variance
+stopifnot(sigma.g2 + sigma2 < sigma.p2)
+(sigma.beta2 <- sigma.p2 - (sigma.g2 + sigma2))
+(sigma.alpha2 <- sigma.a2 / (2 * sum(afs.pop * (1 - afs.pop)))) # variance of additive SNP effects
+```
+
+Simulate the fixed effects, assuming covar2 and fact2 have no effect:
+```{r simul_phenos_eff-fix}
+truth.form.fix <- "1 + block + year + covar1 + fact1"
+X <- model.matrix(formula(paste0("~ ", truth.form.fix)),
+                  data=dat)
+Q <- ncol(X)
+beta <- setNames(c(mu, rnorm(n=Q - 1, mean=0, sd=sqrt(sigma.beta2))),
+                 colnames(X))
+beta
+```
+
+Simulate the additive SNP effects:
+```{r simul_phenos_eff-genos_add}
+Z <- model.matrix(~ -1 + geno, data=dat)
+M <- genomes$genos[uniq.geno.names,]
+(P <- ncol(M))
+M.a.c <- M - matrix(rep(1, I)) %*%
+  (2 * estimSnpAf(M)) # (2 * afs.pop)
+alpha <- setNames(rnorm(n=P, mean=0, sd=sqrt(sigma.alpha2)),
+                  colnames(M.a.c))
+summary(alpha)
+```
+
+TODO: Simulate the dominance SNP effects:
+```{r simul_phenos_eff-genos_dom, eval=FALSE}
+M.d.c <- NA
+delta <- setNames(rnorm(n=P, mean=0, sd=sqrt(sigma.delta2)),
+                  colnames(M.d.c))
+summary(delta)
+```
+
+Simulate total genotypic values:
+```{r simul_phenos_genovals}
+a <- M.a.c %*% alpha
+## d <- M.d.c %*% delta
+g <- as.vector(a) # + d
+summary(g)
+```
+
+TODO: geno-year interactions
+
+Add spatial heterogeneity:
+```{r simul_phenos_spatial-het}
+Z.S <- model.matrix(~ -1 + factor(location):factor(rank), data=dat)
+dim(Z.S)
+colnames(Z.S) <- gsub("factor\\(|\\)", "", colnames(Z.S))
+Z.S[1:3, 1:3]
+rho.rank <- 0.4
+rho.loc <- 0.8
+eta <- simulAr1Ar1(n=1, R=nb.locs, C=nb.ranks,
+                   rho.r=rho.loc, rho.c=rho.rank,
+                   sigma2=sigma2)
+dim(eta)
+stopifnot(dim(eta)[1] == nb.locs)
+stopifnot(dim(eta)[2] == nb.ranks)
+eta <- c(eta[,,1]) # extract matrix and vectorize by columns
+stopifnot(length(eta) == ncol(Z.S))
+summary(eta)
+```
+
+```{r}
+if(all(rho.rank == 0, rho.loc == 0)){
+  epsilon <- rnorm(n=N, mean=0, sd=sqrt(sigma2))
+} else
+  epsilon <- rnorm(n=N, mean=0, sd=0)
+y <- as.vector(X %*% beta + Z %*% g + Z.S %*% eta + epsilon)
+dat$trait1.init <- y
+```
+
+## Missing data
+
+Create missing data depending on the year:
+```{r miss_dat}
+dat$trait1 <- dat$trait1.init
+max.prop.na <- 0.1
+(prop.na <- setNames(runif(n=K, min=0, max=max.prop.na),
+                     uniq.year.names))
+for(year in names(prop.na)){
+  if(prop.na[year] == 0)
+    next
+  set.at.na <- sample(x=c(TRUE, FALSE), replace=TRUE,
+                      size=sum(dat$year == year),
+                      prob=c(prop.na[year], 1 - prop.na[year]))
+  if(any(set.at.na)){
+    message(paste0(year, ": ", sum(set.at.na), " NAs"))
+    dat$trait1[dat$year == year & set.at.na] <- NA
+  }
+}
+```
+
+Set negative values to NA:
+```{r}
+is.neg <- (dat$trait1 <= 0)
+if(any(is.neg)){
+  idx.neg <- which(is.neg)
+  message(length(idx.neg))
+  dat$trait1[idx.neg] <- NA
+}
+```
+
+## Outliers
+
+Create upper outliers:
+```{r outliers}
+idx.notNA <- which(! is.na(dat$trait1))
+prop.out <- 0.002
+idx.out <- sample(x=idx.notNA, size=floor(prop.out * length(idx.notNA)))
+dat$true.outlier <- FALSE
+dat$true.outlier[idx.out] <- TRUE
+summary(dat$trait1)
+(mean.out <- max(dat$trait1, na.rm=TRUE) + median(dat$trait1, na.rm=TRUE))
+(sd.out <- 0.5 * sd(dat$trait1, na.rm=TRUE))
+dat$trait1[idx.out] <- rnorm(n=length(idx.out),
+                             mean=mean.out,
+                             sd=sd.out)
+```
+
+
+# Data exploration
+
+## Tables
+
+### Whole panel
+
+```{r explo_tables}
+dim(dat)
+lapply(setNames(levels(dat$year), levels(dat$year)), function(lev.y){
+  do.call(rbind,
+          lapply(setNames(levels(dat$block), levels(dat$block)),
+                 function(lev.b){
+                   betterSummary(subset(dat, year == lev.y & block == lev.b,
+                                        select=trait1)$trait1)
+                 }))
+})
+```
+
+### Controls
+
+```{r explo_tables_ctl}
+dat.ctl <- droplevels(dat[dat$geno == control.name,])
+dim(dat.ctl)
+lapply(setNames(levels(dat.ctl$year), levels(dat.ctl$year)), function(lev.y){
+  do.call(rbind,
+          lapply(setNames(levels(dat.ctl$block), levels(dat.ctl$block)),
+                 function(lev.b){
+                   betterSummary(subset(dat.ctl, year == lev.y & block == lev.b,
+                                        select=trait1)$trait1)
+                 }))
+})
+```
+
+## Plots
+
+### Sources of variation
+
+Outliers:
+```{r}
+lower.threshold <- -Inf
+upper.threshold <- 1800
+x <- "trait1.outlier"
+dat[[x]] <- FALSE
+is.outlier <- dat[["trait1"]] < lower.threshold |
+  dat[["trait1"]] > upper.threshold
+sum(is.outlier, na.rm=TRUE)
+dat[[x]][is.outlier] <- TRUE
+```
+
+```{r explo_plot, fig.width=15}
+par(mar=c(7, 4, 4, 2) + 0.1)
+beanplot(trait1 ~ fact1 + block + year,
+         data=dat,
+         xlab="", xaxt="n",
+         ylab="phenotypes",
+         main="Sources of variation",
+         side="both", las=1, what=c(1,1,1,0),
+         col=list("black","grey"), border=c("black","grey"),
+         ylim=c(-5, 1.3 * max(dat$trait1, na.rm=TRUE)))
+labels <- paste0(rep(levels(dat$block), nlevels(dat$year)), " in ",
+                 rep(levels(dat$year), each=nlevels(dat$block)))
+nb.ticks <- nlevels(dat$block) * nlevels(dat$year)
+axis(1, at=1:nb.ticks, labels=FALSE)
+text(x=1:nb.ticks,
+     y=par("usr")[3] - 0.12 * abs(par("usr")[4] - par("usr")[3]),
+     srt=35, adj=0.5,
+     labels=labels, xpd=TRUE)
+mtext(1, text="blocks and years", line=5)
+abline(v=seq(from=nlevels(dat$block) + 0.5, to=nb.ticks,
+             by=nlevels(dat$block)))
+legend("topleft", legend=paste0("fact1: ", levels(dat$fact1)),
+       fill=c("black","grey"), border=NA, bty="n")
+abline(h=c(lower.threshold, upper.threshold), lty=2)
+if(any(dat[["trait1.outlier"]]))
+  legend("topright", legend="outlier threshold", lty=2, bty="n")
+```
+
+### Missing data
+
+```{r}
+for(trait in c("trait1")){
+  for(year in levels(dat$year)){
+    lay.tmp <- lay
+    lay.tmp@data[["missing"]] <- "false"
+    lay.tmp@data[["missing"]][is.na(dat[dat$year == year, trait])] <- "true"
+    lay.tmp@data[["missing"]] <- as.factor(lay.tmp@data[["missing"]])
+    print(spplot(obj=lay.tmp, zcol="missing", col.regions=c("green","red"),
+                 scales=list(draw=TRUE),
+                 xlab="ranks", ylab="locations",
+                 main=paste0("Missing data for ", trait, " in ", year),
+                 key.space="right", aspect="fill"))
+  }
+}
+```
+
+
+# First phase of the analysis
+
+## Data preparation
+
+```{r}
+trait <- "trait1"
+transfo <- "id"
+stopifnot(transfo %in% c("id", "log"))
+```
+
+```{r}
+str(dat)
+if(transfo == "id"){
+  response <- trait
+} else if(transfo == "log"){
+  response <- paste0("log(", trait, ")")
+  dat[[response]] <- log(dat[[trait]])
+}
+dat.noNA <- droplevels(na.exclude(dat))
+str(dat.noNA)
+```
+
+## Model fitting, comparison and selection
+
+```{r model_fit_comp_sel}
+form <- paste0(response, " ~ 1",
+               " + block",
+               " + year",
+               " + covar1",
+               " + covar2",
+               ## " + covar1:covar2",
+               " + fact1",
+               " + fact2",
+               " + fact1:fact2",
+               " + covar1:fact1",
+               " + covar1:fact2",
+               " + covar2:fact1",
+               " + covar2:fact2",
+               " + (1|geno)",
+               " + (1|geno:year)")
+p2f <- "two-phase_quantgen_allmod-sel-ML.RData"
+if(! file.exists(p2f)){
+  globmod.ml <- lmer(as.formula(form),
+                     data=dat.noNA,
+                     na.action=na.fail,
+                     REML=FALSE)
+  ## system.time(
+  ##     allmod.sel <- suppressMessages(dredge(globmod.ml)))
+  cl <- makeCluster(nb.cores, "SOCK")
+  clusterExport(cl, "dat.noNA")
+  tmp <- clusterEvalQ(cl, library(lme4))
+  system.time(
+      allmod.sel <- suppressMessages(pdredge(globmod.ml, cl)))
+  stopCluster(cl)
+  save(allmod.sel, file=p2f)
+  print(tools::md5sum(path.expand(p2f)))
+} else{
+  print(tools::md5sum(path.expand(p2f)))
+  load(p2f)
+}
+bestmod.ml <- get.models(allmod.sel, subset=1)[[1]]
+formula(bestmod.ml)
+bestmod.reml <- lmer(formula=formula(bestmod.ml),
+                     data=dat.noNA,
+                     na.action=na.fail,
+                     REML=TRUE)
+bestmod.reml.test <- lmerTest::lmer(formula=formula(bestmod.reml),
+                                    data=dat.noNA,
+                                    na.action=na.fail, REML=TRUE)
+allmod.sel <- lmerTest::step(bestmod.reml.test, reduce.fixed=FALSE)
+bestmod.reml.test.final <- lmerTest::get_model(allmod.sel)
+```
+
+Refit modeling genotypic values as fixed effects to get their BLUEs:
+```{r}
+(best.form <- Reduce(paste, deparse(formula(bestmod.ml))))
+pred <- trimws(strsplit(best.form, "\\~|\\+")[[1]])[-1]
+pred <- gsub("\\(1 \\| |\\)", "", pred)
+## pred <- pred[-grep("geno:year", pred)]
+bestmod.lm <- lm(paste0(response, " ~ 1 + ", paste(pred, collapse=" + ")),
+                 data=dat.noNA,
+                 na.action=na.fail)
+```
+
+Refit modeling genotypic values as fixed effects to get their EMMs:
+```{r}
+bestmod.emm <- emmeans(bestmod.lm, "geno")
+```
+
+## Correct spatial heterogeneity
+
+Kriging using controls:
+```{r kriging}
+dat[[paste0(response, ".corr")]] <- NA
+for(year in levels(dat$year)){
+  ## set up objects for control and panel data
+  dat.ctl <- droplevels(dat[dat$control & dat$year == year,
+                            c("geno","block","rank","location",
+                              "year","covar1","fact1",
+                              response)])
+  dat.ctl.noNA <- na.omit(dat.ctl)
+  dat.ctl.noNA.sp <- SpatialPointsDataFrame(
+      coords=dat.ctl.noNA[, c("rank","location")],
+      data=dat.ctl.noNA[, c("block","covar1","fact1",response)])
+  dat.panel <- droplevels(dat[! dat$control & dat$year == year,
+                              c("geno","block","rank","location",
+                                "year","covar1","fact1",
+                                response)])
+  colnames(dat.panel)[colnames(dat.panel) == response] <-
+    paste0(response, ".raw")
+  dat.panel.sp <- SpatialPointsDataFrame(
+      coords=dat.panel[, c("rank","location")],
+      data=dat.panel[, c("block","covar1","fact1",paste0(response,".raw"))])
+
+  ## compute experimental variogram on control data
+  (best.form <- Reduce(paste, deparse(formula(bestmod.ml))))
+  pred <- trimws(strsplit(best.form, "\\~|\\+")[[1]])[-1]
+  pred <- gsub("\\(1 \\| |\\)", "", pred)
+  pred <- pred[-grep("geno", pred)] # there is a single geno, the control
+  pred <- pred[-grep("year", pred)] # there is a single year
+  (form <- paste0(response, " ~ 1 + ", paste(pred, collapse=" + ")))
+  vg.c <- variogram(object=formula(form),
+                    locations=~ rank + location,
+                    data=dat.ctl.noNA,
+                    cloud=TRUE, cressie=TRUE)
+  print(plot(vg.c, main=paste0(response, ": variogram cloud of controls in ",
+                               year)))
+  vg <- variogram(object=formula(form),
+                  locations=~ rank + location,
+                  data=dat.ctl.noNA,
+                  cloud=FALSE, cressie=TRUE)
+  print(plot(vg, main=paste0(response, ": variogram of controls in ", year)))
+
+  ## fit variogram model on control data
+  vg.fit <- fit.variogram(object=vg,
+                          model=vgm(model="Ste", nugget=NA),
+                          fit.kappa=seq(0.3, 0.6, 0.05))
+  print(vg.fit)
+  print(plot(vg, vg.fit, main="", col="blue",
+             key=list(space="top", lines=list(col="blue"),
+                      text=list(paste0(response,
+                                       ": fit of Matérn model on controls in ",
+                                       year)))))
+
+  ## assess prediction accuracy by cross-validation
+  cv.k <- krige.cv(formula=formula(form),
+                   locations=dat.ctl.noNA.sp,
+                   model=vg.fit,
+                   nfold=5,#nrow(dat.ctl.noNA.sp),
+                   verbose=FALSE)
+  print(summary(cv.k))
+  cv.k.dat <- as.data.frame(cv.k)
+  print(c("RMSE"=sqrt(mean(cv.k.dat$residual^2)),
+          "bias"=mean(cv.k.dat$residual),
+          "MSDR"=mean(cv.k.dat$residual^2 / cv.k.dat$var1.var),
+          "corObsPred"=cor(cv.k.dat$observed, cv.k.dat$observed - cv.k.dat$residual),
+          "corObsRes"=cor(cv.k.dat$observed - cv.k.dat$residual, cv.k.dat$residual)))
+  print(spplot(obj=cv.k, zcol="residual", scales=list(draw=TRUE),
+               xlab="ranks", ylab="locations",
+               main=paste0("Cross-validation residuals of predicted values",
+                           " of the control in ", year),
+               key.space="right", aspect="fill"))
+  print(bubble(obj=cv.k, zcol="residual", scales=list(draw=TRUE),
+               xlab="ranks", ylab="locations",
+               main=paste0("Cross-validation residuals of predicted values",
+                           " of the control in ", year),
+               key.space="right", aspect="fill"))
+
+  ## prediction (kriging) of control data on panel coords
+  k <- krige(formula=formula(form),
+             locations=dat.ctl.noNA.sp,
+             newdata=dat.panel.sp,
+             model=vg.fit)
+  print(summary(k))
+  print(spplot(obj=k, zcol="var1.pred", scales=list(draw=TRUE),
+               xlab="ranks", ylab="locations",
+               main=paste0("Predicted values of the control in ", year),
+               key.space="right", aspect="fill"))
+
+  ## correct panel data with the predicted values of the control
+  k.coords <- coordinates(k)
+  k.dat <- as.data.frame(k)
+  for(i in 1:nrow(k)){
+    rank <- k.coords[i, "rank"]
+    loc <- k.coords[i, "location"]
+    dat.idx <- which(dat$year == year & dat$rank == rank &
+                     dat$location == loc)
+    stopifnot(length(dat.idx) == 1)
+    dat[dat.idx, paste0(response, ".corr")] <- dat[dat.idx, response] -
+      k.dat[i, "var1.pred"]
+  }
+}
+```
+
+TODO: refit bestmod with data corrected for spatial heterogeneity
+
+## Assumption checking
+
+### Residual preparation
+
+```{r prep_res}
+fit.all <- cbind(dat,
+                 response=dat[[response]],
+                 cond.res=NA,
+                 scl.cond.res=NA,
+                 fitted=NA)
+idx.NA <- attr(dat.noNA, "na.action")
+if(length(idx.NA) > 0){
+  fit.all$cond.res[- idx.NA] <- residuals(bestmod.reml)
+  fit.all$scl.cond.res[- idx.NA] <- residuals(bestmod.reml) /
+    sigma(bestmod.reml)
+  fit.all$fitted[- idx.NA] <- fitted(bestmod.reml)
+} else{
+  fit.all$cond.res <- residuals(bestmod.reml)
+  fit.all$scl.cond.res <- residuals(bestmod.reml) /
+    sigma(bestmod.reml)
+  fit.all$fitted <- fitted(bestmod.reml)
+}
+geno.blups <- ranef(bestmod.reml, condVar=TRUE, drop=TRUE)$geno
+geno.var.blups <- setNames(attr(geno.blups, "postVar"),
+                           names(geno.blups))
+```
+
+TODO:
+```{r}
+## geno.blues
+## geno.emmeans
+```
+
+### Error homoscedasticity
+
+```{r check_error_homoscedasticity}
+x.lim <- max(abs(fit.all$scl.cond.res), na.rm=TRUE)
+plot(x=fit.all$scl.cond.res, y=fit.all$fitted, las=1,
+     xlim=c(-x.lim, x.lim),
+     xlab="scaled conditional residuals",
+     ylab="fitted responses",
+     main=response)
+abline(v=c(0, -1.96, 1.96), lty=c(2, 3, 3))
+```
+
+```{r check_error_homoscedasticity_year_block}
+lattice::xyplot(fitted ~ scl.cond.res | year, groups=block,
+                data=fit.all,
+                xlab="scaled conditional residuals",
+                ylab="fitted responses",
+                main=response,
+                auto.key=list(space="right"),
+                panel=function(x,y,...){
+                  panel.abline(v=c(0, -1.96, 1.96), lty=c(2, 3, 3))
+                  panel.xyplot(x,y,...)
+                })
+```
+
+### Error normality
+
+```{r check_error_normality}
+shapiro.test(fit.all$scl.cond.res)
+qqnorm(y=fit.all$scl.cond.res,
+       main=paste0(response, ": scaled conditional residuals"))
+qqline(y=fit.all$scl.cond.res, col="red")
+```
+
+### Temporal independence of errors
+
+Useful function:
+```{r check_error_temp_indep_fct}
+checkTempIndepErrors <- function(response, df, blocks, years){
+  stopifnot(all(c("block", "year", "scl.cond.res") %in% colnames(df)))
+  idx.x <- which(df$block == blocks[1] & df$year == years[1])
+  idx.y <- which(df$block == blocks[2] & df$year == years[2])
+  tmp <- data.frame(x=df$scl.cond.res[idx.x],
+                    y=df$scl.cond.res[idx.y])
+  tmp <- tmp[complete.cases(tmp),]
+  l <- max(abs(c(tmp$x, tmp$y)))
+  plot(formula=y ~ x, data=tmp, las=1, xlim=c(-l,l), ylim=c(-l,l),
+       xlab=paste(blocks[1], years[1]),
+       ylab=paste(blocks[2], years[2]),
+       main=paste0(response, ": ", nrow(tmp), " pairs of residuals"))
+  abline(v=0, lty=2); abline(h=0, lty=2)
+  fit.lm <- lm(y ~ x, data=tmp)
+  tmp$fitted.lm <- fitted(fit.lm)
+  lines(x=tmp$x[order(tmp$x)], y=tmp$fitted.lm[order(tmp$x)], col="green")
+  fit.loess <- loess(y ~ x, data=tmp)
+  tmp$fitted.loess <- fitted(fit.loess)
+  lines(x=tmp$x[order(tmp$x)], y=tmp$fitted.loess[order(tmp$x)], col="red")
+  legend("topright", legend=c("lm", "loess"), col=c("green", "red"),
+         lty=1, bty="n")
+  invisible(tmp)
+}
+```
+
+Plot the results:
+```{r check_error_temp_indep_plot, fig.height=9, fig.width=9}
+## par(mfrow=c(2,2), mar=c(5,4,2,1))
+## checkTempIndepErrors(response, df=fit.all, blocks=c("A","A"), years=c("2006","2005"))
+## checkTempIndepErrors(response, df=fit.all, blocks=c("A","A"), years=c("2007","2005"))
+## checkTempIndepErrors(response, df=fit.all, blocks=c("B","B"), years=c("2007","2006"))
+## checkTempIndepErrors(response, df=fit.all, blocks=c("A","A"), years=c("2007","2006"))
+```
+
+### Spatial independence of errors
+
+```{r check_error_spatial_indep_plot, eval=TRUE}
+lay.tmp <- lay
+for(year in levels(fit.all$year)){
+  lay.tmp[[paste0("scl.cond.res.", year)]] <- NA
+  for(i in 1:nrow(lay.tmp)){
+    j <- which(fit.all$block == lay.tmp$block[i] &
+               fit.all$rank == lay.tmp$rank[i] &
+               fit.all$location == lay.tmp$location[i] &
+               fit.all$year == year)
+    if(length(j) == 0){
+      next
+    } else if(length(j) == 1){
+      lay.tmp[[paste0("scl.cond.res.", year)]][i] <- fit.all$scl.cond.res[j]
+    } else
+      warning(paste0("year=", year, "i=", i))
+  }
+}
+for(year in levels(fit.all$year)){
+  out <- spplot(obj=lay.tmp, zcol=paste0("scl.cond.res.", year),
+                xlab=colnames(coordinates(lay.tmp))[1],
+                ylab=colnames(coordinates(lay.tmp))[2],
+                main=paste0(response, ": scaled conditional residuals in ", year),
+                key.space="right", scales=list(draw=TRUE), aspect="fill")
+  print(out)
+}
+```
+
+Look at the empirical variogram, and fit a Matérn model:
+
+```{r check_error_spatial_indep_variogram, eval=TRUE}
+for(year in levels(fit.all$year)){
+  tmp <- na.omit(as.data.frame(lay.tmp[,paste0("scl.cond.res.", year)]))
+  resid.vg <- variogram(object=formula(paste0("scl.cond.res.",
+                                              year, " ~ 1")),
+                        locations=~ rank + location, data=tmp)
+  print(plot(resid.vg,
+             main=paste0(response, ": empirical variogram in ", year)))
+  resid.vg.fit <- fit.variogram(object=resid.vg,
+                                model=vgm(model="Ste", nugget=NA),
+                                fit.kappa=seq(0.3, 0.6, 0.05))
+  print(resid.vg.fit)
+  print(plot(resid.vg, resid.vg.fit, main="", col="blue",
+             key=list(space="top", lines=list(col="blue"),
+                      text=list(paste0(response, ": fit of Matérn model in ",
+                                       year)))))
+}
+```
+
+### Outlying genotypes
+
+```{r check_outlying_genos_plot}
+x.lim <- max(abs(geno.blups))
+par(mar=c(5,6,4,1))
+plot(x=geno.blups, y=1:length(geno.blups),
+     xlim=c(-x.lim, x.lim),
+     xlab="genotypic BLUPs",
+     main=response,
+     yaxt="n", ylab="")
+axis(side=2, at=1:length(geno.blups), labels=names(geno.blups), las=1)
+abline(v=0, lty=2)
+idx <- which.max(geno.blups)
+text(x=geno.blups[idx], y=idx, labels=names(idx), pos=2)
+idx <- which.min(geno.blups)
+text(x=geno.blups[idx], y=idx, labels=names(idx), pos=4)
+```
+
+```{r check_var_geno_BLUPs}
+summary(geno.var.blups)
+head(sort(geno.var.blups))
+tail(sort(geno.var.blups))
+```
+
+### Normality of genotypic BLUPs
+
+```{r check_normality_geno_BLUPs_qqplot}
+shapiro.test(geno.blups)
+qqnorm(y=geno.blups, main=paste0(response, ": genotypic BLUPs"), asp=1)
+qqline(y=geno.blups, col="red")
+```
+
+### Independence between errors and genotypes
+
+```{r check_indep_error_geno_plot}
+x.lim <- max(abs(fit.all$scl.cond.res))
+lattice::dotplot(geno ~ scl.cond.res, data=fit.all,
+                 xlim=c(-x.lim, x.lim),
+                 xlab="scaled conditional residuals",
+                 main=response,
+                 panel=function(x,y,...){
+                   panel.abline(v=c(0, -1.96, 1.96), lty=c(2,3,3))
+                   panel.dotplot(x,y,...)
+                 })
+```
+
+```{r check_indep_error_geno_plot_year_block}
+lattice::dotplot(geno ~ scl.cond.res | year, groups=block,
+                 data=fit.all,
+                 auto.key=list(space="right"),
+                 xlab="scaled conditional residuals",
+                 main=response,
+                 panel=function(x,y,...){
+                   panel.abline(v=c(0, -1.96, 1.96), lty=c(2,3,3))
+                   panel.dotplot(x,y,...)
+                 })
+```
+
+## Model outputs
+
+### Summary
+
+```{r bestmod_infer}
+summary(bestmod.ml)
+(vc.ml <- as.data.frame(VarCorr(bestmod.ml)))
+summary(bestmod.reml)
+(vc.reml <- as.data.frame(VarCorr(bestmod.reml)))
+```
+
+```{r}
+summary(bestmod.lm)
+## summary(bestmod.emm)
+```
+
+### Broad-sense heritability
+
+```{r H2}
+reps.geno.year <- tapply(dat.noNA[[trait]],
+                         list(dat.noNA$geno, dat.noNA$year),
+                         length)
+head(reps.geno.year)
+(mean.nb.years <- mean(apply(reps.geno.year, 1, function(x){
+  sum(! is.na(x))
+})))
+(mean.nb.reps.per.year <- mean(apply(reps.geno.year, 2, mean, na.rm=TRUE)))
+(H2.means <- vc.reml[vc.reml$grp == "geno", "vcov"] /
+   (vc.reml[vc.reml$grp == "geno", "vcov"] +
+    (vc.reml[vc.reml$grp == "geno:year", "vcov"] /
+     mean.nb.years) +
+    (vc.reml[vc.reml$grp == "Residual", "vcov"] /
+     (mean.nb.years * mean.nb.reps.per.year))))
+```
+
+### Confidence intervals
+
+#### Profiling
+
+```{r bestmod_confint_prof, eval=FALSE}
+system.time(
+    prof <- profile(bestmod.ml, signames=FALSE,
+                    parallel="multicore", ncpus=nb.cores))
+(ci <- confint(prof, level=0.95))
+xyplot(prof, absVal=TRUE, conf=c(0.8, 0.95), which=1:3,
+       main=response)
+densityplot(prof,
+            main=response)
+splom(prof, conf=c(0.8, 0.95), which=1:3,
+      main=response)
+```
+
+#### Bootstrapping
+
+```{r bestmod_confint_boot, eval=FALSE}
+mySumm <- function(.){
+  tmp <- c(ef=fixef(.),
+           sd.err=sigma(.),
+           sd=sqrt(unlist(VarCorr(.))))
+  tmp <- c(tmp,
+           tmp["sd.geno"]^2 /
+           (tmp["sd.geno"]^2 +
+            (tmp["sd.geno:year"]^2 / mean.nb.reps.geno.year) +
+            (tmp["sd.err"]^2 / (mean.nb.reps.geno.year *
+                                mean.nb.reps.geno.block))))
+  names(tmp)[length(tmp)] <- "H2.means"
+  tmp <- c(tmp,
+           tmp["sd.geno"] / abs(tmp["ef.(Intercept)"]))
+  names(tmp)[length(tmp)] <- "CV.geno"
+  return(tmp)
+}
+mySumm(bestmod.ml)
+system.time(
+      fit.boot <- bootMer(x=bestmod.ml, FUN=mySumm,
+                          nsim=1*10^3, seed=1859,
+                          use.u=FALSE, type="parametric",
+                          parallel="multicore", ncpus=nb.cores))
+fit.boot
+for(i in seq_along(fit.boot$t0)){
+  message(names(fit.boot$t0)[i])
+  plot(fit.boot, index=i,
+       main=paste0(response, ": ", names(fit.boot$t0)[i]))
+  print(boot.ci(fit.boot, conf=c(0.8, 0.95),
+                type=c("norm", "basic", "perc"),
+                index=i))
+}
+```
+
+### Hypothesis testing
+
+### Fixed effects
+
+```{r bestmod_lmerTest}
+anova(bestmod.reml.test, ddf="lme4")
+anova(bestmod.reml.test, ddf="Satterthwaite")
+## system.time(
+##     print(anova(bestmod.reml.test, ddf="Kenward-Roger")))
+anova(bestmod.reml.test.final)
+```
+
+### Variance components
+
+```{r bestmod_lmerTest_varcomp}
+ranova(bestmod.reml)
+```
+
+### In-sample prediction
+
+```{r bestmod_in-sample_prediction}
+plot(fit.all$fitted, fit.all$response, las=1, asp=1,
+     xlab="observed response",
+     ylab="fitted responses",
+     main=response)
+abline(a=0, b=1, lty=2)
+abline(v=mean(fit.all$fitted, na.rm=TRUE), lty=2)
+abline(h=mean(fit.all$response, na.rm=TRUE), lty=2)
+```
+
+```{r check_in-sample_prediction_year_block}
+lattice::xyplot(response ~ fitted | year, groups=block,
+                data=fit.all,
+                auto.key=list(space="right"),
+                xlab="observed response",
+                ylab="fitted responses",
+                main=response,
+                panel=function(x,y,...){
+                  panel.abline(a=0, b=1, lty=2)
+                  panel.abline(v=mean(x, na.rm=TRUE), lty=2)
+                  panel.abline(h=mean(y, na.rm=TRUE), lty=2)
+                  panel.xyplot(x,y,...)
+                })
+```
+
+## Estimate narrow-sense heritability
+
+
+# Second phase of the analysis
+
+## BLUPs and unweighted
+
+### SNPs separately (GEMMA)
+
+### SNPs jointly (MLMMGWAS)
+
+### SNPs jointly (varbvs)
+
+## BLUPs and weighted
+
+## BLUEs and unweighted
+
+## BLUEs and weighted
+
+
+# Appendix
+
+```{r info}
+t1 <- proc.time(); t1 - t0
+print(sessionInfo(), locale=FALSE)
+```
