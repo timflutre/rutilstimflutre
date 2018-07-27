@@ -7,11 +7,14 @@
 ##' Already-existing directories are not re-created.
 ##' @param root.dir path to the root directory
 ##' @param shared.dir path to the shared directory (e.g. via Dropbox; root.dir if NULL)
+##' @param create.admin if TRUE, a game master named "admin" will be created (by default, only a "tester" named "test" is created)
 ##' @param nb.breeders number of breeders; by default, the "admin" (which will have the "game master" status in "setup.Rmd") and "test" (which will have the "tester" status) breeders will be created, and other regular players can be created via the interface
 ##' @return list
 ##' @author Timothee Flutre
 ##' @export
-setUpBreedingGame <- function(root.dir, shared.dir=NULL, nb.breeders=0){
+setUpBreedingGame <- function(root.dir, shared.dir=NULL,
+                              create.admin=FALSE,
+                              nb.breeders=0){
   stopifnot(is.character(root.dir),
             dir.exists(root.dir))
   if(! is.null(shared.dir))
@@ -36,7 +39,9 @@ setUpBreedingGame <- function(root.dir, shared.dir=NULL, nb.breeders=0){
     dir.create(init.dir)
   out$init.dir <- init.dir
 
-  breeders <- c("admin", "test")
+  breeders <- c("test")
+  if(create.admin)
+    breeders <- c(breeders, "admin")
   if(nb.breeders > 0)
     breeders <- c(breeders, paste0("breeder", 1:nb.breeders))
   breeder.dirs <- c()
