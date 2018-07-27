@@ -1,0 +1,533 @@
+---
+title: "Parentage analysis"
+author: "Timothée Flutre (INRA)"
+date: "`r format(Sys.time(), '%d/%m/%Y %H:%M:%S')`"
+colorlinks: true
+output:
+  html_document:
+    toc: true
+    toc_depth: 3
+    toc_float: true
+    number_sections: TRUE
+  pdf_document:
+    toc: true
+    toc_depth: 3
+    number_sections: TRUE
+urlcolor: blue
+---
+
+<!--
+This R chunk is used to set up some options.
+-->
+```{r setup, include=FALSE}
+##`
+R.v.maj <- as.numeric(R.version$major)
+R.v.min.1 <- as.numeric(strsplit(R.version$minor, "\\.")[[1]][1])
+if(R.v.maj < 2 || (R.v.maj == 2 && R.v.min.1 < 15))
+  stop("requires R >= 2.15", call.=FALSE)
+
+suppressPackageStartupMessages(library(knitr))
+opts_chunk$set(echo=TRUE, warning=TRUE, message=TRUE, cache=FALSE, fig.align="center")
+opts_knit$set(progress=TRUE, verbose=TRUE)
+```
+
+
+# Overview
+
+This document aims at presenting how to perform parentage analysis.
+
+This document requires external packages:
+```{r load_pkg}
+suppressPackageStartupMessages(library(scrm)) # on the CRAN
+suppressPackageStartupMessages(library(rmetasim)) # on the CRAN
+suppressPackageStartupMessages(library(kinship2)) # on the CRAN
+suppressPackageStartupMessages(library(related)) # github.com/timothyfrasier/related
+suppressPackageStartupMessages(library(rcolony)) # github.com/jonesor/rcolony
+suppressPackageStartupMessages(library(rutilstimflutre)) # on GitHub
+stopifnot(compareVersion("0.159.1",
+                         as.character(packageVersion("rutilstimflutre")))
+          != 1)
+```
+
+This R chunk is used to assess how much time it takes to execute the R code in this document until the end:
+```{r time_0}
+t0 <- proc.time()
+```
+
+
+
+# Simulate data
+
+More details [here](https://cran.r-project.org/package=rmetasim).
+
+* species: perennial plant
+
+* mating system: [monoecious](https://en.wikipedia.org/wiki/Monoecious) (a tree has female and male flowers) with no [geitonogamy](https://en.wikipedia.org/wiki/Geitonogamy), i.e. "every individual can be a mother and a father, but none can be both the mother and father of the same offspring" (from A. Strand)
+
+* one population/habitat: with a given carrying capacity
+
+    * initially, only juveniles (half females and half males)
+
+* life cycle: four-stage (juvenile and adult for both female and male)
+
+    * male and female are distinguished because `kinship2` requires sex
+
+* markers: several SSRs (each with more than 2 alleles)
+
+* time interval: interpreted as being a single year
+
+## Setup the `rmetasim` object
+
+Set the seed:
+```{r set_seed}
+set.seed(1859)
+```
+
+Set the input parameters:
+```{r}
+nb.habitats <- 1
+nb.stages <- 4
+nb.generations <- 1000
+nb.locus <- 5
+nb.alleles <- 7
+nb.fem.juv <- 2
+nb.mal.juv <- 2
+carrying.cap <- 2000
+```
+
+### Set up the object
+
+```{r}
+land <- landscape.new.empty()
+land <- landscape.new.intparam(land, h=nb.habitats, s=nb.stages,
+                               totgen=nb.generations)
+## mp=1: every ovule of a given mother could be fertilized by a different father
+land <- landscape.new.switchparam(land, mp=1)
+land <- landscape.new.floatparam(land, s=0)
+```
+
+### Set up the local demography
+
+```{r}
+## stages: female juvenile (1) and adult (2), male juvenile (3) and adult (4)
+## Survival during a given time interval [t, t']: same for female and male
+##   Pr(juvenile at t' | juvenile at t) = 0
+##   Pr(adult at t' | juvenile at t) = 0.95
+##   Pr(dead at t' | juvenile at t) = 0.05
+##   Pr(juvenile at t' | adult at t) = 0
+##   Pr(adult at t' | adult at t) = 0.7
+##   Pr(dead at t' | adult at t) = 0.3
+loc.survival <- matrix(c(0, 0.95, 0, 0,     # column 1: from juvenile female to ...
+                         0, 0.70, 0, 0,     # column 2: from adult female to ...
+                         0, 0,    0, 0.95,  # column 3: from juvenile male to ...
+                         0, 0,    0, 0.70), # column 4: from adult male to ...
+                       nrow=nb.stages, ncol=nb.stages)
+## Female reproduction during a given time interval [t, t']:
+##   E[#offsprings | juvenile x juvenile] = 0
+##   E[#offsprings | juvenile x adult] = 0
+##   E[#offsprings | adult x juvenile] = 0
+##   E[#offsprings female | adult x adult] = 2
+##   E[#offsprings male | adult x adult] = 2
+loc.reprod.fem <- matrix(c(0, 0, 0, 0,
+                           2, 0, 2, 0,
+                           0, 0, 0, 0,
+                           0, 0, 0, 0),
+                         nrow=nb.stages, ncol=nb.stages)
+## Male reproduction during a given time interval [t, t']:
+##   Pr(cross with adult female | adult male) = 1
+loc.reprod.mal <- matrix(c(0, 0, 0, 0,
+                           0, 0, 0, 0,
+                           0, 0, 0, 0,
+                           0, 1, 0, 0),
+                         nrow=nb.stages, ncol=nb.stages)
+land <- landscape.new.local.demo(land, S=loc.survival,
+                                 R=loc.reprod.fem,
+                                 M=loc.reprod.mal)
+```
+
+To be changed if there is more than one habitat:
+```{r}
+lmat <- matrix(0, nb.stages*nb.habitats, nb.stages*nb.habitats)
+land <- landscape.new.epoch(land, S=lmat, R=lmat, M=lmat,
+                            carry=c(carrying.cap))
+```
+
+### Set up the markers
+
+```{r}
+for(i in 1:nb.locus)
+  land <- landscape.new.locus(land, type=1, ploidy=2,
+                              mutationrate=0.005,
+                              numalleles=nb.alleles,
+                              frequencies=NULL)
+```
+
+### Set up the initial individuals
+
+```{r}
+nb.fem.adu <- 0
+nb.mal.adu <- 0
+land <- landscape.new.individuals(land, c(nb.fem.juv, nb.fem.adu,
+                                          nb.mal.juv, nb.mal.adu))
+ind.col.names <- c("stage", "notused", "birth",
+                   "id", "matid", "patid",
+                   paste0(rep(paste0("loc", 1:land$intparam$locusnum), each=2),
+                          ".", 1:2))
+colnames(land$individuals) <- ind.col.names
+stage2sex <- setNames(c(2, 2, 1, 1), # for kinship2: female=2 1=male
+                      c(1, 2, 3, 4)) # <- stages
+```
+
+## Extract the pedigree
+
+```{r}
+ped <- cbind(land$individuals[, c(4:6, 3)],
+             land$individuals[, 1] %% land$intparam$stages)
+colnames(ped) <- c("ind", "mother", "father", "gen", "sex")
+ped[ped[,"sex"] %in% c(0,1), "sex"] <- 2 # female for kinship2
+ped[ped[,"sex"] %in% c(2,3), "sex"] <- 1 # male for kinship2
+ped[ped[,"mother"] == 0, "gen"] <- 0
+ped[, c("mother","father")] <- NA
+nrow(ped)
+head(ped)
+tail(ped)
+table(ped[,"gen"])
+table(ped[,"sex"])
+```
+
+## Extract the SSR genotypes
+
+```{r}
+genos <- land$individuals[, 7:ncol(land$individuals)]
+colnames(genos) <- paste0(rep(paste0("loc", 1:land$intparam$locusnum), each=2),
+                          ".", 1:2)
+rownames(genos) <- land$individuals[, 4]
+dim(genos)
+genos[1:4, 1:min(ncol(genos),6)]
+table(genos[,1:2])
+```
+
+## Useful functions
+
+```{r}
+handleRmetasimPedigree <- function(ped.prev, land.new=NULL, stage2sex=NULL,
+                                   gens.tokeep=NULL, prop=1){
+  stopifnot(is.matrix(ped.prev),
+            ncol(ped.prev) == 5,
+            ! is.null(colnames(ped.prev)),
+            all(colnames(ped.prev) == c("ind","mother","father","gen","sex")),
+            xor(is.null(land.new), is.null(gens.tokeep)),
+            all(prop >= 0, prop <= 1))
+  if(! is.null(land.new))
+    stopifnot(rmetasim::is.landscape(land.new),
+              ! is.null(stage2sex),
+              length(stage2sex) == land$intparam$stages)
+  if(! is.null(gens.tokeep))
+    stopifnot(is.vector(gens.tokeep),
+              is.numeric(gens.tokeep))
+
+  ped.out <- ped.prev
+
+  ## add new individuals to the previous pedigree
+  if(! is.null(land.new) & is.null(gens.tokeep) &
+     ! all(land.new$individuals[,4] %in% ped.out[,"ind"])){
+    ped.new <- land.new$individuals[, c(4:6,3)]
+    colnames(ped.new) <- colnames(ped.prev)[1:ncol(ped.new)]
+    ## add stage
+    ped.new <- cbind(ped.new,
+                     stage=(land.new$individuals[,1] %% land.new$intparam$stages) + 1)
+    ## convert stage to sex
+    ped.new <- cbind(ped.new,
+                     sex=ped.new[,"stage"])
+    stage2idx <- lapply(names(stage2sex), function(stage){
+      which(ped.new[,"sex"] == stage)
+    })
+    names(stage2idx) <- names(stage2sex)
+    for(stage in names(stage2idx)){
+      idx <- stage2idx[[stage]]
+      if(length(idx) > 0)
+        ped.new[idx, "sex"] <- stage2sex[stage]
+    }
+    ped.new <- ped.new[, - grep("stage", colnames(ped.new))]
+    idx <- which(! ped.new[,"ind"] %in% ped.out[,"ind"])
+    if(length(idx) > 0)
+      ped.out <- rbind(ped.out,
+                       ped.new[idx,])
+  }
+
+  ## remove duplicated individuals
+  is.dup <- duplicated(ped.out[,"ind"])
+  if(any(is.dup))
+    ped.out <- ped.out[! is.dup,]
+
+  ## extract specific generations, with their founders
+  if(! is.null(gens.tokeep)){
+    ped.sub <- ped.out[ped.out[,"gen"] %in% gens.tokeep,]
+    if(prop < 1){ # subsampling
+      idx <- sample.int(n=nrow(ped.sub),
+                        size=round(prop * nrow(ped.sub)))
+      ped.sub <- ped.sub[idx,]
+    }
+    par1 <- ped.sub[,"mother"]
+    par1 <- par1[! is.na(par1)]
+    par2 <- ped.sub[,"father"]
+    par2 <- par2[! is.na(par2)]
+    parents <- sort(unique(c(par1, par2)))
+    is.abs <- ! parents %in% ped.sub[,"ind"]
+    if(any(is.abs)){
+      par.abs <- parents[is.abs]
+      stopifnot(all(par.abs %in% ped.out[,"ind"]))
+      ped.par.abs <- ped.out[ped.out[,"ind"] %in% par.abs,]
+      ped.par.abs[,c("mother","father")] <- NA
+      ped.out <- rbind(ped.par.abs, ped.sub)
+    }
+  }
+
+  return(ped.out)
+}
+
+handleRmetasimGenos <- function(genos.prev, land=NULL){
+  if(! is.null(land))
+    stopifnot(rmetasim::is.landscape(land))
+
+  genos.new <- land$individuals[, 7:ncol(land$individuals)]
+  rownames(genos.new) <- land$individuals[,4]
+
+  genos.out <- rbind(genos.prev, genos.new)
+  genos.out <- genos.out[! duplicated(rownames(genos.out)),]
+  return(genos.out)
+}
+```
+
+## First iteration
+
+The `landscape.simulate` function wraps other functions, and it may be better to call them directly because the time interval is incremented inside `landscape.survive`.
+
+Run:
+```{r}
+land <- landscape.reproduce(land)
+ped <- handleRmetasimPedigree(ped, land, stage2sex)
+genos <- handleRmetasimGenos(genos, land)
+stopifnot(nrow(genos) == nrow(ped))
+stopifnot(all(ped[,"ind"] %in% as.numeric(rownames(genos))))
+land <- landscape.survive(land)
+land <- landscape.carry(land)
+land <- landscape.advance(land)
+```
+
+Because initially there are only juveniles, no new individual appeared.
+However, the initial juveniles became adults.
+
+```{r}
+nrow(land$individuals)
+table(floor(land$individuals[,1] / land$intparam$stages)) # habitat
+table(land$individuals[,1] %% land$intparam$stages) # stage
+table(land$individuals[,3]) # generation of birth
+```
+
+## Second iteration
+
+Run:
+```{r}
+land <- landscape.reproduce(land)
+ped <- handleRmetasimPedigree(ped, land, stage2sex)
+genos <- handleRmetasimGenos(genos, land)
+stopifnot(nrow(genos) == nrow(ped))
+stopifnot(all(ped[,"ind"] %in% as.numeric(rownames(genos))))
+land <- landscape.survive(land)
+land <- landscape.carry(land)
+land <- landscape.advance(land)
+```
+
+```{r}
+nrow(land$individuals)
+table(floor(land$individuals[,1] / land$intparam$stages)) # habitat
+table(land$individuals[,1] %% land$intparam$stages) # stage
+table(land$individuals[,3]) # generation of birth
+
+plotPedigree(ped[,"ind"], ped[,"mother"], ped[,"father"], ped[,"gen"])
+nrow(ped)
+table(ped[,"gen"])
+table(ped[,"sex"])
+
+nrow(genos)
+stopifnot(nrow(genos) == nrow(ped))
+stopifnot(all(ped[,"ind"] %in% as.numeric(rownames(genos))))
+```
+
+## More iterations
+
+```{r}
+nb.iters <- 50
+for(i in 1:nb.iters){
+  land <- landscape.reproduce(land)
+  ped <- handleRmetasimPedigree(ped, land, stage2sex)
+  genos <- handleRmetasimGenos(genos, land)
+  stopifnot(nrow(genos) == nrow(ped))
+  stopifnot(all(ped[,"ind"] %in% as.numeric(rownames(genos))))
+  land <- landscape.survive(land)
+  land <- landscape.carry(land)
+  land <- landscape.advance(land)
+}
+```
+
+```{r}
+## plotPedigree(ped[,"ind"], ped[,"mother"], ped[,"father"], ped[,"gen"],
+##              xmin=-2.5, xmax=2.5)
+hist(ped[,"gen"], main="Number of individuals per generation",
+     col="grey", border="white", xlab="generations", ylab="", las=1)
+table(genos[,1:2])
+table(genos[,3:4])
+```
+
+## Save
+
+```{r}
+p2f <- "pedigree_rmetasim.tsv"
+write.table(ped, file=p2f, quote=FALSE, sep="\t", row.names=FALSE)
+```
+
+```{r}
+p2f <- "genos_rmetasim.tsv"
+write.table(genos, file=p2f, quote=FALSE, sep="\t", col.names=FALSE)
+```
+
+
+
+# Infer genetic relationships
+
+Only keep the last three generations, and subsample:
+```{r}
+length(all.gens <- sort(unique(ped[,"gen"])))
+(gens.tokeep <- all.gens[(length(all.gens)-2):length(all.gens)])
+ped.tmp <- handleRmetasimPedigree(ped, land=NULL, stage2sex=NULL,
+                                  gens.tokeep, 0.02)
+nrow(ped.tmp)
+table(ped.tmp[,"gen"])
+table(ped.tmp[,"sex"])
+
+plotPedigree(ped.tmp[,"ind"], ped.tmp[,"mother"], ped.tmp[,"father"], ped.tmp[,"gen"], verbose=1, xmin=-2, xmax=2)
+
+genos.tmp <- genos[as.character(ped.tmp[,"ind"]),]
+dim(genos.tmp)
+```
+
+## From pedigree
+
+Compute the expected additive genetic relationships from the pedigree:
+```{r}
+ped.obj <- pedigree(id=ped.tmp[,"ind"], dadid=ped.tmp[,"father"],
+                    momid=ped.tmp[,"mother"], sex=ped.tmp[,"sex"])
+A.ped <- kinship(ped.obj) * 2
+```
+
+Plot:
+```{r}
+imageWithScale(A.ped, main="Expected additive genetic relationships from the pedigree")
+```
+
+Example of a mother-father-offspring trio:
+```{r}
+tail(ped.tmp)
+(off <- as.character(ped.tmp[nrow(ped.tmp), "ind"]))
+(mother <- as.character(ped.tmp[nrow(ped.tmp), "mother"]))
+(father <- as.character(ped.tmp[nrow(ped.tmp), "father"]))
+A.ped[c(mother, father, off), c(mother, father, off)]
+```
+
+TODO: Example of two full-siblings:
+
+TODO: Example of two half-siblings:
+
+## From SSRs
+
+More details [here](https://github.com/timothyfrasier/related).
+
+Format the data:
+```{r}
+p2f <- "genos_related.tsv"
+tmp <- genos.tmp + 1
+write.table(tmp, file=p2f, quote=FALSE, sep="\t", col.names=FALSE)
+genodat <- readgenotypedata(p2f)
+file.remove(p2f)
+names(genodat)
+dim(genodat$gdata)
+genodat$nloci
+genodat$nalleles
+genodat$ninds
+genodat$freqs
+```
+
+TODO: use allele frequencies from the whole data set
+
+Compute the MLEs:
+```{r}
+p2f <- "parentage-analysis_coanc.RData"
+if(! file.exists(p2f)){
+  system.time(
+      coanc <- coancestry(genotype.data=genodat$gdata,
+                          error.rates=0,
+                          dyadml=2, allow.inbreeding=TRUE))
+  save(coanc, file=p2f)
+  print(tools::md5sum(path.expand(p2f)))
+} else{
+  print(tools::md5sum(path.expand(p2f)))
+  load(p2f)
+}
+A.ssr <- coancestry2relmat(x=coanc, estim.coancestry="dyadml",
+                           estim.inbreeding="LR", rel.type="relationships")
+```
+
+Plot:
+```{r}
+imageWithScale(A.ssr, main="Additive genetic relationships from the SSRs")
+```
+
+```{r}
+head(coanc$relatedness)
+tail(coanc$relatedness)
+i <- 1
+(pair <- c(coanc$relatedness$ind1.id[i], coanc$relatedness$ind2.id[i]))
+A.ped[pair, pair]
+A.ssr[pair, pair]
+```
+
+Example of a mother-father-offspring trio:
+```{r}
+tail(ped.tmp)
+(off <- as.character(ped.tmp[nrow(ped.tmp), "ind"]))
+(mother <- as.character(ped.tmp[nrow(ped.tmp), "mother"]))
+(father <- as.character(ped.tmp[nrow(ped.tmp), "father"]))
+A.ped[c(mother, father, off), c(mother, father, off)]
+```
+
+TODO: Example of two full-siblings:
+
+TODO: Example of two half-siblings:
+
+## Comparison
+
+```{r}
+A.ped[1:3,1:3]
+A.ssr[1:3,1:3]
+```
+
+```{r}
+plot(diag(A.ped), diag(A.ssr))
+plot(A.ped[upper.tri(A.ped)], A.ssr[upper.tri(A.ssr)])
+```
+
+
+
+# Infer parentages
+
+TODO: see `rcolony`
+
+
+
+# Appendix
+
+```{r info}
+t1 <- proc.time(); t1 - t0
+print(sessionInfo(), locale=FALSE)
+```
