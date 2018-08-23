@@ -824,6 +824,20 @@ test_that("genoDoses2genoClasses", {
   expect_equal(observed, expected)
 })
 
+test_that("indexGenoDoses", {
+  N <- 2 # individuals
+  P <- 4 # SNPs
+  X <- matrix(c(1,1, NA,0, 2,1, 1,NA), nrow=N, ncol=P,
+              dimnames=list(paste0("ind", 1:N), paste0("snp", 1:P)))
+
+  expected <- data.frame(is.0=c(F,F, NA,T, F,F, F,NA),
+                         is.1=c(T,T, NA,F, F,T, T,NA))
+  expected <- as.matrix(expected)
+
+  observed <- indexGenoDoses(X=X)
+  expect_equal(observed, expected)
+})
+
 .expect_equal_VCFfile <- function(observed, expected){
   ## see https://support.bioconductor.org/p/74013/
   expect_equal(VariantAnnotation::info(observed),

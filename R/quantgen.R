@@ -2783,6 +2783,32 @@ genoDoses2genoClasses <- function(X=NULL, tX=NULL, alleles, na.string="--",
   return(out)
 }
 
+##' Index the dose of each SNP genotype
+##'
+##' Return if a given SNP enotype is 0 or 1, even if it was imputed.
+##' @param X matrix of bi-allelic SNP genotypes encoded, for each SNP, in number of copies of its second allele, i.e. as allele doses in {0,1,2}, with genotypes in rows and SNPs in columns; the "second" allele is arbitrary, which can be the minor or the major allele
+##' @param boundaries vector with interval boundaries of allele dose
+##' @return matrix of logicals with two columns, is.0 and is.1
+##' @author Timothee Flutre
+##' @export
+indexGenoDoses <- function(X, boundaries=seq(from=0, to=2, length.out=4)){
+  stopIfNotValidGenosDose(X=X, check.hasColNames=FALSE,
+                          check.hasRowNames=FALSE, check.noNA=FALSE,
+                          check.notImputed=FALSE)
+  stopifnot(is.vector(boundaries),
+            length(boundaries) == 4)
+
+  out <- matrix(data=rep(NA, 2 * length(X)),
+                ncol=2)
+  colnames(out) <- c("is.0", "is.1")
+
+  out[,"is.0"] <- (X <= boundaries[2]) # homozygotes for the first allele (ref)
+  out[,"is.1"] <- (X > boundaries[2] & X <= boundaries[3]) # heterozygotes
+  ## out[,"is.2"] <- (X > boundaries[3]) # homozygotes for the second allele (alt)
+
+  return(out)
+}
+
 ##' Convert genotypes
 ##'
 ##' Convert SNP genotypes from "allele doses" into the \href{http://samtools.github.io/hts-specs/}{VCF} format.
@@ -2871,14 +2897,13 @@ genoDoses2Vcf <- function(X, snp.coords, alleles,
     GenomeInfoDb::seqinfo(vcf) <- si
   }
 
-  boundaries <- seq(from=0, to=2, length.out=4)
-  is.0 <- (X <= boundaries[2]) # homozygotes for the first allele (ref)
-  is.1 <- (X > boundaries[2] & X <= boundaries[3]) # heterozygotes
-  is.2 <- (X > boundaries[3]) # homozygotes for the second allele (alt)
-  X[is.0] <- "0/0"
-  X[is.1] <- "0/1"
-  X[is.2] <- "1/1"
-  X[is.na(X)] <- "./."
+  idx <- indexGenoDoses(X)
+  X[idx[,"is.0"]] <- "0/0"
+  X[idx[,"is.1"]] <- "0/1"
+  X[! idx[,"is.0"] & ! idx[,"is.1"]] <- "1/1"
+  is.NA <- is.na(X)
+  if(any(is.NA))
+    X[is.NA] <- "./."
   VariantAnnotation::geno(vcf) <- S4Vectors::SimpleList(GT=t(X))
 
   return(vcf)
@@ -3076,9 +3101,13 @@ convertImputedTo012 <- function(X){
   is.0 <- (X <= boundaries[2]) # homozygotes for the first allele (ref)
   is.1 <- (X > boundaries[2] & X <= boundaries[3]) # heterozygotes
   is.2 <- (X > boundaries[3]) # homozygotes for the second allele (alt)
-  X[is.0] <- 0
-  X[is.1] <- 1
-  X[is.2] <- 2
+  idx <- indexGenoDoses(X)
+  X[idx[,"is.0"]] <- 0
+  X[idx[,"is.1"]] <- 1
+  X[! idx[,"is.0"] & ! idx[,"is.1"]] <- 2
+  is.NA <- is.na(X)
+  if(any(is.NA))
+  X[is.NA] <- NA
 
   return(X)
 }
@@ -4785,12 +4814,15 @@ recodeIntoDominant <- function(X, simplify.imputed=FALSE){
                           check.notImputed=! simplify.imputed)
   X.D <- X
   if(simplify.imputed){
-    boundaries <- seq(from=0, to=2, length.out=4)
-    is.hom <- xor(X <= boundaries[2], X > boundaries[3])
-    X.D[is.hom] <- 0
-    X.D[! is.hom] <- 1
+    idx <- indexGenoDoses(X)
+    X.D[idx[,"is.1"]] <- 1
+    X.D[! idx[,"is.1"]] <- 0
   } else
     X.D[X.D != 1] <- 0
+
+  is.NA <- is.na(X)
+  if(any(is.NA))
+    X[is.NA] <- NA
 
   return(X.D)
 }
