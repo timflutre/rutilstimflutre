@@ -486,7 +486,7 @@ ar1xar1.sim.cond <- simulAr1Ar1 # inside package
 Check the code by simulating with only column correlation:
 ```{r ar1xar1.sim.cond.onlyC}
 X1 <- ar1xar1.sim.cond(N, R=2, C=500, sigma2, rho.r=0, rho.c)
-prettyPrintSummary(apply(X1, 3, function(Xi){
+prettyPrintBetterSummary(apply(X1, 3, function(Xi){
   acf(Xi[1,], lag.max=1, type="correlation", plot=FALSE)$acf[2]
 }))
 ```
@@ -494,7 +494,7 @@ prettyPrintSummary(apply(X1, 3, function(Xi){
 Idem, with only row correlation:
 ```{r ar1xar1.sim.cond.onlyR}
 X1 <- ar1xar1.sim.cond(N, R=500, C=2, sigma2, rho.r, rho.c=0.0)
-prettyPrintSummary(apply(X1, 3, function(Xi){
+prettyPrintBetterSummary(apply(X1, 3, function(Xi){
   acf(Xi[,1], lag.max=1, type="correlation", plot=FALSE)$acf[2]
 }))
 ```
@@ -502,10 +502,10 @@ prettyPrintSummary(apply(X1, 3, function(Xi){
 Now with both row and column correlations:
 ```{r ar1xar1.sim.cond.bothRC}
 X1 <- ar1xar1.sim.cond(N, R, C, sigma2, rho.r, rho.c)
-prettyPrintSummary(apply(X1, 3, function(Xi){
+prettyPrintBetterSummary(apply(X1, 3, function(Xi){
   acf(Xi[1,], lag.max=1, type="correlation", plot=FALSE)$acf[2]
 }))
-prettyPrintSummary(apply(X1, 3, function(Xi){
+prettyPrintBetterSummary(apply(X1, 3, function(Xi){
   acf(Xi[,1], lag.max=1, type="correlation", plot=FALSE)$acf[2]
 }))
 ```
@@ -523,7 +523,7 @@ ar1xar1.sim.mv <- function(N, R, C, sigma2, rho.r, rho.c){
 Check the code by simulating with only column correlation:
 ```{r ar1xar1.sim.mv.onlyC, eval=FALSE}
 X2 <- ar1xar1.sim.mv(N, R=2, C=500, rho.r=0, rho.c, sigma2)
-prettyPrintSummary(apply(X2, 3, function(Xi){
+prettyPrintBetterSummary(apply(X2, 3, function(Xi){
   acf(Xi[1,], lag.max=1, type="correlation", plot=FALSE)$acf[2]
 }))
 ```
@@ -531,7 +531,7 @@ prettyPrintSummary(apply(X2, 3, function(Xi){
 Idem, with only row correlation:
 ```{r ar1xar1.sim.mv.onlyR, eval=FALSE}
 X2 <- ar1xar1.sim.mv(N, R=500, C=2, rho.r, rho.c=0.0, sigma2)
-prettyPrintSummary(apply(X2, 3, function(Xi){
+prettyPrintBetterSummary(apply(X2, 3, function(Xi){
   acf(Xi[,1], lag.max=1, type="correlation", plot=FALSE)$acf[2]
 }))
 ```
@@ -539,10 +539,10 @@ prettyPrintSummary(apply(X2, 3, function(Xi){
 Now with both row and column correlations:
 ```{r ar1xar1.sim.mv.bothRC, eval=FALSE}
 X2 <- ar1xar1.sim.mv(N, R, C, rho.r, rho.c, sigma2)
-prettyPrintSummary(apply(X2, 3, function(Xi){
+prettyPrintBetterSummary(apply(X2, 3, function(Xi){
   acf(Xi[1,], lag.max=1, type="correlation", plot=FALSE)$acf[2]
 }))
-prettyPrintSummary(apply(X2, 3, function(Xi){
+prettyPrintBetterSummary(apply(X2, 3, function(Xi){
   acf(Xi[,1], lag.max=1, type="correlation", plot=FALSE)$acf[2]
 }))
 ```
