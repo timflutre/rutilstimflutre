@@ -6,12 +6,12 @@ colorlinks: true
 output:
   html_document:
     toc: true
-    toc_depth: 3
+    toc_depth: 4
     toc_float: true
     number_sections: TRUE
   pdf_document:
     toc: true
-    toc_depth: 3
+    toc_depth: 4
     number_sections: TRUE
 urlcolor: blue
 ---
@@ -58,7 +58,7 @@ stopifnot(compareVersion("2.5.7",
                          as.character(packageVersion("varbvs")))
           != 1)
 suppressPackageStartupMessages(library(rutilstimflutre)) # on GitHub
-stopifnot(compareVersion("0.164.0",
+stopifnot(compareVersion("0.165.0",
                          as.character(packageVersion("rutilstimflutre")))
           != 1)
 stopifnot(file.exists(Sys.which("gemma"))) # https://github.com/genetics-statistics/GEMMA/
@@ -75,17 +75,19 @@ t0 <- proc.time()
 
 ## Phenotypic level
 
-* $I$: number of genotypes
+* $I$: number of genotypes (from a panel, as well as a control)
 
 * $Q = J + K$: number of known, non-genetic factors and covariates
 
-    * $J$: number of blocks
+    * $J$: number of blocks (one panel genotype per block, several controls per block)
+    
+        * $J_T$: number of controls per block
     
     * $K$: number of years
 
 * $R, C$: number of rows and columns of the field layout
 
-* $N = I * J * K$: number of phenotypes
+* $N = (I-1) * J * K + J_T * J * K$: number of phenotypes
 
 * $X$: $N \times Q$ design matrix for factors and covariates
 
@@ -101,7 +103,7 @@ t0 <- proc.time()
 
     * $\rho_c$: correlation between columns
 
-* $\boldsymbol{\epsilon}$: $N$-vector of errors if no spatial heterogeneity ("nugget effect" otherwise)
+* $\boldsymbol{\epsilon}$: $N$-vector of errors if no spatial heterogeneity, "nugget effect" otherwise
 
     * $\boldsymbol{\epsilon} \sim \mathcal{N}(\boldsymbol{0}, \sigma^2 \, \text{Id})$
 
@@ -111,7 +113,7 @@ t0 <- proc.time()
     
     * $\boldsymbol{g} \sim \mathcal{N}(\boldsymbol{0}, \sigma_g^2 \, \text{Id})$
   
-    * $H^2 = \frac{\sigma_g^2}{\sigma_g^2 + \sigma^2 / rep}$: broad-sense heritability
+    * $H^2 = \frac{\sigma_g^2}{\sigma_g^2 + \sigma^2 / rep}$: broad-sense heritability for the means of panel genotypes
 
 * TODO: geno-year interactions
 
@@ -179,13 +181,15 @@ Phases:
 
 1. estimate/predict $\boldsymbol{g}$ as "average" $\boldsymbol{y}$ per genotype;
 
-2. regress $\hat{\boldsymbol{g}}$ on $M$ to infer $\boldsymbol{\alpha}$.
+2. regress $\hat{\boldsymbol{g}}$ on $M$ to infer $\boldsymbol{\alpha}$ and $\boldsymbol{\gamma_a}$ (and $\boldsymbol{\delta}$ and $\boldsymbol{\gamma_d}$ ).
 
 Questions:
 
-* use BLUEs or BLUPs of $\boldsymbol{g}$ in phase 2? $\rightarow$ BLUPs if unbalanced data set
+* use BLUEs or BLUPs of $\boldsymbol{g}$ in phase 2? $\rightarrow$ BLUPs if unbalanced data set
 
-* use weights in phase 2 in the presence of missing data? $\rightarow$ TBD
+* account for spatial heterogeneity by kriging thanks to the controls?
+
+* use weights in phase 2 in the presence of missing data? $\rightarrow$ TBD
 
 
 # Simulation of genetic data
@@ -212,12 +216,14 @@ theta <- 4 * Ne * u     # scaled neutral mutation rate in events / chrom
 rho <- 4 * Ne * r       # scaled recomb rate in events / chrom
 p2f <- "two-phase_quantgen_genomes.RData"
 if(! file.exists(p2f)){
-  genomes <- simulCoalescent(nb.inds=nb.genos,
-                             nb.reps=nb.chrs,
-                             pop.mut.rate=theta,
-                             pop.recomb.rate=rho,
-                             chrom.len=chr.len.phy,
-                             get.alleles=TRUE)
+  st <- system.time(
+      genomes <- simulCoalescent(nb.inds=nb.genos,
+                                 nb.reps=nb.chrs,
+                                 pop.mut.rate=theta,
+                                 pop.recomb.rate=rho,
+                                 chrom.len=chr.len.phy,
+                                 get.alleles=TRUE))
+  print(st)
   save(genomes, file=p2f)
   print(tools::md5sum(path.expand(p2f)))
 } else{
@@ -336,7 +342,8 @@ Set the seed:
 set.seed(1859)
 ```
 
-Make the structure of the data set for a given year:
+### Structure for a given year
+
 ```{r set_exp_design_year}
 I.p <- 279       # nb of genotypes in the panel
 I.c <- 1         # control
@@ -365,6 +372,8 @@ dat.year <- data.frame(geno=do.call(c, lapply(1:J, function(j){
 dat.year$control[dat.year$geno == control.name] <- TRUE
 str(dat.year)
 ```
+
+### Field layout
 
 Block layout in the field:
 ```{r set_block_layout}
@@ -444,11 +453,15 @@ spplot(obj=lay, zcol="block", scales=list(draw=TRUE),
        xlab="ranks", ylab="locations",
        main="Field layout",
        key.space="right", aspect="fill")
-spplot(obj=lay, zcol="control", scales=list(draw=TRUE),
+spplot(obj=lay, zcol="control",
+       col.regions=c("green","red"),
+       scales=list(draw=TRUE),
        xlab="ranks", ylab="locations",
        main="Controls",
        key.space="right", aspect="fill")
 ```
+
+### Structure for the whole data set
 
 Duplicate the data structure per year:
 ```{r}
@@ -537,6 +550,8 @@ alpha <- setNames(rnorm(n=P, mean=0, sd=sqrt(sigma.alpha2)),
 summary(alpha)
 ```
 
+TODO: change the genetic architecture so that there are few large effects and many (very) small effects
+
 ### Dominance SNP effects
 
 ```{r simul_phenos_eff-genos_dom, eval=TRUE}
@@ -544,8 +559,8 @@ boundaries <- seq(from=0, to=2, length.out=4)
 is.0 <- (X <= boundaries[2]) # homozygotes for the first allele
 is.1 <- (X > boundaries[2] & X <= boundaries[3]) # heterozygotes
 is.2 <- (X > boundaries[3]) # homozygotes for the second allele
-M.d.c <- matrix(NA, nrow=N, ncol=P, dimnames=dimnames(X))
-for(i in 1:N){
+M.d.c <- matrix(rep(NA, length(M)), nrow=I, ncol=P, dimnames=dimnames(M))
+for(i in 1:I){
   M.d.c[i, is.0[i,]] <- - 2 * afs[is.0[i,]]^2
   M.d.c[i, is.1[i,]] <- 2 * afs[is.1[i,]] * (1 - afs[is.1[i,]])
   M.d.c[i, is.2[i,]] <- - 2 * (1 - afs[is.2[i,]])^2
@@ -562,7 +577,7 @@ summary(delta)
 ```{r simul_phenos_genovals}
 a <- M.a.c %*% alpha
 d <- M.d.c %*% delta
-g <- as.vector(a) + d
+g <- as.vector(a) + as.vector(d) # ignoring epistasis
 summary(g)
 ```
 
@@ -572,22 +587,116 @@ TODO
 
 ### Spatial heterogeneity
 
-```{r simul_phenos_spatial-het}
+#### Design matrix
+
+```{r simul_phenos_spatial-het_design-mat}
 Z.S <- model.matrix(~ -1 + factor(location):factor(rank), data=dat)
 dim(Z.S)
 colnames(Z.S) <- gsub("factor\\(|\\)", "", colnames(Z.S))
 Z.S[1:3, 1:3]
-rho.rank <- 0.4
-rho.loc <- 0.8
-eta <- simulAr1Ar1(n=1, R=nb.locs, C=nb.ranks,
-                   rho.r=rho.loc, rho.c=rho.rank,
-                   sigma2=sigma2)
-dim(eta)
-stopifnot(dim(eta)[1] == nb.locs)
-stopifnot(dim(eta)[2] == nb.ranks)
-eta <- c(eta[,,1]) # extract matrix and vectorize by columns
+```
+
+#### Draw many samples
+
+Draw several fields with spatial heterogeneity (set very high correlations between ranks and between locations, as the empirical values in the sample will be lower, see below):
+```{r simul_phenos_spatial-het_rand-var}
+rho.rank <- rho.loc <- 0
+## rho.rank <- 0.9
+## rho.loc <- 0.9
+sigma.X.2 <- sigma2
+many.etas <- simulAr1Ar1(n=100, R=nb.locs, C=nb.ranks,
+                         rho.r=rho.loc, rho.c=rho.rank,
+                         sigma.X.2=sigma.X.2,
+                         sigma.e.2=sigma2)
+dim(many.etas)
+stopifnot(dim(many.etas)[1] == nb.locs)  # rows
+stopifnot(dim(many.etas)[2] == nb.ranks) # columns
+```
+
+Check that the correlations between ranks and between locations correspond to the input values:
+```{r simul_phenos_spatial-het_check}
+all.cor <- list()
+all.cor$loc <- c(apply(many.etas, 3, function(Xi){
+  apply(Xi, 2, function(Xi.col){ # per column, hence cor btw rows
+    acf(Xi.col, lag.max=1, type="correlation", plot=FALSE)$acf[2]
+  })
+}))
+all.cor$rank <- c(apply(many.etas, 3, function(Xi){
+  apply(Xi, 1, function(Xi.row){ # per row, hen cor btw columns
+    acf(Xi.row, lag.max=1, type="correlation", plot=FALSE)$acf[2]
+  })
+}))
+sapply(all.cor, length)
+sapply(all.cor, summary) # to be compared to rho.loc and rho.rank
+```
+
+### Choose one
+
+Choose one sample with which phenotypes will be simulated:
+```{r simul_phenos_spatial-het_choose-sample}
+eta.mat <- many.etas[,,1] # extract matrix
+dim(eta.mat)
+stopifnot(nrow(eta.mat) == nb.locs)
+rownames(eta.mat) <- paste0("location", 1:nrow(eta.mat))
+stopifnot(ncol(eta.mat) == nb.ranks)
+colnames(eta.mat) <- paste0("rank", 1:ncol(eta.mat))
+eta.mat[1:3, 1:3]
+```
+
+Check the correlations:
+```{r simul_phenos_spatial-het_check-sample}
+all.cor <- list()
+all.cor$loc <- apply(eta.mat, 2, function(eta.col){ # per column, hence cor btw rows
+  acf(eta.col, lag.max=1, type="correlation", plot=FALSE)$acf[2]
+})
+all.cor$rank <- apply(eta.mat, 1, function(eta.row){ # per row, hence cor btw columns
+  acf(eta.row, lag.max=1, type="correlation", plot=FALSE)$acf[2]
+})
+sapply(all.cor, length)
+sapply(all.cor, summary) # to be compared to rho.loc and rho.rank
+```
+
+Reformat the matrix into a vector:
+```{r simul_phenos_spatial-het_vectorize-sample}
+eta <- c(eta.mat)         # vectorize it
 stopifnot(length(eta) == ncol(Z.S))
 summary(eta)
+names(eta) <- paste0(rep(rownames(eta.mat), times=ncol(eta.mat)),
+                     ":", rep(colnames(eta.mat), each=nrow(eta.mat)))
+stopifnot(all(names(eta) == colnames(Z.S)))
+head(eta)
+```
+
+### Plot it
+
+```{r}
+coords.sh <- as.matrix(expand.grid(1:nb.locs, 1:nb.ranks))
+apply(coords.sh, 2, range)
+colnames(coords.sh) <- c("location", "rank")
+dim(coords.sh)
+head(coords.sh)
+eta.df <- data.frame(eta=eta)
+head(eta.df)
+sh.sp <- SpatialPointsDataFrame(coords=coords.sh, data=eta.df)
+spplot(obj=sh.sp, scales=list(draw=TRUE),
+       xlab="ranks", ylab="locations",
+       main=paste0("Spatial heterogeneity with cor.rank=", rho.rank,
+                   ", cor.loc=", rho.loc, " and sigma2=", round(sigma2)),
+       key.space="right", aspect="fill")
+```
+
+### Fit a model on it
+
+```{r}
+vg.1 <- gstat::variogram(object=eta ~ 1, data=sh.sp)
+plot(x=vg.1$dist, y=vg.1$gamma, main="Empirical variogram",
+     ylim=c(0, max(vg.1$gamma)))
+(vg.1.fit <- suppressWarnings(
+     gstat::fit.variogram(object=vg.1,
+                          model=vgm(model="Ste", nugget=NA))))
+plot(vg.1, vg.1.fit, main="", col="blue",
+     key=list(space="top", lines=list(col="blue"),
+              text=list("fit of Matérn model")))
 ```
 
 ### Errors
@@ -597,12 +706,18 @@ if(all(rho.rank == 0, rho.loc == 0)){
   epsilon <- rnorm(n=N, mean=0, sd=sqrt(sigma2))
 } else
   epsilon <- rnorm(n=N, mean=0, sd=0)
+summary(epsilon)
 ```
 
 ### Phenotypic values
 
 ```{r}
-y <- as.vector(X %*% beta + Z %*% g + Z.S %*% eta + epsilon)
+y <- X %*% beta
+y <- y + Z %*% g
+if(any(rho.rank != 0, rho.loc != 0))
+  y <- y + Z.S %*% eta
+y <- y + epsilon
+y <- as.vector(y)
 dat$trait1.init <- y
 ```
 
@@ -611,7 +726,8 @@ dat$trait1.init <- y
 Create missing data depending on the year:
 ```{r miss_dat}
 dat$trait1 <- dat$trait1.init
-max.prop.na <- 0.1
+max.prop.na <- 0
+## max.prop.na <- 0.1
 (prop.na <- setNames(runif(n=K, min=0, max=max.prop.na),
                      uniq.year.names))
 for(year in names(prop.na)){
@@ -642,7 +758,8 @@ if(any(is.neg)){
 Create upper outliers:
 ```{r outliers}
 idx.notNA <- which(! is.na(dat$trait1))
-prop.out <- 0.002
+prop.out <- 0
+## prop.out <- 0.002
 idx.out <- sample(x=idx.notNA, size=floor(prop.out * length(idx.notNA)))
 dat$true.outlier <- FALSE
 dat$true.outlier[idx.out] <- TRUE
@@ -727,9 +844,22 @@ abline(v=seq(from=nlevels(dat$block) + 0.5, to=nb.ticks,
              by=nlevels(dat$block)))
 legend("topleft", legend=paste0("fact1: ", levels(dat$fact1)),
        fill=c("black","grey"), border=NA, bty="n")
+lgd <- c()
+lgd.lty <- c()
+lgd.col <- c()
 abline(h=c(lower.threshold, upper.threshold), lty=2)
-if(any(dat[["trait1.outlier"]]))
-  legend("topright", legend="outlier threshold", lty=2, bty="n")
+if(any(dat[["trait1.outlier"]])){
+  lgd <- c(lgd, "outlier threshold")
+  lgd.lty <- c(lgd.lty, 2)
+  lgd.col <- c(lgd.col, "black")
+}
+q1.ctl <- quantile(dat$trait1, probs=0.25, na.rm=TRUE)
+q3.ctl <- quantile(dat$trait1, probs=0.75, na.rm=TRUE)
+abline(h=c(q1.ctl, q3.ctl), col="red")
+lgd <- c(lgd, "controls (Q1, Q3)")
+lgd.lty <- c(lgd.lty, 1)
+lgd.col <- c(lgd.col, "red")
+legend("topright", legend=lgd, lty=lgd.lty, col=lgd.col, bty="n")
 ```
 
 ### Missing data
@@ -756,19 +886,35 @@ for(trait in c("trait1")){
 ## Data preparation
 
 ```{r}
-trait <- "trait1"
-transfo <- "id"
-stopifnot(transfo %in% c("id", "log"))
+str(dat)
 ```
 
 ```{r}
-str(dat)
+trait <- "trait1"
+transfo <- "id"
+stopifnot(transfo %in% c("id", "log", "sqrt"))
+```
+
+```{r}
+if(any(dat[[paste0(trait, ".outlier")]])){
+  dat <- droplevels(dat[! dat[[paste0(trait, ".outlier")]],])
+  print(str(dat))
+}
+```
+
+```{r}
 if(transfo == "id"){
   response <- trait
 } else if(transfo == "log"){
   response <- paste0("log(", trait, ")")
   dat[[response]] <- log(dat[[trait]])
+} else if(transfo == "sqrt"){
+  response <- paste0("sqrt(", trait, ")")
+  dat[[response]] <- sqrt(dat[[trait]])
 }
+```
+
+```{r}
 dat.noNA <- droplevels(na.exclude(dat))
 str(dat.noNA)
 ```
@@ -797,13 +943,14 @@ if(! file.exists(p2f)){
                      data=dat.noNA,
                      na.action=na.fail,
                      REML=FALSE)
-  ## system.time(
+  ## st <- system.time(
   ##     allmod.sel <- suppressMessages(dredge(globmod.ml)))
   cl <- makeCluster(nb.cores, "SOCK")
   clusterExport(cl, "dat.noNA")
   tmp <- clusterEvalQ(cl, library(lme4))
-  system.time(
+  st <- system.time(
       allmod.sel <- suppressMessages(pdredge(globmod.ml, cl)))
+  print(st)
   stopCluster(cl)
   save(allmod.sel, file=p2f)
   print(tools::md5sum(path.expand(p2f)))
@@ -813,6 +960,8 @@ if(! file.exists(p2f)){
 }
 bestmod.ml <- get.models(allmod.sel, subset=1)[[1]]
 formula(bestmod.ml)
+(best.form <- Reduce(paste, deparse(formula(bestmod.ml))))
+all.preds <- trimws(strsplit(best.form, "\\~|\\+")[[1]])[-1]
 bestmod.reml <- lmer(formula=formula(bestmod.ml),
                      data=dat.noNA,
                      na.action=na.fail,
@@ -824,128 +973,60 @@ allmod.sel <- lmerTest::step(bestmod.reml.test, reduce.fixed=FALSE)
 bestmod.reml.test.final <- lmerTest::get_model(allmod.sel)
 ```
 
-Refit modeling genotypic values as fixed effects to get their BLUEs:
-```{r}
-(best.form <- Reduce(paste, deparse(formula(bestmod.ml))))
-pred <- trimws(strsplit(best.form, "\\~|\\+")[[1]])[-1]
-pred <- gsub("\\(1 \\| |\\)", "", pred)
-## pred <- pred[-grep("geno:year", pred)]
-bestmod.lm <- lm(paste0(response, " ~ 1 + ", paste(pred, collapse=" + ")),
-                 data=dat.noNA,
-                 na.action=na.fail)
-```
-
-Refit modeling genotypic values as fixed effects to get their EMMs:
-```{r}
-bestmod.emm <- emmeans(bestmod.lm, "geno")
-```
-
 ## Correct spatial heterogeneity
 
 Kriging using controls:
 ```{r kriging}
-dat[[paste0(response, ".corr")]] <- NA
-for(year in levels(dat$year)){
-  ## set up objects for control and panel data
-  dat.ctl <- droplevels(dat[dat$control & dat$year == year,
-                            c("geno","block","rank","location",
-                              "year","covar1","fact1",
-                              response)])
-  dat.ctl.noNA <- na.omit(dat.ctl)
-  dat.ctl.noNA.sp <- SpatialPointsDataFrame(
-      coords=dat.ctl.noNA[, c("rank","location")],
-      data=dat.ctl.noNA[, c("block","covar1","fact1",response)])
-  dat.panel <- droplevels(dat[! dat$control & dat$year == year,
-                              c("geno","block","rank","location",
-                                "year","covar1","fact1",
-                                response)])
-  colnames(dat.panel)[colnames(dat.panel) == response] <-
-    paste0(response, ".raw")
-  dat.panel.sp <- SpatialPointsDataFrame(
-      coords=dat.panel[, c("rank","location")],
-      data=dat.panel[, c("block","covar1","fact1",paste0(response,".raw"))])
-
-  ## compute experimental variogram on control data
-  (best.form <- Reduce(paste, deparse(formula(bestmod.ml))))
-  pred <- trimws(strsplit(best.form, "\\~|\\+")[[1]])[-1]
-  pred <- gsub("\\(1 \\| |\\)", "", pred)
-  pred <- pred[-grep("geno", pred)] # there is a single geno, the control
-  pred <- pred[-grep("year", pred)] # there is a single year
-  (form <- paste0(response, " ~ 1 + ", paste(pred, collapse=" + ")))
-  vg.c <- variogram(object=formula(form),
-                    locations=~ rank + location,
-                    data=dat.ctl.noNA,
-                    cloud=TRUE, cressie=TRUE)
-  print(plot(vg.c, main=paste0(response, ": variogram cloud of controls in ",
-                               year)))
-  vg <- variogram(object=formula(form),
-                  locations=~ rank + location,
-                  data=dat.ctl.noNA,
-                  cloud=FALSE, cressie=TRUE)
-  print(plot(vg, main=paste0(response, ": variogram of controls in ", year)))
-
-  ## fit variogram model on control data
-  vg.fit <- fit.variogram(object=vg,
-                          model=vgm(model="Ste", nugget=NA),
-                          fit.kappa=seq(0.3, 0.6, 0.05))
-  print(vg.fit)
-  print(plot(vg, vg.fit, main="", col="blue",
-             key=list(space="top", lines=list(col="blue"),
-                      text=list(paste0(response,
-                                       ": fit of Matérn model on controls in ",
-                                       year)))))
-
-  ## assess prediction accuracy by cross-validation
-  cv.k <- krige.cv(formula=formula(form),
-                   locations=dat.ctl.noNA.sp,
-                   model=vg.fit,
-                   nfold=5,#nrow(dat.ctl.noNA.sp),
-                   verbose=FALSE)
-  print(summary(cv.k))
-  cv.k.dat <- as.data.frame(cv.k)
-  print(c("RMSE"=sqrt(mean(cv.k.dat$residual^2)),
-          "bias"=mean(cv.k.dat$residual),
-          "MSDR"=mean(cv.k.dat$residual^2 / cv.k.dat$var1.var),
-          "corObsPred"=cor(cv.k.dat$observed, cv.k.dat$observed - cv.k.dat$residual),
-          "corObsRes"=cor(cv.k.dat$observed - cv.k.dat$residual, cv.k.dat$residual)))
-  print(spplot(obj=cv.k, zcol="residual", scales=list(draw=TRUE),
-               xlab="ranks", ylab="locations",
-               main=paste0("Cross-validation residuals of predicted values",
-                           " of the control in ", year),
-               key.space="right", aspect="fill"))
-  print(bubble(obj=cv.k, zcol="residual", scales=list(draw=TRUE),
-               xlab="ranks", ylab="locations",
-               main=paste0("Cross-validation residuals of predicted values",
-                           " of the control in ", year),
-               key.space="right", aspect="fill"))
-
-  ## prediction (kriging) of control data on panel coords
-  k <- krige(formula=formula(form),
-             locations=dat.ctl.noNA.sp,
-             newdata=dat.panel.sp,
-             model=vg.fit)
-  print(summary(k))
-  print(spplot(obj=k, zcol="var1.pred", scales=list(draw=TRUE),
-               xlab="ranks", ylab="locations",
-               main=paste0("Predicted values of the control in ", year),
-               key.space="right", aspect="fill"))
-
-  ## correct panel data with the predicted values of the control
-  k.coords <- coordinates(k)
-  k.dat <- as.data.frame(k)
-  for(i in 1:nrow(k)){
-    rank <- k.coords[i, "rank"]
-    loc <- k.coords[i, "location"]
-    dat.idx <- which(dat$year == year & dat$rank == rank &
-                     dat$location == loc)
-    stopifnot(length(dat.idx) == 1)
-    dat[dat.idx, paste0(response, ".corr")] <- dat[dat.idx, response] -
-      k.dat[i, "var1.pred"]
-  }
+fix.preds.corr.spat <- all.preds[-grep("\\(*\\|*\\)|year", all.preds)]
+cor.spat.het <- FALSE
+if(cor.spat.het){
+  dat <- correctSpatialHeterogeneity(dat=dat,
+                                     response=response,
+                                     fix.eff=fix.preds.corr.spat,
+                                     verbose=2)
+  dat.noNA <- droplevels(na.exclude(dat))
 }
 ```
 
-TODO: refit bestmod with data corrected for spatial heterogeneity
+Re-fit the best model using the data corrected for spatial heterogeneity:
+```{r bestmod_refit_spatial_correct}
+if(cor.spat.het){
+  print(best.form <- gsub(response, paste0(response, ".csh"), best.form))
+  response <- paste0(response, ".csh")
+  bestmod.ml <- lmer(formula=best.form,
+                     data=dat.noNA,
+                     na.action=na.fail,
+                     REML=FALSE)
+  bestmod.reml <- lmer(formula=formula(bestmod.ml),
+                       data=dat.noNA,
+                       na.action=na.fail,
+                       REML=TRUE)
+  bestmod.reml.test <- lmerTest::lmer(formula=formula(bestmod.reml),
+                                      data=dat.noNA,
+                                      na.action=na.fail, REML=TRUE)
+  allmod.sel <- lmerTest::step(bestmod.reml.test, reduce.fixed=FALSE)
+  bestmod.reml.test.final <- lmerTest::get_model(allmod.sel)
+}
+```
+
+## Best model fit to get genotypic BLUEs and EMMs
+
+Re-fit, modeling genotypic values as fixed effects to get their BLUEs:
+```{r}
+all.preds.as.fix <- gsub("\\(1 \\| |\\)", "", all.preds)
+## all.preds.as.fix <- all.preds.as.fix[-grep("geno:year", all.preds.as.fix)]
+best.form.as.fix <- paste0(response, " ~ 1 + ",
+                           paste(all.preds.as.fix, collapse=" + "))
+bestmod.lm <- lm(formula=best.form.as.fix,
+                 data=dat.noNA,
+                 na.action=na.fail)
+```
+
+Re-fit, modeling genotypic values as fixed effects to get their EMMs:
+```{r}
+bestmod.emm <- emmeans(bestmod.lm, "geno")
+```
+
 
 ## Assumption checking
 
@@ -1214,7 +1295,7 @@ splom(prof, conf=c(0.8, 0.95), which=1:3,
 
 #### Bootstrapping
 
-```{r bestmod_confint_boot, eval=FALSE}
+```{r bestmod_confint_boot, eval=TRUE}
 mySumm <- function(.){
   tmp <- c(ef=fixef(.),
            sd.err=sigma(.),
@@ -1222,9 +1303,9 @@ mySumm <- function(.){
   tmp <- c(tmp,
            tmp["sd.geno"]^2 /
            (tmp["sd.geno"]^2 +
-            (tmp["sd.geno:year"]^2 / mean.nb.reps.geno.year) +
-            (tmp["sd.err"]^2 / (mean.nb.reps.geno.year *
-                                mean.nb.reps.geno.block))))
+            (tmp["sd.geno:year"]^2 / mean.nb.years) +
+            (tmp["sd.err"]^2 / (mean.nb.years *
+                                mean.nb.reps.per.year))))
   names(tmp)[length(tmp)] <- "H2.means"
   tmp <- c(tmp,
            tmp["sd.geno"] / abs(tmp["ef.(Intercept)"]))
@@ -1232,20 +1313,20 @@ mySumm <- function(.){
   return(tmp)
 }
 mySumm(bestmod.ml)
-system.time(
-      fit.boot <- bootMer(x=bestmod.ml, FUN=mySumm,
-                          nsim=1*10^3, seed=1859,
-                          use.u=FALSE, type="parametric",
-                          parallel="multicore", ncpus=nb.cores))
-fit.boot
-for(i in seq_along(fit.boot$t0)){
-  message(names(fit.boot$t0)[i])
-  plot(fit.boot, index=i,
-       main=paste0(response, ": ", names(fit.boot$t0)[i]))
-  print(boot.ci(fit.boot, conf=c(0.8, 0.95),
-                type=c("norm", "basic", "perc"),
-                index=i))
-}
+## system.time(
+##       fit.boot <- bootMer(x=bestmod.ml, FUN=mySumm,
+##                           nsim=1*10^3, seed=1859,
+##                           use.u=FALSE, type="parametric",
+##                           parallel="multicore", ncpus=nb.cores))
+## fit.boot
+## for(i in seq_along(fit.boot$t0)){
+##   message(names(fit.boot$t0)[i])
+##   plot(fit.boot, index=i,
+##        main=paste0(response, ": ", names(fit.boot$t0)[i]))
+##   print(boot.ci(fit.boot, conf=c(0.8, 0.95),
+##                 type=c("norm", "basic", "perc"),
+##                 index=i))
+## }
 ```
 
 ### Hypothesis testing

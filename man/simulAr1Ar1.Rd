@@ -4,7 +4,8 @@
 \alias{simulAr1Ar1}
 \title{AR1xAR1 simulation}
 \usage{
-simulAr1Ar1(n = 1, R, C, sigma2, rho.r = 0, rho.c = 0)
+simulAr1Ar1(n = 1, R = 2, C = 2, rho.r = 0, rho.c = 0,
+  sigma.X.2 = 1, sigma.e.2 = 1)
 }
 \arguments{
 \item{n}{number of samples}
@@ -13,17 +14,94 @@ simulAr1Ar1(n = 1, R, C, sigma2, rho.r = 0, rho.c = 0)
 
 \item{C}{number of columns}
 
-\item{sigma2}{variance of the errors}
-
 \item{rho.r}{correlation between rows}
 
 \item{rho.c}{correlation between columns}
+
+\item{sigma.X.2}{variance of X (see Martin, 1996, page 400)}
+
+\item{sigma.e.2}{variance of epsilons (see Martin, 1996, page 400)}
 }
 \value{
-array
+array which first dimension is R, second is C and third is n
 }
 \description{
 Simulate random samples from a separable AR1xAR1 process as in \href{https://dx.doi.org/10.1016/0378-3758(95)00066-6}{Martin (1996)}.
+}
+\examples{
+\dontrun{## strong correlation only between rows
+set.seed(1234)
+samples <- simulAr1Ar1(n=100, R=40, C=45, rho.r=0.8, rho.c=0)
+dim(samples)
+stats <- list()
+stats$cor.btw.rows <- c(apply(samples, 3, function(mat){
+  apply(mat, 2, function(row.i){ # per column
+    acf(row.i, lag.max=1, type="correlation", plot=FALSE)$acf[2]
+})}))
+stats$cor.btw.cols <- c(apply(samples, 3, function(mat){
+  apply(mat, 1, function(col.j){ # per row
+    acf(col.j, lag.max=1, type="correlation", plot=FALSE)$acf[2]
+})}))
+sapply(stats, summary)
+
+## strong correlation only between columns
+set.seed(1234)
+samples <- simulAr1Ar1(n=100, R=40, C=45, rho.r=0, rho.c=0.8)
+stats <- list()
+stats$cor.btw.rows <- c(apply(samples, 3, function(mat){
+  apply(mat, 2, function(row.i){ # per column
+    acf(row.i, lag.max=1, type="correlation", plot=FALSE)$acf[2]
+})}))
+stats$cor.btw.cols <- c(apply(samples, 3, function(mat){
+  apply(mat, 1, function(col.j){ # per row
+    acf(col.j, lag.max=1, type="correlation", plot=FALSE)$acf[2]
+})}))
+sapply(stats, summary)
+
+## strong correlation between rows and between columns
+set.seed(1234)
+samples <- simulAr1Ar1(n=100, R=40, C=45, rho.r=0.8, rho.c=0.8)
+stats <- list()
+stats$cor.btw.rows <- c(apply(samples, 3, function(mat){
+  apply(mat, 2, function(row.i){ # per column
+    acf(row.i, lag.max=1, type="correlation", plot=FALSE)$acf[2]
+})}))
+stats$cor.btw.cols <- c(apply(samples, 3, function(mat){
+  apply(mat, 1, function(col.j){ # per row
+    acf(col.j, lag.max=1, type="correlation", plot=FALSE)$acf[2]
+})}))
+sapply(stats, summary)
+
+## low correlation between rows and strong correlation between columns
+set.seed(1234)
+samples <- simulAr1Ar1(n=100, R=40, C=45, rho.r=0.2, rho.c=0.8)
+stats <- list()
+stats$cor.btw.rows <- c(apply(samples, 3, function(mat){
+  apply(mat, 2, function(row.i){ # per column
+    acf(row.i, lag.max=1, type="correlation", plot=FALSE)$acf[2]
+})}))
+stats$cor.btw.cols <- c(apply(samples, 3, function(mat){
+  apply(mat, 1, function(col.j){ # per row
+    acf(col.j, lag.max=1, type="correlation", plot=FALSE)$acf[2]
+})}))
+sapply(stats, summary)
+
+## low correlation between rows and strong correlation between columns
+## AND high error variance
+set.seed(1234)
+samples <- simulAr1Ar1(n=100, R=40, C=45, rho.r=0.2, rho.c=0.8,
+                       sigma.X.2=1, sigma.e.2=200)
+stats <- list()
+stats$cor.btw.rows <- c(apply(samples, 3, function(mat){
+  apply(mat, 2, function(row.i){ # per column
+    acf(row.i, lag.max=1, type="correlation", plot=FALSE)$acf[2]
+})}))
+stats$cor.btw.cols <- c(apply(samples, 3, function(mat){
+  apply(mat, 1, function(col.j){ # per row
+    acf(col.j, lag.max=1, type="correlation", plot=FALSE)$acf[2]
+})}))
+sapply(stats, summary)
+}
 }
 \author{
 Timothee Flutre

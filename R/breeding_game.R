@@ -1,67 +1,6 @@
 ## Contains functions useful for the "breeding game"
 ## https://github.com/timflutre/PlantSelBreedGame
 
-##' Set up breeding game
-##'
-##' Set up the directories and names for the breeding game.
-##' Already-existing directories are not re-created.
-##' @param root.dir path to the root directory
-##' @param shared.dir path to the shared directory (e.g. via Dropbox; root.dir if NULL)
-##' @param create.admin if TRUE, a game master named "admin" will be created (by default, only a "tester" named "test" is created)
-##' @param nb.breeders number of breeders; by default, the "admin" (which will have the "game master" status in "setup.Rmd") and "test" (which will have the "tester" status) breeders will be created, and other regular players can be created via the interface
-##' @return list
-##' @author Timothee Flutre
-##' @export
-setUpBreedingGame <- function(root.dir, shared.dir=NULL,
-                              create.admin=FALSE,
-                              nb.breeders=0){
-  stopifnot(is.character(root.dir),
-            dir.exists(root.dir))
-  if(! is.null(shared.dir))
-    stopifnot(is.character(shared.dir),
-              dir.exists(shared.dir))
-
-  out <- list(root.dir=root.dir)
-
-  truth.dir <- paste0(root.dir, "/", "truth")
-  if(! dir.exists(truth.dir))
-    dir.create(truth.dir)
-  out$truth.dir <- truth.dir
-
-  if(is.null(shared.dir))
-    shared.dir <- paste0(root.dir, "/", "shared")
-  if(! dir.exists(shared.dir))
-    dir.create(shared.dir)
-  out$shared.dir <- shared.dir
-
-  init.dir <- paste0(shared.dir, "/", "initial_data")
-  if(! dir.exists(init.dir))
-    dir.create(init.dir)
-  out$init.dir <- init.dir
-
-  breeders <- c("test")
-  if(create.admin)
-    breeders <- c(breeders, "admin")
-  if(nb.breeders > 0)
-    breeders <- c(breeders, paste0("breeder", 1:nb.breeders))
-  breeder.dirs <- c()
-  for(breeder in breeders){
-    truth.breeder.dir <- paste0(truth.dir, "/", breeder)
-    if(! dir.exists(truth.breeder.dir))
-      dir.create(truth.breeder.dir)
-    breeder.dirs[[breeder]] <- paste0(shared.dir, "/", breeder)
-    if(! dir.exists(breeder.dirs[breeder]))
-      dir.create(breeder.dirs[breeder])
-  }
-  out$breeders <- breeders
-  out$breeder.dirs <- breeder.dirs
-
-  dbname <- paste0(root.dir, "/breeding-game.sqlite")
-  out$dbname <- dbname
-
-  return(out)
-}
-
 ##' Get the breeding game setup
 ##'
 ##' Retrieve the paths to the directories used for the breeding game.
