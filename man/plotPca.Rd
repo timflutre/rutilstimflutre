@@ -6,7 +6,7 @@
 \usage{
 plotPca(rotation, prop.vars, idx.x = 1, idx.y = 2, plot = "points",
   main = "PCA", cols = rep("black", nrow(rotation)), pchs = rep(20,
-  nrow(rotation)))
+  nrow(rotation)), ...)
 }
 \arguments{
 \item{rotation}{matrix of rotated data which columns corresponds to "principal components" (the first column will be plotted along the x-axis against the second column along the y-axis)}
@@ -24,6 +24,8 @@ plotPca(rotation, prop.vars, idx.x = 1, idx.y = 2, plot = "points",
 \item{cols}{N-vector of colors}
 
 \item{pchs}{N-vector of point symbols (used if \code{plot="points"})}
+
+\item{...}{arguments to be passed to \code{\link[graphics]{plot}}, such as "xlim", ylim", etc}
 }
 \value{
 nothing

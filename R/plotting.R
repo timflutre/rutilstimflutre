@@ -346,6 +346,7 @@ imageWithScale <- function(z, main=NULL, idx.rownames=NULL, idx.colnames=NULL,
 ##' @param main main title of the plot
 ##' @param cols N-vector of colors
 ##' @param pchs N-vector of point symbols (used if \code{plot="points"})
+##' @param ... arguments to be passed to \code{\link[graphics]{plot}}, such as "xlim", ylim", etc
 ##' @return nothing
 ##' @author Timothee Flutre
 ##' @seealso \code{\link{pca}}
@@ -354,7 +355,8 @@ plotPca <- function(rotation, prop.vars,
                     idx.x=1, idx.y=2,
                     plot="points", main="PCA",
                     cols=rep("black", nrow(rotation)),
-                    pchs=rep(20, nrow(rotation))){
+                    pchs=rep(20, nrow(rotation)),
+                    ...){
   stopifnot(is.matrix(rotation),
             is.vector(prop.vars),
             is.numeric(prop.vars),
@@ -374,7 +376,8 @@ plotPca <- function(rotation, prop.vars,
                              format(100 * prop.vars[idx.x], digits=3), "%)"),
                  ylab=paste0("PC", idx.y, " (",
                              format(100 * prop.vars[idx.y], digits=3), "%)"),
-                 main=main, type="n")
+                 main=main, type="n",
+                 ...)
   graphics::abline(h=0, lty=2)
   graphics::abline(v=0, lty=2)
 
