@@ -8575,6 +8575,7 @@ calcL10ApproximateBayesFactorWen <- function(Y, Xg, Xc,
 ##' @param xlab label of the x-axis
 ##' @param maf.xlab if TRUE, the minor allele frequency will appear in the label of the x-axis
 ##' @param ylab label of the y-axis
+##' @param main.title main title
 ##' @param show.points if TRUE, individual points will be shown, with \code{\link{jitter}}, especially useful if some genotypic classes have very low counts
 ##' @param notch if TRUE, a notch is drawn in each side of the boxes (see \code{\link[graphics]{boxplot}})
 ##' @param suppress.warnings if TRUE, \code{\link{suppressWarnings}} is used for \code{\link[graphics]{boxplot}}
@@ -8584,6 +8585,10 @@ calcL10ApproximateBayesFactorWen <- function(Y, Xg, Xc,
 ##' @param regline.lty style of the regression line
 ##' @param regline.legend legend of the regression line
 ##' @param alleles vector of characters of length 2, the second element being the allele which copies are counted in X
+##' @param title.line line at which the main title should appear
+##' @param counts.xticks if TRUE, the sample size of each genotypic class will be added to the x-axis ticks
+##' @param mtext.y.line line at which the y-axis label should appear
+##' @param mtext.y.cex cex of the y-axis label
 ##' @param verbose verbosity level (0/1)
 ##' @param ... other arguments to \code{\link[graphics]{boxplot}}
 ##' @return invisible list with \code{y} and \code{x} used to make the boxplot (same order, with no missing data)
@@ -8628,12 +8633,17 @@ calcL10ApproximateBayesFactorWen <- function(Y, Xg, Xc,
 boxplotCandidateQtl <- function(y, X, snp, simplify.imputed=TRUE,
                                 xlab="SNP genotypes", maf.xlab=TRUE,
                                 ylab="Phenotypes",
+                                main.title=NULL,
                                 show.points=FALSE,
                                 notch=TRUE, suppress.warnings=TRUE,
                                 regline.intercept=NA, regline.slope=NA,
                                 regline.col="red", regline.lty=1,
                                 regline.legend=NULL,
                                 alleles=NULL,
+                                title.line=NA,
+                                counts.xticks=FALSE,
+                                mtext.y.line=0,
+                                mtext.y.cex=1,
                                 verbose=1, ...){
   if(! is.vector(y)){
     if(is.matrix(y)){
@@ -8679,8 +8689,8 @@ boxplotCandidateQtl <- function(y, X, snp, simplify.imputed=TRUE,
   af <- mean(x) / 2
   maf <- ifelse(af <= 0.5, af, 1 - af)
   if(verbose > 0){
-    msg <- paste0("marker '", snp, "'",
-                  "\ngenotypic classes:")
+    msg <- paste0("marker '", snp, "'")
+    msg <- paste0(msg, "\ngenotypic classes:")
     for(i in seq_along(counts))
       msg <- paste0(msg, " ", names(counts)[i], "=", counts[i])
     msg <- paste0(msg, " (total=", sum(counts), ")")
@@ -8697,29 +8707,44 @@ boxplotCandidateQtl <- function(y, X, snp, simplify.imputed=TRUE,
   ## make boxplot
   if(maf.xlab)
     xlab <- paste0(xlab, " (MAF=", format(maf, digits=3), ")")
-  x.new <- factor(x, levels=c(0, 1, 2))
-  x.all <- NULL
+  x <- data.frame(dose.num=x,
+                  row.names=names(x))
+  x$dose.fact <- factor(as.character(x$dose.num), levels=c(0, 1, 2))
+  x$final <- x$dose.fact
+  x$all <- as.character(x$dose.num)
   if(! is.null(alleles)){
-    x.all <- as.character(x)
     all.hom.0 <- paste(rep(alleles[1], 2), collapse="")
     all.het <- paste(c(alleles[1], alleles[2]), collapse="")
     all.hom.2 <- paste(rep(alleles[2], 2), collapse="")
-    x.all[x == 0] <- all.hom.0
-    x.all[x == 1] <- all.het
-    x.all[x == 2] <- all.hom.2
-    x.new <- factor(x.all, levels=c(all.hom.0, all.het, all.hom.2))
+    x$all[x$dose.num == 0] <- all.hom.0
+    x$all[x$dose.num == 1] <- all.het
+    x$all[x$dose.num == 2] <- all.hom.2
+    x$all <- factor(x$all, levels=c(all.hom.0, all.het, all.hom.2))
+    x$final <- x$all
+  }
+  if(counts.xticks){
+    x$final <- as.character(x$final)
+    counts <- table(x$final)
+    for(i in seq_along(counts)){
+      idx <- x$final == names(counts)[i]
+      x$final[idx] <- paste0(x$final[idx], " (", counts[i], ")")
+    }
+    x$final <- as.factor(x$final)
   }
   if(suppress.warnings){
     bp <- suppressWarnings(
-        graphics::boxplot(y ~ x.new, las=1, varwidth=TRUE, notch=notch,
-                          xlab=xlab, ylab=ylab, at=c(0,1,2), ...))
+        graphics::boxplot(y ~ x$final, las=1, varwidth=TRUE, notch=notch,
+                          xlab=xlab, ylab="", at=c(0,1,2), ...))
   } else
-    bp <- graphics::boxplot(y ~ x.new, las=1, varwidth=TRUE, notch=notch,
-                            xlab=xlab, ylab=ylab, at=c(0,1,2), ...)
+    bp <- graphics::boxplot(y ~ x$final, las=1, varwidth=TRUE, notch=notch,
+                            xlab=xlab, ylab="", at=c(0,1,2), ...)
+  graphics::mtext(text=ylab, side=2, line=mtext.y.line, cex=mtext.y.cex)
+  if(! is.null(main.title))
+    graphics::title(main=main.title, line=title.line)
 
   if(show.points){
-    for(ct in sort(unique(x))){
-      tmp <- y[x == ct]
+    for(ct in sort(unique(x$dose.num))){
+      tmp <- y[x$dose.num == ct]
       graphics::points(x=jitter(rep(ct, length(tmp))), y=tmp)
     }
   }
@@ -8736,7 +8761,7 @@ boxplotCandidateQtl <- function(y, X, snp, simplify.imputed=TRUE,
     }
   }
 
-  invisible(list(y=y, x=x, x.all=x.all))
+  invisible(list(y=y, x=x))
 }
 
 ##' Returns the genetic map contained in a BioMercator TXT file.

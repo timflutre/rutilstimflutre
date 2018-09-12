@@ -6,10 +6,11 @@
 \usage{
 boxplotCandidateQtl(y, X, snp, simplify.imputed = TRUE,
   xlab = "SNP genotypes", maf.xlab = TRUE, ylab = "Phenotypes",
-  show.points = FALSE, notch = TRUE, suppress.warnings = TRUE,
-  regline.intercept = NA, regline.slope = NA, regline.col = "red",
-  regline.lty = 1, regline.legend = NULL, alleles = NULL, verbose = 1,
-  ...)
+  main.title = NULL, show.points = FALSE, notch = TRUE,
+  suppress.warnings = TRUE, regline.intercept = NA, regline.slope = NA,
+  regline.col = "red", regline.lty = 1, regline.legend = NULL,
+  alleles = NULL, title.line = NA, counts.xticks = FALSE,
+  mtext.y.line = 0, mtext.y.cex = 1, verbose = 1, ...)
 }
 \arguments{
 \item{y}{vector of phenotypes with genotype names}
@@ -25,6 +26,8 @@ boxplotCandidateQtl(y, X, snp, simplify.imputed = TRUE,
 \item{maf.xlab}{if TRUE, the minor allele frequency will appear in the label of the x-axis}
 
 \item{ylab}{label of the y-axis}
+
+\item{main.title}{main title}
 
 \item{show.points}{if TRUE, individual points will be shown, with \code{\link{jitter}}, especially useful if some genotypic classes have very low counts}
 
@@ -43,6 +46,14 @@ boxplotCandidateQtl(y, X, snp, simplify.imputed = TRUE,
 \item{regline.legend}{legend of the regression line}
 
 \item{alleles}{vector of characters of length 2, the second element being the allele which copies are counted in X}
+
+\item{title.line}{line at which the main title should appear}
+
+\item{counts.xticks}{if TRUE, the sample size of each genotypic class will be added to the x-axis ticks}
+
+\item{mtext.y.line}{line at which the y-axis label should appear}
+
+\item{mtext.y.cex}{cex of the y-axis label}
 
 \item{verbose}{verbosity level (0/1)}
 
