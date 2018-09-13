@@ -112,6 +112,35 @@ msd <- function(error){
   mean(error)
 }
 
+##' Pseudo R squared
+##'
+##' Compute a \href{https://stats.idre.ucla.edu/other/mult-pkg/faq/general/faq-what-are-pseudo-r-squareds/}{pseudo R squared}.
+##' @param dat N-vector of data
+##' @param res N-vector of residuals
+##' @param pred N-vector of predictions
+##' @param method method
+##' @return pseudo R squared
+##' @author Timothee Flutre
+##' @export
+pseudoR2 <- function(dat, res, pred, method="Efron"){
+  stopifnot(length(res) == length(dat),
+            length(pred) == length(dat))
+  if(! method %in% c("Efron")){
+    msg <- "method should be 'Efron'"
+    warning(msg)
+  }
+
+  pseudo.R2 <- NA
+
+  if(method == "Efron"){
+    SS.residuals <- sum(res^2)
+    SS.total <- sum((dat - mean(dat))^2)
+    pseudo.R2 <- 1 - (SS.residuals^2 / SS.total^2)
+  }
+
+  return(pseudo.R2)
+}
+
 ##' Beta distribution
 ##'
 ##' Return the value of both parameters for the \href{https://en.wikipedia.org/wiki/Beta_distribution}{Beta distribution} given its mean and variance.

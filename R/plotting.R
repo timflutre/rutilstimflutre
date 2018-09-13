@@ -118,6 +118,78 @@ regplot <- function(x, y, reg="lm", col=c(lm="red"), show.cor=TRUE,
   invisible(fit)
 }
 
+##' Plot residuals between years
+##'
+##' Plot residuals between years to check their temporal independence.
+##' Especially useful as a diagnostic of model fit for statistical analysis of perennial plants.
+##' @param df data frame with residuals
+##' @param colname.res name of the column containing the residuals
+##' @param years vector with two years as character
+##' @param blocks if not NULL, vector of two blocks (e.g. \code{c("A","A")} or \code{c("A","B")})
+##' @param lgd.pos position of the legend
+##' @param ... arguments passed on to \code{\link[graphics]{plot}}, such as \code{main}
+##' @return invisible data frame of the data used to make the plot
+##' @author Timothee Flutre
+##' @export
+plotResidualsBtwYears <- function(df, colname.res, years, blocks=NULL,
+                                  las=1, lgd.pos="topright", ...){
+  stopifnot(is.data.frame(df),
+            all(c(colname.res, "year") %in% colnames(df)))
+  if(! is.null(blocks))
+    stopifnot("block" %in% colnames(df))
+
+  if(is.null(blocks)){
+    idx.x <- which(df$year == years[1])
+    idx.y <- which(df$year == years[2])
+  } else{
+    idx.x <- which(df$year == years[1] & df$block == blocks[1])
+    idx.y <- which(df$year == years[2] & df$block == blocks[2])
+  }
+  tmp <- data.frame(x=df[idx.x, colname.res],
+                    y=df[idx.y, colname.res])
+  tmp <- tmp[stats::complete.cases(tmp),]
+
+  if(is.null(blocks)){
+    xlab <- years[1]
+    ylab <- years[2]
+  } else{
+    xlab <- paste(blocks[1], years[1])
+    ylab <- paste(blocks[2], years[2])
+  }
+  l <- max(abs(c(tmp$x, tmp$y)))
+  graphics::plot(formula=y ~ x, data=tmp, las=las,
+                 xlim=c(-l,l), ylim=c(-l,l),
+                 xlab=xlab, ylab=ylab, ...)
+  graphics::abline(v=0, lty=2)
+  graphics::abline(h=0, lty=2)
+
+  fit.lm <- stats::lm(y ~ x, data=tmp)
+  R2 <- summary(fit.lm)$r.squared
+  tmp$fitted.lm <- stats::fitted(fit.lm)
+  graphics::lines(x=tmp$x[order(tmp$x)],
+                  y=tmp$fitted.lm[order(tmp$x)],
+                  col="green", lty=1, lwd=2)
+
+  fit.loess <- stats::loess(y ~ x, data=tmp)
+  pseudoR2 <- pseudoR2(dat=tmp$y, res=stats::residuals(fit.loess),
+                       pred=stats::predict(fit.loess), method="Efron")
+  tmp$fitted.loess <- stats::fitted(fit.loess)
+  graphics::lines(x=tmp$x[order(tmp$x)],
+                  y=tmp$fitted.loess[order(tmp$x)],
+                  col="red", lty=1, lwd=2)
+
+  lgd <- c(bquote("lm, " ~ R^2 ==
+                    .(round(R2, 2))),
+           bquote("loess, pseudo" ~ R^2 ==
+                    .(round(pseudoR2, 2))))
+  graphics::legend(lgd.pos,
+                   legend=sapply(lgd, as.expression),
+                   col=c("green", "red"),
+                   lty=1, lwd=2, bty="n")
+
+  invisible(tmp)
+}
+
 ##' Plot a Hinton diagram
 ##'
 ##' Modified from http://www.cs.princeton.edu/~mimno/factor-analysis.R
