@@ -16,6 +16,8 @@ plotResidualsBtwYears(df, colname.res, years, blocks = NULL, las = 1,
 
 \item{blocks}{if not NULL, vector of two blocks (e.g. \code{c("A","A")} or \code{c("A","B")})}
 
+\item{las}{style of axis labels, see \code{\link[graphics]{par}}}
+
 \item{lgd.pos}{position of the legend}
 
 \item{...}{arguments passed on to \code{\link[graphics]{plot}}, such as \code{main}}

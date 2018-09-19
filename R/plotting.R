@@ -126,6 +126,7 @@ regplot <- function(x, y, reg="lm", col=c(lm="red"), show.cor=TRUE,
 ##' @param colname.res name of the column containing the residuals
 ##' @param years vector with two years as character
 ##' @param blocks if not NULL, vector of two blocks (e.g. \code{c("A","A")} or \code{c("A","B")})
+##' @param las style of axis labels, see \code{\link[graphics]{par}}
 ##' @param lgd.pos position of the legend
 ##' @param ... arguments passed on to \code{\link[graphics]{plot}}, such as \code{main}
 ##' @return invisible data frame of the data used to make the plot
@@ -163,6 +164,8 @@ plotResidualsBtwYears <- function(df, colname.res, years, blocks=NULL,
   graphics::abline(v=0, lty=2)
   graphics::abline(h=0, lty=2)
 
+  cor.p <- stats::cor(x=tmp$x, y=tmp$y, method="pearson")
+
   fit.lm <- stats::lm(y ~ x, data=tmp)
   R2 <- summary(fit.lm)$r.squared
   tmp$fitted.lm <- stats::fitted(fit.lm)
@@ -178,14 +181,17 @@ plotResidualsBtwYears <- function(df, colname.res, years, blocks=NULL,
                   y=tmp$fitted.loess[order(tmp$x)],
                   col="red", lty=1, lwd=2)
 
-  lgd <- c(bquote("lm, " ~ R^2 ==
+  lgd <- c(bquote("Pearson corr." == .(round(cor.p, 2))),
+           bquote("lm, " ~ R^2 ==
                     .(round(R2, 2))),
            bquote("loess, pseudo" ~ R^2 ==
                     .(round(pseudoR2, 2))))
   graphics::legend(lgd.pos,
                    legend=sapply(lgd, as.expression),
-                   col=c("green", "red"),
-                   lty=1, lwd=2, bty="n")
+                   col=c("0", "green", "red"),
+                   lty=c(0, 1, 1),
+                   lwd=c(0, 2, 2),
+                   bty="n")
 
   invisible(tmp)
 }
