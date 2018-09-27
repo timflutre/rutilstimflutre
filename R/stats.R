@@ -562,6 +562,55 @@ rmatnorm <- function(n=1, M, U, V, pivot=c(U="auto", V="auto")){
                dim=c(nrow(M), ncol(M), n)))
 }
 
+##' Tridiagonal matrix
+##'
+##' Make a tridiagonal matrix.
+##' @param main vector for the main diagonal
+##' @param upper vector for the upper diagonal
+##' @param lower vector for the lower diagonal
+##' @param as.covar if TRUE, the matrix is interpreted as a variance-covariance matrix, with \code{main} giving the variances, and \code{upper} giving the correlations (the covariance will be deduced)
+##' @return matrix
+##' @author Jthorpe (https://stackoverflow.com/a/28974577/597069)
+##' @examples
+##' \dontrun{main <- 3:6
+##' upper <- 1:3
+##' lower <- 2:4
+##' tridiag(main, upper, lower)
+##'
+##' main <- sample(x=1:2, size=4, replace=TRUE)
+##' upper <- lower <- rep(-0.4, 3)
+##' tridiag(main, upper, lower)
+##' }
+##' @export
+tridiag <- function(main, upper, lower, as.covar=FALSE){
+  stopifnot(is.vector(main),
+            is.vector(upper),
+            length(upper) == length(main) - 1)
+  if(! as.covar)
+    stopifnot(is.vector(lower),
+              length(lower) == length(main) - 1)
+
+  n <- length(main)
+  out <- matrix(data=0, nrow=n, ncol=n)
+
+  diag(out) <- main
+
+  idx <- seq.int(length(upper))
+  out[cbind(idx, idx + 1)] <- upper
+
+  if(! as.covar){
+    out[cbind(idx + 1, idx)] <- lower
+  } else{
+    ## cov.12 = cor.12 * sqrt(var.1 * var.2)
+    out[1, 2] <- upper[1] * sqrt(main[1] * main[2])
+    for(i in 2:(n-1))
+      out[i, i+1] <- upper[i] * sqrt(main[i] * main[i+1])
+    out[lower.tri(out)] = t(out)[lower.tri(out)]
+  }
+
+  return(out)
+}
+
 ##' AR(1)
 ##'
 ##' Return a first-order auto-regressive correlation matrix, as noted in equation 4 of \href{http://dx.doi.org/10.1139/x02-111}{Dutkowski et al (2002)}.
