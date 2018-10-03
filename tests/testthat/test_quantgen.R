@@ -1954,12 +1954,14 @@ test_that("estimLd_cor-r2", {
 test_that("distConsecutiveSnps", {
   P <- 5 # SNPs
   snp.coords <- data.frame(chr=c(rep("chr1", P-2), rep("chr2", 2)),
-                           pos=c(2, 17, 28, 5, 100),
+                           pos=c(2, 28, 17, 5, 100),
                            stringsAsFactors=FALSE)
   rownames(snp.coords) <- paste0("snp", 1:P)
 
-  expected <- list(chr1=setNames(c(14, 10), c("snp2-snp1", "snp3-snp2")),
-                   chr2=setNames(c(94), c("snp5-snp4")))
+  expected <- list(chr1=setNames(c(14, 10),
+                                 c("snp3-snp1", "snp2-snp3")),
+                   chr2=setNames(c(94),
+                                 c("snp5-snp4")))
 
   observed <- distConsecutiveSnps(snp.coords=snp.coords)
 

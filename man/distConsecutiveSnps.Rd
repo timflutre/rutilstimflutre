@@ -19,6 +19,18 @@ list with one component per chromosome
 \description{
 For each pair of consecutive SNPs, return the number of "blocks" (i.e. nucleotides) between both SNPs (to be coherent with \code{\link{distSnpPairs}}).
 }
+\examples{
+\dontrun{## make fake data
+snp.coords <- data.frame(chr=c("chr1","chr1","chr1","chr2"),
+                         pos=c(150, 131, 171, 17))
+rownames(snp.coords) <- paste0("snp", 1:nrow(snp.coords))
+
+distConsecutiveSnps(snp.coords)
+}
+}
+\seealso{
+\code{\link{estimLd}}
+}
 \author{
 Timothee Flutre
 }

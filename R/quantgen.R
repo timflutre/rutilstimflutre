@@ -4774,6 +4774,7 @@ snpCoordsDf2Gr <- function(x, si=NULL){
 ##' @param verbose verbosity level (0/1)
 ##' @return vector
 ##' @author Timothee Flutre
+##' @seealso \code{\link{estimLd}}, \code{\link{distConsecutiveSnps}}
 ##' @export
 distSnpPairs <- function(snp.pairs, snp.coords, nb.cores=1, verbose=1){
   requireNamespaces(c("GenomicRanges", "S4Vectors", "IRanges"))
@@ -5022,8 +5023,64 @@ estimGenRel <- function(X, afs=NULL, thresh=NULL, relationships="additive",
 ##' @param only.pop identifier of a given population
 ##' @param use.ldcorsv required if K and/or pops are not NULL; otherwise use the square of \code{\link{cor}}
 ##' @param verbose verbosity level (0/1)
-##' @return data frame
+##' @return data frame with at least three columns, "loc1", "loc2" and the LD values
 ##' @author Timothee Flutre
+##' @seealso \code{\link{plotLd}}
+##' @examples \dontrun{## make fake data
+##' library(scrm)
+##' set.seed(1859)
+##' nb.genos <- 100
+##' Ne <- 10^4
+##' nb.chrs <- 1
+##' chrom.len <- 10^5
+##' mu <- 10^(-8)
+##' c.rec <- 10^(-8)
+##' genomes <- simulCoalescent(nb.inds=nb.genos, nb.reps=nb.chrs,
+##'                            pop.mut.rate=4 * Ne * mu * chrom.len,
+##'                            pop.recomb.rate=4 * Ne * c.rec * chrom.len,
+##'                            chrom.len=chrom.len)
+##'
+##' ## checks
+##' afs <- estimSnpAf(X=genomes$genos)
+##' summary(afs)
+##' plotHistAllelFreq(afs=afs)
+##' mafs <- estimSnpMaf(afs=afs)
+##' plotHistMinAllelFreq(maf=mafs)
+##' plotHaplosMatrix(haplos=genomes$haplos$chr1)
+##'
+##' ## subset SNPs
+##' min.maf <- 0.15
+##' length(snps.tokeep <- rownames(genomes$snp.coords[mafs >= min.maf,]))
+##'
+##' ## LD estimator of Rogers and Huff
+##' system.time(ld <- estimLd(X=genomes$genos[,snps.tokeep],
+##'                           snp.coords=genomes$snp.coords[snps.tokeep,]))
+##' dim(ld)
+##' head(ld)
+##' summary(ld$cor2)
+##'
+##' ## LD estimator of Mangin et al
+##' system.time(ld2 <- estimLd(X=genomes$genos[,snps.tokeep],
+##'                            snp.coords=genomes$snp.coords[snps.tokeep,],
+##'                            use.ldcorsv=TRUE))
+##' dim(ld2)
+##' head(ld2)
+##'
+##' ## physical distance between SNP pairs for which LD was computed
+##' dis <- distSnpPairs(snp.pairs=ld[, c("loc1","loc2")],
+##'                     snp.coords=genomes$snp.coords[snps.tokeep,])
+##'
+##' ## plot LD
+##' plotLd(x=dis, y=sqrt(ld$cor2), estim="r",
+##'        main=paste0(length(snps.tokeep), " SNPs with MAF >= ", min.maf),
+##'        sample.size=2*nb.genos, add.ohta.kimura=TRUE, Ne=Ne, c=c.rec)
+##'
+##' ## physical distance between consecutive SNPs
+##' tmp <- distConsecutiveSnps(snp.coords=genomes$snp.coords)
+##' hist(tmp[["chr1"]], breaks="FD", xlab="in bp",
+##'      las=1, col="grey", border="white",
+##'      main="Distances between consecutive SNPs")
+##' }
 ##' @export
 estimLd <- function(X, snp.coords, K=NULL, pops=NULL,
                     only.chr=NULL, only.pop=NULL,
@@ -5063,7 +5120,7 @@ estimLd <- function(X, snp.coords, K=NULL, pops=NULL,
   subset.inds <- 1:nrow(X)
   if(! is.null(only.chr) | ! is.null(only.pop)){
     if(verbose > 0)
-      write("extract relevant genotypes and SNPs ...", stdout())
+      write("extract relevant genotypes and SNPs...", stdout())
     if(! is.null(only.chr))
       subset.snps <- which(snp.coords$chr == only.chr)
     if(! is.null(only.pop))
@@ -5074,7 +5131,7 @@ estimLd <- function(X, snp.coords, K=NULL, pops=NULL,
     K <- K[subset.inds, subset.inds]
 
   if(verbose > 0)
-    write("estimate pairwise LD ...", stdout())
+    write("estimate pairwise LD...", stdout())
   if(is.null(K)){
     if(is.null(pops)){
       if(use.ldcorsv){
@@ -5150,6 +5207,7 @@ estimLd <- function(X, snp.coords, K=NULL, pops=NULL,
 ##' @param xlim numeric vector of length 2 specifying the x-axis limit (optional)
 ##' @return nothing
 ##' @author Timothee Flutre
+##' @seealso \code{\link{estimLd}}, \code{\link{distSnpPairs}}
 ##' @export
 plotLd <- function(x, y, main="", estim="r2",
                    use.density=TRUE,
@@ -5252,6 +5310,14 @@ plotLd <- function(x, y, main="", estim="r2",
 ##' @param nb.cores the number of cores to use
 ##' @return list with one component per chromosome
 ##' @author Timothee Flutre
+##' @seealso \code{\link{estimLd}}
+##' @examples \dontrun{## make fake data
+##' snp.coords <- data.frame(chr=c("chr1","chr1","chr1","chr2"),
+##'                          pos=c(150, 131, 171, 17))
+##' rownames(snp.coords) <- paste0("snp", 1:nrow(snp.coords))
+##'
+##' distConsecutiveSnps(snp.coords)
+##' }
 ##' @export
 distConsecutiveSnps <- function(snp.coords, only.chr=NULL, nb.cores=1){
   requireNamespaces("parallel")
@@ -5264,14 +5330,23 @@ distConsecutiveSnps <- function(snp.coords, only.chr=NULL, nb.cores=1){
   if(! is.null(only.chr)){
     stopifnot(only.chr %in% chr.ids)
     chr.ids <- only.chr
+  } else{
+    if(requireNamespace("gtools")){
+      chr.ids <- gtools::mixedsort(chr.ids)
+    } else
+      chr.ids <- sort(chr.ids)
   }
 
   snp.dists <- parallel::mclapply(chr.ids, function(chr.id){
     coords <- snp.coords$coord[snp.coords$chr == chr.id]
-    names(coords) <- rownames(snp.coords)[snp.coords$chr == chr.id]
-    dis <- coords[2:length(coords)] - coords[1:(length(coords)-1)] - 1
-    names(dis) <- paste(names(dis), names(coords)[-length(coords)], sep="-")
-    dis
+    if(length(coords) > 1){
+      names(coords) <- rownames(snp.coords)[snp.coords$chr == chr.id]
+      coords <- sort(coords)
+      dis <- coords[2:length(coords)] - coords[1:(length(coords)-1)] - 1
+      names(dis) <- paste(names(dis), names(coords)[-length(coords)], sep="-")
+      dis
+    } else
+      NA
   }, mc.cores=nb.cores)
   names(snp.dists) <- chr.ids
 

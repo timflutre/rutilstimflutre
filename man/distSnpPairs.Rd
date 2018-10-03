@@ -21,6 +21,9 @@ vector
 \description{
 For each SNP pair, return the number of "blocks" (i.e. nucleotides) between both SNPs via the \code{\link[GenomicRanges]{distance}} function.
 }
+\seealso{
+\code{\link{estimLd}}, \code{\link{distConsecutiveSnps}}
+}
 \author{
 Timothee Flutre
 }

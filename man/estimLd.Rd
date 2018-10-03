@@ -25,12 +25,72 @@ estimLd(X, snp.coords, K = NULL, pops = NULL, only.chr = NULL,
 \item{verbose}{verbosity level (0/1)}
 }
 \value{
-data frame
+data frame with at least three columns, "loc1", "loc2" and the LD values
 }
 \description{
 Estimates linkage disequilibrium between pairs of SNPs when the observations are the genotypes of genotypes, not their gametes (i.e. the gametic phases are unknown).
 When ignoring kinship and population structure, the estimator of Rogers and Huff (Genetics, 2009) can be used.
 When kinship and/or population structure are controlled for, the estimator of Mangin et al (Heredity, 2012) is used via their LDcorSV package.
+}
+\examples{
+\dontrun{## make fake data
+library(scrm)
+set.seed(1859)
+nb.genos <- 100
+Ne <- 10^4
+nb.chrs <- 1
+chrom.len <- 10^5
+mu <- 10^(-8)
+c.rec <- 10^(-8)
+genomes <- simulCoalescent(nb.inds=nb.genos, nb.reps=nb.chrs,
+                           pop.mut.rate=4 * Ne * mu * chrom.len,
+                           pop.recomb.rate=4 * Ne * c.rec * chrom.len,
+                           chrom.len=chrom.len)
+
+## checks
+afs <- estimSnpAf(X=genomes$genos)
+summary(afs)
+plotHistAllelFreq(afs=afs)
+mafs <- estimSnpMaf(afs=afs)
+plotHistMinAllelFreq(maf=mafs)
+plotHaplosMatrix(haplos=genomes$haplos$chr1)
+
+## subset SNPs
+min.maf <- 0.15
+length(snps.tokeep <- rownames(genomes$snp.coords[mafs >= min.maf,]))
+
+## LD estimator of Rogers and Huff
+system.time(ld <- estimLd(X=genomes$genos[,snps.tokeep],
+                          snp.coords=genomes$snp.coords[snps.tokeep,]))
+dim(ld)
+head(ld)
+summary(ld$cor2)
+
+## LD estimator of Mangin et al
+system.time(ld2 <- estimLd(X=genomes$genos[,snps.tokeep],
+                           snp.coords=genomes$snp.coords[snps.tokeep,],
+                           use.ldcorsv=TRUE))
+dim(ld2)
+head(ld2)
+
+## physical distance between SNP pairs for which LD was computed
+dis <- distSnpPairs(snp.pairs=ld[, c("loc1","loc2")],
+                    snp.coords=genomes$snp.coords[snps.tokeep,])
+
+## plot LD
+plotLd(x=dis, y=sqrt(ld$cor2), estim="r",
+       main=paste0(length(snps.tokeep), " SNPs with MAF >= ", min.maf),
+       sample.size=2*nb.genos, add.ohta.kimura=TRUE, Ne=Ne, c=c.rec)
+
+## physical distance between consecutive SNPs
+tmp <- distConsecutiveSnps(snp.coords=genomes$snp.coords)
+hist(tmp[["chr1"]], breaks="FD", xlab="in bp",
+     las=1, col="grey", border="white",
+     main="Distances between consecutive SNPs")
+}
+}
+\seealso{
+\code{\link{plotLd}}
 }
 \author{
 Timothee Flutre

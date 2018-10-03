@@ -249,7 +249,7 @@ correctSpatialHeterogeneity <- function(dat,
         print(graphics::plot(vg, vg.fit, main="", col="blue",
                              key=list(space="top", lines=list(col="blue"),
                                       text=list(paste0(response,
-                                                       ": fit of Matérn model",
+                                                       ": fit of Mat\u00E9rn model",
                                                        " on controls in ",
                                                        year)))))
     }

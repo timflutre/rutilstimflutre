@@ -50,6 +50,9 @@ nothing
 Plots the linkage disequilibrium between pairs of SNPs, as a blue density or black points, with a red loess.
 Possibility to add two analytical approximations of E[r^2] at equilibrium (see McVean, Handbook of Stat Gen, 2007): 1 / (1 + 4 Ne c x) by Sved (1971) and (10 + 4 Ne c x) / (22 + 13 * 4 Ne c x + (4 Ne c x)^2) by Ohta and Kimura (1971).
 }
+\seealso{
+\code{\link{estimLd}}, \code{\link{distSnpPairs}}
+}
 \author{
 Timothee Flutre
 }
