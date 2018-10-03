@@ -150,3 +150,41 @@ plotMapSxGDomaineChapitre <- function(map,
 
   return(invisible(map))
 }
+
+##' SSR genotypes from PlantGrape
+##'
+##' Extract SSR genotypes from a PDF produced by \href{http://plantgrape.plantnet-project.org/fr/}{PlantGrape} for a given grape variety.
+##' @param file path to the PDF file
+##' @param var.name name of the grape variety
+##' @param sep character to use to separate both alleles of a given SSR
+##' @return matrix with one row and as many columns as SSRs, usable by "df2genind" from the "adegenet" package
+##' @author Timothee Flutre
+##' @export
+getSsrGenosFromPlantGrapePdf <- function(file, var.name, sep="/"){
+  requireNamespace("pdftools")
+  stopifnot(file.exists(file))
+
+  text <- pdftools::pdf_text(file)
+
+  text <- do.call(c, strsplit(text, "\n"))
+  idx <- (grep("Profil G\u00E9n\u00E9tique", text)+1):(grep("Ph\u00E9nologie", text)-1)
+  stopifnot(length(idx) == 3)
+  text <- text[idx]
+
+  ssr.names <- strsplit(text[1], split=" ")[[1]]
+  ssr.names <- ssr.names[! ssr.names == ""][-1]
+  stopifnot(length(ssr.names) == 9)
+
+  all1 <- strsplit(text[2], split=" ")[[1]]
+  all1 <- as.numeric(all1[! all1 == ""][-c(1,2)])
+  stopifnot(length(all1) == 9)
+
+  all2 <- strsplit(text[3], split=" ")[[1]]
+  all2 <- as.numeric(all2[! all2 == ""][-c(1,2)])
+  stopifnot(length(all2) == 9)
+
+  out <- matrix(data=paste0(all1, sep, all2),
+                nrow=1, ncol=9,
+                dimnames=list(var.name, ssr.names))
+  return(out)
+}
