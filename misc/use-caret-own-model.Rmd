@@ -1,0 +1,365 @@
+---
+title: "Use `caret` with your own model"
+author: "T. Flutre, C. Brault"
+date: "`r format(Sys.time(), '%d/%m/%Y %H:%M:%S')`"
+lang: "en"
+colorlinks: true
+output:
+  html_document:
+    toc: true
+    toc_depth: 3
+    toc_float: true
+    number_sections: TRUE
+  pdf_document:
+    toc: true
+    toc_depth: 3
+    number_sections: TRUE
+urlcolor: blue
+---
+
+<!--
+This R chunk is used to set up some options.
+-->
+```{r setup, include=FALSE}
+##`
+## https://github.com/vspinu/polymode/issues/147#issuecomment-399745611
+R.v.maj <- as.numeric(R.version$major)
+R.v.min.1 <- as.numeric(strsplit(R.version$minor, "\\.")[[1]][1])
+if(R.v.maj < 2 || (R.v.maj == 2 && R.v.min.1 < 15))
+  stop("requires R >= 2.15", call.=FALSE)
+
+suppressPackageStartupMessages(library(knitr))
+opts_chunk$set(echo=TRUE, warning=TRUE, message=TRUE, cache=FALSE, fig.align="center")
+opts_knit$set(progress=TRUE, verbose=TRUE)
+```
+
+
+# Overview
+
+Comparing models based on their predictions via cross-validation is useful in many fields.
+The [caret](https://cran.r-project.org/package=caret) package helps doing exactly that.
+However, even though it natively incorporates many models, even more exist.
+Moreover, for the models without tuning parameters, it is not straightforward to know how to use `caret`.
+This document aims at providing some examples.
+
+This document will also require external packages to be available:
+```{r load_pkg}
+suppressPackageStartupMessages(library(caret))
+suppressPackageStartupMessages(library(varbvs))
+suppressPackageStartupMessages(library(BGLR))
+suppressPackageStartupMessages(library(coda))
+suppressPackageStartupMessages(library(doParallel))
+cl <- makePSOCKcluster(max(1, detectCores() - 1))
+registerDoParallel(cl)
+suppressPackageStartupMessages(library(rutilstimflutre))
+```
+
+This R chunk is used to assess how much time it takes to execute the R code in this document until the end:
+```{r time_0}
+t0 <- proc.time()
+```
+
+
+# Native example
+
+```{r}
+data("mtcars")
+trCtl <- trainControl(method="repeatedcv", number=10, repeats=5)
+set.seed(1234)
+fit <- train(form=mpg ~ hp, data=mtcars, method="lm", trControl=trCtl)
+fit
+names(fit)
+fit$finalModel
+```
+
+
+# Simple linear regression
+
+## Data
+
+```{r}
+set.seed(1234)
+n <- 10^2
+x <- rnorm(n)
+mu <- 20
+beta <- 0.5
+epsilon <- rnorm(n)
+y <- mu + beta * x + epsilon
+dat <- data.frame(x=x, y=y)
+plot(x, y)
+abline(lm(y ~ x, data=dat), col="red")
+```
+
+## Native `lm`
+
+```{r}
+lmModelInfo <- getModelInfo(model="lm", regex=FALSE)[[1]]
+names(lmModelInfo)
+lmModelInfo$label
+lmModelInfo$library
+lmModelInfo$loop
+lmModelInfo$type
+lmModelInfo$parameters
+lmModelInfo$grid
+lmModelInfo$fit
+lmModelInfo$predict
+lmModelInfo$prob
+lmModelInfo$predictors
+lmModelInfo$tags
+lmModelInfo$varImp
+lmModelInfo$sort
+```
+
+## Custom `lm`
+
+Create inputs for the "method" of interest (https://topepo.github.io/caret/using-your-own-model-in-train.html#model-components):
+```{r}
+caretFitLm <- function(x, y, wts, param, lev, last, weights, classProbs, ...) {
+  dat <- if(is.data.frame(x)) x else as.data.frame(x)
+  dat$.outcome <- y
+  if(! is.null(wts)){
+    if(param$intercept)
+      out <- lm(.outcome ~ ., data = dat, weights = wts, ...)
+    else
+      out <- lm(.outcome ~ 0 + ., data = dat, weights = wts, ...)
+  } else { # wts == NULL
+    if(param$intercept)
+      out <- lm(.outcome ~ ., data = dat, ...)
+    else
+      out <- lm(.outcome ~ 0 + ., data = dat, ...)
+  }
+  out
+}
+caretPredictLm <- function(modelFit, newdata, submodels=NULL) {
+  if(! is.data.frame(newdata)) newdata <- as.data.frame(newdata)
+  predict(modelFit, newdata)
+}
+# check:
+# fitTmp <- caretFitLm(x=dat$x, y=dat$y)
+# predTmp <- caretPredictLm(fitTmp, dat$x[1:10])
+caretGridLm <- function(x, y, len=NULL, search="grid") {
+  data.frame(intercept=TRUE)
+}
+caretParamLm <- data.frame(parameter="intercept", class="logical", label="intercept")
+caretMethLm <- list(library="stats",
+                    type="Regression",
+                    parameters=caretParamLm,
+                    grid=caretGridLm,
+                    fit=caretFitLm,
+                    predict=caretPredictLm,
+                    prob=NULL,
+                    sort=NULL)
+```
+
+Create inputs for the cross-validation (https://topepo.github.io/caret/model-training-and-tuning.html#the-traincontrol-function):
+```{r}
+caretSummary <- function(data, lev=NULL, model=NULL){
+  coefOls <- as.numeric(coef(lm(pred ~ obs, data=data)))
+  c(rmse=sqrt(mean((data$pred - data$obs)^2)),
+    cor=cor(data$obs, data$pred),
+    reg.intercept=coefOls[1],
+    reg.slope=coefOls[2])
+}
+caretTrainCtlLm <- trainControl(method="repeatedcv", number=5, repeats=5,
+                                summaryFunction=caretSummary)
+```
+
+The cross-validation can now be performed:
+```{r}
+set.seed(1234)
+fit2 <- train(form=y ~ x, data=dat, method=caretMethLm, trControl=caretTrainCtlLm, metric="rmse")
+fit2
+names(fit2)
+fit2$results
+dim(fit2$resample)
+head(fit2$resample)
+mean(fit2$resample$rmse)
+sd(fit2$resample$rmse)
+```
+
+
+# Variable selection
+
+```{r}
+glmnetModelInfo <- getModelInfo(model="glmnet", regex=FALSE)[[1]]
+names(glmnetModelInfo)
+glmnetModelInfo$label
+glmnetModelInfo$library
+glmnetModelInfo$type
+glmnetModelInfo$parameters
+glmnetModelInfo$grid
+glmnetModelInfo$loop
+glmnetModelInfo$fit
+glmnetModelInfo$predict
+glmnetModelInfo$prob
+glmnetModelInfo$predictors
+glmnetModelInfo$varImp
+glmnetModelInfo$levels
+glmnetModelInfo$tags
+glmnetModelInfo$sort
+glmnetModelInfo$trim
+```
+
+## Data
+
+```{r}
+set.seed(1234)
+X <- simulGenosDose(nb.genos=10^2, nb.snps=10^3)
+truth <- simulBvsr(Q=1, mu=0, X=X, pi=0.01, pve=0.7, sigma.a2=1)
+sum(truth$gamma)
+colnames(X)[truth$gamma == 1]
+dat <- truth$dat
+```
+
+## Custom `varbvs`
+
+Inputs for fitting and predicting:
+```{r, eval=TRUE}
+caretFitVarbvs <- function(x, y, wts, param, lev, last, weights, classProbs, ...) {
+  varbvs(X=x, Z=NULL, y=y, family="gaussian", weights=wts, verbose=FALSE)
+}
+caretPredictVarbvs <- function(modelFit, newdata, submodels=NULL) {
+  predict(object=modelFit, X=newdata, Z=NULL)
+}
+# check:
+# fitTmp <- caretFitVarbvs(x=X, y=dat$response1)
+# predTmp <- caretPredictVarbvs(fitTmp, X[1:10,])
+caretGridVarbvs <- function(x, y, len=NULL, search="grid") {
+  data.frame(intercept=TRUE)
+}
+caretParamVarbvs <- data.frame(parameter="intercept", class="logical", label="intercept")
+caretMethVarbvs <- list(library="varbvs",
+                        type="Regression",
+                        parameters=caretParamVarbvs,
+                        grid=caretGridVarbvs,
+                        fit=caretFitVarbvs,
+                        predict=caretPredictVarbvs,
+                        prob=NULL,
+                        sort=NULL)
+```
+
+Inputs for cross-validation:
+```{r}
+caretSummary <- function(data, lev=NULL, model=NULL){
+  coefOls <- as.numeric(coef(lm(pred ~ obs, data=data)))
+  c(rmse=sqrt(mean((data$pred - data$obs)^2)),
+    cor=cor(data$obs, data$pred),
+    reg.intercept=coefOls[1],
+    reg.slope=coefOls[2])
+}
+caretTrainCtlVarbvs <- trainControl(method="repeatedcv", number=5, repeats=5,
+                                    summaryFunction=caretSummary, allowParallel=FALSE)
+# with allowParallel=TRUE, train() fails
+# Error in { : task 1 failed - "variable 1 has no levels"
+```
+
+Run cross-validation:
+```{r}
+set.seed(1234)
+system.time(
+  fit3 <- train(x=X, y=dat$response1, method=caretMethVarbvs, trControl=caretTrainCtlVarbvs,
+                metric="rmse"))
+fit3
+fit3$results
+```
+
+## Custom `BGLR`
+
+Inputs for fitting and predicting:
+```{r, eval=TRUE}
+caretFitBglr <- function(x, y, wts, param, lev, last, weights, classProbs,
+                         bglrEtaModel, task.id, nb.iters, burn.in, thin,
+                         keep.samples=FALSE) {
+  if(missing(wts))
+    wts <- NULL
+  if(missing(task.id))
+    task.id <- tempfile(pattern="out-caret-BGLR")
+  out <- BGLR(y=y, response_type="gaussian",
+              ETA=list(list(X=x, model=bglrEtaModel)),
+              weights=wts,
+              nIter=nb.iters, burnIn=burn.in, thin=thin,
+              saveAt=task.id,
+              verbose=FALSE)
+  if(keep.samples){
+    out$post.samples <- cbind(mu=read.table(paste0(task.id, "mu.dat"))[,1],
+                              varE=read.table(paste0(task.id, "varE.dat"))[,1],
+                              pi=read.table(paste0(task.id, "ETA_1_par",
+                                                   bglrEtaModel, ".dat"))[,1],
+                              varB=read.table(paste0(task.id, "ETA_1_par",
+                                                     bglrEtaModel, ".dat"))[,2])
+    out$post.samples <- mcmc.list(mcmc(out$post.samples, start=thin,
+                                       end=nb.iters, thin=thin))
+    out$post.samples <- window(out$post.samples, start=burn.in+1)
+    out$ess <- effectiveSize(out$post.samples)
+  }
+  for(f in c(paste0(task.id, c("mu.dat", "varE.dat",
+                               paste0("ETA_1_par", bglrEtaModel, ".dat"), 
+                               "ETA_1_b.bin"))))
+    if(file.exists(f))
+      file.remove(f)
+  out
+}
+caretPredictBglr <- function(modelFit, newdata, submodels=NULL) {
+  out <- newdata %*% modelFit$ETA[[1]]$b
+  out[,1]
+}
+# check:
+# nb.iters=50 * 10^3; burn.in=5 * 10^3; thin=5
+# fitTmp <- caretFitBglr(x=X, y=dat$response1,
+#                        bglrEtaModel="BayesC", task.id="test-BGLR_",
+#                        nb.iters=nb.iters, burn.in=burn.in, thin=thin,
+#                        keep.samples=TRUE)
+# plot(post.samples)
+# raftery.diag(post.samples, q=0.5, r=0.05, s=0.9)
+# geweke.diag(post.samples) # should not be too far from [-2;2]
+# summary(post.samples)
+# predTmp <- caretPredictBglr(fitTmp, X[1:10,])
+caretGridBglr <- function(x, y, len=NULL, search="grid") {
+  data.frame(intercept=TRUE)
+}
+caretParamBglr <- data.frame(parameter="intercept", class="logical", label="intercept")
+caretMethBglr <- list(library=c("BGLR", "coda"),
+                      type="Regression",
+                      parameters=caretParamBglr,
+                      grid=caretGridBglr,
+                      fit=caretFitBglr,
+                      predict=caretPredictBglr,
+                      prob=NULL,
+                      sort=NULL)
+```
+
+Inputs for cross-validation:
+```{r}
+caretSummary<- function(data, lev=NULL, model=NULL){
+  coefOls <- as.numeric(coef(lm(pred ~ obs, data=data)))
+  c(rmse=sqrt(mean((data$pred - data$obs)^2)),
+    cor=cor(data$obs, data$pred),
+    reg.intercept=coefOls[1],
+    reg.slope=coefOls[2])
+}
+caretTrainCtlBglr <- trainControl(method="repeatedcv", number=5, repeats=5,
+                                  summaryFunction=caretSummary, allowParallel=FALSE,
+                                  returnData=TRUE)
+```
+
+Run cross-validation:
+```{r}
+set.seed(1234)
+system.time(
+  fit4 <- train(x=X, y=dat$response1, method=caretMethBglr,
+                trControl=caretTrainCtlBglr, metric="rmse",
+                bglrEtaModel="BayesC", task.id="bglr4caret_",
+                nb.iters=50 * 10^3, burn.in=5 * 10^3, thin=5,
+                keep.samples=FALSE))
+fit4
+fit4$results
+```
+
+
+# Appendix
+
+```{r info}
+stopCluster(cl)
+t1 <- proc.time(); t1 - t0
+print(sessionInfo(), locale=FALSE)
+```
