@@ -309,10 +309,10 @@ caretPredictBglr <- function(modelFit, newdata, submodels=NULL) {
 #                        bglrEtaModel="BayesC", task.id="test-BGLR_",
 #                        nb.iters=nb.iters, burn.in=burn.in, thin=thin,
 #                        keep.samples=TRUE)
-# plot(post.samples)
-# raftery.diag(post.samples, q=0.5, r=0.05, s=0.9)
-# geweke.diag(post.samples) # should not be too far from [-2;2]
-# summary(post.samples)
+# plot(fitTmp$post.samples)
+# raftery.diag(fitTmp$post.samples, q=0.5, r=0.05, s=0.9)
+# geweke.diag(fitTmp$post.samples) # should not be too far from [-2;2]
+# summary(fitTmp$post.samples)
 # predTmp <- caretPredictBglr(fitTmp, X[1:10,])
 caretGridBglr <- function(x, y, len=NULL, search="grid") {
   data.frame(intercept=TRUE)
