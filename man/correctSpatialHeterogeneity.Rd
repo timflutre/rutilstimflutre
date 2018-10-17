@@ -23,7 +23,8 @@ data frame as dat but with an additional column named <response>.csh
 }
 \description{
 Use kriging to correct spatial heterogeneity in a plant field trial.
-This will be done per year.
+Kriging (i.e. prediction) is performed per year.
+Then, the predicted responses that controls would have had if they had been planted everywhere are subtracted from the observed responses from the other genotypes.
 }
 \author{
 Timothee Flutre

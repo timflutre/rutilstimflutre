@@ -46,6 +46,9 @@ This document will also require external packages to be available:
 ```{r load_pkg}
 suppressPackageStartupMessages(library(caret))
 suppressPackageStartupMessages(library(varbvs))
+stopifnot(compareVersion("2.5.7",
+                         as.character(packageVersion("varbvs")))
+          != 1)
 suppressPackageStartupMessages(library(BGLR))
 suppressPackageStartupMessages(library(coda))
 suppressPackageStartupMessages(library(doParallel))

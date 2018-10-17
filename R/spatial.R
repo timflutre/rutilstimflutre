@@ -138,7 +138,8 @@ simulAr1Ar1 <- function(n=1, R=2, C=2, rho.r=0, rho.c=0,
 ##' Correct spatial heterogeneity
 ##'
 ##' Use kriging to correct spatial heterogeneity in a plant field trial.
-##' This will be done per year.
+##' Kriging (i.e. prediction) is performed per year.
+##' Then, the predicted responses that controls would have had if they had been planted everywhere are subtracted from the observed responses from the other genotypes.
 ##' @param dat data frame with, at least, columns named "geno", "control" (TRUE/FALSE), "rank", "location", "year" and <response>
 ##' @param response column name of dat corresponding to the response for which spatial heterogeneity will be corrected
 ##' @param fix.eff if not NULL, vector of column names of data corresponding to fixed effects to control for in the kriging (e.g. "block")
@@ -175,8 +176,10 @@ correctSpatialHeterogeneity <- function(dat,
     }
   }
 
+  ## prepare output
   out <- dat
-  out[[paste0(response, ".csh")]] <- NA
+  new.col <- paste0(response, ".csh") # csh="corrected for spatial heterogeneity"
+  out[[new.col]] <- 0
 
   for(year in levels(dat$year)){
     ## set up objects for control and panel data
@@ -206,7 +209,15 @@ correctSpatialHeterogeneity <- function(dat,
       sp::SpatialPointsDataFrame(
               coords=dat.panel[, c("rank","location")],
               data=dat.panel[, c("year", fix.eff, paste0(response,".raw"))])
-
+    dat.all <- droplevels(dat[dat$year == year,
+                              cols.tokeep])
+    colnames(dat.all)[colnames(dat.all) == response] <-
+      paste0(response, ".raw")
+    dat.all.sp <-
+      sp::SpatialPointsDataFrame(
+        coords=dat.all[, c("rank","location")],
+        data=dat.all[, c("year", fix.eff, paste0(response,".raw"))])
+    
     if(verbose > 0){
       msg <- paste0("compute experimental variogram on control data",
                     " in ", year)
@@ -293,7 +304,8 @@ correctSpatialHeterogeneity <- function(dat,
     }
     k <- gstat::krige(formula=stats::formula(form),
                       locations=dat.ctl.noNA.sp,
-                      newdata=dat.panel.sp,
+                      # newdata=dat.panel.sp,
+                      newdata=dat.all.sp,
                       model=vg.fit,
                       debug.level=0)
     ## print(summary(k))
@@ -318,7 +330,7 @@ correctSpatialHeterogeneity <- function(dat,
                        out$location == loc &
                        out$year == year)
       stopifnot(length(out.idx) == 1)
-      out[out.idx, paste0(response, ".csh")] <- out[out.idx, response] -
+      out[out.idx, new.col] <- out[out.idx, response] -
         k.dat[i, "var1.pred"]
     }
   }
