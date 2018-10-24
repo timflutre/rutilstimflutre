@@ -143,6 +143,8 @@ simulAr1Ar1 <- function(n=1, R=2, C=2, rho.r=0, rho.c=0,
 ##' @param dat data frame with, at least, columns named "geno", "control" (TRUE/FALSE), "rank", "location", "year" and <response>
 ##' @param response column name of dat corresponding to the response for which spatial heterogeneity will be corrected
 ##' @param fix.eff if not NULL, vector of column names of data corresponding to fixed effects to control for in the kriging (e.g. "block")
+##' @param cressie if TRUE, the variogram function from the gstat package uses Cressie's robust variogram estimate, else it uses the classical method of moments
+##' @param vgm.model type(s) of variogram model(s) given to the vgm function of the gstat package; if several, the best one (smaller sum of squared errors) will be used
 ##' @param nb.folds number of folds for the cross-validation
 ##' @param verbose verbosity level (0/1/2)
 ##' @return data frame as dat but with an additional column named <response>.csh
@@ -151,6 +153,8 @@ simulAr1Ar1 <- function(n=1, R=2, C=2, rho.r=0, rho.c=0,
 correctSpatialHeterogeneity <- function(dat,
                                         response,
                                         fix.eff=NULL,
+                                        cressie=TRUE,
+                                        vgm.model=c("Exp", "Sph", "Gau", "Ste"),
                                         nb.folds=5,
                                         verbose=1){
   requireNamespace("sp")
@@ -164,15 +168,28 @@ correctSpatialHeterogeneity <- function(dat,
             "location" %in% colnames(dat),
             "year" %in% colnames(dat),
             is.character(response),
-            response %in% colnames(dat))
+            response %in% colnames(dat),
+            is.logical(cressie),
+            is.character(vgm.model))
   if(! is.null(fix.eff)){
     stopifnot(is.character(fix.eff))
+    if("1" %in% fix.eff)
+      fix.eff <- fix.eff[-grep("1", fix.eff)]
     for(fix.eff.i in fix.eff)
       stopifnot(fix.eff.i %in% colnames(dat))
     if("year" %in% fix.eff){
       msg <- "'year' is removed from fix.eff"
       warning(msg)
       fix.eff <- fix.eff[-grep("year", fix.eff)]
+    }
+  }
+  for(x in c("rank", "location")){
+    if(is.factor(dat[[x]])){
+      if(mode(dat[[x]]) != "numeric"){
+        msg <- paste0("mode(dat$", x, ") should be 'numeric'")
+        stop(msg)
+      }
+      dat[[x]] <- as.numeric(levels(dat[[x]]))[dat[[x]]]
     }
   }
 
@@ -217,10 +234,10 @@ correctSpatialHeterogeneity <- function(dat,
       sp::SpatialPointsDataFrame(
         coords=dat.all[, c("rank","location")],
         data=dat.all[, c("year", fix.eff, paste0(response,".raw"))])
-    
+
     if(verbose > 0){
       msg <- paste0("compute experimental variogram on control data",
-                    " in ", year)
+                    " in ", year, "...")
       write(msg, stdout())
     }
     form <- paste0(response, " ~ 1 + ", paste(fix.eff, collapse=" + "))
@@ -231,7 +248,7 @@ correctSpatialHeterogeneity <- function(dat,
     vg.c <- gstat::variogram(object=stats::formula(form),
                              locations=~ rank + location,
                              data=dat.ctl.noNA,
-                             cloud=TRUE, cressie=TRUE)
+                             cloud=TRUE, cressie=cressie)
     if(verbose > 1)
       print(graphics::plot(vg.c,
                            main=paste0(response,
@@ -240,34 +257,43 @@ correctSpatialHeterogeneity <- function(dat,
     vg <- gstat::variogram(object=stats::formula(form),
                            locations=~ rank + location,
                            data=dat.ctl.noNA,
-                           cloud=FALSE, cressie=TRUE)
+                           cloud=FALSE, cressie=cressie)
     if(verbose > 1)
       print(graphics::plot(vg,
                            main=paste0(response, ": variogram of controls",
                                        " in ", year)))
 
     if(verbose > 0){
-      msg <- paste0("fit variogram model on control data in ", year)
+      msg <- paste0("fit variogram model on control data in ", year, "...")
       write(msg, stdout())
     }
+    ## Help:
+    ## gstat::vgm()
+    ## gstat::show.vgms()
     vg.fit <- suppressWarnings(
         gstat::fit.variogram(object=vg,
-                             model=gstat::vgm(model="Ste", nugget=NA),
-                             fit.kappa=seq(0.3, 0.6, 0.05)))
+                             model=gstat::vgm(vgm.model),
+                             fit.sills=TRUE,
+                             fit.ranges=TRUE,
+                             fit.kappa=seq(0.3, 5, 0.05)))
     if(verbose > 0){
       print(vg.fit)
+      msg <- paste0("sum of squared errors: ",
+                    round(attr(vg.fit, "SSErr"), 3))
+      write(msg, stdout())
       if(verbose > 1)
         print(graphics::plot(vg, vg.fit, main="", col="blue",
                              key=list(space="top", lines=list(col="blue"),
                                       text=list(paste0(response,
-                                                       ": fit of Mat\u00E9rn model",
+                                                       ": fit of variogram model",
+                                                       " (", vg.fit[2, "model"], ")",
                                                        " on controls in ",
                                                        year)))))
     }
 
     if(verbose > 0){
       msg <- paste0("assess prediction accuracy by ",
-                    nb.folds, "-fold cross-validation in ", year)
+                    nb.folds, "-fold cross-validation in ", year, "...")
       write(msg, stdout())
     }
     cv.k <- gstat::krige.cv(formula=stats::formula(form),
@@ -299,7 +325,7 @@ correctSpatialHeterogeneity <- function(dat,
 
     if(verbose > 0){
       msg <- paste0("prediction (kriging) of control data on panel coords",
-                    " in ", year)
+                    " in ", year, "...")
       write(msg, stdout())
     }
     k <- gstat::krige(formula=stats::formula(form),
@@ -318,8 +344,8 @@ correctSpatialHeterogeneity <- function(dat,
 
     if(verbose > 0){
       msg <- paste0("correct panel data with the predicted values",
-                    " of the control in ", year)
-      write(stdout())
+                    " of the controls in ", year, "...")
+      write(msg, stdout())
     }
     k.coords <- sp::coordinates(k)
     k.dat <- as.data.frame(k)

@@ -60,7 +60,7 @@ suppressPackageStartupMessages(library(emmeans))
 ##                          as.character(packageVersion("varbvs")))
 ##           != 1)
 suppressPackageStartupMessages(library(rutilstimflutre)) # on GitHub
-stopifnot(compareVersion("0.168.1",
+stopifnot(compareVersion("0.168.2",
                          as.character(packageVersion("rutilstimflutre")))
           != 1)
 ## stopifnot(file.exists(Sys.which("gemma"))) # https://github.com/genetics-statistics/GEMMA/
@@ -984,106 +984,90 @@ if(transfo == "id"){
 }
 ```
 
-```{r}
-dat.noNA <- droplevels(na.exclude(dat))
-str(dat.noNA)
-```
-
 ## Model fitting, comparison and selection
 
+Approach:
+
+1. model fit, comparison and selection on control data,
+
+2. correct spatial heterogeneity via controls,
+
+3. model fit, comparison and selection on panel data.
+
+If spatial heterogeneity is ignored, only step 3 is performed.
+
 ```{r model_fit_comp_sel}
-form <- paste0(response, " ~ 1",
-               " + block",
-               " + year",
-               " + covar1",
-               " + covar2",
-               ## " + covar1:covar2",
-               " + fact1",
-               " + fact2",
-               " + fact1:fact2",
-               ## " + covar1:fact1",
-               ## " + covar1:fact2",
-               ## " + covar2:fact1",
-               ## " + covar2:fact2",
-               " + (1|geno)",
-               " + (1|geno:year)")
-p2f <- "two-phase_quantgen_allmod-sel-ML.RData"
-if(! file.exists(p2f)){
-  globmod.ml <- lme4::lmer(formula=as.formula(form),
-                           data=dat.noNA,
-                           na.action=na.fail,
-                           REML=FALSE)
-  ## st <- system.time(
-  ##     allmod.sel <- suppressMessages(dredge(globmod.ml)))
-  cl <- makeCluster(nb.cores, "SOCK")
-  clusterExport(cl, "dat.noNA")
-  tmp <- clusterEvalQ(cl, library(lme4))
-  st <- system.time(
-      allmod.sel <- suppressMessages(pdredge(globmod.ml, cl)))
-  print(st)
-  stopCluster(cl)
-  save(allmod.sel, file=p2f)
-  print(tools::md5sum(path.expand(p2f)))
-} else{
-  print(tools::md5sum(path.expand(p2f)))
-  load(p2f)
-}
-bestmod.ml <- get.models(allmod.sel, subset=1)[[1]]
-formula(bestmod.ml)
-(best.form <- Reduce(paste, deparse(formula(bestmod.ml))))
-all.preds <- trimws(strsplit(best.form, "\\~|\\+")[[1]])[-1]
-bestmod.reml <- lme4::lmer(formula=formula(bestmod.ml),
-                           data=dat.noNA,
-                           na.action=na.fail,
-                           REML=TRUE)
-bestmod.reml.test <- lmerTest::lmer(formula=formula(bestmod.reml),
-                                    data=dat.noNA,
-                                    na.action=na.fail, REML=TRUE)
-allmod.sel <- lmerTest::step(bestmod.reml.test, reduce.fixed=FALSE)
-bestmod.reml.test.final <- lmerTest::get_model(allmod.sel)
+glob.form <- paste0(response, " ~ 1",
+                    " + block",
+                    " + year",
+                    " + covar1",
+                    " + covar2",
+                    ## " + covar1:covar2",
+                    " + fact1",
+                    " + fact2",
+                    " + fact1:fact2")#,
+                    ## " + covar1:fact1",
+                    ## " + covar1:fact2",
+                    ## " + covar2:fact1",
+                    ## " + covar2:fact2")
+out <- plantTrialLmmFitCompSel(glob.form=glob.form,
+                               dat=dat[dat$control,
+                                       c(response,"block","year",
+                                         "covar1","covar2","fact1","fact2")],
+                               part.comp.sel="fixed",
+                               saved.file="two-phase_quantgen_ctl_allmod-sel-ML.RData",
+                               nb.cores=nb.cores, verbose=1)
 ```
 
 ## Correct spatial heterogeneity
 
 Kriging using controls:
 ```{r kriging}
-fix.preds.corr.spat <- all.preds[-grep("\\(*\\|*\\)|year", all.preds)]
-cor.spat.het <- TRUE
-if(cor.spat.het){
-  dat <- correctSpatialHeterogeneity(dat=dat,
-                                     response=response,
-                                     fix.eff=fix.preds.corr.spat,
-                                     verbose=2)
-  dat.noNA <- droplevels(na.exclude(dat))
-}
+fix.preds.corr.spat <- out$all.preds[-grep("\\(*\\|*\\)|year", out$all.preds)]
+dat2 <- correctSpatialHeterogeneity(dat=dat,
+                                   response=response,
+                                   fix.eff=fix.preds.corr.spat,
+                                   verbose=2)
 ```
 
-Re-fit the best model using the data corrected for spatial heterogeneity:
+Re-fit the best model using the panel data corrected for spatial heterogeneity:
 ```{r bestmod_refit_spatial_correct}
-if(cor.spat.het){
-  print(best.form <- gsub(response, paste0(response, ".csh"), best.form))
+corr.spat.het <- FALSE
+if(corr.spat.het)
   response <- paste0(response, ".csh")
-  bestmod.ml <- lme4::lmer(formula=best.form,
-                           data=dat.noNA,
-                           na.action=na.fail,
-                           REML=FALSE)
-  bestmod.reml <- lme4::lmer(formula=formula(bestmod.ml),
-                             data=dat.noNA,
-                             na.action=na.fail,
-                             REML=TRUE)
-  bestmod.reml.test <- lmerTest::lmer(formula=formula(bestmod.reml),
-                                      data=dat.noNA,
-                                      na.action=na.fail, REML=TRUE)
-  allmod.sel <- lmerTest::step(bestmod.reml.test, reduce.fixed=FALSE)
-  bestmod.reml.test.final <- lmerTest::get_model(allmod.sel)
-}
+glob.form <- paste0(response, " ~ 1",
+                    " + block",
+                    " + year",
+                    " + covar1",
+                    " + covar2",
+                    ## " + covar1:covar2",
+                    " + fact1",
+                    " + fact2",
+                    " + fact1:fact2",
+                    ## " + covar1:fact1",
+                    ## " + covar1:fact2",
+                    ## " + covar2:fact1",
+                    ## " + covar2:fact2")#,
+                    " + (1|geno)",
+                    " + (1|geno:year)")
+out <- plantTrialLmmFitCompSel(glob.form=glob.form,
+                               dat=dat2[! dat$control,
+                                       c(response,"block","year",
+                                         "covar1","covar2","fact1","fact2",
+                                         "geno","rank","location")],
+                               part.comp.sel=c("fixed","random"),
+                               saved.file="two-phase_quantgen_panel_allmod-sel-ML.RData",
+                               nb.cores=nb.cores, verbose=1)
+dat.noNA <- out$dat.noNA
+bestmod.ml <- out$bestmod.ml
+bestmod.reml <- out$bestmod.reml
 ```
 
 ## Best model fit to get genotypic BLUEs and EMMs
 
 Re-fit, modeling genotypic values as fixed effects to get their BLUEs:
 ```{r bestmod_refit_BLUEs}
-all.preds.as.fix <- gsub("\\(1 \\| |\\)", "", all.preds)
+all.preds.as.fix <- gsub("\\(1 \\| |\\)", "", out$all.preds)
 ## all.preds.as.fix <- all.preds.as.fix[-grep("geno:year", all.preds.as.fix)]
 best.form.as.fix <- paste0(response, " ~ 1 + ",
                            paste(all.preds.as.fix, collapse=" + "))
@@ -1103,8 +1087,8 @@ bestmod.emm <- emmeans(bestmod.lm, "geno")
 ### Residual preparation
 
 ```{r prep_res}
-fit.all <- cbind(dat,
-                 response=dat[[response]],
+fit.all <- cbind(out$dat,
+                 response=out$dat[[response]],
                  cond.res=NA,
                  scl.cond.res=NA,
                  fitted=NA)
@@ -1201,7 +1185,7 @@ for(year in levels(fit.all$year)){
 }
 ```
 
-Look at the empirical variogram, and fit a Matérn model:
+Look at the empirical variogram, and fit a variogram model:
 
 ```{r check_error_spatial_indep_variogram, eval=TRUE}
 for(year in levels(fit.all$year)){
@@ -1209,16 +1193,19 @@ for(year in levels(fit.all$year)){
   resid.vg <- variogram(object=formula(paste0("scl.cond.res.",
                                               year, " ~ 1")),
                         locations=~ rank + location, data=tmp)
-  print(plot(resid.vg,
-             main=paste0(response, ": empirical variogram in ", year)))
+  ## print(plot(resid.vg,
+  ##            main=paste0(response, ": empirical variogram in ", year)))
   resid.vg.fit <- fit.variogram(object=resid.vg,
-                                model=vgm(model="Ste", nugget=NA),
-                                fit.kappa=seq(0.3, 0.6, 0.05))
+                                model=vgm(c("Exp", "Sph", "Gau", "Ste")),
+                                fit.sills=TRUE,
+                                fit.ranges=TRUE,
+                                fit.kappa=seq(0.3, 5, 0.05))
   print(resid.vg.fit)
   print(plot(resid.vg, resid.vg.fit, main="", col="blue",
              key=list(space="top", lines=list(col="blue"),
-                      text=list(paste0(response, ": fit of Matérn model in ",
-                                       year)))))
+                      text=list(paste0(response, ": fit of variogram model",
+                                       " (", resid.vg.fit[2, "model"], ")",
+                                       " in ", year)))))
 }
 ```
 
@@ -1285,21 +1272,23 @@ lattice::dotplot(geno ~ scl.cond.res | year, groups=block,
 ### Summary
 
 ```{r bestmod_infer}
-summary(bestmod.ml)
+## summary(bestmod.ml)
 (vc.ml <- as.data.frame(VarCorr(bestmod.ml)))
 summary(bestmod.reml)
 (vc.reml <- as.data.frame(VarCorr(bestmod.reml)))
 ```
 
 ```{r}
-## summary(bestmod.lm)
-## summary(bestmod.emm)
+if(FALSE){
+  summary(bestmod.lm)
+  summary(bestmod.emm)
+}
 ```
 
 ### Broad-sense heritability
 
 ```{r H2}
-reps.geno.year <- tapply(dat.noNA[[trait]],
+reps.geno.year <- tapply(dat.noNA[[response]],
                          list(dat.noNA$geno, dat.noNA$year),
                          length)
 head(reps.geno.year)
@@ -1309,8 +1298,8 @@ head(reps.geno.year)
 (mean.nb.reps.per.year <- mean(apply(reps.geno.year, 2, mean, na.rm=TRUE)))
 (H2.means <- vc.reml[vc.reml$grp == "geno", "vcov"] /
    (vc.reml[vc.reml$grp == "geno", "vcov"] +
-    (vc.reml[vc.reml$grp == "geno:year", "vcov"] /
-     mean.nb.years) +
+    ## (vc.reml[vc.reml$grp == "geno:year", "vcov"] /
+    ##  mean.nb.years) +
     (vc.reml[vc.reml$grp == "Residual", "vcov"] /
      (mean.nb.years * mean.nb.reps.per.year))))
 ```
@@ -1324,11 +1313,11 @@ system.time(
     prof <- profile(bestmod.ml, signames=FALSE,
                     parallel="multicore", ncpus=nb.cores))
 (ci <- confint(prof, level=0.95))
-xyplot(prof, absVal=TRUE, conf=c(0.8, 0.95), which=1:3,
+xyplot(prof, absVal=TRUE, conf=c(0.8, 0.95), which=1:2,
        main=response)
 densityplot(prof,
             main=response)
-splom(prof, conf=c(0.8, 0.95), which=1:3,
+splom(prof, conf=c(0.8, 0.95), which=1:2,
       main=response)
 ```
 
@@ -1342,7 +1331,7 @@ mySumm <- function(.){
   tmp <- c(tmp,
            tmp["sd.geno"]^2 /
            (tmp["sd.geno"]^2 +
-            (tmp["sd.geno:year"]^2 / mean.nb.years) +
+            ## (tmp["sd.geno:year"]^2 / mean.nb.years) +
             (tmp["sd.err"]^2 / (mean.nb.years *
                                 mean.nb.reps.per.year))))
   names(tmp)[length(tmp)] <- "H2.means"
@@ -1375,11 +1364,12 @@ if(TRUE){
 ### Fixed effects
 
 ```{r bestmod_lmerTest}
-anova(bestmod.reml.test, ddf="lme4")
-anova(bestmod.reml.test, ddf="Satterthwaite")
+anova(bestmod.reml)
+## anova(bestmod.reml.lmerTest, ddf="lme4")
+## anova(bestmod.reml.lmerTest, ddf="Satterthwaite")
 ## system.time(
-##     print(anova(bestmod.reml.test, ddf="Kenward-Roger")))
-anova(bestmod.reml.test.final)
+##     print(anova(bestmod.reml.lmerTest, ddf="Kenward-Roger")))
+## anova(bestmod.reml.lmerTest)
 ```
 
 ### Variance components

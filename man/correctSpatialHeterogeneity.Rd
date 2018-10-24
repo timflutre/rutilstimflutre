@@ -4,8 +4,8 @@
 \alias{correctSpatialHeterogeneity}
 \title{Correct spatial heterogeneity}
 \usage{
-correctSpatialHeterogeneity(dat, response, fix.eff = NULL, nb.folds = 5,
-  verbose = 1)
+correctSpatialHeterogeneity(dat, response, fix.eff = NULL, cressie = TRUE,
+  vgm.model = c("Exp", "Sph", "Gau", "Ste"), nb.folds = 5, verbose = 1)
 }
 \arguments{
 \item{dat}{data frame with, at least, columns named "geno", "control" (TRUE/FALSE), "rank", "location", "year" and <response>}
@@ -13,6 +13,10 @@ correctSpatialHeterogeneity(dat, response, fix.eff = NULL, nb.folds = 5,
 \item{response}{column name of dat corresponding to the response for which spatial heterogeneity will be corrected}
 
 \item{fix.eff}{if not NULL, vector of column names of data corresponding to fixed effects to control for in the kriging (e.g. "block")}
+
+\item{cressie}{if TRUE, the variogram function from the gstat package uses Cressie's robust variogram estimate, else it uses the classical method of moments}
+
+\item{vgm.model}{type(s) of variogram model(s) given to the vgm function of the gstat package; if several, the best one (smaller sum of squared errors) will be used}
 
 \item{nb.folds}{number of folds for the cross-validation}
 

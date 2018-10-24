@@ -6352,6 +6352,182 @@ aireml <- function(A, y, X, Z, initE, initU, verbose=0){
 	return(c(varE=varE, varU=varU))
 }
 
+## not exported: used only in plantTrialLmmFitCompSel
+plantTrialLmmFitFixed <- function(glob.form, dat.noNA,
+                                  saved.file,
+                                  cl=NULL, nb.cores=1,
+                                  verbose=0){
+  requireNamespace("MuMIn")
+  requireNamespace("parallel")
+  stopifnot(is.character(glob.form))
+  glob.preds <- trimws(strsplit(glob.form, "\\~|\\+")[[1]])[-1]
+  any.rand.var <- any(grepl("\\(*\\)", glob.preds))
+  if(any.rand.var)
+    requireNamespace("lme4")
+
+  if(! file.exists(saved.file)){
+    if(verbose > 0){
+      msg <- paste0("fit all models with ML",
+                    ifelse(any.rand.var, " (lme4 and MuMIn)", " (lm)"),
+                    " on ", nb.cores, " core",
+                    ifelse(nb.cores <= 1, "", "s"), "...")
+      write(msg, stdout())
+    }
+
+    if(any.rand.var){
+      globmod.ml <- lme4::lmer(formula=stats::as.formula(glob.form),
+                               data=dat.noNA,
+                               na.action="na.fail",
+                               REML=FALSE)
+    } else
+      globmod.ml <- stats::lm(formula=stats::as.formula(glob.form),
+                              data=dat.noNA,
+                              na.action="na.fail")
+    ## print(summary(globmod.ml))
+
+    if(nb.cores <= 1){
+      st <- system.time(
+        allmod.sel <- suppressMessages(
+          MuMIn::dredge(globmod.ml)))
+    } else{
+      should.cl.be.created <- FALSE
+      if(is.null(cl)){
+        should.cl.be.created <- TRUE
+        cl <- parallel::makeCluster(nb.cores, "SOCK")
+      }
+      parallel::clusterExport(cl=cl, varlist="dat.noNA", envir=environment())
+      if(any.rand.var)
+        tmp <- parallel::clusterEvalQ(cl=cl, expr=library(lme4))
+      st <- system.time(
+        allmod.sel <- suppressMessages(
+          MuMIn::pdredge(globmod.ml, cl)))
+      if(should.cl.be.created)
+        parallel::stopCluster(cl)
+    } # end of nb.cores > 1
+    if(verbose > 0)
+      print(st)
+    if(verbose > 0){
+      msg <- paste0("save all model fits with ML in '", saved.file, "':")
+      write(msg, stdout())
+    }
+    save(allmod.sel, file=saved.file)
+    md5.allmod.sel <- tools::md5sum(path.expand(saved.file))
+  } else{ # if saved.file exists
+    if(verbose > 0){
+      msg <- paste0("load all model fits with ML from '", saved.file, "':")
+      write(msg, stdout())
+    }
+    md5.allmod.sel <- tools::md5sum(path.expand(saved.file))
+    load(saved.file)
+  }
+  if(verbose > 0){
+    msg <- paste0("MD5 sum: ", md5.allmod.sel)
+    write(msg, stdout())
+  }
+
+  return(allmod.sel)
+}
+
+##' Model fit, comparison and selection
+##'
+##' For a plant field trial, fit by maximum likelihood (ML) a global linear (mixed) model with all the specified terms, then fit by ML various sub-models and compare them (AIC) or test each term (F-test for fixed effects and likelihood ratio test for random variables), finally select the best model and, if there are random variables, re-fit it using restricted maximum likelihood (ReML).
+##'
+##' @param glob.form formula for the global model
+##' @param dat data frame with all the data
+##' @param part.comp.sel part(s) of the model (fixed and/or random); if only "fixed", the lm/lme4 and MuMIn packages will be used, otherwise the lmerTest package will be used
+##' @param saved.file name of the file in which to save all model fits or from which to load all model fits; ignored with lmerTest
+##' @param nb.cores number of cores; ignored with lmerTest
+##' @param cl an object of class "cluster"; if NULL, will be created automaticall based on \code{nb.cores}; ignored with lmerTest
+##' @param verbose verbosity level (0/1)
+##' @return list
+##' @export
+plantTrialLmmFitCompSel <- function(glob.form, dat, part.comp.sel="fixed",
+                                    saved.file="lmmFitCompSel.RData",
+                                    nb.cores=1, cl=NULL, verbose=1){
+  stopifnot(is.character(glob.form),
+            is.data.frame(dat),
+            all(part.comp.sel %in% c("fixed", "random")))
+  glob.preds <- trimws(strsplit(glob.form, "\\~|\\+")[[1]])[-1]
+  any.rand.var <- any(grepl("\\(*\\)", glob.preds))
+  if(any.rand.var){
+    requireNamespace("lme4")
+  } else if("random" %in% part.comp.sel){
+    part.comp.sel <- part.comp.sel[-grep("random", part.comp.sel)]
+    stopifnot(length(part.comp.sel) > 0)
+  }
+  if("random" %in% part.comp.sel){
+    requireNamespace("lmerTest")
+  } else{
+    requireNamespace("MuMIn")
+    requireNamespace("tools")
+    if(nb.cores > 1)
+      requireNamespace("parallel")
+  }
+  if(! is.null(cl))
+    stopifnot("cluster" %in% class(cl))
+
+  out <- list()
+
+  ## format input data
+  dat <- droplevels(dat)
+  dat.noNA <- dat
+  if(any(is.na(dat.noNA))){
+    if(verbose > 0)
+      write("exclude NAs...", stdout())
+    dat.noNA <- droplevels(stats::na.exclude(dat.noNA))
+  }
+  out[["dat"]] <- dat
+  out[["dat.noNA"]] <- dat.noNA
+
+  ## fit, compare and select models
+  if("random" %in% part.comp.sel){ # LMM and select fix+rand terms
+    if(verbose > 0){
+      msg <- "fit the global model with ML (lmerTest)"
+      write(msg, stdout())
+    }
+    globmod.ml <- do.call(lmerTest::lmer,
+                          list(formula=stats::as.formula(glob.form),
+                               data=dat.noNA,
+                               na.action="na.fail",
+                               REML=FALSE))
+    step_res <- lmerTest::step(object=globmod.ml,
+                               reduce.fixed="fixed" %in% part.comp.sel,
+                               alpha.fixed=0.05,
+                               reduce.random=TRUE,
+                               alpha.random=0.1)
+    bestmod.ml <- lmerTest::get_model(step_res)
+  } else{ # LM or LMM and select fix+rand terms
+    allmod.sel <- plantTrialLmmFitFixed(glob.form, dat.noNA,
+                                        saved.file,
+                                        cl, nb.cores, verbose)
+    bestmod.ml <- MuMIn::get.models(allmod.sel, subset=1)[[1]]
+  }
+  if(verbose > 0){
+    msg <- "best model with ML:"
+    write(msg, stdout())
+    print(stats::formula(bestmod.ml, showEnv=FALSE))
+  }
+  out[["bestmod.ml"]] <- bestmod.ml
+  best.form <- Reduce(paste, deparse(stats::formula(bestmod.ml)))
+  all.preds <- trimws(strsplit(best.form, "\\~|\\+")[[1]])[-1]
+  out[["best.form"]] <- best.form
+  out[["all.preds"]] <- all.preds
+
+  if(any.rand.var){
+    if(verbose > 0){
+      msg <- "re-fit the best model with ReML..."
+      write(msg, stdout())
+    }
+    bestmod.reml <- lme4::lmer(formula=stats::formula(bestmod.ml),
+                               data=dat.noNA,
+                               na.action="na.fail",
+                               REML=TRUE)
+    out[["bestmod.reml"]] <- bestmod.reml
+  }
+
+  return(out)
+}
+
 ##' Animal model
 ##'
 ##' Given I genotypes, Q covariates and N=I*Q phenotypes for the trait, fit an "animal model" with the lme4 package via the following likelihood: y = W c + Z g_A + Z g_D + epsilon, where y is Nx1; W is NxQ; Z is NxI; g_A ~ Normal_I(0, sigma_A^2 A) with A the known matrix of additive genetic relationships; g_D ~ Normal_I(0, sigma_D^2 D) with D the known matrix of dominant genetic relationships; epsilon ~ Normal_N(0, sigma^2 Id_N); Cov(g_A,g_D)=0; Cov(g_A,e)=0; Cov(g_D,e)=0.
