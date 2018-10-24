@@ -1024,7 +1024,7 @@ out <- plantTrialLmmFitCompSel(glob.form=glob.form,
 Kriging using controls:
 ```{r kriging}
 fix.preds.corr.spat <- out$all.preds[-grep("\\(*\\|*\\)|year", out$all.preds)]
-dat2 <- correctSpatialHeterogeneity(dat=dat,
+dat <- correctSpatialHeterogeneity(dat=dat,
                                    response=response,
                                    fix.eff=fix.preds.corr.spat,
                                    verbose=2)
@@ -1032,26 +1032,16 @@ dat2 <- correctSpatialHeterogeneity(dat=dat,
 
 Re-fit the best model using the panel data corrected for spatial heterogeneity:
 ```{r bestmod_refit_spatial_correct}
-corr.spat.het <- FALSE
-if(corr.spat.het)
+corr.spat.het <- TRUE
+if(corr.spat.het){
+  glob.form <- gsub(response, paste0(response, ".csh"), glob.form)
   response <- paste0(response, ".csh")
-glob.form <- paste0(response, " ~ 1",
-                    " + block",
-                    " + year",
-                    " + covar1",
-                    " + covar2",
-                    ## " + covar1:covar2",
-                    " + fact1",
-                    " + fact2",
-                    " + fact1:fact2",
-                    ## " + covar1:fact1",
-                    ## " + covar1:fact2",
-                    ## " + covar2:fact1",
-                    ## " + covar2:fact2")#,
+}
+glob.form <- paste0(glob.form,
                     " + (1|geno)",
                     " + (1|geno:year)")
 out <- plantTrialLmmFitCompSel(glob.form=glob.form,
-                               dat=dat2[! dat$control,
+                               dat=dat[! dat$control,
                                        c(response,"block","year",
                                          "covar1","covar2","fact1","fact2",
                                          "geno","rank","location")],
@@ -1369,7 +1359,6 @@ anova(bestmod.reml)
 ## anova(bestmod.reml.lmerTest, ddf="Satterthwaite")
 ## system.time(
 ##     print(anova(bestmod.reml.lmerTest, ddf="Kenward-Roger")))
-## anova(bestmod.reml.lmerTest)
 ```
 
 ### Variance components
