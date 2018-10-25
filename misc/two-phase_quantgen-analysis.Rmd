@@ -1032,7 +1032,7 @@ dat <- correctSpatialHeterogeneity(dat=dat,
 
 Re-fit the best model using the panel data corrected for spatial heterogeneity:
 ```{r bestmod_refit_spatial_correct}
-corr.spat.het <- TRUE
+corr.spat.het <- FALSE
 if(corr.spat.het){
   glob.form <- gsub(response, paste0(response, ".csh"), glob.form)
   response <- paste0(response, ".csh")
@@ -1142,8 +1142,19 @@ qqline(y=fit.all$scl.cond.res, col="red")
 ### Temporal independence of errors
 
 ```{r check_error_temp_indep_plot}
+for(block in levels(fit.all$block))
+  plotResidualsBtwYears(df=fit.all, colname.res="scl.cond.res",
+                        years=c("2011","2012"), blocks=rep(block,2),
+                        cols.uniq.id=c("geno","block","rank","location"),
+                        main=paste0("Block ", block))
 plotResidualsBtwYears(df=fit.all, colname.res="scl.cond.res",
-                      years=c("2011","2012"), blocks=c("A","A"))
+                      years=c("2011","2012"), blocks=c("A","B"),
+                      cols.uniq.id="geno",
+                      main="Blocks A and B")
+plotResidualsBtwYears(df=fit.all, colname.res="scl.cond.res",
+                      years=c("2011","2012"), blocks=c("A","C"),
+                      cols.uniq.id="geno",
+                      main="Blocks A and C")
 ```
 
 ### Spatial independence of errors

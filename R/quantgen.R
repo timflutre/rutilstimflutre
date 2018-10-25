@@ -6528,6 +6528,105 @@ plantTrialLmmFitCompSel <- function(glob.form, dat, part.comp.sel="fixed",
   return(out)
 }
 
+##' Plot residuals between years
+##'
+##' Plot residuals between years to check their temporal independence.
+##' Especially useful as a diagnostic of model fit for statistical analysis of perennial plants.
+##' @param df data frame with a column given by \code{colname.res}, a column named "year", a column named "block" if \code{blocks} is specified, as well as any other column specified in \code{cols.uniq.id}
+##' @param colname.res name of the column containing the residuals
+##' @param years vector with two years as character
+##' @param cols.uniq.id vector of column name(s) allowing to identify each plant and pair it between years or years and blocks, e.g. \code{c("geno","block","rank","location")} or \code{"geno"}
+##' @param blocks if not NULL, vector of two blocks (e.g. \code{c("A","A")} or \code{c("A","B")})
+##' @param las style of axis labels, see \code{\link[graphics]{par}}
+##' @param lgd.pos position of the legend
+##' @param ... arguments passed on to \code{\link[graphics]{plot}}, such as \code{main}
+##' @return invisible data frame of the data used to make the plot
+##' @author Timothee Flutre
+##' @export
+plotResidualsBtwYears <- function(df, colname.res, years, cols.uniq.id,
+                                  blocks=NULL, las=1, lgd.pos="topright",
+                                  ...){
+  stopifnot(is.data.frame(df),
+            all(c(colname.res, "year", cols.uniq.id) %in% colnames(df)))
+  if(! is.null(blocks))
+    stopifnot("block" %in% colnames(df))
+  if("year" %in% cols.uniq.id)
+    cols.uniq.id <- cols.uniq.id[-grep("year", cols.uniq.id)]
+  stopifnot(length(cols.uniq.id) > 0)
+
+  ## extract the points of interest, insuring coherence between the two years
+  if(is.null(blocks)){
+    idx.x <- which(df$year == years[1])
+    idx.y <- which(df$year == years[2])
+  } else{
+    idx.x <- which(df$year == years[1] & df$block == blocks[1])
+    idx.y <- which(df$year == years[2] & df$block == blocks[2])
+  }
+  names(idx.x) <- do.call(paste, c(df[idx.x, cols.uniq.id, drop=FALSE],
+                                   sep="_"))
+  names(idx.y) <- do.call(paste, c(df[idx.y, cols.uniq.id, drop=FALSE],
+                                   sep="_"))
+  common.names <- names(idx.x)[names(idx.x) %in% names(idx.y)]
+  stopifnot(length(common.names) > 0)
+  idx.x <- idx.x[common.names]
+  idx.y <- idx.y[common.names]
+  tmp <- data.frame(x=df[idx.x, colname.res],
+                    y=df[idx.y, colname.res])
+  tmp <- tmp[stats::complete.cases(tmp),]
+  if(nrow(tmp) == 0){
+    msg <- paste0("no non-missing data on common plants for years ",
+                  years[1], " and ", years[2])
+    stop(msg)
+  }
+  
+  ## make the plot
+  if(is.null(blocks)){
+    xlab <- years[1]
+    ylab <- years[2]
+  } else{
+    xlab <- paste(blocks[1], years[1])
+    ylab <- paste(blocks[2], years[2])
+  }
+  l <- max(abs(c(tmp$x, tmp$y)))
+  graphics::plot(formula=y ~ x, data=tmp, las=las,
+                 xlim=c(-l,l), ylim=c(-l,l),
+                 xlab=xlab, ylab=ylab, ...)
+  graphics::abline(v=0, lty=2)
+  graphics::abline(h=0, lty=2)
+  
+  ## add information about correlation and R squared
+  cor.p <- stats::cor(x=tmp$x, y=tmp$y, method="pearson")
+  
+  fit.lm <- stats::lm(y ~ x, data=tmp)
+  R2 <- summary(fit.lm)$r.squared
+  tmp$fitted.lm <- stats::fitted(fit.lm)
+  graphics::lines(x=tmp$x[order(tmp$x)],
+                  y=tmp$fitted.lm[order(tmp$x)],
+                  col="green", lty=1, lwd=2)
+  
+  fit.loess <- stats::loess(y ~ x, data=tmp)
+  pseudoR2 <- pseudoR2(dat=tmp$y, res=stats::residuals(fit.loess),
+                       pred=stats::predict(fit.loess), method="Efron")
+  tmp$fitted.loess <- stats::fitted(fit.loess)
+  graphics::lines(x=tmp$x[order(tmp$x)],
+                  y=tmp$fitted.loess[order(tmp$x)],
+                  col="red", lty=1, lwd=2)
+  
+  lgd <- c(bquote("Pearson corr." == .(round(cor.p, 2))),
+           bquote("lm, " ~ R^2 ==
+                    .(round(R2, 2))),
+           bquote("loess, pseudo" ~ R^2 ==
+                    .(round(pseudoR2, 2))))
+  graphics::legend(lgd.pos,
+                   legend=sapply(lgd, as.expression),
+                   col=c("0", "green", "red"),
+                   lty=c(0, 1, 1),
+                   lwd=c(0, 2, 2),
+                   bty="n")
+  
+  invisible(tmp)
+}
+
 ##' Animal model
 ##'
 ##' Given I genotypes, Q covariates and N=I*Q phenotypes for the trait, fit an "animal model" with the lme4 package via the following likelihood: y = W c + Z g_A + Z g_D + epsilon, where y is Nx1; W is NxQ; Z is NxI; g_A ~ Normal_I(0, sigma_A^2 A) with A the known matrix of additive genetic relationships; g_D ~ Normal_I(0, sigma_D^2 D) with D the known matrix of dominant genetic relationships; epsilon ~ Normal_N(0, sigma^2 Id_N); Cov(g_A,g_D)=0; Cov(g_A,e)=0; Cov(g_D,e)=0.
