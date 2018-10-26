@@ -59,3 +59,40 @@ convertFactorColumnsToCharacter <- function(x){
   x[idx] <- lapply(x[idx], as.character)
   return(x)
 }
+
+##' Inline function in formula
+##'
+##' Detect the presence of inline function(s) in a formula and parse them.
+##' @param form character corresponding to a formula, e.g. \code{"y ~ 1 + x"}
+##' @param only.resp if TRUE, the presence of inline function(s) is detected only in the response
+##' @return list with one component per term of the formula (first the response and then the predictors, if any), each component containing a vector of characters with the untransformed variable first and then the inline function(s) from the outermost to the innermost, or NA if there is no inline function corresponding to this term
+##' @author Timothee Flutre
+##' @export
+inlineFctForm <- function(form, only.resp=TRUE){
+  stopifnot(is.character(form))
+  if(! only.resp){
+    msg <- "only.resp=FALSE is not implemented (yet)"
+    stop(msg)
+  }
+
+  out <- list()
+
+  if(only.resp)
+    form.terms <- trimws(strsplit(form, "~")[[1]][1])
+
+  for(x in form.terms){
+    out[[x]] <- NA
+    untransf <- regmatches(x,
+                           regexec("\\(([^\\(\\)]*)\\)", x))[[1]]
+    if(length(untransf) == 2){
+      out[[x]] <- untransf[2]
+      inFcts <- regmatches(x,
+                           gregexpr("([^\\(]*)\\(", x))[[1]]
+      if(length(inFcts) > 0)
+        out[[x]] <- c(out[[x]],
+                      sub("\\(", "", inFcts))
+    }
+  }
+
+  return(out)
+}

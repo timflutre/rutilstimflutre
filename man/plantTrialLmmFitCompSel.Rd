@@ -11,7 +11,7 @@ plantTrialLmmFitCompSel(glob.form, dat, part.comp.sel = "fixed",
 \arguments{
 \item{glob.form}{formula for the global model}
 
-\item{dat}{data frame with all the data}
+\item{dat}{data frame with all the columns required by \code{glob.form}; if the response contains an inline function (e.g., log or sqrt), the untransformed response may still be required}
 
 \item{part.comp.sel}{part(s) of the model (fixed and/or random); if only "fixed", the lm/lme4 and MuMIn packages will be used, otherwise the lmerTest package will be used}
 

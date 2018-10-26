@@ -205,6 +205,10 @@ correctSpatialHeterogeneity <- function(dat,
                      "year",
                      fix.eff,
                      response)
+    inFctResp <- inlineFctForm(response)
+    if(! all(is.na(inFctResp[[response]])))
+      cols.tokeep <- c(cols.tokeep,
+                       inFctResp[[response]][1])
     dat.ctl <- droplevels(dat[dat$control & dat$year == year,
                               cols.tokeep])
     dat.ctl.noNA <- stats::na.omit(dat.ctl)
@@ -217,7 +221,8 @@ correctSpatialHeterogeneity <- function(dat,
     dat.ctl.noNA.sp <-
       sp::SpatialPointsDataFrame(
               coords=dat.ctl.noNA[, c("rank","location")],
-              data=dat.ctl.noNA[, c("year", fix.eff, response)])
+              data=dat.ctl.noNA[, -grep("rank|location",
+                                        colnames(dat.ctl.noNA))])
     dat.panel <- droplevels(dat[! dat$control & dat$year == year,
                                 cols.tokeep])
     colnames(dat.panel)[colnames(dat.panel) == response] <-
@@ -225,15 +230,17 @@ correctSpatialHeterogeneity <- function(dat,
     dat.panel.sp <-
       sp::SpatialPointsDataFrame(
               coords=dat.panel[, c("rank","location")],
-              data=dat.panel[, c("year", fix.eff, paste0(response,".raw"))])
+              data=dat.panel[, -grep("rank|location",
+                                     colnames(dat.panel))])
     dat.all <- droplevels(dat[dat$year == year,
                               cols.tokeep])
     colnames(dat.all)[colnames(dat.all) == response] <-
       paste0(response, ".raw")
     dat.all.sp <-
       sp::SpatialPointsDataFrame(
-        coords=dat.all[, c("rank","location")],
-        data=dat.all[, c("year", fix.eff, paste0(response,".raw"))])
+              coords=dat.all[, c("rank","location")],
+              data=dat.all[, -grep("rank|location",
+                                   colnames(dat.all))])
 
     if(verbose > 0){
       msg <- paste0("compute experimental variogram on control data",

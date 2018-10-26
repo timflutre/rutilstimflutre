@@ -6433,7 +6433,7 @@ plantTrialLmmFitFixed <- function(glob.form, dat.noNA,
 ##' For a plant field trial, fit by maximum likelihood (ML) a global linear (mixed) model with all the specified terms, then fit by ML various sub-models and compare them (AIC) or test each term (F-test for fixed effects and likelihood ratio test for random variables), finally select the best model and, if there are random variables, re-fit it using restricted maximum likelihood (ReML).
 ##'
 ##' @param glob.form formula for the global model
-##' @param dat data frame with all the data
+##' @param dat data frame with all the columns required by \code{glob.form}; if the response contains an inline function (e.g., log or sqrt), the untransformed response may still be required
 ##' @param part.comp.sel part(s) of the model (fixed and/or random); if only "fixed", the lm/lme4 and MuMIn packages will be used, otherwise the lmerTest package will be used
 ##' @param saved.file name of the file in which to save all model fits or from which to load all model fits; ignored with lmerTest
 ##' @param nb.cores number of cores; ignored with lmerTest
@@ -6443,6 +6443,8 @@ plantTrialLmmFitFixed <- function(glob.form, dat.noNA,
 ##' @export
 plantTrialLmmFitCompSel <- function(glob.form, dat, part.comp.sel="fixed",
                                     saved.file="lmmFitCompSel.RData",
+
+
                                     nb.cores=1, cl=NULL, verbose=1){
   stopifnot(is.character(glob.form),
             is.data.frame(dat),
@@ -6465,6 +6467,17 @@ plantTrialLmmFitCompSel <- function(glob.form, dat, part.comp.sel="fixed",
   }
   if(! is.null(cl))
     stopifnot("cluster" %in% class(cl))
+  inFctResp <- inlineFctForm(glob.form, only.resp=TRUE)
+  if(! all(is.na(inFctResp[[1]]))){
+    orig.resp <- inFctResp[[1]][1]
+    if(! orig.resp %in% colnames(dat)){
+      msg <- paste0("the response '", names(inFctResp)[1], "' is transformed,",
+                    " i.e. contains an inline function,",
+                    " but the untransformed response '", orig.resp,
+                    "' isn't present as column names in 'dat'")
+      warning(msg, immediate.=TRUE)
+    }
+  }
 
   out <- list()
 
@@ -6496,7 +6509,7 @@ plantTrialLmmFitCompSel <- function(glob.form, dat, part.comp.sel="fixed",
                                reduce.random=TRUE,
                                alpha.random=0.1)
     bestmod.ml <- lmerTest::get_model(step_res)
-  } else{ # LM or LMM and select fix+rand terms
+  } else{ # LM or LMM and select fix terms
     allmod.sel <- plantTrialLmmFitFixed(glob.form, dat.noNA,
                                         saved.file,
                                         cl, nb.cores, verbose)
@@ -6578,7 +6591,7 @@ plotResidualsBtwYears <- function(df, colname.res, years, cols.uniq.id,
                   years[1], " and ", years[2])
     stop(msg)
   }
-  
+
   ## make the plot
   if(is.null(blocks)){
     xlab <- years[1]
@@ -6593,17 +6606,17 @@ plotResidualsBtwYears <- function(df, colname.res, years, cols.uniq.id,
                  xlab=xlab, ylab=ylab, ...)
   graphics::abline(v=0, lty=2)
   graphics::abline(h=0, lty=2)
-  
+
   ## add information about correlation and R squared
   cor.p <- stats::cor(x=tmp$x, y=tmp$y, method="pearson")
-  
+
   fit.lm <- stats::lm(y ~ x, data=tmp)
   R2 <- summary(fit.lm)$r.squared
   tmp$fitted.lm <- stats::fitted(fit.lm)
   graphics::lines(x=tmp$x[order(tmp$x)],
                   y=tmp$fitted.lm[order(tmp$x)],
                   col="green", lty=1, lwd=2)
-  
+
   fit.loess <- stats::loess(y ~ x, data=tmp)
   pseudoR2 <- pseudoR2(dat=tmp$y, res=stats::residuals(fit.loess),
                        pred=stats::predict(fit.loess), method="Efron")
@@ -6611,7 +6624,7 @@ plotResidualsBtwYears <- function(df, colname.res, years, cols.uniq.id,
   graphics::lines(x=tmp$x[order(tmp$x)],
                   y=tmp$fitted.loess[order(tmp$x)],
                   col="red", lty=1, lwd=2)
-  
+
   lgd <- c(bquote("Pearson corr." == .(round(cor.p, 2))),
            bquote("lm, " ~ R^2 ==
                     .(round(R2, 2))),
@@ -6623,7 +6636,7 @@ plotResidualsBtwYears <- function(df, colname.res, years, cols.uniq.id,
                    lty=c(0, 1, 1),
                    lwd=c(0, 2, 2),
                    bty="n")
-  
+
   invisible(tmp)
 }
 
