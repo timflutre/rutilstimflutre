@@ -177,13 +177,16 @@ correctSpatialHeterogeneity <- function(dat,
     stopifnot(is.character(fix.eff))
     if("1" %in% fix.eff)
       fix.eff <- fix.eff[-grep("1", fix.eff)]
-    for(fix.eff.i in fix.eff)
-      stopifnot(fix.eff.i %in% colnames(dat))
     if("year" %in% fix.eff){
       msg <- "'year' is removed from fix.eff"
       warning(msg)
       fix.eff <- fix.eff[-grep("year", fix.eff)]
     }
+    if(length(fix.eff) == 0){
+      fix.eff <- NULL
+    } else
+      for(fix.eff.i in fix.eff)
+        stopifnot(fix.eff.i %in% colnames(dat))
   }
   for(x in c("rank", "location")){
     if(is.factor(dat[[x]])){
@@ -254,7 +257,9 @@ correctSpatialHeterogeneity <- function(dat,
                     " in ", year, "...")
       write(msg, stdout())
     }
-    form <- paste0(response, " ~ 1 + ", paste(fix.eff, collapse=" + "))
+    form <- paste0(response, " ~ 1")
+    if(! is.null(fix.eff))
+      form <- paste0(form, " + ", paste(fix.eff, collapse=" + "))
     if(verbose > 0){
       msg <- paste0("kriging formula in ", year, ":\n", form)
       write(msg, stdout())
