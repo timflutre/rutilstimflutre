@@ -1023,7 +1023,10 @@ out <- plantTrialLmmFitCompSel(glob.form=glob.form,
 
 Kriging using controls:
 ```{r kriging}
-fix.preds.corr.spat <- out$all.preds[-grep("\\(*\\|*\\)|year", out$all.preds)]
+fix.preds.corr.spat <- out$all.preds
+idx <- grep("\\(*\\|*\\)|year", out$all.preds)
+if(length(idx) > 0)
+  fix.preds.corr.spat <- out$all.preds[-idx]
 dat <- correctSpatialHeterogeneity(dat=dat,
                                    response=response,
                                    fix.eff=fix.preds.corr.spat,
@@ -1128,6 +1131,16 @@ lattice::xyplot(fitted ~ scl.cond.res | year, groups=block,
                   panel.abline(v=c(0, -1.96, 1.96), lty=c(2, 3, 3))
                   panel.xyplot(x,y,...)
                 })
+```
+
+```{r}
+boxplot(scl.cond.res ~ block + year,
+        data=fit.all,
+        xlab="scaled conditional residuals",
+        ## ylab="blocks and years",
+        main=response,
+        varwidth=TRUE, notch=TRUE, horizontal=TRUE, las=1)
+abline(v=c(0, -1.96, 1.96), lty=c(2, 3, 3))
 ```
 
 ### Error normality
