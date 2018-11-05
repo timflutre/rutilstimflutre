@@ -143,6 +143,7 @@ simulAr1Ar1 <- function(n=1, R=2, C=2, rho.r=0, rho.c=0,
 ##' @param dat data frame with, at least, columns named "geno", "control" (TRUE/FALSE), "rank", "location", "year" and <response>
 ##' @param response column name of dat corresponding to the response for which spatial heterogeneity will be corrected
 ##' @param fix.eff if not NULL, vector of column names of data corresponding to fixed effects to control for in the kriging (e.g. "block")
+##' @param min.ctls.per.year minimum number of control data points in a given year to proceed
 ##' @param cressie if TRUE, the variogram function from the gstat package uses Cressie's robust variogram estimate, else it uses the classical method of moments
 ##' @param vgm.model type(s) of variogram model(s) given to the vgm function of the gstat package; if several, the best one (smaller sum of squared errors) will be used
 ##' @param nb.folds number of folds for the cross-validation
@@ -153,6 +154,7 @@ simulAr1Ar1 <- function(n=1, R=2, C=2, rho.r=0, rho.c=0,
 correctSpatialHeterogeneity <- function(dat,
                                         response,
                                         fix.eff=NULL,
+                                        min.ctls.per.year=10,
                                         cressie=TRUE,
                                         vgm.model=c("Exp", "Sph", "Gau", "Ste"),
                                         nb.folds=5,
@@ -212,6 +214,11 @@ correctSpatialHeterogeneity <- function(dat,
     dat.ctl <- droplevels(dat[dat$control & dat$year == year,
                               cols.tokeep])
     dat.ctl.noNA <- stats::na.omit(dat.ctl)
+    if(nrow(dat.ctl.noNA) <= min.ctls.per.year){
+      msg <- paste0("skip year '", year, "' because not enough control data")
+      write(msg, stdout())
+      next
+    }
     locs <- paste0(dat.ctl.noNA$rank, "_", dat.ctl.noNA$location)
     if(anyDuplicated(locs)){
       msg <- paste0("in ", year, " krige.cv and krige from gstat",
