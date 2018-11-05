@@ -6640,6 +6640,72 @@ plotResidualsBtwYears <- function(df, colname.res, years, cols.uniq.id,
   invisible(tmp)
 }
 
+##' Broad-sense heritability
+##'
+##' Estimate broad-sense heritability of phenotypic means via the classical formula for balanced data sets as in the introduction of \href{http://www.genetics.org/cgi/doi/10.1534/genetics.107.074229}{Piepho and Mohring (2007)}.
+##' For unbalanced data sets, the mean number of years and replicates per year are used.
+##' @param dat data frame of input data after missing data have been excluded, with columns named \code{colname.resp}, "geno" and "year"
+##' @param colname.resp name of the column containing the response
+##' @param vc data frame of variance components with columns "grp" and "vcov" (i.e. formatted as \code{as.data.frame(VarCorr())} from the "lme4" package)
+##' @return list with the mean number of years, the mean number of replicates per year, the broad-sense heritability and a function to compute summary statistics whch can be used for estimating confidence intervals by bootstrap
+##' @author Timothee Flutre
+##' @export
+estimH2means <- function(dat, colname.resp, vc){
+  requireNamespace("lme4")
+  stopifnot(is.data.frame(dat),
+            all(! is.na(dat)),
+            all(c(colname.resp,"geno","year") %in% colnames(dat)),
+            is.data.frame(vc),
+            all(c("grp","vcov") %in% colnames(vc)))
+
+  out <- list()
+
+  reps.geno.year <- tapply(dat[[colname.resp]],
+                           list(dat$geno, dat$year),
+                           length)
+  ## head(reps.geno.year) # debug
+  mean.nb.years <- mean(apply(reps.geno.year, 1, function(x){
+    sum(! is.na(x))
+  }))
+  out$mean.nb.years <- mean.nb.years
+  mean.nb.reps.per.year <- mean(apply(reps.geno.year, 2, mean, na.rm=TRUE))
+  out$mean.nb.reps.per.year <- mean.nb.reps.per.year
+
+  var.geno <- vc[vc$grp == "geno", "vcov"]
+  var.pheno <- var.geno
+  if("geno:year" %in% vc$grp)
+    var.pheno <- var.pheno +
+      vc[vc$grp == "geno:year", "vcov"] / mean.nb.years
+  var.pheno <- var.pheno +
+    vc[vc$grp == "Residual", "vcov"] /
+    (mean.nb.years * mean.nb.reps.per.year)
+  H2.means <- var.geno / var.pheno
+  out$H2.means <- H2.means
+
+  sryStat <- function(.){
+    tmp <- c(ef=lme4::fixef(.),
+             sd.err=stats::sigma(.),
+             sd=sqrt(unlist(lme4::VarCorr(.))))
+    var.geno <- tmp["sd.geno"]^2
+    var.pheno <- var.geno
+    if("sd.geno:year" %in% names(tmp))
+      var.pheno <- var.pheno +
+        tmp["sd.geno:year"]^2 / mean.nb.years
+    var.pheno <- var.pheno +
+      tmp["sd.err"]^2 / (mean.nb.years * mean.nb.reps.per.year)
+    tmp <- c(tmp,
+             var.geno / var.pheno)
+    names(tmp)[length(tmp)] <- "H2.means"
+    tmp <- c(tmp,
+             tmp["sd.geno"] / abs(tmp["ef.(Intercept)"]))
+    names(tmp)[length(tmp)] <- "CV.geno"
+    return(tmp)
+  }
+  out$sryStat <- sryStat
+
+  return(out)
+}
+
 ##' Animal model
 ##'
 ##' Given I genotypes, Q covariates and N=I*Q phenotypes for the trait, fit an "animal model" with the lme4 package via the following likelihood: y = W c + Z g_A + Z g_D + epsilon, where y is Nx1; W is NxQ; Z is NxI; g_A ~ Normal_I(0, sigma_A^2 A) with A the known matrix of additive genetic relationships; g_D ~ Normal_I(0, sigma_D^2 D) with D the known matrix of dominant genetic relationships; epsilon ~ Normal_N(0, sigma^2 Id_N); Cov(g_A,g_D)=0; Cov(g_A,e)=0; Cov(g_D,e)=0.
