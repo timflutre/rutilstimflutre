@@ -6388,7 +6388,7 @@ plantTrialLmmFitFixed <- function(glob.form, dat.noNA,
     if(nb.cores <= 1){
       st <- system.time(
         allmod.sel <- suppressMessages(
-          MuMIn::dredge(globmod.ml)))
+          MuMIn::dredge(global.model=globmod.ml, rank="AICc")))
     } else{
       should.cl.be.created <- FALSE
       if(is.null(cl)){
@@ -6400,7 +6400,7 @@ plantTrialLmmFitFixed <- function(glob.form, dat.noNA,
         tmp <- parallel::clusterEvalQ(cl=cl, expr=library(lme4))
       st <- system.time(
         allmod.sel <- suppressMessages(
-          MuMIn::pdredge(globmod.ml, cl)))
+          MuMIn::pdredge(global.model=globmod.ml, cluster=cl, rank="AICc")))
       if(should.cl.be.created)
         parallel::stopCluster(cl)
     } # end of nb.cores > 1
@@ -6430,7 +6430,7 @@ plantTrialLmmFitFixed <- function(glob.form, dat.noNA,
 
 ##' Model fit, comparison and selection
 ##'
-##' For a plant field trial, fit by maximum likelihood (ML) a global linear (mixed) model with all the specified terms, then fit by ML various sub-models and compare them (AIC) or test each term (F-test for fixed effects and likelihood ratio test for random variables), finally select the best model and, if there are random variables, re-fit it using restricted maximum likelihood (ReML).
+##' For a plant field trial, fit by maximum likelihood (ML) a global linear (mixed) model with all the specified terms, then fit by ML various sub-models and compare them (AICc) or test each term (F-test for fixed effects and likelihood ratio test for random variables), finally select the best model and, if there are random variables, re-fit it using restricted maximum likelihood (ReML).
 ##'
 ##' @param glob.form formula for the global model
 ##' @param dat data frame with all the columns required by \code{glob.form}; if the response contains an inline function (e.g., log or sqrt), the untransformed response may still be required

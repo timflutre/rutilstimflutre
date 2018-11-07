@@ -27,5 +27,5 @@ plantTrialLmmFitCompSel(glob.form, dat, part.comp.sel = "fixed",
 list
 }
 \description{
-For a plant field trial, fit by maximum likelihood (ML) a global linear (mixed) model with all the specified terms, then fit by ML various sub-models and compare them (AIC) or test each term (F-test for fixed effects and likelihood ratio test for random variables), finally select the best model and, if there are random variables, re-fit it using restricted maximum likelihood (ReML).
+For a plant field trial, fit by maximum likelihood (ML) a global linear (mixed) model with all the specified terms, then fit by ML various sub-models and compare them (AICc) or test each term (F-test for fixed effects and likelihood ratio test for random variables), finally select the best model and, if there are random variables, re-fit it using restricted maximum likelihood (ReML).
 }
