@@ -343,6 +343,26 @@ test_that("readSegregJoinMap", {
     file.remove(jm.file)
 })
 
+test_that("getJoinMapSegregs", {
+  nb.offs <- 5
+  nb.snps <- 5
+
+  genos <- data.frame(off1=c("ac", "ee", "hh", "ll", "nn"),
+                      off2=c("ad", "eg", "hk", "lm", "np"),
+                      off3=c("bc", "ef", "kk", "--", "--"),
+                      off4=c("bd", "fg", "--", "--", "--"),
+                      off5=rep("--", nb.snps),
+                      row.names=paste0("snp", 1:nb.snps),
+                      stringsAsFactors=FALSE)
+
+  expected <- c("<abxcd>", "<efxeg>", "<hkxhk>", "<lmxll>", "<nnxnp>")
+  names(expected) <- rownames(genos)
+
+  observed <- getJoinMapSegregs(genos=genos, na.string="--")
+
+  expect_equal(observed, expected)
+})
+
 test_that("joinMap2backcross_qtl", {
   nb.locus <- 6
   nb.genos <- 4

@@ -1393,6 +1393,49 @@ readSegregJoinMap <- function(file, na.string="--", verbose=1){
   return(out)
 }
 
+##' JoinMap segregation types
+##'
+##' Get segregation types for each marker from a data frame of marker genotypes in the JoinMap format.
+##' @param genos data frame containing genotypes encoded in the JoinMap format,  similar to the output from \code{\link{genoClasses2JoinMap}}
+##' @param na.string character indicating a missing genotype
+##' @return vector that can be used in \code{\link{writeSegregJoinMap}}
+##' @author Charlotte Brault, Timothee Flutre
+##' @export
+getJoinMapSegregs <- function(genos, na.string="--"){
+  stopifnot(is.data.frame(genos))
+
+  genos <- convertFactorColumnsToCharacter(genos)
+
+  segregs <- apply(genos, 1, function(genos.i){
+    seg <- NA
+    if(all(genos.i %in% c("ac", "ad", "bc", "bd", na.string))){
+      seg <- "<abxcd>"
+    } else if(all(genos.i %in% c("ef", "eg", "fg", "ee", na.string))){
+      seg <- "<efxeg>"
+    } else if(all(genos.i %in% c("hh", "kk", "hk", na.string))){
+      seg <- "<hkxhk>"
+    } else if(all(genos.i %in% c("lm", "ll", na.string))){
+      seg <- "<lmxll>"
+    } else if(all(genos.i %in% c("nn", "np", na.string))){
+      seg <- "<nnxnp>"
+    } else
+      seg <- NA
+    seg
+  })
+  if(! is.null(rownames(genos)))
+    names(segregs) <- rownames(genos)
+
+  miss.seg <- is.na(segregs)
+  if(any(miss.seg)){
+    msg <- paste0(sum(miss.seg), "marker",
+                  ifelse(sum(miss.seg) > 0, "s have", " has"),
+                  " missing segregation")
+    warning(msg)
+  }
+
+  return(segregs)
+}
+
 ##' Write genotypes for JoinMap/MapQTL
 ##'
 ##' Write genotype data in the \href{https://www.kyazma.nl/index.php/JoinMap/}{JoinMap} format into a "loc" file used by this software.
