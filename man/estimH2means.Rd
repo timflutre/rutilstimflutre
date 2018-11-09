@@ -4,21 +4,23 @@
 \alias{estimH2means}
 \title{Broad-sense heritability}
 \usage{
-estimH2means(dat, colname.resp, vc)
+estimH2means(dat, colname.resp, colname.trial = "year", vc)
 }
 \arguments{
-\item{dat}{data frame of input data after missing data have been excluded, with columns named \code{colname.resp}, "geno" and "year"}
+\item{dat}{data frame of input data after missing data have been excluded, with columns named \code{colname.resp}, "geno" and \code{colname.trial}}
 
 \item{colname.resp}{name of the column containing the response}
 
-\item{vc}{data frame of variance components with columns "grp" and "vcov" (i.e. formatted as \code{as.data.frame(VarCorr())} from the "lme4" package)}
+\item{colname.trial}{name of the column identifying the trials (e.g. \code{"year"}, \code{"year_irrigation"}, etc)}
+
+\item{vc}{data frame of variance components with columns "grp" and "vcov" (i.e. formatted as \code{as.data.frame(VarCorr())} from the "lme4" package); \code{grp="Residual"} for "var.e"}
 }
 \value{
-list with the mean number of years, the mean number of replicates per year, the broad-sense heritability and a function to compute summary statistics whch can be used for estimating confidence intervals by bootstrap
+list with the mean number of trials, the mean number of replicates per trial, the broad-sense heritability and a function to compute summary statistics whch can be used for estimating confidence intervals by bootstrap
 }
 \description{
-Estimate broad-sense heritability of phenotypic means via the classical formula for balanced data sets as in the introduction of \href{http://www.genetics.org/cgi/doi/10.1534/genetics.107.074229}{Piepho and Mohring (2007)}.
-For unbalanced data sets, the mean number of years and replicates per year are used.
+Estimate broad-sense heritability on an entry-mean basis via the classical formula for balanced data sets as in the introduction of \href{http://www.genetics.org/cgi/doi/10.1534/genetics.107.074229}{Piepho and Mohring (2007)}: H2 = var.g / var.p where var.p = var.g + var.ge / m + var.e / (r x m) with "m" the number of trials and "r" the number of replicates per trial.
+For unbalanced data sets, the mean number of trials and replicates per trial are used.
 }
 \author{
 Timothee Flutre

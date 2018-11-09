@@ -60,7 +60,7 @@ suppressPackageStartupMessages(library(emmeans))
 ##                          as.character(packageVersion("varbvs")))
 ##           != 1)
 suppressPackageStartupMessages(library(rutilstimflutre)) # on GitHub
-stopifnot(compareVersion("0.168.2",
+stopifnot(compareVersion("0.169.2",
                          as.character(packageVersion("rutilstimflutre")))
           != 1)
 ## stopifnot(file.exists(Sys.which("gemma"))) # https://github.com/genetics-statistics/GEMMA/
@@ -1302,20 +1302,12 @@ if(FALSE){
 ### Broad-sense heritability
 
 ```{r H2}
-reps.geno.year <- tapply(dat.noNA[[response]],
-                         list(dat.noNA$geno, dat.noNA$year),
-                         length)
-head(reps.geno.year)
-(mean.nb.years <- mean(apply(reps.geno.year, 1, function(x){
-  sum(! is.na(x))
-})))
-(mean.nb.reps.per.year <- mean(apply(reps.geno.year, 2, mean, na.rm=TRUE)))
-(H2.means <- vc.reml[vc.reml$grp == "geno", "vcov"] /
-   (vc.reml[vc.reml$grp == "geno", "vcov"] +
-    ## (vc.reml[vc.reml$grp == "geno:year", "vcov"] /
-    ##  mean.nb.years) +
-    (vc.reml[vc.reml$grp == "Residual", "vcov"] /
-     (mean.nb.years * mean.nb.reps.per.year))))
+tmp <- estimH2means(dat=dat.noNA, colname.resp=response,
+                    colname.trial="year", vc=vc.reml)
+tmp$mean.nb.trials
+tmp$mean.nb.reps.per.trial
+tmp$H2.means
+mySumm <- tmp$sryStat
 ```
 
 ### Confidence intervals

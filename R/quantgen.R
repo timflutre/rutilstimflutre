@@ -6685,43 +6685,47 @@ plotResidualsBtwYears <- function(df, colname.res, years, cols.uniq.id,
 
 ##' Broad-sense heritability
 ##'
-##' Estimate broad-sense heritability of phenotypic means via the classical formula for balanced data sets as in the introduction of \href{http://www.genetics.org/cgi/doi/10.1534/genetics.107.074229}{Piepho and Mohring (2007)}.
-##' For unbalanced data sets, the mean number of years and replicates per year are used.
-##' @param dat data frame of input data after missing data have been excluded, with columns named \code{colname.resp}, "geno" and "year"
+##' Estimate broad-sense heritability on an entry-mean basis via the classical formula for balanced data sets as in the introduction of \href{http://www.genetics.org/cgi/doi/10.1534/genetics.107.074229}{Piepho and Mohring (2007)}: H2 = var.g / var.p where var.p = var.g + var.ge / m + var.e / (r x m) with "m" the number of trials and "r" the number of replicates per trial.
+##' For unbalanced data sets, the mean number of trials and replicates per trial are used.
+##' @param dat data frame of input data after missing data have been excluded, with columns named \code{colname.resp}, "geno" and \code{colname.trial}
 ##' @param colname.resp name of the column containing the response
-##' @param vc data frame of variance components with columns "grp" and "vcov" (i.e. formatted as \code{as.data.frame(VarCorr())} from the "lme4" package)
-##' @return list with the mean number of years, the mean number of replicates per year, the broad-sense heritability and a function to compute summary statistics whch can be used for estimating confidence intervals by bootstrap
+##' @param colname.trial name of the column identifying the trials (e.g. \code{"year"}, \code{"year_irrigation"}, etc)
+##' @param vc data frame of variance components with columns "grp" and "vcov" (i.e. formatted as \code{as.data.frame(VarCorr())} from the "lme4" package); \code{grp="Residual"} for "var.e"
+##' @return list with the mean number of trials, the mean number of replicates per trial, the broad-sense heritability and a function to compute summary statistics whch can be used for estimating confidence intervals by bootstrap
 ##' @author Timothee Flutre
 ##' @export
-estimH2means <- function(dat, colname.resp, vc){
+estimH2means <- function(dat, colname.resp, colname.trial="year", vc){
   requireNamespace("lme4")
   stopifnot(is.data.frame(dat),
             all(! is.na(dat)),
-            all(c(colname.resp,"geno","year") %in% colnames(dat)),
+            all(c(colname.resp,"geno",colname.trial) %in% colnames(dat)),
             is.data.frame(vc),
-            all(c("grp","vcov") %in% colnames(vc)))
+            all(c("grp","vcov") %in% colnames(vc)),
+            "geno" %in% vc$grp,
+            "Residual" %in% vc$grp)
 
   out <- list()
 
-  reps.geno.year <- tapply(dat[[colname.resp]],
-                           list(dat$geno, dat$year),
+  reps.geno.trial <- tapply(dat[[colname.resp]],
+                           list(dat[["geno"]], dat[[colname.trial]]),
                            length)
-  ## head(reps.geno.year) # debug
-  mean.nb.years <- mean(apply(reps.geno.year, 1, function(x){
+  ## out$reps.geno.trial <- reps.geno.trial # debug
+  mean.nb.trials <- mean(apply(reps.geno.trial, 1, function(x){
     sum(! is.na(x))
   }))
-  out$mean.nb.years <- mean.nb.years
-  mean.nb.reps.per.year <- mean(apply(reps.geno.year, 2, mean, na.rm=TRUE))
-  out$mean.nb.reps.per.year <- mean.nb.reps.per.year
+  out$mean.nb.trials <- mean.nb.trials
+  mean.nb.reps.per.trial <- mean(apply(reps.geno.trial, 2, mean, na.rm=TRUE))
+  out$mean.nb.reps.per.trial <- mean.nb.reps.per.trial
 
   var.geno <- vc[vc$grp == "geno", "vcov"]
   var.pheno <- var.geno
-  if("geno:year" %in% vc$grp)
+  if(paste0("geno:", colname.trial) %in% vc$grp)
     var.pheno <- var.pheno +
-      vc[vc$grp == "geno:year", "vcov"] / mean.nb.years
+      vc[vc$grp == paste0("geno:", colname.trial), "vcov"] /
+      mean.nb.trials
   var.pheno <- var.pheno +
     vc[vc$grp == "Residual", "vcov"] /
-    (mean.nb.years * mean.nb.reps.per.year)
+    (mean.nb.trials * mean.nb.reps.per.trial)
   H2.means <- var.geno / var.pheno
   out$H2.means <- H2.means
 
@@ -6731,11 +6735,12 @@ estimH2means <- function(dat, colname.resp, vc){
              sd=sqrt(unlist(lme4::VarCorr(.))))
     var.geno <- tmp["sd.geno"]^2
     var.pheno <- var.geno
-    if("sd.geno:year" %in% names(tmp))
+    if(paste0("sd.geno:", colname.trial) %in% names(tmp))
       var.pheno <- var.pheno +
-        tmp["sd.geno:year"]^2 / mean.nb.years
+        tmp[paste0("sd.geno:", colname.trial)]^2 /
+        mean.nb.trials
     var.pheno <- var.pheno +
-      tmp["sd.err"]^2 / (mean.nb.years * mean.nb.reps.per.year)
+      tmp["sd.err"]^2 / (mean.nb.trials * mean.nb.reps.per.trial)
     tmp <- c(tmp,
              var.geno / var.pheno)
     names(tmp)[length(tmp)] <- "H2.means"
