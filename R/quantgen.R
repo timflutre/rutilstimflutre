@@ -6685,16 +6685,21 @@ plotResidualsBtwYears <- function(df, colname.res, years, cols.uniq.id,
 
 ##' Broad-sense heritability
 ##'
-##' Estimate broad-sense heritability on an entry-mean basis via the classical formula for balanced data sets as in the introduction of \href{http://www.genetics.org/cgi/doi/10.1534/genetics.107.074229}{Piepho and Mohring (2007)}: H2 = var.g / var.p where var.p = var.g + var.ge / m + var.e / (r x m) with "m" the number of trials and "r" the number of replicates per trial.
-##' For unbalanced data sets, the mean number of trials and replicates per trial are used.
+##' Estimate broad-sense heritability (squared correlation between predicted and true genotypic effects) on an entry-mean basis:
+##' \enumerate{
+##' \item via the classical formula for balanced data sets (see Falconer and Mackay, or the introduction of \href{http://www.genetics.org/cgi/doi/10.1534/genetics.107.074229}{Piepho and Mohring (2007)}): H2 = var.g / var.p, where var.p = var.g + var.ge / m + var.e / (r x m) with "m" the number of trials and "r" the number of replicates per trial (for unbalanced data sets, the mean number of trials and replicates per trial are used);
+##' \item via the formula of \href{http://dx.doi.org/10.1007/s00122-006-0333-z}{Oakey et al (2006)} for unbalanced data sets: H2 = 1 - trace(G^-1 C_zz) / m, with "m" the number of genotypes.
+##' }
 ##' @param dat data frame of input data after missing data have been excluded, with columns named \code{colname.resp}, "geno" and \code{colname.trial}
 ##' @param colname.resp name of the column containing the response
 ##' @param colname.trial name of the column identifying the trials (e.g. \code{"year"}, \code{"year_irrigation"}, etc)
 ##' @param vc data frame of variance components with columns "grp" and "vcov" (i.e. formatted as \code{as.data.frame(VarCorr())} from the "lme4" package); \code{grp="Residual"} for "var.e"
-##' @return list with the mean number of trials, the mean number of replicates per trial, the broad-sense heritability and a function to compute summary statistics whch can be used for estimating confidence intervals by bootstrap
+##' @param geno.var.blups vector of variances of empirical BLUPs of the genotypic effects, g, assuming g ~ MVN(0, G) where G = sigma_g^2 I_m; if not provided, the estimator of oakey et al won't be computed
+##' @return list with the mean number of trials, the mean number of replicates per trial, the broad-sense heritability (classical estimator from Falconer and Mackay, as well as optionally the one from Oakey et al), and a function to compute summary statistics whch can be used for estimating confidence intervals by bootstrap
 ##' @author Timothee Flutre
 ##' @export
-estimH2means <- function(dat, colname.resp, colname.trial="year", vc){
+estimH2means <- function(dat, colname.resp, colname.trial="year", vc,
+                         geno.var.blups=NULL){
   requireNamespace("lme4")
   stopifnot(is.data.frame(dat),
             all(! is.na(dat)),
@@ -6703,9 +6708,12 @@ estimH2means <- function(dat, colname.resp, colname.trial="year", vc){
             all(c("grp","vcov") %in% colnames(vc)),
             "geno" %in% vc$grp,
             "Residual" %in% vc$grp)
+  if(! is.null(geno.var.blups))
+    stopifnot(is.vector(geno.var.blups))
 
   out <- list()
 
+  ## classical estimator from Falconer and Mackay
   reps.geno.trial <- tapply(dat[[colname.resp]],
                            list(dat[["geno"]], dat[[colname.trial]]),
                            length)
@@ -6726,10 +6734,21 @@ estimH2means <- function(dat, colname.resp, colname.trial="year", vc){
   var.pheno <- var.pheno +
     vc[vc$grp == "Residual", "vcov"] /
     (mean.nb.trials * mean.nb.reps.per.trial)
-  H2.means <- var.geno / var.pheno
-  out$H2.means <- H2.means
+  H2.classic <- var.geno / var.pheno
+  out$H2.classic <- H2.classic
+
+  ## estimator from Oakey et al (2006)
+  G <- vc[vc$grp == "geno", "vcov"] *
+    diag(length(geno.var.blups))
+  Ginv <- solve(G)
+  C.zz <- diag(geno.var.blups)
+  H2.oakey <- 1 - matrixTrace(Ginv %*% C.zz) / length(geno.var.blups)
+  out$H2.oakey <- H2.oakey
 
   sryStat <- function(.){
+    geno.blups <- lme4::ranef(., condVar=TRUE, drop=TRUE)$geno
+    geno.var.blups <- stats::setNames(attr(geno.blups, "postVar"),
+                                      names(geno.blups))
     tmp <- c(ef=lme4::fixef(.),
              sd.err=stats::sigma(.),
              sd=sqrt(unlist(lme4::VarCorr(.))))
@@ -6743,7 +6762,13 @@ estimH2means <- function(dat, colname.resp, colname.trial="year", vc){
       tmp["sd.err"]^2 / (mean.nb.trials * mean.nb.reps.per.trial)
     tmp <- c(tmp,
              var.geno / var.pheno)
-    names(tmp)[length(tmp)] <- "H2.means"
+    names(tmp)[length(tmp)] <- "H2.classic"
+    G <- tmp["sd.geno"]^2 * diag(length(geno.var.blups))
+    Ginv <- solve(G)
+    C.zz <- diag(geno.var.blups)
+    tmp <- c(tmp,
+             1 - matrixTrace(Ginv %*% C.zz) / length(geno.var.blups))
+    names(tmp)[length(tmp)] <- "H2.oakey"
     tmp <- c(tmp,
              tmp["sd.geno"] / abs(tmp["ef.(Intercept)"]))
     names(tmp)[length(tmp)] <- "CV.geno"

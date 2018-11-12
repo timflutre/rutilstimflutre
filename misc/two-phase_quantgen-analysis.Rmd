@@ -38,7 +38,7 @@ This document aims at exploring two-phase analysis in quantitative genetics as s
 This document requires external packages to be available:
 ```{r load_pkg}
 suppressPackageStartupMessages(library(parallel))
-nb.cores <- detectCores() - 1
+nb.cores <- ifelse(detectCores() > 20, 20, detectCores() - 1)
 suppressPackageStartupMessages(library(scrm))
 suppressPackageStartupMessages(library(sp))
 suppressPackageStartupMessages(library(randtoolbox))
@@ -356,7 +356,7 @@ I.c <- 1         # control
 I <- I.p + I.c   # total nb of genotypes
 stopifnot(I <= nb.genos)
 J <- 5           # nb of blocks
-nb.controls.per.block <- 40
+nb.controls.per.block <- 30
 (I.block <- I.p + I.c * nb.controls.per.block) # total nb of plants in a block
 (N <- I.block * J) # nb of phenotypic data per year
 uniq.geno.names <- sample(x=rownames(genomes$genos),
@@ -1035,7 +1035,7 @@ dat <- correctSpatialHeterogeneity(dat=dat,
 
 Re-fit the best model using the panel data corrected for spatial heterogeneity:
 ```{r bestmod_refit_spatial_correct}
-corr.spat.het <- FALSE
+corr.spat.het <- TRUE
 if(corr.spat.het){
   glob.form <- gsub(response, paste0(response, ".csh"), glob.form)
   response <- paste0(response, ".csh")
@@ -1200,7 +1200,6 @@ for(year in levels(fit.all$year)){
 ```
 
 Look at the empirical variogram, and fit a variogram model:
-
 ```{r check_error_spatial_indep_variogram, eval=TRUE}
 for(year in levels(fit.all$year)){
   tmp <- na.omit(as.data.frame(lay.tmp[,paste0("scl.cond.res.", year)]))
@@ -1303,10 +1302,12 @@ if(FALSE){
 
 ```{r H2}
 tmp <- estimH2means(dat=dat.noNA, colname.resp=response,
-                    colname.trial="year", vc=vc.reml)
+                    colname.trial="year", vc=vc.reml,
+                    geno.var.blups=geno.var.blups)
 tmp$mean.nb.trials
 tmp$mean.nb.reps.per.trial
-tmp$H2.means
+tmp$H2.classic
+tmp$H2.oakey
 mySumm <- tmp$sryStat
 ```
 
@@ -1315,44 +1316,33 @@ mySumm <- tmp$sryStat
 #### Profiling
 
 ```{r bestmod_confint_prof, eval=FALSE}
-system.time(
-    prof <- profile(bestmod.ml, signames=FALSE,
-                    parallel="multicore", ncpus=nb.cores))
-(ci <- confint(prof, level=0.95))
-xyplot(prof, absVal=TRUE, conf=c(0.8, 0.95), which=1:2,
-       main=response)
-densityplot(prof,
-            main=response)
-splom(prof, conf=c(0.8, 0.95), which=1:2,
-      main=response)
+if(TRUE){
+  st <- system.time(
+      prof <- profile(bestmod.ml, signames=FALSE,
+                      parallel="multicore", ncpus=nb.cores))
+  print(st)
+  (ci <- confint(prof, level=0.95))
+  xyplot(prof, absVal=TRUE, conf=c(0.8, 0.95), which=1:2,
+         main=response)
+  densityplot(prof,
+              main=response)
+  splom(prof, conf=c(0.8, 0.95), which=1:2,
+        main=response)
+}
 ```
 
 #### Bootstrapping
 
 ```{r bestmod_confint_boot, eval=TRUE}
-mySumm <- function(.){
-  tmp <- c(ef=fixef(.),
-           sd.err=sigma(.),
-           sd=sqrt(unlist(VarCorr(.))))
-  tmp <- c(tmp,
-           tmp["sd.geno"]^2 /
-           (tmp["sd.geno"]^2 +
-            ## (tmp["sd.geno:year"]^2 / mean.nb.years) +
-            (tmp["sd.err"]^2 / (mean.nb.years *
-                                mean.nb.reps.per.year))))
-  names(tmp)[length(tmp)] <- "H2.means"
-  tmp <- c(tmp,
-           tmp["sd.geno"] / abs(tmp["ef.(Intercept)"]))
-  names(tmp)[length(tmp)] <- "CV.geno"
-  return(tmp)
-}
+mySumm(bestmod.reml)
 mySumm(bestmod.ml)
 if(TRUE){
-  system.time(
-    fit.boot <- bootMer(x=bestmod.ml, FUN=mySumm,
-                        nsim=1*10^3, seed=1859,
-                        use.u=FALSE, type="parametric",
-                        parallel="multicore", ncpus=nb.cores))
+  st <- system.time(
+      fit.boot <- bootMer(x=bestmod.ml, FUN=mySumm,
+                          nsim=1*10^3, seed=1859,
+                          use.u=FALSE, type="parametric",
+                          parallel="multicore", ncpus=nb.cores))
+  print(st)
   fit.boot
   for(i in seq_along(fit.boot$t0)){
     message(names(fit.boot$t0)[i])

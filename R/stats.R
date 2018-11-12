@@ -291,6 +291,25 @@ mpInv <- function(x){
   return(out)
 }
 
+##' Trace of a matrix
+##'
+##' Return the trace of a matrix by summing its eigenvalues.
+##' @param x matrix to be decomposed; ignored if \code{l} is provided
+##' @param l vector of eigenvalues
+##' @return numeric
+##' @author Timothee Flutre
+##' @export
+matrixTrace <- function(x=NULL, l=NULL){
+  stopifnot(xor(is.null(x), is.null(l)))
+
+  if(is.null(l))
+    l <- eigen(x=x, only.values=TRUE)$values
+
+  trace <- sum(l)
+
+  return(trace)
+}
+
 ##' Principal component analysis
 ##'
 ##' Given a data matrix X with N rows and P columns, principal component analysis can be performed using the singular value decomposition (SVD), X = U D V^T, where U is NxN, D is NxN and diagonal (singular values), and V is PxN.
