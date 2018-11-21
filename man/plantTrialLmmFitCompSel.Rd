@@ -5,8 +5,7 @@
 \title{Model fit, comparison and selection}
 \usage{
 plantTrialLmmFitCompSel(glob.form, dat, part.comp.sel = "fixed",
-  saved.file = "lmmFitCompSel.RData", nb.cores = 1, cl = NULL,
-  verbose = 1)
+  saved.file = NULL, nb.cores = 1, cl = NULL, verbose = 1)
 }
 \arguments{
 \item{glob.form}{formula for the global model}

@@ -6397,7 +6397,7 @@ aireml <- function(A, y, X, Z, initE, initU, verbose=0){
 
 ## not exported: used only in plantTrialLmmFitCompSel
 plantTrialLmmFitFixed <- function(glob.form, dat.noNA,
-                                  saved.file,
+                                  saved.file=NULL,
                                   cl=NULL, nb.cores=1,
                                   verbose=0){
   requireNamespace("MuMIn")
@@ -6408,7 +6408,14 @@ plantTrialLmmFitFixed <- function(glob.form, dat.noNA,
   if(any.rand.var)
     requireNamespace("lme4")
 
-  if(! file.exists(saved.file)){
+  ## determine whether to fit or to load already-computed results
+  need.to.fit <- is.null(saved.file)
+  if(! is.null(saved.file)){
+    if(! file.exists(saved.file))
+      need.to.fit <- TRUE
+  }
+
+  if(need.to.fit){
     if(verbose > 0){
       msg <- paste0("fit all models with ML",
                     ifelse(any.rand.var, " (lme4 and MuMIn)", " (lm)"),
@@ -6449,13 +6456,15 @@ plantTrialLmmFitFixed <- function(glob.form, dat.noNA,
     } # end of nb.cores > 1
     if(verbose > 0)
       print(st)
-    if(verbose > 0){
-      msg <- paste0("save all model fits with ML in '", saved.file, "':")
-      write(msg, stdout())
+    if(! is.null(saved.file)){
+      if(verbose > 0){
+        msg <- paste0("save all model fits with ML in '", saved.file, "':")
+        write(msg, stdout())
+      }
+      save(allmod.sel, file=saved.file)
+      md5.allmod.sel <- tools::md5sum(path.expand(saved.file))
     }
-    save(allmod.sel, file=saved.file)
-    md5.allmod.sel <- tools::md5sum(path.expand(saved.file))
-  } else{ # if saved.file exists
+  } else{ # if need.to.fit is FALSE
     if(verbose > 0){
       msg <- paste0("load all model fits with ML from '", saved.file, "':")
       write(msg, stdout())
@@ -6485,9 +6494,7 @@ plantTrialLmmFitFixed <- function(glob.form, dat.noNA,
 ##' @return list
 ##' @export
 plantTrialLmmFitCompSel <- function(glob.form, dat, part.comp.sel="fixed",
-                                    saved.file="lmmFitCompSel.RData",
-
-
+                                    saved.file=NULL,
                                     nb.cores=1, cl=NULL, verbose=1){
   stopifnot(is.character(glob.form),
             is.data.frame(dat),
@@ -6694,7 +6701,7 @@ plotResidualsBtwYears <- function(df, colname.res, years, cols.uniq.id,
 ##' @param colname.resp name of the column containing the response
 ##' @param colname.trial name of the column identifying the trials (e.g. \code{"year"}, \code{"year_irrigation"}, etc)
 ##' @param vc data frame of variance components with columns "grp" and "vcov" (i.e. formatted as \code{as.data.frame(VarCorr())} from the "lme4" package); \code{grp="Residual"} for "var.e"
-##' @param geno.var.blups vector of variances of empirical BLUPs of the genotypic effects, g, assuming g ~ MVN(0, G) where G = sigma_g^2 I_m; if not provided, the estimator of oakey et al won't be computed
+##' @param geno.var.blups vector of variances of empirical BLUPs of the genotypic effects, g, assuming g ~ MVN(0, G) where G = sigma_g^2 I_m; if not provided, the estimator of Oakey et al won't be computed
 ##' @return list with the mean number of trials, the mean number of replicates per trial, the broad-sense heritability (classical estimator from Falconer and Mackay, as well as optionally the one from Oakey et al), and a function to compute summary statistics whch can be used for estimating confidence intervals by bootstrap
 ##' @author Timothee Flutre
 ##' @export

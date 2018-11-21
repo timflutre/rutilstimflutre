@@ -16,7 +16,7 @@ estimH2means(dat, colname.resp, colname.trial = "year", vc,
 
 \item{vc}{data frame of variance components with columns "grp" and "vcov" (i.e. formatted as \code{as.data.frame(VarCorr())} from the "lme4" package); \code{grp="Residual"} for "var.e"}
 
-\item{geno.var.blups}{vector of variances of empirical BLUPs of the genotypic effects, g, assuming g ~ MVN(0, G) where G = sigma_g^2 I_m; if not provided, the estimator of oakey et al won't be computed}
+\item{geno.var.blups}{vector of variances of empirical BLUPs of the genotypic effects, g, assuming g ~ MVN(0, G) where G = sigma_g^2 I_m; if not provided, the estimator of Oakey et al won't be computed}
 }
 \value{
 list with the mean number of trials, the mean number of replicates per trial, the broad-sense heritability (classical estimator from Falconer and Mackay, as well as optionally the one from Oakey et al), and a function to compute summary statistics whch can be used for estimating confidence intervals by bootstrap
