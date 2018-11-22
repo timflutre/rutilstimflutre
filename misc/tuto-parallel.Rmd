@@ -1,0 +1,203 @@
+---
+title: "Tutorial on parallel computations in R"
+author: "Timothée Flutre (INRA)"
+date: "`r format(Sys.time(), '%d/%m/%Y %H:%M:%S')`"
+lang: "en"
+colorlinks: true
+output:
+  html_document:
+    toc: true
+    toc_depth: 3
+    toc_float: true
+    number_sections: TRUE
+  pdf_document:
+    toc: true
+    toc_depth: 3
+    number_sections: TRUE
+urlcolor: blue
+---
+
+<!--
+This R chunk is used to set up some options.
+-->
+```{r setup, include=FALSE}
+##`
+## https://github.com/vspinu/polymode/issues/147#issuecomment-399745611
+R.v.maj <- as.numeric(R.version$major)
+R.v.min.1 <- as.numeric(strsplit(R.version$minor, "\\.")[[1]][1])
+if(R.v.maj < 2 || (R.v.maj == 2 && R.v.min.1 < 15))
+  stop("requires R >= 2.15", call.=FALSE)
+
+suppressPackageStartupMessages(library(knitr))
+opts_chunk$set(echo=TRUE, warning=TRUE, message=TRUE, cache=FALSE, fig.align="center")
+opts_knit$set(progress=TRUE, verbose=TRUE)
+```
+
+
+# Overview
+
+This R chunk is used to assess how much time it takes to execute the R code in this document until the end:
+```{r time_0}
+t0 <- proc.time()
+```
+
+Since several releases, R natively comes with parallel support:
+```{r}
+library(parallel)
+```
+
+Some context and information can be found in the vignette of this package:
+```{r}
+#browseVignettes(package="parallel")
+```
+
+This package provides a way to determine how many cores are available:
+```{r}
+(nb.cores <- detectCores())
+```
+
+In practice, it is useful to keep at least one core to keep doing other things on the computer while the computations run in parallel:
+```{r}
+nb.cores <- nb.cores - 1
+```
+
+
+# Make a function
+
+It is frequent to have a set of instructions that one has to launch several times ($n$):
+```{r}
+n <- 4 # small so that this tutorial doesn't take too long to run
+```
+
+When each launch is independent of each other, it is _embarassingly_ easy to parallelize.
+But before anything else, it is advised to make a function with all instructions.
+Here is an example for the sake of this tutorial:
+```{r}
+unitRun <- function(){
+  Sys.sleep(3) # so that this example takes enough time to run
+  runif(1)     # so that this examples involves random numbers
+}
+```
+
+
+# Sequential code
+
+## "for" loop
+
+It is usual to start by writing a "for" loop:
+```{r}
+RNGkind(kind="default")
+set.seed(1234) # to be reproducible
+out.for.1 <- rep(NA, n)
+for(i in 1:n){
+  out.for.1[i] <- unitRun()
+}
+out.for.1
+```
+
+Let's do it again to check the reproducibility:
+```{r}
+RNGkind(kind="default")
+set.seed(1234)
+out.for.2 <- rep(NA, n)
+for(i in 1:n){
+  out.for.2[i] <- unitRun()
+}
+out.for.2
+all.equal(out.for.2, out.for.1)
+```
+
+## lapply
+
+After having written a "for" loop, it is advised to re-write the code with a call to "lapply":
+```{r}
+RNGkind(kind="default")
+set.seed(1234)
+system.time(
+  out.lapply.1 <- lapply(X=1:n, FUN=function(i){
+    unitRun()
+}))
+out.lapply.1 <- do.call(c, out.lapply.1) # convert the output list into a vector
+out.lapply.1
+all.equal(out.lapply.1, out.for.1)
+```
+
+# Parallel code
+
+## mclapply
+
+Once the code uses "lapply", it is trivial to re-write it to use "mclapply", but this function works only on Linux:
+```{r}
+RNGkind(kind="L'Ecuyer-CMRG") # good-quality RNG with multiple independent streams
+set.seed(1234)
+system.time(
+  out.mclapply.1 <- mclapply(X=1:n, FUN=function(i){
+    unitRun()
+}, mc.cores=nb.cores))
+out.mclapply.1 <- do.call(c, out.mclapply.1)
+out.mclapply.1
+```
+
+Let's do it again to check the reproducibility (only on clusters with the same number of cores):
+```{r}
+RNGkind(kind="L'Ecuyer-CMRG")
+set.seed(1234)
+system.time(
+  out.mclapply.2 <- mclapply(X=1:n, FUN=function(i){
+    unitRun()
+}, mc.cores=nb.cores))
+out.mclapply.2 <- do.call(c, out.mclapply.2)
+out.mclapply.2
+all.equal(out.mclapply.2, out.mclapply.1)
+```
+
+## parLapply
+
+On Windows, one first has to create a "cluster" object:
+```{r}
+cl <- makeCluster(spec=nb.cores, type="PSOCK")
+```
+
+Then, one can use "parLapply":
+```{r}
+RNGkind("L'Ecuyer-CMRG")
+clusterSetRNGStream(cl=cl, iseed=1234)
+clusterExport(cl=cl, varlist="unitRun")
+# if unitRun() requires packages, use clusterEvalQ(cl, library(<pkg>))
+system.time(
+  out.parLapply.1 <- parLapply(cl=cl, X=1:n, fun=function(i){
+    unitRun()
+}))
+out.parLapply.1 <- do.call(c, out.parLapply.1)
+out.parLapply.1
+```
+
+Let's do it again to check the reproducibility (only on clusters with the same number of cores):
+```{r}
+RNGkind(kind="L'Ecuyer-CMRG")
+clusterSetRNGStream(cl=cl, iseed=1234)
+system.time(
+  out.parLapply.2 <- parLapply(cl=cl, X=1:n, fun=function(i){
+    unitRun()
+}))
+out.parLapply.2 <- do.call(c, out.parLapply.2)
+out.parLapply.2
+all.equal(out.parLapply.2, out.parLapply.1)
+```
+
+When it's not needed anymore, don't forget to stop the cluster:
+```{r}
+stopCluster(cl)
+```
+
+## Miscellaneous
+
+See this course: https://www.datacamp.com/courses/parallel-programming-in-r.
+
+
+# Appendix
+
+```{r info}
+t1 <- proc.time(); t1 - t0
+print(sessionInfo(), locale=FALSE)
+```
