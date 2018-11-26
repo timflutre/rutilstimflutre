@@ -31,6 +31,7 @@ Suggests:
     BiocGenerics,
     BiocInstaller,
     Biostrings,
+    BGLR,
     BLR,
     coda,
     DBI,
@@ -73,6 +74,7 @@ Suggests:
     SummarizedExperiment,
     testthat,
     utils,
+    varbvs,
     VariantAnnotation
 RoxygenNote: 6.0.1
 VignetteBuilder: knitr
