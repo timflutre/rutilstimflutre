@@ -2449,11 +2449,15 @@ joinMap2designMatrix <- function(jm, use.phase=FALSE,
 
   if(rm.col.zeros){
     idx <- which(apply(out, 2, function(col.j){all(col.j == 0)}))
-    if(verbose > 0){
-      msg <- paste0("remove ", length(idx), " columns full of zeros...")
-      write(msg, stdout())
+    if(length(idx) > 0){
+      if(verbose > 0){
+        msg <- paste0("remove ", length(idx), " column",
+                      ifelse(length(idx) > 1, "s", ""),
+                      " full of zeros...")
+        write(msg, stdout())
+      }
+      out <- out[, -idx]
     }
-    out <- out[, -idx]
   }
 
   if(all(! use.phase, rm.dom)){
