@@ -11,7 +11,7 @@ lmerAM(formula, data, relmat, REML = TRUE, na.action = stats::na.exclude,
 \arguments{
 \item{formula}{formula (see \code{\link[lme4]{lmer}})}
 
-\item{data}{data.frame containing the data corresponding to formula and relmat (see \code{\link[lme4]{lmer}})}
+\item{data}{data.frame containing the data corresponding to formula and relmat (see \code{\link[lme4]{lmer}}); the additive genotypic effect should be named "geno.add" and the dominance genotypic effect, if any, should be named "geno.dom"}
 
 \item{relmat}{list containing the matrices of genetic relationships (A is compulsory but D is optional); should use the same names as the colnames in data; can be in the "matrix" class (base) or the "dsCMatrix" class (Matrix package); see \code{\link{estimGenRel}}}
 
@@ -19,7 +19,7 @@ lmerAM(formula, data, relmat, REML = TRUE, na.action = stats::na.exclude,
 
 \item{na.action}{a function that indicates what should happen when the data contain \code{NA}s (see \code{\link[lme4]{lmer}})}
 
-\item{ci.meth}{method to compute confidence intervals (profile/boot); with bootstrap, to get intervals for narrow-sense heritability (h2), the additive genotypic effect must be named "geno.add" (in formula, data and relmat) and any other random effect is ignored}
+\item{ci.meth}{method to compute confidence intervals (profile/boot)}
 
 \item{ci.lev}{level to compute confidence intervals}
 
@@ -34,7 +34,7 @@ lmerAM(formula, data, relmat, REML = TRUE, na.action = stats::na.exclude,
 \item{verbose}{verbosity level (0/1)}
 }
 \value{
-list with a \code{\link[lme4]{merMod}} object, a vector of point estimates of variance components (and h2 if \code{ci.meth="boot"}), a \code{thpr} object if \code{ci.meth="profile"}, a \code{boot} object if \code{ci.meth="profile"}, a data frame with confidence intervals (if \code{ci.meth} is not NULL)
+list with a \code{\link[lme4]{merMod}} object, a vector of point estimates of variance components, a point estimate of h2, a \code{thpr} object if \code{ci.meth="profile"}, a \code{boot} object if \code{ci.meth="profile"}, a data frame with confidence intervals (if \code{ci.meth} is not NULL)
 }
 \description{
 Given I genotypes, Q covariates and N=I*Q phenotypes for the trait, fit an "animal model" with the lme4 package via the following likelihood: y = W c + Z g_A + Z g_D + epsilon, where y is Nx1; W is NxQ; Z is NxI; g_A ~ Normal_I(0, sigma_A^2 A) with A the known matrix of additive genetic relationships; g_D ~ Normal_I(0, sigma_D^2 D) with D the known matrix of dominant genetic relationships; epsilon ~ Normal_N(0, sigma^2 Id_N); Cov(g_A,g_D)=0; Cov(g_A,e)=0; Cov(g_D,e)=0.
