@@ -6798,12 +6798,16 @@ estimH2means <- function(dat, colname.resp, colname.trial="year", vc,
 ##' @param relmat list containing the matrices of genetic relationships (A is compulsory but D is optional); should use the same names as the colnames in data; can be in the "matrix" class (base) or the "dsCMatrix" class (Matrix package); see \code{\link{estimGenRel}}
 ##' @param REML default is TRUE (use FALSE to compare models with different fixed effects)
 ##' @param na.action a function that indicates what should happen when the data contain \code{NA}s (see \code{\link[lme4]{lmer}})
-##' @param ci.meth method to compute confidence intervals (profile/boot); if not NULL, use \code{\link[lme4]{confint.merMod}}
+##' @param ci.meth method to compute confidence intervals (profile/boot); with bootstrap, to get intervals for narrow-sense heritability (h2), the additive genotypic effect must be named "geno.add" (in formula, data and relmat) and any other random effect is ignored
 ##' @param ci.lev level to compute confidence intervals
+##' @param nb.boots number of bootstrap replicates; used only if \code{ci.meth="boot"}
+##' @param parallel the type of parallel operation to be used, if any (no/multicore/snow)
+##' @param ncpus number of processes to be used in parallel operation
+##' @param cl an optional object of class \code{"cluster"} returned by \code{\link[parallel]{makeCluster}}; if not supplied, a cluster on the local machine is created for the duration of the call
 ##' @param verbose verbosity level (0/1)
-##' @return list with a \code{\link[lme4]{merMod}} object, a \code{thpr} object (if ci.meth="profile"), and a data.frame with confidence intervals (if ci.meth is not NULL)
+##' @return list with a \code{\link[lme4]{merMod}} object, a vector of point estimates of variance components (and h2 if \code{ci.meth="boot"}), a \code{thpr} object if \code{ci.meth="profile"}, a \code{boot} object if \code{ci.meth="profile"}, a data frame with confidence intervals (if \code{ci.meth} is not NULL)
 ##' @author Timothee Flutre (inspired by Ben Bolker at http://stackoverflow.com/q/19327088/597069)
-##' @note If A is not positive definite, an error will be raised (via \code{\link[base]{chol}}); in such cases, using the nearPD function from the Matrix package can be useful.
+##' @note If A is not positive definite, an error will be raised (via \code{\link[base]{chol}}); in such cases, using the \code{nearPD} function from the Matrix package can be useful.
 ##' @seealso \code{\link{inlaAM}}, \code{\link{jagsAM}}, \code{\link{stanAM}}
 ##' @examples
 ##' \dontrun{## simulate genotypes
@@ -6812,11 +6816,16 @@ estimH2means <- function(dat, colname.resp, colname.trial="year", vc,
 ##'
 ##' ## simulate phenotypes with only additive part of genotypic values
 ##' A <- estimGenRel(X, relationships="additive", method="vanraden1", verbose=0)
+##' kappa(A)
+##' A <- as.matrix(nearPD(A)$mat)
+##' kappa(A)
 ##' modelA <- simulAnimalModel(T=1, Q=3, A=A, V.G.A=15, V.E=5, seed=1859)
 ##'
 ##' ## infer with lme4
-##' fitA <- lmerAM(formula=response1 ~ year + (1|geno), data=modelA$data,
-##'                relmat=list(geno=A), verbose=0)
+##' modelA$data$geno.add <- modelA$data$geno
+##' fitA <- lmerAM(formula=response1 ~ year + (1|geno.add),
+##'                data=modelA$data,
+##'                relmat=list(geno.add=A), verbose=0)
 ##' summary(fitA$merMod)
 ##' REMLcrit(fitA$merMod)
 ##' extractAIC(fitA$merMod)
@@ -6826,12 +6835,23 @@ estimH2means <- function(dat, colname.resp, colname.trial="year", vc,
 ##' fixef(fitA$merMod)
 ##' coefficients(summary(fitA$merMod))[, "Std. Error"]
 ##' vc <- as.data.frame(VarCorr(fitA$merMod))
-##' c(vc[vc$grp == "geno", "vcov"], vc[vc$grp == "Residual", "vcov"])
-##' blups.geno <- ranef(fitA$merMod, condVar=TRUE, drop=TRUE)$geno
+##' c(vc[vc$grp == "geno.add", "vcov"], vc[vc$grp == "Residual", "vcov"])
+##' blups.geno <- ranef(fitA$merMod, condVar=TRUE, drop=TRUE)$geno.add
 ##' var.blups.geno <- setNames(attr(blups.geno, "postVar"), names(blups.geno))
+##'
+##' ## compute confidence intervals in parallel
+##' library(parallel)
+##' (nb.cores <- max(1, detectCores() - 1))
+##' cl <- makeCluster(spec=nb.cores, type="PSOCK")
+##' fitA <- lmerAM(formula=response1 ~ year + (1|geno.add),
+##'                data=modelA$data,
+##'                relmat=list(geno.add=A), verbose=1,
+##'                ci.meth="profile", parallel="snow", ncpus=nb.cores, cl=cl)
+##' stopCluster(cl)
 ##'
 ##' ## simulate phenotypes with additive and dominant parts of genotypic values
 ##' D <- estimGenRel(X, relationships="dominant", method="vitezica", verbose=0)
+##' kappa(D)
 ##' modelAD <- simulAnimalModel(T=1, Q=3, A=A, V.G.A=15, V.E=5,
 ##'                             D=D, V.G.D=3, seed=1859)
 ##'
@@ -6850,7 +6870,8 @@ estimH2means <- function(dat, colname.resp, colname.trial="year", vc,
 ##' }
 ##' @export
 lmerAM <- function(formula, data, relmat, REML=TRUE, na.action=stats::na.exclude,
-                   ci.meth=NULL, ci.lev=0.95, verbose=1){
+                   ci.meth=NULL, ci.lev=0.95, nb.boots=10^3,
+                   parallel="no", ncpus=1, cl=NULL, verbose=1){
   requireNamespaces(c("lme4", "Matrix"))
   stopifnot(is.data.frame(data),
             all(! duplicated(colnames(data))),
@@ -6865,8 +6886,15 @@ lmerAM <- function(formula, data, relmat, REML=TRUE, na.action=stats::na.exclude
               ! is.null(colnames(relmat[[i]])),
               rownames(relmat[[i]]) == colnames(relmat[[i]]),
               all(rownames(relmat[[i]]) %in% data[,names(relmat)[i]]))
-  if(! is.null(ci.meth))
+  if(! is.null(ci.meth)){
     stopifnot(ci.meth %in% c("profile", "boot"))
+    if(ci.meth == "boot"){
+      requireNamespace("boot")
+      requireNamespace("MASS")
+    }
+  }
+  if(! is.null(parallel))
+    stopifnot(parallel %in% c("no",  "multicore", "snow"))
 
   if(verbose > 0)
     write("parse the formula ...", stdout())
@@ -6894,7 +6922,7 @@ lmerAM <- function(formula, data, relmat, REML=TRUE, na.action=stats::na.exclude
     Ztlist[[i]] <- relfac[[i]] %*% Ztlist[[i]]
   }
   parsedFormula$reTrms[["Ztlist"]] <- Ztlist
-  parsedFormula$reTrms[["Zt"]] <- do.call(Matrix::rBind, Ztlist)
+  parsedFormula$reTrms[["Zt"]] <- do.call(rbind, Ztlist) # Matrix::rBind if R < 3.2.0
 
   if(verbose > 0)
     write("make the deviance function ...", stdout())
@@ -6911,21 +6939,107 @@ lmerAM <- function(formula, data, relmat, REML=TRUE, na.action=stats::na.exclude
                         reTrms=parsedFormula$reTrms,
                         fr=parsedFormula$fr)
 
-  prof <- NULL
+  vc <- as.data.frame(lme4::VarCorr(fit))
+  vc <- stats::setNames(vc$vcov, vc$grp)
+
+  out.prof <- NULL
+  out.boot <- NULL
   ci <- NULL
   if(! is.null(ci.meth)){
-    if(verbose > 0)
-      write("compute confidence intervals ...", stdout())
+    if(verbose > 0){
+      msg <- paste0("compute confidence intervals (", ci.meth, ")...")
+      write(msg, stdout())
+    }
     if(ci.meth == "profile"){
-      prof <- stats::profile(fitted=fit, signames=FALSE)
-      ci <- stats::confint(object=prof, level=ci.lev)
-    } else
-      suppressMessages(ci <- lme4::confint.merMod(fit, level=ci.lev,
-                                                  method=ci.meth,
-                                                  oldNames=FALSE))
+      out.prof <- stats::profile(fitted=fit, signames=FALSE,
+                                 parallel=parallel, ncpus=ncpus, cl=cl)
+      ci <- stats::confint(object=out.prof, level=ci.lev)
+      ## suppressMessages(ci <- lme4::confint.merMod(fit, level=ci.lev,
+      ##                                             method="profile",
+      ##                                             oldNames=FALSE))
+    } else if(ci.meth == "boot"){
+      vc <- c(vc,
+              vc["geno.add"] / sum(vc))
+      names(vc)[length(vc)] <- "h2"
+      .bootStat <- function(inputs){
+        fit.boot <- lmerAM(formula=inputs$formula, data=inputs$data,
+                           relmat=inputs$relmat, REML=inputs$REML,
+                           na.action=inputs$na.action, ci.meth=NULL,
+                           verbose=0)
+        stats.boot <- c(sd.err=stats::sigma(fit.boot$merMod),
+                        sd=sqrt(unlist(lme4::VarCorr(fit.boot$merMod))))
+        stats.boot <- c(stats.boot,
+                        stats.boot["sd.geno.add"]^2 /
+                        (stats.boot["sd.geno.add"]^2 +
+                         stats.boot["sd.err"]^2))
+        names(stats.boot)[length(stats.boot)] <- "h2"
+        return(stats.boot)
+      }
+      .bootRanGen <- function(inputs, params){
+        outputs <- inputs
+
+        ## parse formula
+        tmp <- stats::terms(outputs$formula)
+        vars <- as.character(attr(tmp, "variables"))[-1]
+        idx.resp <- attr(tmp, "response")
+        response <- vars[idx.resp]
+        idx.geno.add <- grep("geno.add", vars)
+        if(length(vars) == 2){
+          idx.fix <- NULL
+        } else{
+          idx.fix <- (1:length(vars))[-c(idx.resp, idx.geno.add)]
+        }
+        fix <- vars[idx.fix]
+
+        ## get and check model dimensions
+        outputs$data$geno.add <- as.factor(outputs$data$geno.add)
+        I <- nlevels(outputs$data$geno.add)
+        Q <- length(params$fix.eff)
+        N <- I * Q
+        stopifnot(N == nrow(outputs$data))
+
+        ## make design matrices
+        X <- stats::model.matrix(stats::as.formula(paste(c("~ 1", fix),
+                                                         collapse="+")),
+                                 data=outputs$data)
+        Z <- stats::model.matrix(~ -1 + geno.add,
+                                 data=outputs$data)
+
+        ## draw random variables and generate responses
+        e <- stats::rnorm(n=N, mean=0, sd=params$sd.err)
+        u <- MASS::mvrnorm(n=1, mu=rep(0, I),
+                           Sigma=params$sd.geno.add * diag(I))
+        y <- X %*% params$fix.eff + Z %*% u + e
+        outputs$data[,response] <- y
+
+        return(outputs)
+      }
+      inputs <- list(formula=formula, data=data, relmat=relmat,
+                     REML=REML, na.action=na.action)
+      ## .bootStat(inputs) # to debug
+      params <- list(sd.err=sqrt(as.numeric(vc["Residual"])),
+                     sd.geno.add=sqrt(as.numeric(vc["geno.add"])),
+                     fix.eff=lme4::fixef(fit))
+      ## .bootRanGen(inputs, params) # to debug
+      out.boot <- boot::boot(data=inputs,
+                             statistic=.bootStat,
+                             R=nb.boots, sim="parametric",
+                             ran.gen=.bootRanGen,
+                             mle=params,
+                             parallel=parallel, ncpus=ncpus, cl=cl)
+      ci <- matrix(nrow=3, ncol=2,
+                   dimnames=list(c("sd.err", "sd.geno.add", "h2"),
+                                 paste0(100 * c((1-ci.lev)/2,
+                                                1-(1-ci.lev)/2), "%")))
+      for(i in 1:nrow(ci)){
+        tmp <- boot::boot.ci(out.boot, conf=ci.lev, type="perc",
+                             index=i)$percent
+        ci[i,] <- tmp[1, c((ncol(tmp)-1):ncol(tmp))]
+      }
+    }
   }
 
-  return(list(merMod=fit, prof=prof, ci=ci))
+  return(list(merMod=fit, vc=vc, prof=out.prof, boot=out.boot, ci=ci))
 }
 
 ##' Animal model

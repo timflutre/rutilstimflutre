@@ -5,7 +5,8 @@
 \title{Animal model}
 \usage{
 lmerAM(formula, data, relmat, REML = TRUE, na.action = stats::na.exclude,
-  ci.meth = NULL, ci.lev = 0.95, verbose = 1)
+  ci.meth = NULL, ci.lev = 0.95, nb.boots = 10^3, parallel = "no",
+  ncpus = 1, cl = NULL, verbose = 1)
 }
 \arguments{
 \item{formula}{formula (see \code{\link[lme4]{lmer}})}
@@ -18,20 +19,28 @@ lmerAM(formula, data, relmat, REML = TRUE, na.action = stats::na.exclude,
 
 \item{na.action}{a function that indicates what should happen when the data contain \code{NA}s (see \code{\link[lme4]{lmer}})}
 
-\item{ci.meth}{method to compute confidence intervals (profile/boot); if not NULL, use \code{\link[lme4]{confint.merMod}}}
+\item{ci.meth}{method to compute confidence intervals (profile/boot); with bootstrap, to get intervals for narrow-sense heritability (h2), the additive genotypic effect must be named "geno.add" (in formula, data and relmat) and any other random effect is ignored}
 
 \item{ci.lev}{level to compute confidence intervals}
+
+\item{nb.boots}{number of bootstrap replicates; used only if \code{ci.meth="boot"}}
+
+\item{parallel}{the type of parallel operation to be used, if any (no/multicore/snow)}
+
+\item{ncpus}{number of processes to be used in parallel operation}
+
+\item{cl}{an optional object of class \code{"cluster"} returned by \code{\link[parallel]{makeCluster}}; if not supplied, a cluster on the local machine is created for the duration of the call}
 
 \item{verbose}{verbosity level (0/1)}
 }
 \value{
-list with a \code{\link[lme4]{merMod}} object, a \code{thpr} object (if ci.meth="profile"), and a data.frame with confidence intervals (if ci.meth is not NULL)
+list with a \code{\link[lme4]{merMod}} object, a vector of point estimates of variance components (and h2 if \code{ci.meth="boot"}), a \code{thpr} object if \code{ci.meth="profile"}, a \code{boot} object if \code{ci.meth="profile"}, a data frame with confidence intervals (if \code{ci.meth} is not NULL)
 }
 \description{
 Given I genotypes, Q covariates and N=I*Q phenotypes for the trait, fit an "animal model" with the lme4 package via the following likelihood: y = W c + Z g_A + Z g_D + epsilon, where y is Nx1; W is NxQ; Z is NxI; g_A ~ Normal_I(0, sigma_A^2 A) with A the known matrix of additive genetic relationships; g_D ~ Normal_I(0, sigma_D^2 D) with D the known matrix of dominant genetic relationships; epsilon ~ Normal_N(0, sigma^2 Id_N); Cov(g_A,g_D)=0; Cov(g_A,e)=0; Cov(g_D,e)=0.
 }
 \note{
-If A is not positive definite, an error will be raised (via \code{\link[base]{chol}}); in such cases, using the nearPD function from the Matrix package can be useful.
+If A is not positive definite, an error will be raised (via \code{\link[base]{chol}}); in such cases, using the \code{nearPD} function from the Matrix package can be useful.
 }
 \examples{
 \dontrun{## simulate genotypes
@@ -40,11 +49,16 @@ X <- simulGenosDose(nb.genos=200, nb.snps=2000)
 
 ## simulate phenotypes with only additive part of genotypic values
 A <- estimGenRel(X, relationships="additive", method="vanraden1", verbose=0)
+kappa(A)
+A <- as.matrix(nearPD(A)$mat)
+kappa(A)
 modelA <- simulAnimalModel(T=1, Q=3, A=A, V.G.A=15, V.E=5, seed=1859)
 
 ## infer with lme4
-fitA <- lmerAM(formula=response1 ~ year + (1|geno), data=modelA$data,
-               relmat=list(geno=A), verbose=0)
+modelA$data$geno.add <- modelA$data$geno
+fitA <- lmerAM(formula=response1 ~ year + (1|geno.add),
+               data=modelA$data,
+               relmat=list(geno.add=A), verbose=0)
 summary(fitA$merMod)
 REMLcrit(fitA$merMod)
 extractAIC(fitA$merMod)
@@ -54,12 +68,23 @@ c(modelA$C); modelA$V.G.A; modelA$V.E
 fixef(fitA$merMod)
 coefficients(summary(fitA$merMod))[, "Std. Error"]
 vc <- as.data.frame(VarCorr(fitA$merMod))
-c(vc[vc$grp == "geno", "vcov"], vc[vc$grp == "Residual", "vcov"])
-blups.geno <- ranef(fitA$merMod, condVar=TRUE, drop=TRUE)$geno
+c(vc[vc$grp == "geno.add", "vcov"], vc[vc$grp == "Residual", "vcov"])
+blups.geno <- ranef(fitA$merMod, condVar=TRUE, drop=TRUE)$geno.add
 var.blups.geno <- setNames(attr(blups.geno, "postVar"), names(blups.geno))
+
+## compute confidence intervals in parallel
+library(parallel)
+(nb.cores <- max(1, detectCores() - 1))
+cl <- makeCluster(spec=nb.cores, type="PSOCK")
+fitA <- lmerAM(formula=response1 ~ year + (1|geno.add),
+               data=modelA$data,
+               relmat=list(geno.add=A), verbose=1,
+               ci.meth="profile", parallel="snow", ncpus=nb.cores, cl=cl)
+stopCluster(cl)
 
 ## simulate phenotypes with additive and dominant parts of genotypic values
 D <- estimGenRel(X, relationships="dominant", method="vitezica", verbose=0)
+kappa(D)
 modelAD <- simulAnimalModel(T=1, Q=3, A=A, V.G.A=15, V.E=5,
                             D=D, V.G.D=3, seed=1859)
 

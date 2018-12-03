@@ -33,6 +33,7 @@ Suggests:
     Biostrings,
     BGLR,
     BLR,
+    boot,
     coda,
     DBI,
     digest,
