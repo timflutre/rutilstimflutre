@@ -51,8 +51,9 @@ stopifnot(compareVersion("2.5.7",
           != 1)
 suppressPackageStartupMessages(library(BGLR))
 suppressPackageStartupMessages(library(coda))
+suppressPackageStartupMessages(library(rrBLUP))
 suppressPackageStartupMessages(library(doParallel))
-cl <- makePSOCKcluster(max(1, detectCores() - 1))
+cl <- makePSOCKcluster(min(max(1, detectCores() - 1), 20))
 registerDoParallel(cl)
 suppressPackageStartupMessages(library(rutilstimflutre))
 stopifnot(compareVersion("0.169.2",
@@ -210,8 +211,8 @@ glmnetModelInfo$trim
 
 ```{r}
 set.seed(1234)
-X <- simulGenosDose(nb.genos=10^2, nb.snps=10^3)
-truth <- simulBvsr(Q=1, mu=0, X=X, pi=0.01, pve=0.7, sigma.a2=1)
+X <- simulGenosDose(nb.genos=10^3, nb.snps=10^3)
+truth <- simulBvsr(Q=1, mu=0, X=X, pi=0.2, pve=0.75, sigma.a2=1)
 sum(truth$gamma)
 colnames(X)[truth$gamma == 1]
 dat <- truth$dat
@@ -297,6 +298,41 @@ system.time(
                 keep.samples=FALSE))
 fit4
 fit4$results
+```
+
+
+# Ridge regression
+
+## Custom `rrBLUP`
+
+Make the inputs:
+```{r rrBLUP_inputs, eval=TRUE}
+caretMethRrblup <- list(library=c("rrBLUP"),
+                        type="Regression",
+                        parameters=data.frame(parameter="intercept",
+                                              class="logical",
+                                              label="intercept"),
+                        grid=caretGridRrblup,
+                        fit=caretFitRrblup,
+                        predict=caretPredictRrblup,
+                        prob=NULL,
+                        sort=NULL)
+caretTrainCtlRrblup <- trainControl(method="repeatedcv", number=5, repeats=5,
+                                    summaryFunction=caretSummary,
+                                    allowParallel=TRUE)
+## TODO: use the "seeds" argument
+```
+
+Run cross-validation:
+```{r rrBLUP_crossval}
+set.seed(1234) # ensure that the same resamples are used
+system.time(
+    fit5 <- train(x=X, y=dat$response1,
+                  method=caretMethRrblup,
+                  trControl=caretTrainCtlRrblup,
+                  metric="rmse"))
+fit5
+fit5$results
 ```
 
 

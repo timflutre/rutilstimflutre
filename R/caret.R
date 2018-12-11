@@ -1,6 +1,49 @@
 ## Contains functions useful for caret.
 ## https://topepo.github.io/caret/using-your-own-model-in-train.html#model-components
 
+##' Fit with rrBLUP for caret
+##'
+##' @param x current predictors used to fit the model
+##' @param y current outcome used to fit the model
+##' @param wts optional instance weights
+##' @param param current tuning parameter values
+##' @param lev class levels of the outcome (or NULL in regression)
+##' @param last logical for whether the current fit is the final fit
+##' @param weights ?
+##' @param classProbs logical for whether class probabilities should be computed
+##' @param ... arguments passed on to \code{rrBLUP::mixed.solve}
+##' @return output of \code{rrBLUP::mixed.solve}
+##' @author Timothee Flutre
+##' @export
+caretFitRrblup <- function(x, y, wts, param, lev, last, weights, classProbs, ...){
+  rrBLUP::mixed.solve(y=y, Z=x, K=NULL, ...)
+}
+
+##' Predict with rrBLUP for caret
+##'
+##' @param modelFit model produced by \code{\link{caretFitRrblup}}
+##' @param newdata predictor values of the instances being predicted (e.g. out-of-bag samples)
+##' @param submodels optional list of tuning parameters only used with the "loop" element
+##' @return vector
+##' @author Timothee Flutre
+##' @export
+caretPredictRrblup <- function(modelFit, newdata, submodels=NULL){
+  newdata %*% modelFit$u
+}
+
+##' Grid with rrBLUP for caret
+##'
+##' @param x predictors
+##' @param y outcome
+##' @param len value of \code{tuneLength} that is potentially passed in through \code{train}
+##' @param search either \code{"grid"} or \code{"random"}
+##' @return data frame of tuning parameter combinations with a column for each parameter
+##' @author Timothee Flutre
+##' @export
+caretGridRrblup <- function(x, y, len=NULL, search="grid"){
+  data.frame(intercept=TRUE)
+}
+
 ##' Fit with varbvs for caret
 ##'
 ##' @param x current predictors used to fit the model
@@ -10,7 +53,7 @@
 ##' @param lev class levels of the outcome (or NULL in regression)
 ##' @param last logical for whether the current fit is the final fit
 ##' @param weights ?
-##' @param classProbs logical for whether class probabilities should be computed 
+##' @param classProbs logical for whether class probabilities should be computed
 ##' @param ... arguments passed on to \code{varbvs::varbvs}
 ##' @return output of \code{varbvs::varbvs}
 ##' @author Timothee Flutre
@@ -57,15 +100,15 @@ caretGridVarbvs <- function(x, y, len=NULL, search="grid"){
 ##' @param lev class levels of the outcome (or NULL in regression)
 ##' @param last logical for whether the current fit is the final fit
 ##' @param weights ?
-##' @param classProbs logical for whether class probabilities should be computed 
+##' @param classProbs logical for whether class probabilities should be computed
 ##' @param ETA two-level list used to specify the regression function for \code{BGLR::BGLR}
 ##' @param saveAt string that may include a path and a pre-fix that will be added to the name of the files that are saved as \code{BGLR::BGLR} runs
 ##' @param keep.samples logical for whether the samples will be returned (as a \code{coda::mcmc.list})
-##' @param nIter number of iterations 
+##' @param nIter number of iterations
 ##' @param burnIn number of burn-in
 ##' @param thin thinning
 ##' @param ... arguments passed on to \code{BGLR::BGLR}
-##' @return output of \code{BGLR::BGLR} and, optionally, the samples 
+##' @return output of \code{BGLR::BGLR} and, optionally, the samples
 ##' @author Timothee Flutre
 ##' @export
 caretFitBglr <- function(x, y, wts, param, lev, last, weights, classProbs,
