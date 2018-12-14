@@ -4,12 +4,15 @@
 \alias{convertVcfToGenoDoseWithBcftools}
 \title{Convert VCF file to dosage file}
 \usage{
-convertVcfToGenoDoseWithBcftools(in.vcf.file, out.txt.file, nb.cores = 1)
+convertVcfToGenoDoseWithBcftools(in.vcf.file, out.txt.file,
+  save.timestamp = FALSE, nb.cores = 1)
 }
 \arguments{
 \item{in.vcf.file}{path to the input VCF file (gzip-compressed)}
 
 \item{out.txt.file}{path to the output file (gzip-compressed)}
+
+\item{save.timestamp}{if TRUE, the time stamp (and original name) will be saved, making the output file not bit-by-bit reproducible}
 
 \item{nb.cores}{number of threads for bcftools}
 }

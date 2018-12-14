@@ -1072,11 +1072,14 @@ readBcftoolsCounts <- function(files){
 ##' Convert a VCF file to a genotype dosage file with \code{bcftools +dosage} and \code{datamash}.
 ##' @param in.vcf.file path to the input VCF file (gzip-compressed)
 ##' @param out.txt.file path to the output file (gzip-compressed)
+##' @param save.timestamp if TRUE, the time stamp (and original name) will be saved, making the output file not bit-by-bit reproducible
 ##' @param nb.cores number of threads for bcftools
 ##' @return nothing
 ##' @author Timothee Flutre
 ##' @export
-convertVcfToGenoDoseWithBcftools <- function(in.vcf.file, out.txt.file, nb.cores=1){
+convertVcfToGenoDoseWithBcftools <- function(in.vcf.file, out.txt.file,
+                                             save.timestamp=FALSE,
+                                             nb.cores=1){
   stopifnot(file.exists(Sys.which("bcftools")),
             file.exists(Sys.which("datamash")),
             file.exists(Sys.which("tr")),
@@ -1089,7 +1092,9 @@ convertVcfToGenoDoseWithBcftools <- function(in.vcf.file, out.txt.file, nb.cores
                 " ", in.vcf.file,
                 " | tr ' ' '\t'",
                 " | datamash transpose",
-                " | gzip > ", out.txt.file)
+                " | gzip",
+                ifelse(save.timestamp, "", " -n"),
+                " > ", out.txt.file)
   system(cmd)
 }
 
@@ -2343,8 +2348,8 @@ vcf2dosage <- function(vcf.file, genome="", gdose.file, ca.file,
     if(file.exists(gz.out.file))
       file.remove(gz.out.file)
   if(file.exists(Sys.which("gzip"))){ # should work on Linux and Mac OS
-    system(command=paste("gzip", gdose.file))
-    system(command=paste("gzip", ca.file))
+    system(command=paste("gzip -n", gdose.file))
+    system(command=paste("gzip -n", ca.file))
   } else{
     warning("'gzip' not available on this computer")
   }
@@ -2712,9 +2717,9 @@ vcf2genoClasses <- function(vcf.file, genome="", gclasses.file, ca.file,
       file.remove(gz.out.file)
   if(file.exists(Sys.which("gzip"))){ # should work on Linux and Mac OS
     if(gzip.gclasses)
-      system(command=paste("gzip", gclasses.file))
+      system(command=paste("gzip -n", gclasses.file))
     if(gzip.ca)
-      system(command=paste("gzip", ca.file))
+      system(command=paste("gzip -n", ca.file))
   } else{
     warning("'gzip' not available on this computer")
   }
