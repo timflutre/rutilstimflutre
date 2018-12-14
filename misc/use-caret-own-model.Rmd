@@ -161,9 +161,26 @@ caretMethLm <- list(library="stats",
 Create inputs for the cross-validation (https://topepo.github.io/caret/model-training-and-tuning.html#the-traincontrol-function):
 ```{r}
 caretSummary <- function(data, lev=NULL, model=NULL){
+  data <- data[order(data$obs, decreasing=TRUE),] # sort best -> worse
+  nb.inds <- nrow(data)
+  idx.best50p <- floor(0.50 * nb.inds)
+  idx.best25p <- floor(0.25 * nb.inds)
   coefOls <- as.numeric(coef(lm(pred ~ obs, data=data)))
   c(rmse=sqrt(mean((data$pred - data$obs)^2)),
-    cor=cor(data$obs, data$pred),
+    corP=cor(data$obs, data$pred, method="pearson"),
+    corS=cor(data$obs, data$pred, method="spearman"),
+    corP.best50p=cor(data$obs[1:idx.best50p],
+                     data$pred[1:idx.best50p],
+                     method="pearson"),
+    corS.best50p=cor(data$obs[1:idx.best50p],
+                     data$pred[1:idx.best50p],
+                     method="spearman"),
+    corP.best25p=cor(data$obs[1:idx.best25p],
+                     data$pred[1:idx.best25p],
+                     method="pearson"),
+    corS.best25p=cor(data$obs[1:idx.best25p],
+                     data$pred[1:idx.best25p],
+                     method="spearman"),
     reg.intercept=coefOls[1],
     reg.slope=coefOls[2])
 }
