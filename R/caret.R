@@ -1,6 +1,40 @@
 ## Contains functions useful for caret.
 ## https://topepo.github.io/caret/using-your-own-model-in-train.html#model-components
 
+##' Summary for caret
+##'
+##' Returns various metrics comparing predicted data with the values of the hold-out fold.
+##' @param data data frame with a column named \code{"obs"} and another named \code{"pred"}
+##' @param lev levels (unused here)
+##' @param model model (unused here)
+##' @return vector with the root measn square error, Pearson and Spearman correlations between all data points, the 50% best and the 25% best, as well as the regression intercept and slope
+##' @author Timothee Flutre
+##' @export
+caretSummary <- function(data, lev=NULL, model=NULL){
+  data <- data[order(data$obs, decreasing=TRUE),] # sort best -> worse
+  nb.inds <- nrow(data)
+  idx.best50p <- floor(0.50 * nb.inds)
+  idx.best25p <- floor(0.25 * nb.inds)
+  coefOls <- as.numeric(stats::coef(stats::lm(pred ~ obs, data=data)))
+  c(rmse=sqrt(mean((data$pred - data$obs)^2)),
+    corP=stats::cor(data$obs, data$pred, method="pearson"),
+    corS=stats::cor(data$obs, data$pred, method="spearman"),
+    corP.best50p=stats::cor(data$obs[1:idx.best50p],
+                            data$pred[1:idx.best50p],
+                            method="pearson"),
+    corS.best50p=stats::cor(data$obs[1:idx.best50p],
+                            data$pred[1:idx.best50p],
+                            method="spearman"),
+    corP.best25p=stats::cor(data$obs[1:idx.best25p],
+                            data$pred[1:idx.best25p],
+                            method="pearson"),
+    corS.best25p=stats::cor(data$obs[1:idx.best25p],
+                            data$pred[1:idx.best25p],
+                            method="spearman"),
+    reg.intercept=coefOls[1],
+    reg.slope=coefOls[2])
+}
+
 ##' Fit with rrBLUP for caret
 ##'
 ##' @param x current predictors used to fit the model
