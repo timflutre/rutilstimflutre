@@ -3702,14 +3702,16 @@ haplosList2Matrix <- function(haplos){
   nb.snps <- sapply(haplos, ncol)
   P <- sum(nb.snps) # nb of SNPs
 
-  H <- matrix(data=NA, nrow=nb.haplos, ncol=P,
-              dimnames=list(rownames(haplos[[1]]),
-                            do.call(c, lapply(haplos, colnames))))
-  names(colnames(H)) <- NULL # remove "chr" names
+  H <- matrix(data=NA, nrow=nb.haplos, ncol=P)
+  rownames(H) <- rownames(haplos[[1]])
+  tmp <- lapply(haplos, colnames)
+  names(tmp) <- NULL
+  colnames(H) <- do.call(c, tmp)
 
   H[, 1:nb.snps[1]] <- haplos[[1]]
-  for(chr in 2:nb.chroms)
-    H[, (cumsum(nb.snps)[chr-1]+1):(cumsum(nb.snps)[chr])] <- haplos[[chr]]
+  if(nb.chroms > 1)
+    for(chr in 2:nb.chroms)
+      H[, (cumsum(nb.snps)[chr-1]+1):(cumsum(nb.snps)[chr])] <- haplos[[chr]]
 
   return(H)
 }
@@ -4070,6 +4072,7 @@ simulCoalescent <- function(nb.inds=500,
     msg <- paste0("scrm ", cmd)
     write(msg, stdout())
   }
+  out$cmd <- cmd
   sum.stats <- scrm::scrm(cmd)
   if(verbose > 1)
     print(utils::str(sum.stats))
@@ -4099,7 +4102,8 @@ simulCoalescent <- function(nb.inds=500,
   idx <- sample.int(nb.samples)
   if(nb.pops > 1){
     H <- haplosList2Matrix(sum.stats$seg_sites)
-    kmH <- stats::kmeans(H, nb.pops)
+    kmH <- stats::kmeans(x=H, centers=nb.pops)
+    ## table(kmH$cluster) # to debug
   }
   for(chr in 1:nb.reps){
     if(nb.pops > 1)
