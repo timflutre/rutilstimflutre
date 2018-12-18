@@ -1,0 +1,144 @@
+---
+title: "Simulations of population structure using the coalescent with recombination"
+author: "Timothée Flutre (INRA)"
+date: "`r format(Sys.time(), '%d/%m/%Y %H:%M:%S')`"
+output:
+  html_document:
+    toc: true
+    toc_depth: 3
+    toc_float: true
+    number_sections: TRUE
+  pdf_document:
+    toc: true
+    toc_depth: 3
+    number_sections: TRUE
+urlcolor: blue
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+suppressPackageStartupMessages(library(parallel))
+suppressPackageStartupMessages(library(adegenet))
+suppressPackageStartupMessages(library(rutilstimflutre)) # https://github.com/timflutre/rutilstimflutre
+```
+
+Set up the parallel computations:
+```{r}
+nb.cores <- max(1, detectCores() - 1)
+cl <- makeCluster(spec=nb.cores, type="PSOCK")
+RNGkind("L'Ecuyer-CMRG")
+clusterSetRNGStream(cl=cl, iseed=1234)
+clusterEvalQ(cl, library(adegenet))
+```
+
+Simulate genotypic data with no population structure:
+```{r}
+set.seed(1234)
+nb.genos <- 300
+Ne <- 10^4
+chrom.len <- 10^5
+mu <- 10^(-8)
+c.rec <- 10^(-8)
+genomes.nostruct <- simulCoalescent(nb.inds=nb.genos, nb.reps=10,
+                                    pop.mut.rate=4 * Ne * mu * chrom.len,
+                                    pop.recomb.rate=4 * Ne * c.rec * chrom.len,
+                                    chrom.len=chrom.len,
+                                    nb.pops=1,
+                                    verbose=1)
+dim(genomes.nostruct$genos)
+```
+
+Simulate genotypic data with population structure:
+```{r}
+chrom.lens <- c("high"=10^3, "med"=10^5, "low"=10^5)
+mig.rates <- c("high"=10^4, "med"=10,   "low"=0.5)
+nb.chroms <- c("high"=1,    "med"=4,    "low"=8)
+genomes.struct <- list()
+for(i in seq_along(mig.rates)){
+  set.seed(1234)
+  genomes.struct[[names(mig.rates)[i]]] <- simulCoalescent(nb.inds=nb.genos, nb.reps=nb.chroms[i],
+                                                           pop.mut.rate=4 * Ne * mu * chrom.lens[i],
+                                                           pop.recomb.rate=4 * Ne * c.rec * chrom.lens[i],
+                                                           chrom.len=chrom.lens[i],
+                                                           nb.pops=3, mig.rate=mig.rates[i],
+                                                           verbose=1)
+}
+sapply(genomes.struct, function(x){dim(x$genos)})
+```
+
+Combine both into a single data set:
+```{r}
+X.pops <- lapply(names(mig.rates), function(n){
+  tmp <- genomes.struct[[n]]$genos
+  nb.remain.chrs <- 10 - length(unique(genomes.struct[[n]]$snp.coords[colnames(tmp),"chr"]))
+  remain.chrs <- unique(genomes.nostruct$snp.coords[,"chr"])[1:nb.remain.chrs]
+  snps.toadd <- rownames(genomes.nostruct$snp.coords[genomes.nostruct$snp.coords$chr %in%
+                                                       remain.chrs,])
+  X <- cbind(tmp, genomes.nostruct$genos[, snps.toadd])
+  colnames(X)[(ncol(tmp)+1):ncol(X)] <- paste0(colnames(X)[(ncol(tmp)+1):ncol(X)],
+                                               "_nostruct")
+  X
+})
+names(X.pops) <- names(mig.rates)
+sapply(X.pops, dim)
+```
+
+```{r}
+tmp <- lapply(names(X.pops), function(n){
+  A <- estimGenRel(X=X.pops[[n]], verbose=0)
+  imageWithScale(A, main=paste0("Additive genetic relationships (migration=", n, ")"))
+})
+```
+
+```{r}
+out.pca <- lapply(X.pops, function(X){
+  pca(X=X)
+})
+sapply(out.pca, function(x){x$prop.vars[1:4]})
+tmp <- lapply(names(out.pca), function(x){
+  barplot(out.pca[[x]]$prop.vars,
+          main=paste0("Proportion of variance explained by each PC (migration=", x, ")"),
+          xlim=c(0,10), las=1)
+  plotPca(rotation=out.pca[[x]]$rot.dat,
+          prop.vars=out.pca[[x]]$prop.vars,
+          # cols=c(rep("black", 100), rep("red", 100), rep("green", 100)),
+          main=paste0("PC (migration=", x, ")"))
+})
+```
+
+Need to get the point colors right!
+Let's use adegenet for this.
+
+```{r}
+genlights <- lapply(X.pops, function(X){
+  new("genlight", X)
+})
+fclusts <- parLapply(cl=cl, genlights, function(gl){
+  find.clusters(x=gl, n.pca=100, scale=TRUE, method="kmeans",
+                choose.n.clust=TRUE, n.clust=3)
+                # stat="BIC", choose.n.clust=FALSE, max.n.clust=7, criterion="min")#smoothNgoesup")
+})
+sapply(fclusts, function(x){x$size})
+# tmp <- lapply(names(fclusts), function(x){
+#   plot(fclusts[[x]]$Kstat, xlab="K", ylab="BIC",
+#        main=paste0("Choose the number of clusters (migration=", x, ")"))
+# })
+clusterExport(cl=cl, varlist=c("genlights","fclusts"))
+dapc <- parLapply(cl=cl, 1:length(genlights), function(i){
+  dapc(x=genlights[[i]], pop=fclusts[[i]]$grp, n.pca=10, n.da=5)
+})
+names(dapc) <- names(genlights)
+tmp <- lapply(names(dapc), function(x){
+  print(scatter(x=dapc[[x]],
+                sub=paste0("migration=", x), possub="topleft",
+                scree.pca=FALSE, scree.da=FALSE))
+})
+```
+
+```{r}
+stopCluster(cl)
+```
+
