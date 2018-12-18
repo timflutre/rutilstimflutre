@@ -38,10 +38,10 @@ This document aims at presenting how to perform parentage analysis.
 
 This document requires external packages:
 ```{r load_pkg}
-suppressPackageStartupMessages(library(scrm)) # on the CRAN
+## suppressPackageStartupMessages(library(scrm)) # on the CRAN
 suppressPackageStartupMessages(library(rmetasim)) # on the CRAN
 suppressPackageStartupMessages(library(kinship2)) # on the CRAN
-suppressPackageStartupMessages(library(related)) # github.com/timothyfrasier/related
+## suppressPackageStartupMessages(library(related)) # github.com/timothyfrasier/related
 suppressPackageStartupMessages(library(rcolony)) # github.com/jonesor/rcolony
 suppressPackageStartupMessages(library(rutilstimflutre)) # on GitHub
 stopifnot(compareVersion("0.159.1",
@@ -90,8 +90,8 @@ nb.stages <- 4
 nb.generations <- 1000
 nb.locus <- 5
 nb.alleles <- 7
-nb.fem.juv <- 2
-nb.mal.juv <- 2
+nb.fem.juv <- 800
+nb.mal.juv <- 800
 carrying.cap <- 2000
 ```
 
@@ -205,6 +205,7 @@ rownames(genos) <- land$individuals[, 4]
 dim(genos)
 genos[1:4, 1:min(ncol(genos),6)]
 table(genos[,1:2])
+table(genos[,3:4])
 ```
 
 ## Useful functions
@@ -410,6 +411,8 @@ plotPedigree(ped.tmp[,"ind"], ped.tmp[,"mother"], ped.tmp[,"father"], ped.tmp[,"
 
 genos.tmp <- genos[as.character(ped.tmp[,"ind"]),]
 dim(genos.tmp)
+table(genos[,1:2])
+table(genos[,3:4])
 ```
 
 ## From pedigree
@@ -444,7 +447,7 @@ TODO: Example of two half-siblings:
 More details [here](https://github.com/timothyfrasier/related).
 
 Format the data:
-```{r}
+```{r, eval=FALSE}
 p2f <- "genos_related.tsv"
 tmp <- genos.tmp + 1
 write.table(tmp, file=p2f, quote=FALSE, sep="\t", col.names=FALSE)
@@ -461,7 +464,7 @@ genodat$freqs
 TODO: use allele frequencies from the whole data set
 
 Compute the MLEs:
-```{r}
+```{r, eval=FALSE}
 p2f <- "parentage-analysis_coanc.RData"
 if(! file.exists(p2f)){
   system.time(
@@ -479,11 +482,11 @@ A.ssr <- coancestry2relmat(x=coanc, estim.coancestry="dyadml",
 ```
 
 Plot:
-```{r}
+```{r, eval=FALSE}
 imageWithScale(A.ssr, main="Additive genetic relationships from the SSRs")
 ```
 
-```{r}
+```{r, eval=FALSE}
 head(coanc$relatedness)
 tail(coanc$relatedness)
 i <- 1
@@ -493,7 +496,7 @@ A.ssr[pair, pair]
 ```
 
 Example of a mother-father-offspring trio:
-```{r}
+```{r, eval=FALSE}
 tail(ped.tmp)
 (off <- as.character(ped.tmp[nrow(ped.tmp), "ind"]))
 (mother <- as.character(ped.tmp[nrow(ped.tmp), "mother"]))
@@ -507,12 +510,12 @@ TODO: Example of two half-siblings:
 
 ## Comparison
 
-```{r}
+```{r, eval=FALSE}
 A.ped[1:3,1:3]
 A.ssr[1:3,1:3]
 ```
 
-```{r}
+```{r, eval=FALSE}
 plot(diag(A.ped), diag(A.ssr))
 plot(A.ped[upper.tri(A.ped)], A.ssr[upper.tri(A.ssr)])
 ```
@@ -521,7 +524,7 @@ plot(A.ped[upper.tri(A.ped)], A.ssr[upper.tri(A.ssr)])
 
 # Infer parentages
 
-TODO: see `rcolony`
+TODO: see [`rcolony`](https://github.com/jonesor/rcolony)
 
 
 
