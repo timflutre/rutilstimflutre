@@ -7372,7 +7372,7 @@ stanAMwriteModel <- function(stan.file=NULL,
   model.code <- "# model: stanAM
 # copyright: Inra
 # license: AGPL-3+
-# persons: Timothée Flutre [cre,aut]"
+# persons: Timothee Flutre [cre,aut]"
   model.code <- paste0(model.code, "
 # date: ", format(Sys.time(), "%Y-%m-%d %H:%M:%S"), "
 ")

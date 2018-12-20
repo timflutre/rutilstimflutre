@@ -236,11 +236,14 @@ extractFasta <- function(in.fa, sub.info, out.fa, split.names=" ", verbose=1){
   ##                                  "-", sub.info$end[idx])
   ## }
   if(verbose > 0){
-    msg <- "convert subsequence coordinates into a RangesList ..."
+    msg <- "convert subsequence coordinates into a RangesList/IRangesList..."
     write(msg, stdout())
     utils::flush.console()
   }
-  sub.info.rl <- IRanges::RangesList()
+  if(unlist(getRversion())[2] < 5){ # assume major R version is 3
+    sub.info.rl <- IRanges::RangesList()
+  } else
+    sub.info.rl <- IRanges::IRangesList()
   if(any(sub.info$seq %in% names(records))){
     seq.names <- unique(sub.info$seq)
     for(i in 1:length(seq.names)){
@@ -400,35 +403,45 @@ statsAllPairAligns <- function(aligns, nb.sequences){
 ##'
 ##' Summarize a given metric per \code{GRanges} over genomic bins.
 ##' @param gr \code{GRanges} object
-##' @param colname character specifying a given column in \code{mcols(gr)}
+##' @param colname character specifying a given column in \code{mcols(gr)}; if NULL, the number of ranges per bin will be counted
 ##' @param binwidth fixed width of each bin
 ##' @param which.summary names of the summaryzing function (one or several among \code{c("sum", "mean", "min", "max")})
-##' @param which.plot name of the summaryzing function to plot along the karyogram (if not NULL; via the \href{http://www.bioconductor.org/packages/ggbio/}{ggbio} package)
+##' @param plot.it if TRUE, a karyogram will be plotted
+##' @param ... other arguments passed to \code{autoplot}, such as \code{main}
 ##' @return invisible \code{GRanges} containing the bins with the summary
 ##' @author Timothee Flutre
 ##' @export
-grSummaryPerBin <- function(gr, colname, binwidth=200, which.summary="sum",
-                            which.plot=NULL){
+grSummaryPerBin <- function(gr, colname=NULL, binwidth=200,
+                            which.summary="sum",
+                            plot.it=FALSE, ...){
   requireNamespaces(c("S4Vectors", "GenomicRanges", "IRanges",
                       "GenomeInfoDb", "BiocGenerics"))
-  stopifnot(colname %in% colnames(S4Vectors::mcols(gr)),
-            all(which.summary %in% c("sum", "mean", "min", "max")))
-  if(! is.null(which.plot)){
+  if(! is.null(colname))
+    stopifnot(colname %in% colnames(S4Vectors::mcols(gr)))
+  stopifnot(all(which.summary %in% c("sum", "mean", "min", "max")))
+  if(plot.it)
     requireNamespaces("ggbio")
-    stopifnot(length(which.plot) == 1,
-              which.plot %in% c("sum", "mean", "min", "max"))
-  }
 
   bins <- GenomicRanges::tileGenome(seqlengths=GenomeInfoDb::seqlengths(gr),
                                     tilewidth=binwidth,
                                     cut.last.tile.in.chrom=TRUE)
-  cvg <- GenomicRanges::coverage(gr, weight=colname)
+  if(is.null(colname)){
+    weight <- 1
+    colname <- "count"
+  } else
+    weight <- colname
+  cvg <- GenomicRanges::coverage(gr, weight=weight)
   list.views <- IRanges::RleViewsList(
-      lapply(names(cvg), function(seqname){
-        IRanges::Views(cvg[[seqname]],
-                       IRanges::ranges(GenomeInfoDb::keepSeqlevels(bins,
-                                                                   seqname)))
-      }))
+    lapply(names(cvg), function(seqname){
+      if(unlist(getRversion())[2] < 5){ # assume major R version is 3
+        tmp <- IRanges::ranges(GenomeInfoDb::keepSeqlevels(bins,
+                                                           seqname))
+      } else
+        tmp <- IRanges::ranges(GenomeInfoDb::keepSeqlevels(bins,
+                                                           seqname,
+                                                           "coarse"))
+      IRanges::Views(cvg[[seqname]], tmp)
+    }))
   if("sum" %in% which.summary)
     S4Vectors::mcols(bins)[[paste0(colname, ".sum")]] <-
       BiocGenerics::unlist(IRanges::viewSums(list.views))
@@ -442,10 +455,14 @@ grSummaryPerBin <- function(gr, colname, binwidth=200, which.summary="sum",
     S4Vectors::mcols(bins)[[paste0(colname, ".max")]] <-
       BiocGenerics::unlist(IRanges::viewMeans(list.views))
 
-  if(! is.null(which.plot))
-    print(ggbio::autoplot(bins, layout="karyogram",
-                          ggplot2::aes_string(color=paste0(colname, ".",
-                                                           which.plot))))
+  if(plot.it)
+    print(
+        ggbio::autoplot(bins, layout="karyogram",
+                        ggplot2::aes_string(color=paste0(colname, ".",
+                                                         which.summary),
+                                            fill=paste0(colname, ".",
+                                                        which.summary)),
+                        ...))
 
   invisible(bins)
 }

@@ -4,19 +4,21 @@
 \alias{grSummaryPerBin}
 \title{Genomic bins}
 \usage{
-grSummaryPerBin(gr, colname, binwidth = 200, which.summary = "sum",
-  which.plot = NULL)
+grSummaryPerBin(gr, colname = NULL, binwidth = 200, which.summary = "sum",
+  plot.it = FALSE, ...)
 }
 \arguments{
 \item{gr}{\code{GRanges} object}
 
-\item{colname}{character specifying a given column in \code{mcols(gr)}}
+\item{colname}{character specifying a given column in \code{mcols(gr)}; if NULL, the number of ranges per bin will be counted}
 
 \item{binwidth}{fixed width of each bin}
 
 \item{which.summary}{names of the summaryzing function (one or several among \code{c("sum", "mean", "min", "max")})}
 
-\item{which.plot}{name of the summaryzing function to plot along the karyogram (if not NULL; via the \href{http://www.bioconductor.org/packages/ggbio/}{ggbio} package)}
+\item{plot.it}{if TRUE, a karyogram will be plotted}
+
+\item{...}{other arguments passed to \code{autoplot}, such as \code{main}}
 }
 \value{
 invisible \code{GRanges} containing the bins with the summary
