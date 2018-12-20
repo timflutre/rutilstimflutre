@@ -4808,8 +4808,16 @@ snpCoordsDf2Gr <- function(x, si=NULL){
   if(! is.null(si)){
     GenomeInfoDb::seqlevels(si) <-
       GenomeInfoDb::sortSeqlevels(GenomeInfoDb::seqlevels(si))
-    stopifnot(all(GenomeInfoDb::seqlevels(out.gr) ==
-                  GenomeInfoDb::seqlevels(si)))
+    if(length(GenomeInfoDb::seqlevels(out.gr)) ==
+       length(GenomeInfoDb::seqlevels(si))){
+      stopifnot(all(GenomeInfoDb::seqlevels(out.gr) ==
+                    GenomeInfoDb::seqlevels(si)))
+    } else{
+      stopifnot(all(GenomeInfoDb::seqlevels(out.gr) %in%
+                    GenomeInfoDb::seqlevels(si)))
+      si <- GenomeInfoDb::keepSeqlevels(x=si,
+                                        value=GenomeInfoDb::seqlevels(out.gr))
+    }
     GenomeInfoDb::seqinfo(out.gr) <- si
   }
 
