@@ -42,6 +42,9 @@ list
 \description{
 Perform QTL detection by simple interval mapping
 }
+\seealso{
+\code{\link{MIMQTL}}
+}
 \author{
 Charlotte Brault [aut], Timothee Flutre [ctb]
 }

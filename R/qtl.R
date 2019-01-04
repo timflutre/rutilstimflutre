@@ -19,13 +19,13 @@
 ##' @param verbose verbosity level (0/1/2)
 ##' @return list
 ##' @author Charlotte Brault [aut], Timothee Flutre [ctb]
+##' @seealso \code{\link{MIMQTL}}
 ##' @export
 SIMQTL <- function (cross, response.in.cross=TRUE, response=NULL, numeric.chr.format=TRUE,
                     geno.joinmap=NULL, phase=NULL,
                     pheno.col="y", nperm=100, threshold.alpha=0.05, QTL_position=NULL,
                     method="em", plot=FALSE, verbose=0){
-
-  requireNamespace(c("qtl", "rutilstimflutre", "caret"))
+  requireNamespace(c("qtl", "caret"))
 
   ## Reformat chromosome names
   if(! numeric.chr.format){
@@ -43,10 +43,10 @@ SIMQTL <- function (cross, response.in.cross=TRUE, response=NULL, numeric.chr.fo
     stopifnot(c("linkage.group", "genetic.distance") %in% colnames(QTL_position))
   ## Check the conformity between geno.joinmap and cross
   if(!is.null(geno.joinmap)){
-    jm <- data.frame(seg=rutilstimflutre::getJoinMapSegregs(geno.joinmap), phase=phase)
+    jm <- data.frame(seg=getJoinMapSegregs(geno.joinmap), phase=phase)
     jm <- cbind(jm, geno.joinmap)
     jm[jm == "--"] <- NA
-    converted_qtl <- rutilstimflutre::phasedJoinMapCP2qtl(jm, verbose = verbose)
+    converted_qtl <- phasedJoinMapCP2qtl(jm, verbose=verbose)
 
     tmp1 <- t(cross$geno$`1`$data) ; geno_qtl <- tmp1
     for(i in 2:length(cross$geno)){
@@ -61,7 +61,7 @@ SIMQTL <- function (cross, response.in.cross=TRUE, response=NULL, numeric.chr.fo
 
   ## if no 2nd threshold provided, take the same as the first one
   if(length(threshold.alpha) == 1)
-    threshold.alpha[2] = threshold.alpha[1]
+    threshold.alpha[2] <- threshold.alpha[1]
 
   cross <- qtl::calc.genoprob(cross, step=1, map.function="kosambi")
   if(! response.in.cross){
@@ -76,7 +76,7 @@ SIMQTL <- function (cross, response.in.cross=TRUE, response=NULL, numeric.chr.fo
   }
 
   ## Find LOD threshold to apply with permutations
-  qtl.em.perm <- qtl::scanone(cross, pheno.col=pheno.col, method=method, n.perm = nperm, verbose=verbose)
+  qtl.em.perm <- qtl::scanone(cross, pheno.col=pheno.col, method=method, n.perm=nperm, verbose=verbose)
   threshold.LOD <- ifelse(threshold.alpha[1] == 0.05,
                           threshold.LOD <- summary(qtl.em.perm)[1], # 5% alpha error
                           threshold.LOD <- summary(qtl.em.perm)[2]) # 10% alpha error
@@ -107,7 +107,7 @@ SIMQTL <- function (cross, response.in.cross=TRUE, response=NULL, numeric.chr.fo
   stopifnot(nrow(qtl.em[qtl.em$is.qtl,]) == nrow(qtl.em[! is.na(qtl.em$nb_interval),]))
   if(nb_interval != 0){
     qtl.df <- data.frame(linkage.group=rep(0, nb_interval),
-                         position.peak=rep(0, nb_interval), nearest.mrk = rep(0, nb_interval),
+                         position.peak=rep(0, nb_interval), nearest.mrk=rep(0, nb_interval),
                          LOD=rep(0, nb_interval), interval.inf=rep(0, nb_interval),
                          interval.sup=rep(0,nb_interval))
     for(i in 1:nb_interval){
@@ -132,7 +132,7 @@ SIMQTL <- function (cross, response.in.cross=TRUE, response=NULL, numeric.chr.fo
           graphics::abline(v=QTL_position$genetic.distance[QTL_position$linkage.group == link], col="green")
         graphics::text(x=qtl.df$position[qtl.df$linkage.group == link],
                        y=qtl.df$LOD[qtl.df$linkage.group == link]+1,
-                       labels = paste0("Max LOD = ", round(qtl.df$LOD[qtl.df$linkage.group == link], 2),
+                       labels=paste0("Max LOD = ", round(qtl.df$LOD[qtl.df$linkage.group == link], 2),
                                        " \n at ", qtl.df$position[qtl.df$linkage.group == link], " cM"))
       }
     }
@@ -150,7 +150,7 @@ SIMQTL <- function (cross, response.in.cross=TRUE, response=NULL, numeric.chr.fo
 
   } else { # no QTL found
     qtl.df <- data.frame(chromosome=0,
-                         position.peak=0, nearest.mrk = 0,
+                         position.peak=0, nearest.mrk=0,
                          LOD=0, interval.inf=0, interval.sup=0)
     selected.markers <- 0 ; length(selected.markers) <- 0
   }
@@ -159,7 +159,8 @@ SIMQTL <- function (cross, response.in.cross=TRUE, response=NULL, numeric.chr.fo
   if(! is.null(geno.joinmap)){
     if(length(selected.markers) != 0) {
       ## Convert cross object to a design matrix for selected markers
-      tmp <- data.frame(locus=rownames(geno.joinmap), seg=rutilstimflutre::getJoinMapSegregs(geno.joinmap),
+      tmp <- data.frame(locus=rownames(geno.joinmap),
+                        seg=getJoinMapSegregs(geno.joinmap),
                         phase=phase, clas=0)
       jm <- cbind(tmp, geno.joinmap)
       jm[is.na(jm)] <- "--"
@@ -167,7 +168,7 @@ SIMQTL <- function (cross, response.in.cross=TRUE, response=NULL, numeric.chr.fo
       jm2 <- jm[selected.markers,]
       colnames(jm2)[5:ncol(jm2)] <- cross$pheno$indiv
       jm2[,c(5:ncol(jm2))] <- lapply(jm2[,c(5:ncol(jm2))], as.character)
-      X <- rutilstimflutre::joinMap2designMatrix(jm=jm2, verbose=verbose)
+      X <- joinMap2designMatrix(jm=jm2, verbose=verbose)
       ## Find linear combination between columns and remove them
       lin.comb <- caret::findLinearCombos(X)
       X <- X[,-lin.comb$remove]
@@ -177,9 +178,9 @@ SIMQTL <- function (cross, response.in.cross=TRUE, response=NULL, numeric.chr.fo
       fit.lm <- stats::lm(cross[["pheno"]][[pheno.col]]  ~ X)
       summary.fit <- summary(fit.lm)
       signif.coeff <- as.matrix(summary.fit$coefficients[,1][summary.fit$coefficients[,4] < threshold.alpha[2]])
-      rownames(signif.coeff) <- substr(rownames(signif.coeff), start = 2, stop = nchar(signif.coeff))
+      rownames(signif.coeff) <- substr(rownames(signif.coeff), start=2, stop=nchar(signif.coeff))
 
-      allelic.effects <- data.frame(predictor=colnames(rutilstimflutre::joinMap2designMatrix(jm=jm, verbose=0))[-1], effect=0)
+      allelic.effects <- data.frame(predictor=colnames(joinMap2designMatrix(jm=jm, verbose=0))[-1], effect=0)
 
       for(i in 1:nrow(signif.coeff)){
         allelic.effects[allelic.effects$predictor %in% rownames(signif.coeff)[i], "effect"] <- signif.coeff[i]
@@ -187,17 +188,20 @@ SIMQTL <- function (cross, response.in.cross=TRUE, response=NULL, numeric.chr.fo
 
     } else { # There is no QTL found
       tmp <- data.frame(locus=rownames(geno.joinmap),
-                        seg=rutilstimflutre::getJoinMapSegregs(geno.joinmap),
+                        seg=getJoinMapSegregs(geno.joinmap),
                         phase=phase, clas=0)
       jm <- cbind(tmp, geno.joinmap)
       jm[is.na(jm)] <- "--"
       jm$seg <- as.character(jm$seg)
-      allelic.effects <- data.frame(predictor=colnames(rutilstimflutre::joinMap2designMatrix(jm=jm, verbose=0))[-1], effect=0)
+      allelic.effects <- data.frame(predictor=colnames(joinMap2designMatrix(jm=jm, verbose=0))[-1], effect=0)
     }
   } else { # No genetic map entered
     allelic.effects <- NULL
   }
-  out <- list(qtl.df=qtl.df, selected.markers=selected.markers, allelic.effects=allelic.effects)
+
+  out <- list(qtl.df=qtl.df,
+              selected.markers=selected.markers,
+              allelic.effects=allelic.effects)
   return(out)
 }
 
@@ -209,12 +213,14 @@ SIMQTL <- function (cross, response.in.cross=TRUE, response=NULL, numeric.chr.fo
 ##' @param range_qtl vector
 ##' @param nb_run integer
 ##' @param pLOD logical
-##' @seealso MIMQTL
+##' @seealso \code{\link{MIMQTL}}
 ##' @return list
 make.formula <- function(cross, big_list, range_qtl, nb_run, pLOD=FALSE){
+  requireNamespace("qtl")
+
   qtltemp <- qtl::makeqtl(cross,
-                          chr = big_list[[range_qtl]][[nb_run]]$chr,
-                          pos = big_list[[range_qtl]][[nb_run]]$pos, what="prob")
+                          chr=big_list[[range_qtl]][[nb_run]]$chr,
+                          pos=big_list[[range_qtl]][[nb_run]]$pos, what="prob")
   if(pLOD)
     pLOD <- attr(big_list[[range_qtl]][[nb_run]], "pLOD")
 
@@ -261,6 +267,7 @@ make.formula <- function(cross, big_list, range_qtl, nb_run, pLOD=FALSE){
 ##' @param verbose verbosity level (0/1/2)
 ##' @return list
 ##' @author Agnes Doligez [aut], Charlotte Brault [ctbt], Timothee Flutre [ctb]
+##' @seealso \code{\link{SIMQTL}}
 ##' @export
 MIMQTL <- function(cross, response.in.cross=TRUE, response=NULL,
                    numeric.chr.format=FALSE, geno.joinmap=NULL,
@@ -271,8 +278,7 @@ MIMQTL <- function(cross, response.in.cross=TRUE, response=NULL,
                    nrun=10, additive.only=TRUE, p2d="",
                    scan2file="", type.CI="LOD-1", nb.cores=1,
                    verbose=0){
-
-  requireNamespace(c("qtl", "rutilstimflutre", "caret", "parallel"))
+  requireNamespace(c("qtl", "caret"))
 
   ## Reformat chromosome names
   if(! numeric.chr.format){
@@ -291,10 +297,10 @@ MIMQTL <- function(cross, response.in.cross=TRUE, response=NULL,
     stopifnot(c("linkage.group", "genetic.distance") %in% colnames(QTL_position))
   ## Check the conformity between geno.joinmap and cross
   if(!is.null(geno.joinmap)){
-    jm <- data.frame(seg=rutilstimflutre::getJoinMapSegregs(geno.joinmap), phase=phase)
+    jm <- data.frame(seg=getJoinMapSegregs(geno.joinmap), phase=phase)
     jm <- cbind(jm, geno.joinmap)
     jm[jm == "--"] <- NA
-    converted_qtl <- rutilstimflutre::phasedJoinMapCP2qtl(jm, verbose = verbose)
+    converted_qtl <- phasedJoinMapCP2qtl(jm, verbose=verbose)
 
     tmp1 <- t(cross$geno$`1`$data) ; geno_qtl <- tmp1
     for(i in 2:length(cross$geno)){
@@ -310,7 +316,7 @@ MIMQTL <- function(cross, response.in.cross=TRUE, response=NULL,
 
   ## if no 2nd threshold provided, take the same as the first one
   if(length(threshold.alpha) == 1)
-    threshold.alpha[2] = threshold.alpha[1]
+    threshold.alpha[2] <- threshold.alpha[1]
 
   ## Add phenotypes to cross object
   if( ! response.in.cross){
@@ -340,7 +346,7 @@ MIMQTL <- function(cross, response.in.cross=TRUE, response=NULL,
   stopifnot("sc2" %in% ls())
 
   ## Run stepwiseqtl
-  calc_pen <- qtl::calc.penalties(perms = sc2, alpha=threshold.alpha[1])
+  calc_pen <- qtl::calc.penalties(perms=sc2, alpha=threshold.alpha[1])
   big_list <- list()
   small_list <- list()
   tmp <- list()
@@ -380,7 +386,7 @@ MIMQTL <- function(cross, response.in.cross=TRUE, response=NULL,
         writeLines("Null QTL model")
       } else {
         thetrace<-attr(big_list[[m]][[nb_run]],"trace")
-        for(k in seq(along = thetrace))
+        for(k in seq(along=thetrace))
           print(qtl::plotModel(thetrace[[k]], chronly=T,
                                main=paste(k,": pLOD = ", round(attr(thetrace[[k]], "pLOD"), 2),
                                           "\n for ", m, " number of max qtl")))
@@ -512,7 +518,7 @@ MIMQTL <- function(cross, response.in.cross=TRUE, response=NULL,
   ## converts the content of the 6 first columns to "factor" type for rbind
   temp[,c(1:6)] <- lapply(temp[, c(1:6)], as.factor)
   mod <- temp
-  mod$ord <- seq(from = 1, by = 1,to = nrow(mod))
+  mod$ord <- seq(from=1, by=1, to=nrow(mod))
 
   ## Summary
   if (length(attr(fit, "names")) < 3) {
@@ -541,9 +547,9 @@ MIMQTL <- function(cross, response.in.cross=TRUE, response=NULL,
     namefit <- names(fit$est$ests)
 
     ## If there is no interaction term in the model
-    temp$Terms <- substr(namefit[seq(from = 2, by = 3,length.out = ((nbQTLSeg-1)/3))], 1,
-                         nchar(names((fit$est$ests)[seq(from = 2,by = 3,
-                                                        length.out = ((nbQTLSeg-1)/3))]))-3)
+    temp$Terms <- substr(namefit[seq(from=2, by=3, length.out=((nbQTLSeg-1)/3))], 1,
+                         nchar(names((fit$est$ests)[seq(from=2, by=3,
+                                                        length.out=((nbQTLSeg-1)/3))]))-3)
     if(verbose > 0)
       print(temp$Terms)
     temp$est.BC <- t(fit$est$ests)[seq(from=2, by=3, length.out=((nbQTLSeg - 1) /3))]
@@ -581,7 +587,7 @@ MIMQTL <- function(cross, response.in.cross=TRUE, response=NULL,
   } else {
     refine <- qtl::refineqtl(cross, pheno.col=pheno.col, qtl=qtl,
                              formula=form, method=method, verbose=verbose,
-                             keeplodprofile = TRUE)
+                             keeplodprofile=TRUE)
   }
 
   ## Confidence intervals
@@ -698,7 +704,7 @@ MIMQTL <- function(cross, response.in.cross=TRUE, response=NULL,
         graphics::abline(v=QTL_position$genetic.distance[QTL_position$linkage.group == link], col="green")
       graphics::text(x=qtl.df$position[qtl.df$linkage.group == link],
                      y=qtl.df$LOD[qtl.df$linkage.group == link]+1,
-                     labels = paste0("Max LOD = ", round(qtl.df$LOD[qtl.df$linkage.group == link],2),
+                     labels=paste0("Max LOD = ", round(qtl.df$LOD[qtl.df$linkage.group == link],2),
                                      " \n at ", qtl.df$position[qtl.df$linkage.group == link], " cM"))
     }
   }
@@ -721,7 +727,8 @@ MIMQTL <- function(cross, response.in.cross=TRUE, response=NULL,
   ## Estimated allelic effect
   ## Fit a linear model to estimate allelic effects
   if(! is.null(geno.joinmap)){
-    tmp <- data.frame(locus=rownames(geno.joinmap), seg=rutilstimflutre::getJoinMapSegregs(geno.joinmap),
+    tmp <- data.frame(locus=rownames(geno.joinmap),
+                      seg=getJoinMapSegregs(geno.joinmap),
                       phase=phase, clas=0)
     jm <- cbind(tmp, geno.joinmap)
     jm[is.na(jm)] <- "--"
@@ -729,7 +736,7 @@ MIMQTL <- function(cross, response.in.cross=TRUE, response=NULL,
     if(length(selected.markers) != 0) {
       ## Convert cross object to a design matrix for selected markers
       jm2 <- subset(jm, subset=rownames(geno.joinmap) %in% selected.markers)
-      X <- rutilstimflutre::joinMap2designMatrix(jm=jm2, verbose=0)
+      X <- joinMap2designMatrix(jm=jm2, verbose=0)
       ## Find linear combination between columns and remove them
       lin.comb <- caret::findLinearCombos(X)
       X <- X[,-lin.comb$remove]
@@ -739,17 +746,17 @@ MIMQTL <- function(cross, response.in.cross=TRUE, response=NULL,
       fit.lm <- stats::lm(cross[["pheno"]][[pheno.col]]  ~ X)
       summary.fit <- summary(fit.lm)
       signif.coeff <- as.matrix(summary.fit$coefficients[,1][summary.fit$coefficients[,4] < threshold.alpha[2]])
-      rownames(signif.coeff) <- substr(rownames(signif.coeff), start = 2, stop = nchar(signif.coeff))
+      rownames(signif.coeff) <- substr(rownames(signif.coeff), start=2, stop=nchar(signif.coeff))
 
-      allelic.effects <- data.frame(predictor=colnames(rutilstimflutre::joinMap2designMatrix(jm=jm, verbose=0))[-1], effect=0)
+      allelic.effects <- data.frame(predictor=colnames(joinMap2designMatrix(jm=jm, verbose=0))[-1], effect=0)
 
       for(i in 1:nrow(signif.coeff)){
         allelic.effects[allelic.effects$predictor %in% rownames(signif.coeff)[i], "effect"] <- signif.coeff[i]
       }
 
     }else { # There is no QTL found
-      allelic.effects <- data.frame(predictor=colnames(rutilstimflutre::joinMap2designMatrix(jm=jm,
-                                                                                             verbose=0))[-1],
+      allelic.effects <- data.frame(predictor=colnames(joinMap2designMatrix(jm=jm,
+                                                                            verbose=0))[-1],
                                     effect=0)
     }
   } else { # No genetic map entered
@@ -760,7 +767,10 @@ MIMQTL <- function(cross, response.in.cross=TRUE, response=NULL,
       write(paste0("QTL is found in linkage group ", qtl.df$linkage.group), stderr())
     } else if (is.na(qtl.df$linkage.group))
       write(paste0("No QTL found"), stderr())
-  out <- list(qtl.df=qtl.df, selected.markers=selected.markers, allelic.effects=allelic.effects)
+
+  out <- list(qtl.df=qtl.df,
+              selected.markers=selected.markers,
+              allelic.effects=allelic.effects)
 
   return(out)
 }

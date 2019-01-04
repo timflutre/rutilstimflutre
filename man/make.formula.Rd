@@ -24,5 +24,5 @@ list
 Useful function for MIMQTL.
 }
 \seealso{
-MIMQTL
+\code{\link{MIMQTL}}
 }

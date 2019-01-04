@@ -202,3 +202,114 @@ caretPredictBglr <- function(modelFit, newdata, submodels=NULL){
 caretGridBglr <- function(x, y, len=NULL, search="grid"){
   data.frame(intercept=TRUE)
 }
+
+##' Fit with qtl for caret
+##'
+##' Fits the simple or multiple interval mapping model for usage with caret.
+##' First, the genotypes in the JoinMap format are saved into a temporary file.
+##' Second, a \code{cross} object is made.
+##' Third, SIMQTL or MIMQTL is run (calc.genoprob, scanone or scantwo).
+##' Fourth, allelic effects are estimated.
+##' @param x current predictors used to fit the model
+##' @param y current outcome used to fit the model
+##' @param wts optional instance weights
+##' @param param current tuning parameter values
+##' @param lev class levels of the outcome (or NULL in regression)
+##' @param last logical for whether the current fit is the final fit
+##' @param weights ?
+##' @param classProbs logical for whether class probabilities should be computed
+##' @param genmap genetic map
+##' @param pop.type population type in the JoinMap format
+##' @param nperm number of permutations
+##' @param threshold.alpha vector
+##' @param plot logical
+##' @param phase ?
+##' @param QTLmethod character (SIM/MIM)
+##' @param QTLposition ?
+##' @param p2d path to directory with results of \code{scantwo} (passed to MIMQTL)
+##' @param nb.cores number of cores (passed to MIMQTL)
+##' @param verbose verbosity level (0/1/2)
+##' @return output of \code{\link{SIMQTL}} or \code{\link{MIMQTL}}
+##' @author Timothee Flutre
+##' @export
+caretFitQtl <- function(x, y, wts, param, lev, last, weights, classProbs,
+                        genmap, pop.type="CP", nperm=10, threshold.alpha=0.05,
+                        plot=FALSE, phase, QTLmethod="SIM",
+                        p2d="", nb.cores=1,
+                        QTLposition=NULL, verbose=0){
+  requireNamespace("qtl")
+
+  stopifnot(pop.type == "CP",
+            QTLmethod %in% c("SIM", "MIM"))
+  stopifnot(xor(QTLmethod == "MIM", length(plot) == 1),
+            xor(QTLmethod == "SIM", length(plot) == 2),
+            length(y) == dim(x)[1], length(phase) == dim(x)[2],
+            dim(genmap)[1] == dim(x)[2],
+            class(y) == "numeric", class(x) == "matrix",
+            class(threshold.alpha) == "numeric",
+            class(plot) == "logical",
+            class(nperm) == "numeric")
+
+  ## here x must have genotypes in rows and locus in columns
+  Genotypes <- rownames(x)
+  Locus <- colnames(x)
+  x <- t((x))
+
+  ## here x must have genotypes in columns and locus in rows
+  rownames(x) <- Locus
+  x <- as.data.frame(x)
+  colnames(x) <- NULL
+  tmpf <- tempfile(pattern="genos_joinmap", fileext=".loc")
+  writeSegregJoinMap(pop.name="caretFitQtl",
+                     pop.type=pop.type,
+                     locus=rownames(x),
+                     segregs=getJoinMapSegregs(x),
+                     genos=as.data.frame(x),
+                     phases=phase,
+                     file=tmpf,
+                     verbose=verbose)
+
+  gendat <- qtl:::read.cross.mq.loc(tmpf)
+  gendat <- as.matrix(gendat$genotypes)
+  rownames(gendat) <- Genotypes # in gendat, genotypes are in row and locus in columns
+  stopifnot(dim(gendat)[1] == dim(x)[2],
+            dim(gendat)[2] == dim(x)[1])
+  is.rm <- file.remove(tmpf)
+  phenos <- data.frame(Genotype=Genotypes, y=y)
+  phenos$Genotype <- as.character(phenos$Genotype)
+  stopifnot(dim(phenos)[1] == dim(x)[2])
+  if(pop.type == "CP")
+    cross.type <- "4way"
+  cross <- setupQtlCrossObject(gendat=gendat, cross.type="4way",
+                               genmap=genmap, phenos=phenos)
+  stopifnot(all(class(cross) == c("4way", "cross")))
+  ## cross$geno$chr$map is in the wrong format (numeric instead of matrix)
+  nb_chr <- length(lapply(cross$geno, attributes))
+  for(i in 1:nb_chr){
+    cross[["geno"]][[i]][["map"]] <- as.matrix(cross[["geno"]][[i]][["map"]])
+    cross[["geno"]][[i]][["map"]] <- rbind(t(cross[["geno"]][[i]][["map"]]), t(cross[["geno"]][[i]][["map"]]))
+  }
+
+  ## QTL detection (calc.genoprob, scanone or scantwo with permutations)
+  colnames(cross$pheno)[1] <- "indiv"
+  if(QTLmethod == "SIM"){
+    fit.qtl <- SIMQTL(cross, response.in.cross=TRUE, numeric.chr.format=TRUE,
+                      pheno.col="y", geno.joinmap=x, threshold.alpha=threshold.alpha,
+                      nperm=nperm, method="em", phase=phase, plot=plot,
+                      QTL_position=NULL, verbose=verbose)
+  } else if(QTLmethod == "MIM"){
+    fit.qtl <- MIMQTL(cross, response.in.cross=TRUE,
+                      pheno.col="y", geno.joinmap=x,
+                      range_nb_qtl_max=seq(1:4), response=NULL,
+                      numeric.chr.format=TRUE, nrun=10, nperm=nperm,
+                      additive.only=TRUE, method="hk", phase=phase, # em method is too long
+                      p2d=p2d,
+                      scan2file="",  type.CI="LOD-1",
+                      threshold.alpha=threshold.alpha,
+                      QTL_position=NULL,
+                      nb.cores=nb.cores,
+                      verbose=verbose)
+  }
+
+  return(fit.qtl)
+}

@@ -10,10 +10,10 @@ Authors@R: c(
     person("Bertrand", "Servin", role="aut", comment="function from article"),
     person("Eric", "Duchene", role="aut", comment="functions to filter SNP genotypes"),
     person("Gautier", "Sarah", role="aut", comment="functions to reformat SNP genotypes"),
-    person("Agnes", "Doligez", role="ctb", comment="help on joinMap2backcross()"),
+    person("Agnes", "Doligez", role="ctb", comment="help on joinMap2backcross() and MIMQTL()"),
     person("Gota", "Morota", email="morota@unl.edu", role="ctb", comment="variance components estimation"),
     person("Julien", "Diot", email="juliendiot42@gmail.com", role="ctb", comment="subset a pedigree"),
-    person("Charlotte", "Brault", email="charlotte.brault@inra.fr", role="ctb", comment="JoinMap segregation types")
+    person("Charlotte", "Brault", email="charlotte.brault@inra.fr", role="ctb", comment="JoinMap segregation types, SIMQTL(), MIMQTL()")
     )
 Description: Timothee Flutre's personal R package (+ parts from other contributors).
 Depends:

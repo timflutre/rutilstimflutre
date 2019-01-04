@@ -59,6 +59,9 @@ list
 \description{
 Perform QTL detection by multiple interval mapping
 }
+\seealso{
+\code{\link{SIMQTL}}
+}
 \author{
 Agnes Doligez [aut], Charlotte Brault [ctbt], Timothee Flutre [ctb]
 }
