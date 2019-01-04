@@ -313,3 +313,50 @@ caretFitQtl <- function(x, y, wts, param, lev, last, weights, classProbs,
 
   return(fit.qtl)
 }
+
+##' Predict with qtl for caret
+##'
+##' @param modelFit model produced by \code{\link{caretFitQtl}}; should be a list with a component named \code{"allelic.effects"} which contains a vector in the same order as the columns of newdata and, as values, the estimated allele effects (0 if not significant, non-zero otherwise)
+##' @param newdata predictor values of the instances being predicted (e.g. out-of-bag samples); should be in the JoinMap format
+##' @param submodels optional list of tuning parameters only used with the "loop" element
+##' @return vector
+##' @author Charlotte Brault [aut], Timothee Flutre [ctb]
+##' @export
+caretPredictQtl <- function(modelFit, newdata, submodels=NULL) {
+  stopifnot(is.list(modelFit),
+            "allelic.effects" %in%names(modelFit),
+            ! is.null(rownames(newdata)))
+
+  newdata <- as.data.frame(t(newdata))
+  loc.seg.phase.clas <- data.frame(locus=rownames(newdata),
+                                   seg=getJoinMapSegregs(newdata),
+                                   phase=NA, clas=NA,
+                                   stringsAsFactors=FALSE)
+  jm <- cbind(loc.seg.phase.clas, newdata)
+  X <- joinMap2designMatrix(jm=jm, use.phase=FALSE, rm.col.zeros=FALSE,
+                            verbose=0)
+  X <- X[, -1] # remove intercept
+  allelic.effects <- as.matrix(modelFit$allelic.effects$effect)
+  rownames(allelic.effects) <- modelFit$allelic.effects$predictor
+
+  ## remove allelic effects that are not in modelFit$allelic.effects
+  X <- subset(X, select=rownames(allelic.effects))
+
+  stopifnot(dim(X)[2] == nrow(allelic.effects))
+
+  predictions <- X %*% allelic.effects
+  return(predictions[,1])
+}
+
+##' Grid with qtl for caret
+##'
+##' @param x predictors
+##' @param y outcome
+##' @param len value of \code{tuneLength} that is potentially passed in through \code{train}
+##' @param search either \code{"grid"} or \code{"random"}
+##' @return data frame of tuning parameter combinations with a column for each parameter
+##' @author Timothee Flutre
+##' @export
+caretGridQtl <- function(x, y, len=NULL, search="grid"){
+  data.frame(intercept=TRUE)
+}

@@ -1720,11 +1720,11 @@ infoGeneticMap <- function(genmap, min.mrks.per.lg=0,
 
   ## get chr and lg names, and sort them in natural order if possible
   chr.names <- unique(genmap$chr)
-  if(requireNamespace("gtools"))
+  if(requireNamespace("gtools", quietly=TRUE))
     chr.names <- gtools::mixedsort(chr.names)
   nb.chrs <- length(chr.names)
   lg.names <- unique(genmap$linkage.group)
-  if(requireNamespace("gtools"))
+  if(requireNamespace("gtools", quietly=TRUE))
     lg.names <- gtools::mixedsort(lg.names)
   nb.lgs <- length(lg.names)
 
@@ -2152,7 +2152,7 @@ plotPhyVsGenDistances <- function(x, chrs=NULL, type="b", las=1,
 
   if(is.null(chrs))
     chrs <- unique(x$chr)
-  if(requireNamespace("gtools"))
+  if(requireNamespace("gtools", quietly=TRUE))
     chrs <- gtools::mixedsort(chrs)
 
   def.par <- graphics::par(mfrow=c(1,1))
@@ -2576,7 +2576,7 @@ setupQtlCrossObject <- function(gendat, cross.type, genmap=NULL, phenos=NULL){
   genmap <- convertFactorColumnsToCharacter(genmap)
   if(! is.character(genmap$linkage.group))
     genmap$linkage.group <- as.character(genmap$linkage.group)
-  if(requireNamespace("gtools"))
+  if(requireNamespace("gtools", quietly=TRUE))
     genmap <- genmap[gtools::mixedorder(genmap$linkage.group),]
   lg.names <- unique(as.character(genmap$linkage.group))
   genmap.list <- lapply(lg.names, function(lg.name){
@@ -5390,7 +5390,7 @@ distConsecutiveSnps <- function(snp.coords, only.chr=NULL, nb.cores=1){
     stopifnot(only.chr %in% chr.ids)
     chr.ids <- only.chr
   } else{
-    if(requireNamespace("gtools")){
+    if(requireNamespace("gtools", quietly=TRUE)){
       chr.ids <- gtools::mixedsort(chr.ids)
     } else
       chr.ids <- sort(chr.ids)
