@@ -4,7 +4,7 @@
 \alias{caretSummary}
 \title{Summary for caret}
 \usage{
-caretSummary(data, lev = NULL, model = NULL)
+caretSummary(data, lev = NULL, model = NULL, plot = FALSE)
 }
 \arguments{
 \item{data}{data frame with a column named \code{"obs"} and another named \code{"pred"}}
@@ -12,9 +12,11 @@ caretSummary(data, lev = NULL, model = NULL)
 \item{lev}{levels (unused here)}
 
 \item{model}{model (unused here)}
+
+\item{plot}{if TRUE, observations regressed on predictions will be plotted}
 }
 \value{
-vector with the root measn square error, Pearson and Spearman correlations between all data points, the 50% best and the 25% best, as well as the regression intercept and slope
+vector with the root mean square error, variances of observations and predictions (if 0, most other metrics will be NA or NaN), Pearson and Spearman correlations between all data points, the 50\% best and the 25\% best, as well as the intercept, slope and determination coefficient of the simple linear regression \code{lm(obs ~ pred)} (\href{https://doi.org/10.1016/j.ecolmodel.2008.05.006}{Pineiro et al., 2008})
 }
 \description{
 Returns various metrics comparing predicted data with the values of the hold-out fold.

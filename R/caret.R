@@ -7,16 +7,34 @@
 ##' @param data data frame with a column named \code{"obs"} and another named \code{"pred"}
 ##' @param lev levels (unused here)
 ##' @param model model (unused here)
-##' @return vector with the root measn square error, Pearson and Spearman correlations between all data points, the 50% best and the 25% best, as well as the regression intercept and slope
+##' @param plot if TRUE, observations regressed on predictions will be plotted
+##' @return vector with the root mean square error, variances of observations and predictions (if 0, most other metrics will be NA or NaN), Pearson and Spearman correlations between all data points, the 50\% best and the 25\% best, as well as the intercept, slope and determination coefficient of the simple linear regression \code{lm(obs ~ pred)} (\href{https://doi.org/10.1016/j.ecolmodel.2008.05.006}{Pineiro et al., 2008})
 ##' @author Timothee Flutre
 ##' @export
-caretSummary <- function(data, lev=NULL, model=NULL){
+caretSummary <- function(data, lev=NULL, model=NULL, plot=FALSE){
   data <- data[order(data$obs, decreasing=TRUE),] # sort best -> worse
   nb.inds <- nrow(data)
   idx.best50p <- floor(0.50 * nb.inds)
   idx.best25p <- floor(0.25 * nb.inds)
-  coefOls <- as.numeric(stats::coef(stats::lm(pred ~ obs, data=data)))
+  fit <- stats::lm(obs ~ pred, data=data)
+  coefOls <- as.numeric(stats::coef(fit))
+  R2 <- summary(fit)$r.squared
+  R2.adj <- summary(fit)$adj.r.squared
+  if(plot){
+    graphics::plot(x=data$pred, y=data$obs,
+                   main="Assessment of prediction accuracy",
+                   xlab="Predictions", ylab="Observations",
+                   asp=1, las=1)
+    graphics::abline(a=0, b=1, lty=2)
+    graphics::abline(fit, lty=1)
+    graphics::legend("topleft", bty="n",
+                     legend=sapply(c(bquote("Adjusted"~R^2==.(round(R2,2))),
+                                     bquote(y==.(round(coefOls[1],2))+.(round(coefOls[2],2))~"x")),
+                                   as.expression))
+  }
   c(rmse=sqrt(mean((data$pred - data$obs)^2)),
+    var.obs=stats::var(data$obs),
+    var.pred=stats::var(data$pred),
     corP=stats::cor(data$obs, data$pred, method="pearson"),
     corS=stats::cor(data$obs, data$pred, method="spearman"),
     corP.best50p=stats::cor(data$obs[1:idx.best50p],
@@ -32,7 +50,9 @@ caretSummary <- function(data, lev=NULL, model=NULL){
                             data$pred[1:idx.best25p],
                             method="spearman"),
     reg.intercept=coefOls[1],
-    reg.slope=coefOls[2])
+    reg.slope=coefOls[2],
+    reg.R2=R2,
+    reg.R2.adj=R2.adj)
 }
 
 ##' Fit with rrBLUP for caret
