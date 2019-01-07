@@ -26,6 +26,33 @@ invisible \code{GRanges} containing the bins with the summary
 \description{
 Summarize a given metric per \code{GRanges} over genomic bins.
 }
+\examples{
+\dontrun{## dummy data
+set.seed(1)
+C <- 2
+P <- C * 10^3
+df <- data.frame(CHR=c(rep("chr1", 10^3), rep("chr2", 10^3)),
+                 SNP=paste0("snp", 1:P),
+                 POS=NA,
+                 N=abs(rnorm(P)))
+df$POS[df$CHR == "chr1"] <- sort(sample.int(10^5, 10^3))
+df$POS[df$CHR == "chr2"] <- sort(sample.int(10^5, 10^3))
+head(df)
+str(df)
+
+library(GenomicRanges)
+df.gr <- GRanges(seqnames=df$CHR, ranges=IRanges(start=df$POS, width=1),
+                 metric=df$N,
+                 seqlengths=c(chr1=10^5, chr2=10^5))
+df.gr
+
+(bins <- grSummaryPerBin(gr=df.gr, colname=NULL, binwidth=200))
+(bins <- grSummaryPerBin(gr=df.gr, colname="metric", binwidth=200,
+                         which.summary="sum"))
+(bins <- grSummaryPerBin(gr=df.gr, colname="metric", binwidth=200,
+                         which.summary="sum", which.plot="sum", plot.it=TRUE))
+}
+}
 \author{
 Timothee Flutre
 }
