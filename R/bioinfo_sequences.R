@@ -433,7 +433,7 @@ grSummaryPerBin <- function(gr, colname=NULL, binwidth=200,
   cvg <- GenomicRanges::coverage(gr, weight=weight)
   list.views <- IRanges::RleViewsList(
     lapply(names(cvg), function(seqname){
-      if(unlist(getRversion())[2] < 5){ # assume major R version is 3
+      if(utils::packageVersion("GenomeInfoDb") < "1.14"){
         tmp <- IRanges::ranges(GenomeInfoDb::keepSeqlevels(bins,
                                                            seqname))
       } else
