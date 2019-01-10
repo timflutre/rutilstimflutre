@@ -9,7 +9,7 @@ rows and columns}
 imageWithScale(z, main = NULL, idx.rownames = NULL, idx.colnames = NULL,
   breaks = NULL, nb.breaks = 20, left.text.at = NULL, cex.txt = 1,
   cex.sc = 1, col.pal = grDevices::colorRampPalette(c("black", "red",
-  "yellow"), space = "rgb"))
+  "yellow"), space = "rgb"), custom.mar = NULL)
 }
 \arguments{
 \item{z}{matrix to be plotted}
@@ -31,6 +31,8 @@ imageWithScale(z, main = NULL, idx.rownames = NULL, idx.colnames = NULL,
 \item{cex.sc}{numeric character expansion factor used with the scale}
 
 \item{col.pal}{output of \code{\link[grDevices]{colorRampPalette}}}
+
+\item{custom.mar}{see \code{\link[graphics]{par}}}
 }
 \description{
 To print all row names, choose idx.rownames=1:nrow(z). To print a subset
