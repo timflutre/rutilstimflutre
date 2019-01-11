@@ -9309,7 +9309,7 @@ boxplotCandidateQtl <- function(y, X, snp, simplify.imputed=TRUE,
                                 alleles=NULL,
                                 title.line=NA,
                                 counts.xticks=FALSE,
-                                mtext.y.line=0,
+                                mtext.y.line=3,
                                 mtext.y.cex=1,
                                 verbose=1, ...){
   if(! is.vector(y)){
