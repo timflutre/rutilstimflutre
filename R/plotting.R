@@ -272,6 +272,7 @@ plotWithScale <- function(z, zlim, col = grDevices::heat.colors(12),
 ##' @param cex.txt numeric character expansion factor used with "left.text.at"
 ##' @param cex.sc numeric character expansion factor used with the scale
 ##' @param col.pal output of \code{\link[grDevices]{colorRampPalette}}
+##' @param custom.mar see \code{\link[graphics]{par}}
 ##' @author Timothee Flutre
 ##' @examples
 ##' \dontrun{set.seed(1859)
@@ -286,7 +287,8 @@ imageWithScale <- function(z, main=NULL, idx.rownames=NULL, idx.colnames=NULL,
                            breaks=NULL, nb.breaks=20, left.text.at=NULL,
                            cex.txt=1, cex.sc=1,
                            col.pal=grDevices::colorRampPalette(c("black", "red", "yellow"),
-                                                               space="rgb")){
+                                                               space="rgb"),
+                           custom.mar=NULL){
   stopifnot(is.matrix(z))
   if(! is.null(left.text.at))
     stopifnot(is.null(idx.rownames))
@@ -303,11 +305,13 @@ imageWithScale <- function(z, main=NULL, idx.rownames=NULL, idx.colnames=NULL,
   ## layout.show(2) # for debugging purposes
 
   ## plot the heatmap
-  custom.mar <- c(1, 5, 6, 1)
-  if(is.null(idx.rownames) & is.null(left.text.at))
+  if(is.null(custom.mar)){
+    custom.mar <- c(1, 5, 6, 1)
+    if(is.null(idx.rownames) & is.null(left.text.at))
       custom.mar[2] <- 1
-  if(is.null(idx.colnames))
+    if(is.null(idx.colnames))
       custom.mar[3] <- 3
+  }
   graphics::par(mar=custom.mar, no.readonly=TRUE)
   graphics::image(t(z)[,nrow(z):1], axes=FALSE, col=col.pal(length(breaks)-1))
   if(! is.null(main))
