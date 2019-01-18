@@ -10,7 +10,7 @@ boxplotCandidateQtl(y, X, snp, simplify.imputed = TRUE,
   suppress.warnings = TRUE, regline.intercept = NA, regline.slope = NA,
   regline.col = "red", regline.lty = 1, regline.legend = NULL,
   alleles = NULL, title.line = NA, counts.xticks = FALSE,
-  mtext.y.line = 0, mtext.y.cex = 1, verbose = 1, ...)
+  mtext.y.line = 3, mtext.y.cex = 1, verbose = 1, ...)
 }
 \arguments{
 \item{y}{vector of phenotypes with genotype names}
