@@ -9820,11 +9820,12 @@ plotPedigree <- function(inds, mothers, fathers, generations, sexes=NULL,
   ## tune curvature in case of auto-fecondation
   edge.curvatures <- rep(0, igraph::ecount(ped.graph))
   if(has.autof){
-    idx.mult <- which(igraph::count_multiple(ped.graph) > 1)
-    stopifnot(length(idx.mult) %% 2 == 0)
-    nb.rel.mother <- sum(! is.na(mothers))
-    edge.curvatures[idx.mult[idx.mult <= nb.rel.mother]] <- mult.edge.curve
-    edge.curvatures[idx.mult[idx.mult > nb.rel.mother]] <- - mult.edge.curve
+    is.mult <- igraph::count_multiple(ped.graph) > 1
+    stopifnot(sum(is.mult) %% 2 == 0)
+    edge.curvatures[is.mult] <- mult.edge.curve
+    is.mult.dupl <- rep(FALSE, length(is.mult))
+    is.mult.dupl[is.mult] <- duplicated(relations[is.mult, "to"])
+    edge.curvatures[is.mult.dupl] <- - mult.edge.curve
   }
 
   ## plot, finally
