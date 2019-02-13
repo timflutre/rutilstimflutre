@@ -4890,8 +4890,8 @@ recodeIntoDominant <- function(X, simplify.imputed=FALSE){
 ##' Genomic relatedness
 ##'
 ##' Estimate genetic relationships between genotypes from their SNP genotypes.
-##' Note that "relationships" are estimated, and not "coancestries", which are equal to 2 times "relationhips".
-##' See also \href{http://dx.doi.org/10.1186/1297-9686-43-27}{Toro et al (2011)}.
+##' Note that this function estimates "relationships" and not "coancestries".
+##' See \href{http://dx.doi.org/10.1186/1297-9686-43-27}{Toro et al (2011)}: "for diploid individuals, twice the coancestry coefficient is the additive relationship coefficient, which describes the ratio between the genetic covariance between individuals and the genetic variance of the base population".
 ##' @param X matrix of bi-allelic SNP genotypes encoded in allele doses in {0,1,2}, with genotypes in rows and SNPs in columns; missing values should be encoded as NA
 ##' @param afs vector of allele frequencies, corresponding to the alleles whose copies are counted in \code{X} (if NULL, will be calculated with \code{\link{estimSnpAf}})
 ##' @param thresh threshold on minor allele frequencies below which SNPs are ignored (e.g. 0.01; NULL to skip this step)

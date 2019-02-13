@@ -30,8 +30,8 @@ matrix
 }
 \description{
 Estimate genetic relationships between genotypes from their SNP genotypes.
-Note that "relationships" are estimated, and not "coancestries", which are equal to 2 times "relationhips".
-See also \href{http://dx.doi.org/10.1186/1297-9686-43-27}{Toro et al (2011)}.
+Note that this function estimates "relationships" and not "coancestries".
+See \href{http://dx.doi.org/10.1186/1297-9686-43-27}{Toro et al (2011)}: "for diploid individuals, twice the coancestry coefficient is the additive relationship coefficient, which describes the ratio between the genetic covariance between individuals and the genetic variance of the base population".
 }
 \examples{
 \dontrun{set.seed(1859)
