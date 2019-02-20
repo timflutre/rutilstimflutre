@@ -107,13 +107,13 @@ SIMQTL <- function (cross, response.in.cross=TRUE, response=NULL, numeric.chr.fo
   stopifnot(nrow(qtl.em[qtl.em$is.qtl,]) == nrow(qtl.em[! is.na(qtl.em$nb_interval),]))
   if(nb_interval != 0){
     qtl.df <- data.frame(linkage.group=rep(0, nb_interval),
-                         position.peak=rep(0, nb_interval), nearest.mrk=rep(0, nb_interval),
-                         LOD=rep(0, nb_interval), interval.inf=rep(0, nb_interval),
-                         interval.sup=rep(0,nb_interval))
+                         position=0, nearest.mrk=0,
+                         LOD=0, interval.inf=0,
+                         interval.sup=0)
     for(i in 1:nb_interval){
       qtl.df$linkage.group[i] <- unique(qtl.em$chr[which(qtl.em$nb_interval == i)])
       qtl.df$LOD[i] <- max(qtl.em[which(qtl.em$nb_interval == i),"lod"])
-      qtl.df$position.peak[i] <- qtl.em$pos[qtl.em$nb_interval == i & qtl.em$lod == qtl.df$LOD[i]]
+      qtl.df$position[i] <- qtl.em$pos[qtl.em$nb_interval == i & qtl.em$lod == qtl.df$LOD[i]]
       qtl.df$nearest.mrk[i] <- qtl::find.marker(cross, qtl.df$linkage.group[i],  qtl.df$position.peak[i])
       qtl.df$interval.inf[i] <- min(qtl.em$pos[qtl.em$nb_interval == i & qtl.em$lod > qtl.df$LOD[i] - 1], na.rm=TRUE)
       qtl.df$interval.sup[i] <- max(qtl.em$pos[qtl.em$nb_interval == i & qtl.em$lod > qtl.df$LOD[i] - 1], na.rm=TRUE)
@@ -149,9 +149,9 @@ SIMQTL <- function (cross, response.in.cross=TRUE, response=NULL, numeric.chr.fo
     selected.markers <- subset(selected.markers, subset= !is.na(selected.markers))
 
   } else { # no QTL found
-    qtl.df <- data.frame(chromosome=0,
-                         position.peak=0, nearest.mrk=0,
-                         LOD=0, interval.inf=0, interval.sup=0)
+    qtl.df <- data.frame(linkage.group=NA,
+                         position=NA, nearest.mrk=NA,
+                         LOD=NA, interval.inf=NA, interval.sup=NA)
     selected.markers <- 0 ; length(selected.markers) <- 0
   }
 
