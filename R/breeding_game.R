@@ -573,6 +573,8 @@ makeExamplePlantFile <- function(out.dir){
       file=f, append=TRUE)
   cat("# individual names should only use [a-z], [A-Z], [0-9], [_-] (no space, comma, etc)\n",
       file=f, append=TRUE)
+  cat("# when requesting several haplodiploidizations, there should be one row per HD\n",
+      file=f, append=TRUE)
   cat("# use write.table(x=plants, file=\"<breeder>_<year>_plant_material.txt\", quote=FALSE, sep=\"\\t\", na=\"\", row.names=FALSE, col.names=TRUE)\n",
       file=f, append=TRUE)
   cat("# lines starting with '#' will be ignored\n",
