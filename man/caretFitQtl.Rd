@@ -6,8 +6,8 @@
 \usage{
 caretFitQtl(x, y, wts, param, lev, last, weights, classProbs, genmap,
   pop.type = "CP", nperm = 10, threshold.alpha = 0.05, plot = FALSE,
-  phase, QTLmethod = "SIM", p2d = "", nb.cores = 1, QTLposition = NULL,
-  verbose = 0)
+  phase, QTLmethod = "SIM", p2d = "", nb.cores = 1, QTL_position = NULL,
+  cross.geno.prob = NULL, verbose = 0)
 }
 \arguments{
 \item{x}{current predictors used to fit the model}
@@ -36,7 +36,7 @@ caretFitQtl(x, y, wts, param, lev, last, weights, classProbs, genmap,
 
 \item{plot}{logical}
 
-\item{phase}{?}
+\item{phase}{vector of character (length nb of markers) in the format '{--}'}
 
 \item{QTLmethod}{character (SIM/MIM)}
 
@@ -44,7 +44,10 @@ caretFitQtl(x, y, wts, param, lev, last, weights, classProbs, genmap,
 
 \item{nb.cores}{number of cores (passed to MIMQTL)}
 
-\item{QTLposition}{?}
+\item{QTL_position}{data frame with columns linkage.group, genetic.distance and locus to plot abline at simulated QTL position}
+
+\item{cross.geno.prob}{list containing genotypic class probabilities calculated from calc.genoprob.
+If not passed (NULL), prediction is done with allelic effects at the closest marker.}
 
 \item{verbose}{verbosity level (0/1/2)}
 }

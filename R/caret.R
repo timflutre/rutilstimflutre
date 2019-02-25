@@ -276,29 +276,29 @@ caretGridBglr <- function(x, y, len=NULL, search="grid"){
 ##' @param nperm number of permutations
 ##' @param threshold.alpha vector
 ##' @param plot logical
-##' @param phase vector of character (length nb of markers) in the format '{--}'  
+##' @param phase vector of character (length nb of markers) in the format '{--}'
 ##' @param QTLmethod character (SIM/MIM)
 ##' @param QTL_position data frame with columns linkage.group, genetic.distance and locus to plot abline at simulated QTL position
 ##' @param p2d path to directory with results of \code{scantwo} (passed to MIMQTL)
 ##' @param nb.cores number of cores (passed to MIMQTL)
-##' @param cross.geno.prob list containing genotypic class probabilities calculated from calc.genoprob. 
-##' If not passed (NULL), prediction is done with allelic effects at the closest marker. 
+##' @param cross.geno.prob list containing genotypic class probabilities calculated from calc.genoprob.
+##' If not passed (NULL), prediction is done with allelic effects at the closest marker.
 ##' @param verbose verbosity level (0/1/2)
 ##' @return output of \code{\link{SIMQTL}} or \code{\link{MIMQTL}}
 ##' @author Timothee Flutre
 ##' @export
-caretFitQtl <- function(x, y, wts, param, lev, last, weights, classProbs, genmap, 
-                        pop.type = "CP", nperm = 10, threshold.alpha = 0.05, plot = FALSE, 
-                        phase, QTLmethod = "SIM", p2d = "", nb.cores = 1, QTL_position = NULL, 
+caretFitQtl <- function(x, y, wts, param, lev, last, weights, classProbs, genmap,
+                        pop.type = "CP", nperm = 10, threshold.alpha = 0.05, plot = FALSE,
+                        phase, QTLmethod = "SIM", p2d = "", nb.cores = 1, QTL_position = NULL,
                         cross.geno.prob=NULL, verbose = 0){
-  
+
   requireNamespace("qtl")
   stopifnot(pop.type == "CP", QTLmethod %in% c("SIM", "MIM"))
-  stopifnot(xor(QTLmethod == "MIM", length(plot) == 1), xor(QTLmethod == 
-                                                              "SIM", length(plot) == 2), 
-            length(y) == dim(x)[1], length(phase) == dim(x)[2], 
-            dim(genmap)[1] == dim(x)[2], class(y) == "numeric", 
-            class(x) == "matrix", class(threshold.alpha) == "numeric", 
+  stopifnot(xor(QTLmethod == "MIM", length(plot) == 1), xor(QTLmethod ==
+                                                              "SIM", length(plot) == 2),
+            length(y) == dim(x)[1], length(phase) == dim(x)[2],
+            dim(genmap)[1] == dim(x)[2], class(y) == "numeric",
+            class(x) == "matrix", class(threshold.alpha) == "numeric",
             class(plot) == "logical", class(nperm) == "numeric")
   # Caret is automatically changing non correct rownames so we have to do the same with list_geno
   Genotypes <- rownames(x) ; Genotypes <- make.names(Genotypes)
@@ -308,9 +308,9 @@ caretFitQtl <- function(x, y, wts, param, lev, last, weights, classProbs, genmap
   x <- as.data.frame(x)
   colnames(x) <- NULL
   tmpf <- tempfile(pattern = "genos_joinmap", fileext = ".loc")
-  writeSegregJoinMap(pop.name = "caretFitQtl", pop.type = pop.type, 
-                     locus = rownames(x), segregs = getJoinMapSegregs(x), 
-                     genos = as.data.frame(x), phases = phase, file = tmpf, 
+  writeSegregJoinMap(pop.name = "caretFitQtl", pop.type = pop.type,
+                     locus = rownames(x), segregs = getJoinMapSegregs(x),
+                     genos = as.data.frame(x), phases = phase, file = tmpf,
                      verbose = verbose)
   gendat <- qtl:::read.cross.mq.loc(tmpf)
   gendat <- as.matrix(gendat$genotypes)
@@ -320,51 +320,51 @@ caretFitQtl <- function(x, y, wts, param, lev, last, weights, classProbs, genmap
   phenos <- data.frame(Genotype = Genotypes, y = y)
   phenos$Genotype <- as.character(phenos$Genotype)
   stopifnot(dim(phenos)[1] == dim(x)[2])
-  if (pop.type == "CP") 
+  if (pop.type == "CP")
     cross.type <- "4way"
-  cross <- setupQtlCrossObject(gendat = gendat, cross.type = "4way", 
+  cross <- setupQtlCrossObject(gendat = gendat, cross.type = "4way",
                                genmap = genmap, phenos = phenos)
-  
+
   # Add a row with same info in cross$geno$chr$map
   for(i in 1:length(cross$geno)){
-    cross$geno[[i]]$map <- matrix(data = rep(cross$geno[[i]]$map, 2), 
+    cross$geno[[i]]$map <- matrix(data = rep(cross$geno[[i]]$map, 2),
                                   nrow=2, byrow=TRUE)
     colnames(cross$geno[[i]]$map) <- colnames(cross$geno[[i]]$data)
   }
   # # Apply calc.genoprob
   stopifnot(all(class(cross) == c("4way", "cross")))
-  
+
   colnames(cross$pheno)[1] <- "indiv"
   if (QTLmethod == "SIM") {
-    fit.qtl <- SIMQTL(cross, response.in.cross = TRUE, numeric.chr.format = TRUE, 
-                      pheno.col = "y", geno.joinmap = x, threshold.alpha = threshold.alpha, 
-                      nperm = nperm, method = "em", phase = phase, plot = plot, 
+    fit.qtl <- SIMQTL(cross, response.in.cross = TRUE, numeric.chr.format = TRUE,
+                      pheno.col = "y", geno.joinmap = x, threshold.alpha = threshold.alpha,
+                      nperm = nperm, method = "em", phase = phase, plot = plot,
                       QTL_position = QTL_position, verbose = verbose)
   }else if (QTLmethod == "MIM") {
-    fit.qtl <- MIMQTL(cross, response.in.cross = TRUE, pheno.col = "y", 
-                      geno.joinmap = x, range_nb_qtl_max = seq(1:4), response = NULL, 
-                      numeric.chr.format = TRUE, nrun = 10, nperm = nperm, 
-                      additive.only = TRUE, method = "hk", phase = phase, 
-                      p2d = p2d, scan2file = "", type.CI = "LOD-1", 
+    fit.qtl <- MIMQTL(cross, response.in.cross = TRUE, pheno.col = "y",
+                      geno.joinmap = x, range_nb_qtl_max = seq(1:4), response = NULL,
+                      numeric.chr.format = TRUE, nrun = 10, nperm = nperm,
+                      additive.only = TRUE, method = "hk", phase = phase,
+                      p2d = p2d, scan2file = "", type.CI = "LOD-1",
                       threshold.alpha = threshold.alpha, QTL_position = QTL_position,
                       nb.cores = nb.cores, verbose = verbose)
   }
   if(!is.null(cross.geno.prob)){
-    # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ 
+    # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Construct geno_prob matrix
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     chr_names <- names(lapply(lapply(cross$geno, names), names))
     # For each chromosome, extract each locus name and paste the chromosome name
-    list_locus <- 0 
+    list_locus <- 0
     for(chr in chr_names){
       tmp <-  names(attr(cross.geno.prob[[chr]], "map")[1,])
       tmp <- paste0(chr, "@", tmp)
       list_locus <- append(list_locus, tmp)
     } # list_locus = 5@loc48 for example
     list_locus <- list_locus[-1] # remove first 0
-    
+
     # Add genotypic classes
-    list_locus_clgeno <- 0 
+    list_locus_clgeno <- 0
     for (i in 1:length(list_locus)){
       tmp <- c(paste0(list_locus[i], "@AC"),
                paste0(list_locus[i], "@AD"),
@@ -374,11 +374,11 @@ caretFitQtl <- function(x, y, wts, param, lev, last, weights, classProbs, genmap
     } # list_locus_clgeno = 5@loc48@AC for example
     list_locus_clgeno <- list_locus_clgeno[-1] # remove first 0
     stopifnot(length(list_locus)*4 ==  length(list_locus_clgeno))
-    
+
     # stopifnot(all(Genotypes %in% list_geno))
     geno_prob <- matrix(nrow=length(Genotypes), ncol=length(list_locus_clgeno),
                         dimnames=list(Genotypes, list_locus_clgeno))
-    
+
     # Extract genotypes probabilities for genotypes in TS only
     for(i in 1:ncol(geno_prob)){
       name <- colnames(geno_prob)[i]
@@ -390,7 +390,7 @@ caretFitQtl <- function(x, y, wts, param, lev, last, weights, classProbs, genmap
     }
     # Extract columns corresponding to locus at QTL peak
     qtl.df <- fit.qtl$qtl.df
-    
+
     select_names <- list()
     if(all(!is.na(qtl.df$linkage.group))){
       if(verbose > 0){print(paste(nrow(qtl.df), " QTLs found"))}
@@ -405,13 +405,13 @@ caretFitQtl <- function(x, y, wts, param, lev, last, weights, classProbs, genmap
       }
       stopifnot(all(unlist(select_names) %in% colnames(geno_prob)))
       if(verbose > 1){print(unlist(select_names))}
-      
+
       # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
       # Estimates genotypic effects from QTL detection
       # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
       ## Select inds in training set and selected loci
       X.loc <- geno_prob[, unlist(select_names)]
-      fit.lm <- lm(y ~ X.loc)    
+      fit.lm <- stats::lm(y ~ X.loc)
       summary.fit <- summary(fit.lm)
       signif.coeff <- as.matrix(summary.fit$coefficients[,1][summary.fit$coefficients[,4] < 0.2])
       signif.coeff <- signif.coeff[-1,] # remove intercept
@@ -441,17 +441,17 @@ caretFitQtl <- function(x, y, wts, param, lev, last, weights, classProbs, genmap
 ##' @author Charlotte Brault [aut], Timothee Flutre [ctb]
 ##' @export
 caretPredictQtl <- function(modelFit, newdata, submodels = NULL){
-  stopifnot(is.list(modelFit), 
+  stopifnot(is.list(modelFit),
             all(c("geno.effects","cross.geno.prob") %in% names(modelFit)))
- 
+
   newdata <- as.data.frame(t(newdata))
   Genotypes <- colnames(newdata) ; Genotypes <- make.names(Genotypes)
-  
+
   if(!is.null(modelFit$cross.geno.prob)){
-    # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ 
+    # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Construct geno_prob matrix for newdata (VS)
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    cross.geno.prob <- modelFit$cross.geno.prob 
+    cross.geno.prob <- modelFit$cross.geno.prob
     # For each chromosome, extract each locus name and paste the chromosome name
     list_locus <- 0
     for(chr in names(cross.geno.prob)){
@@ -460,7 +460,7 @@ caretPredictQtl <- function(modelFit, newdata, submodels = NULL){
       list_locus <- append(list_locus, tmp)
     }
     list_locus <- list_locus[-1]
-    
+
     # Add genotypic classes
     list_locus_clgeno <- 0
     for (i in 1:length(list_locus)){
@@ -472,12 +472,12 @@ caretPredictQtl <- function(modelFit, newdata, submodels = NULL){
     }
     list_locus_clgeno <- list_locus_clgeno[-1]
     stopifnot(length(list_locus)*4 ==  length(list_locus_clgeno))
-    
+
     # Save names of genotypes to create the final matrix geno_prob
     geno_prob <- matrix(nrow=length(Genotypes), ncol=length(list_locus_clgeno),
                         dimnames=list(Genotypes, list_locus_clgeno))
     stopifnot(all(colnames(geno_prob) %in% modelFit$geno.effects$predictor))
-    
+
     # Extract genotypes probabilities for genotypes in VS only
     for(i in 1:ncol(geno_prob)){
       name <- colnames(geno_prob)[i]
@@ -490,12 +490,12 @@ caretPredictQtl <- function(modelFit, newdata, submodels = NULL){
     predictions <- geno_prob %*% modelFit$geno.effects$effect
     ### Use allelic effects at marker position
   } else {
-    pred <- loc.seg.phase.clas <- data.frame(locus = rownames(newdata), 
-                                             seg = getJoinMapSegregs(newdata), 
-                                             phase = NA, clas = NA, 
+    pred <- loc.seg.phase.clas <- data.frame(locus = rownames(newdata),
+                                             seg = getJoinMapSegregs(newdata),
+                                             phase = NA, clas = NA,
                                              stringsAsFactors = FALSE)
     jm <- cbind(loc.seg.phase.clas, newdata)
-    X <- joinMap2designMatrix(jm = jm, use.phase = FALSE, rm.col.zeros = FALSE, 
+    X <- joinMap2designMatrix(jm = jm, use.phase = FALSE, rm.col.zeros = FALSE,
                               verbose = 0)
     X <- X[, -1]
     allelic.effects <- as.matrix(modelFit$geno.effects$effect)

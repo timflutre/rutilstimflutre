@@ -7,7 +7,7 @@
 caretPredictQtl(modelFit, newdata, submodels = NULL)
 }
 \arguments{
-\item{modelFit}{model produced by \code{\link{caretFitQtl}}; should be a list with a component named \code{"allelic.effects"} which contains a vector in the same order as the columns of newdata and, as values, the estimated allele effects (0 if not significant, non-zero otherwise)}
+\item{modelFit}{model produced by \code{\link{caretFitQtl}}; should be a list with a component named \code{"geno.effects"} which contains a vector in the same order as the columns of newdata and, as values, the estimated allele effects (0 if not significant, non-zero otherwise) or genotypic class effects.}
 
 \item{newdata}{predictor values of the instances being predicted (e.g. out-of-bag samples); should be in the JoinMap format}
 
