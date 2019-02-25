@@ -114,7 +114,7 @@ SIMQTL <- function (cross, response.in.cross=TRUE, response=NULL, numeric.chr.fo
       qtl.df$linkage.group[i] <- unique(qtl.em$chr[which(qtl.em$nb_interval == i)])
       qtl.df$LOD[i] <- max(qtl.em[which(qtl.em$nb_interval == i),"lod"])
       qtl.df$position[i] <- qtl.em$pos[qtl.em$nb_interval == i & qtl.em$lod == qtl.df$LOD[i]]
-      qtl.df$nearest.mrk[i] <- qtl::find.marker(cross, qtl.df$linkage.group[i],  qtl.df$position.peak[i])
+      qtl.df$nearest.mrk[i] <- qtl::find.marker(cross, qtl.df$linkage.group[i],  qtl.df$position[i])
       qtl.df$interval.inf[i] <- min(qtl.em$pos[qtl.em$nb_interval == i & qtl.em$lod > qtl.df$LOD[i] - 1], na.rm=TRUE)
       qtl.df$interval.sup[i] <- max(qtl.em$pos[qtl.em$nb_interval == i & qtl.em$lod > qtl.df$LOD[i] - 1], na.rm=TRUE)
     }
