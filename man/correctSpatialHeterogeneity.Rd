@@ -6,7 +6,7 @@
 \usage{
 correctSpatialHeterogeneity(dat, response, fix.eff = NULL,
   min.ctls.per.year = 10, cressie = TRUE, vgm.model = c("Exp", "Sph",
-  "Gau", "Ste"), nb.folds = 5, verbose = 1)
+  "Gau", "Ste"), nb.folds = 5, out.prefix = NULL, verbose = 1)
 }
 \arguments{
 \item{dat}{data frame with, at least, columns named "geno", "control" (TRUE/FALSE), "rank", "location", "year" and <response>}
@@ -22,6 +22,8 @@ correctSpatialHeterogeneity(dat, response, fix.eff = NULL,
 \item{vgm.model}{type(s) of variogram model(s) given to the vgm function of the gstat package; if several, the best one (smaller sum of squared errors) will be used}
 
 \item{nb.folds}{number of folds for the cross-validation}
+
+\item{out.prefix}{prefix of the output files to save plots and results (if not NULL)}
 
 \item{verbose}{verbosity level (0/1/2)}
 }

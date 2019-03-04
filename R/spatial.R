@@ -147,6 +147,7 @@ simulAr1Ar1 <- function(n=1, R=2, C=2, rho.r=0, rho.c=0,
 ##' @param cressie if TRUE, the variogram function from the gstat package uses Cressie's robust variogram estimate, else it uses the classical method of moments
 ##' @param vgm.model type(s) of variogram model(s) given to the vgm function of the gstat package; if several, the best one (smaller sum of squared errors) will be used
 ##' @param nb.folds number of folds for the cross-validation
+##' @param out.prefix prefix of the output files to save plots and results (if not NULL)
 ##' @param verbose verbosity level (0/1/2)
 ##' @return data frame as dat but with an additional column named <response>.csh
 ##' @author Timothee Flutre
@@ -158,6 +159,7 @@ correctSpatialHeterogeneity <- function(dat,
                                         cressie=TRUE,
                                         vgm.model=c("Exp", "Sph", "Gau", "Ste"),
                                         nb.folds=5,
+                                        out.prefix=NULL,
                                         verbose=1){
   requireNamespace("sp")
   requireNamespace("gstat")
@@ -300,7 +302,13 @@ correctSpatialHeterogeneity <- function(dat,
       msg <- paste0("sum of squared errors: ",
                     round(attr(vg.fit, "SSErr"), 3))
       write(msg, stdout())
-      if(verbose > 1)
+    }
+    for(i in 1:2){
+      if(all(! is.null(out.prefix), i == 2)){
+        p2f <- paste0(out.prefix, "_plot-vg-ctl-fit_", year, ".pdf")
+        grDevices::pdf(file=p2f, paper="a4")
+      }
+      if((i == 1 & verbose > 1) | i == 2)
         print(graphics::plot(vg, vg.fit, main="", col="blue",
                              key=list(space="top", lines=list(col="blue"),
                                       text=list(paste0(response,
@@ -308,6 +316,8 @@ correctSpatialHeterogeneity <- function(dat,
                                                        " (", vg.fit[2, "model"], ")",
                                                        " on controls in ",
                                                        year)))))
+      if(all(! is.null(out.prefix), i == 2))
+        grDevices::dev.off()
     }
 
     if(verbose > 0){
