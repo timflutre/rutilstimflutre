@@ -6503,6 +6503,8 @@ plantTrialLmmFitFixed <- function(glob.form, dat.noNA,
 ##' @param glob.form formula for the global model
 ##' @param dat data frame with all the columns required by \code{glob.form}; if the response contains an inline function (e.g., log or sqrt), the untransformed response may still be required
 ##' @param part.comp.sel part(s) of the model (fixed and/or random); if only "fixed", the lm/lme4 and MuMIn packages will be used, otherwise the lmerTest package will be used
+##' @param alpha.fixed for lmerTest, threshold on p values of fixed effects below which they are kept
+##' @param alpha.random for lmerTest, threshold on p values of random effects below which they are kept
 ##' @param saved.file name of the file in which to save all model fits or from which to load all model fits; ignored with lmerTest
 ##' @param nb.cores number of cores; ignored with lmerTest
 ##' @param cl an object of class "cluster"; if NULL, will be created automaticall based on \code{nb.cores}; ignored with lmerTest
@@ -6510,6 +6512,7 @@ plantTrialLmmFitFixed <- function(glob.form, dat.noNA,
 ##' @return list
 ##' @export
 plantTrialLmmFitCompSel <- function(glob.form, dat, part.comp.sel="fixed",
+                                    alpha.fixed=0.05, alpha.random=0.1,
                                     saved.file=NULL,
                                     nb.cores=1, cl=NULL, verbose=1){
   stopifnot(is.character(glob.form),
@@ -6571,9 +6574,9 @@ plantTrialLmmFitCompSel <- function(glob.form, dat, part.comp.sel="fixed",
                                REML=FALSE))
     step_res <- lmerTest::step(object=globmod.ml,
                                reduce.fixed="fixed" %in% part.comp.sel,
-                               alpha.fixed=0.05,
+                               alpha.fixed=alpha.fixed,
                                reduce.random=TRUE,
-                               alpha.random=0.1)
+                               alpha.random=alpha.random)
     bestmod.ml <- lmerTest::get_model(step_res)
   } else{ # LM or LMM and select fix terms
     allmod.sel <- plantTrialLmmFitFixed(glob.form, dat.noNA,

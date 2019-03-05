@@ -5,7 +5,8 @@
 \title{Model fit, comparison and selection}
 \usage{
 plantTrialLmmFitCompSel(glob.form, dat, part.comp.sel = "fixed",
-  saved.file = NULL, nb.cores = 1, cl = NULL, verbose = 1)
+  alpha.fixed = 0.05, alpha.random = 0.1, saved.file = NULL,
+  nb.cores = 1, cl = NULL, verbose = 1)
 }
 \arguments{
 \item{glob.form}{formula for the global model}
@@ -13,6 +14,10 @@ plantTrialLmmFitCompSel(glob.form, dat, part.comp.sel = "fixed",
 \item{dat}{data frame with all the columns required by \code{glob.form}; if the response contains an inline function (e.g., log or sqrt), the untransformed response may still be required}
 
 \item{part.comp.sel}{part(s) of the model (fixed and/or random); if only "fixed", the lm/lme4 and MuMIn packages will be used, otherwise the lmerTest package will be used}
+
+\item{alpha.fixed}{for lmerTest, threshold on p values of fixed effects below which they are kept}
+
+\item{alpha.random}{for lmerTest, threshold on p values of random effects below which they are kept}
 
 \item{saved.file}{name of the file in which to save all model fits or from which to load all model fits; ignored with lmerTest}
 
