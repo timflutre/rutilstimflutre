@@ -6590,12 +6590,22 @@ plantTrialLmmFitCompSel <- function(glob.form, dat, part.comp.sel="fixed",
     print(stats::formula(bestmod.ml, showEnv=FALSE))
   }
   out[["bestmod.ml"]] <- bestmod.ml
-  best.form <- Reduce(paste, deparse(stats::formula(bestmod.ml)))
-  all.preds <- trimws(strsplit(best.form, "\\~|\\+")[[1]])[-1]
+  ## best.form <- Reduce(paste, deparse(stats::formula(bestmod.ml)))
+  ## all.preds <- trimws(strsplit(best.form, "\\~|\\+")[[1]])[-1]
+  best.form <- stats::formula(bestmod.ml)
+  best.preds <- attributes(stats::terms(best.form))$term.labels
+  best.preds.fix <- best.preds[- grep("\\|", best.preds)]
+  best.preds.rnd <- best.preds[grep("\\|", best.preds)]
+  best.preds.rnd <- trimws(gsub("1|\\|", "", best.preds.rnd))
   out[["best.form"]] <- best.form
-  out[["all.preds"]] <- all.preds
+  out[["best.preds"]] <- best.preds
+  out[["best.preds.fix"]] <- best.preds.fix
+  out[["best.preds.rnd"]] <- best.preds.rnd
 
-  if(any.rand.var){
+  out[["bestmod.reml"]] <- NA
+  if(length(best.preds.rnd) == 0){
+    warning("can't refit with ReML because no random effect was kept")
+  } else{
     if(verbose > 0){
       msg <- "re-fit the best model with ReML..."
       write(msg, stdout())
