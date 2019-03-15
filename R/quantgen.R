@@ -6973,7 +6973,7 @@ lmerAM <- function(formula, data, relmat, REML=TRUE, na.action=stats::na.exclude
   num <- vc["geno.add"]
   denom <- vc["geno.add"] + vc["Residual"]
   if("geno.dom" %in% names(vc))
-    denom <- denom + vc["genom.dom"]
+    denom <- denom + vc["geno.dom"]
   h2 <- num / denom
 
   out.prof <- NULL
