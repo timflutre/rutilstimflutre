@@ -52,6 +52,9 @@ list with the following components: recoded, cmd, log, global mean, pve, tests (
 \description{
 See Zhou & Stephens (Nature Genetics, 2012), and Zhou et al (PLoS Genetics, 2013).
 }
+\note{
+P. Carbonetto \href{https://github.com/genetics-statistics/GEMMA/issues/12#issuecomment-327008583}{showed} how the PVE of a single SNP can be obtained, assuming no covariate, x is centered and Cov(x,beta) is zero: \code{pve <- var(x) * (beta^2 + se^2)/var(y)}
+}
 \examples{
 \dontrun{## simulate genotypes
 set.seed(1859)
@@ -91,6 +94,9 @@ slope <- fit.u$tests[qtl,"beta"] *
   ifelse(fit.u$recode[qtl], -1, 1)
 abline(a=fit.u$global.mean["beta.hat"] - mean(X[,qtl]) * slope,
        b=slope, col="red")
+
+## compute the PVE of a single SNP (assuming no covariate)
+(pve.qtl <- var(X[,qtl]) * (fit.u$tests[qtl,"beta"]^2 + fit.u$tests[qtl,"se"]^2) / var(modelA$Y[,1]))
 
 ## same but per chrom
 ## fit.u2 <- gemmaUlmmPerChr(y=modelA$Y[,1], X=X, snp.coords=snp.coords,

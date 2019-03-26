@@ -6505,7 +6505,7 @@ plantTrialLmmFitFixed <- function(glob.form, dat.noNA,
 ##' @param part.comp.sel part(s) of the model (fixed and/or random); if only "fixed", the lm/lme4 and MuMIn packages will be used, otherwise the lmerTest package will be used
 ##' @param alpha.fixed for lmerTest, threshold on p values of fixed effects below which they are kept
 ##' @param alpha.random for lmerTest, threshold on p values of random effects below which they are kept
-##' @param saved.file name of the file in which to save all model fits or from which to load all model fits; ignored with lmerTest
+##' @param saved.file name of the file in which to save all model fits or from which to load all model fits (for MuMIn); for lmerTest, only the fit of the global model will be saved
 ##' @param nb.cores number of cores; ignored with lmerTest
 ##' @param cl an object of class "cluster"; if NULL, will be created automaticall based on \code{nb.cores}; ignored with lmerTest
 ##' @param verbose verbosity level (0/1)
@@ -6572,6 +6572,7 @@ plantTrialLmmFitCompSel <- function(glob.form, dat, part.comp.sel="fixed",
                                data=dat.noNA,
                                na.action="na.fail",
                                REML=FALSE))
+    save(globmod.ml, file=saved.file)
     step_res <- lmerTest::step(object=globmod.ml,
                                reduce.fixed="fixed" %in% part.comp.sel,
                                alpha.fixed=alpha.fixed,
@@ -6594,7 +6595,10 @@ plantTrialLmmFitCompSel <- function(glob.form, dat, part.comp.sel="fixed",
   ## all.preds <- trimws(strsplit(best.form, "\\~|\\+")[[1]])[-1]
   best.form <- stats::formula(bestmod.ml)
   best.preds <- attributes(stats::terms(best.form))$term.labels
-  best.preds.fix <- best.preds[- grep("\\|", best.preds)]
+  if(any(grep("\\|", best.preds))){
+    best.preds.fix <- best.preds[- grep("\\|", best.preds)]
+  } else
+    best.preds.fix <- best.preds
   best.preds.rnd <- best.preds[grep("\\|", best.preds)]
   best.preds.rnd <- trimws(gsub("1|\\|", "", best.preds.rnd))
   out[["best.form"]] <- best.form

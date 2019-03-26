@@ -19,7 +19,7 @@ plantTrialLmmFitCompSel(glob.form, dat, part.comp.sel = "fixed",
 
 \item{alpha.random}{for lmerTest, threshold on p values of random effects below which they are kept}
 
-\item{saved.file}{name of the file in which to save all model fits or from which to load all model fits; ignored with lmerTest}
+\item{saved.file}{name of the file in which to save all model fits or from which to load all model fits (for MuMIn); for lmerTest, only the fit of the global model will be saved}
 
 \item{nb.cores}{number of cores; ignored with lmerTest}
 
