@@ -6621,6 +6621,8 @@ plantTrialLmmFitCompSel <- function(glob.form, dat, part.comp.sel="fixed",
       msg <- "re-fit the best model with ReML..."
       write(msg, stdout())
     }
+    if(is.null(ctl))
+      ctl <- lme4::lmerControl()
     bestmod.reml <- lme4::lmer(formula=stats::formula(bestmod.ml),
                                data=dat.noNA,
                                na.action="na.fail",
