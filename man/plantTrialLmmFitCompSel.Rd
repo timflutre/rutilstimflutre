@@ -5,7 +5,7 @@
 \title{Model fit, comparison and selection}
 \usage{
 plantTrialLmmFitCompSel(glob.form, dat, part.comp.sel = "fixed",
-  alpha.fixed = 0.05, alpha.random = 0.1, saved.file = NULL,
+  alpha.fixed = 0.05, alpha.random = 0.1, ctl = NULL, saved.file = NULL,
   nb.cores = 1, cl = NULL, verbose = 1)
 }
 \arguments{
@@ -18,6 +18,8 @@ plantTrialLmmFitCompSel(glob.form, dat, part.comp.sel = "fixed",
 \item{alpha.fixed}{for lmerTest, threshold on p values of fixed effects below which they are kept}
 
 \item{alpha.random}{for lmerTest, threshold on p values of random effects below which they are kept}
+
+\item{ctl}{if NULL, will be the output of \code{lmerControl} with default arguments}
 
 \item{saved.file}{name of the file in which to save all model fits or from which to load all model fits (for MuMIn); for lmerTest, only the fit of the global model will be saved}
 

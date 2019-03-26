@@ -6412,7 +6412,7 @@ aireml <- function(A, y, X, Z, initE, initU, verbose=0){
 }
 
 ## not exported: used only in plantTrialLmmFitCompSel
-plantTrialLmmFitFixed <- function(glob.form, dat.noNA,
+plantTrialLmmFitFixed <- function(glob.form, dat.noNA, ctl=NULL,
                                   saved.file=NULL,
                                   cl=NULL, nb.cores=1,
                                   verbose=0){
@@ -6441,10 +6441,12 @@ plantTrialLmmFitFixed <- function(glob.form, dat.noNA,
     }
 
     if(any.rand.var){
+      if(is.null(ctl))
+        ctl <- lme4::lmerControl()
       globmod.ml <- lme4::lmer(formula=stats::as.formula(glob.form),
                                data=dat.noNA,
                                na.action="na.fail",
-                               REML=FALSE)
+                               REML=FALSE, control=ctl)
     } else
       globmod.ml <- stats::lm(formula=stats::as.formula(glob.form),
                               data=dat.noNA,
@@ -6505,6 +6507,7 @@ plantTrialLmmFitFixed <- function(glob.form, dat.noNA,
 ##' @param part.comp.sel part(s) of the model (fixed and/or random); if only "fixed", the lm/lme4 and MuMIn packages will be used, otherwise the lmerTest package will be used
 ##' @param alpha.fixed for lmerTest, threshold on p values of fixed effects below which they are kept
 ##' @param alpha.random for lmerTest, threshold on p values of random effects below which they are kept
+##' @param ctl if NULL, will be the output of \code{lmerControl} with default arguments
 ##' @param saved.file name of the file in which to save all model fits or from which to load all model fits (for MuMIn); for lmerTest, only the fit of the global model will be saved
 ##' @param nb.cores number of cores; ignored with lmerTest
 ##' @param cl an object of class "cluster"; if NULL, will be created automaticall based on \code{nb.cores}; ignored with lmerTest
@@ -6513,6 +6516,7 @@ plantTrialLmmFitFixed <- function(glob.form, dat.noNA,
 ##' @export
 plantTrialLmmFitCompSel <- function(glob.form, dat, part.comp.sel="fixed",
                                     alpha.fixed=0.05, alpha.random=0.1,
+                                    ctl=NULL,
                                     saved.file=NULL,
                                     nb.cores=1, cl=NULL, verbose=1){
   stopifnot(is.character(glob.form),
@@ -6567,11 +6571,14 @@ plantTrialLmmFitCompSel <- function(glob.form, dat, part.comp.sel="fixed",
       msg <- "fit the global model with ML (lmerTest)"
       write(msg, stdout())
     }
+    if(is.null(ctl))
+      ctl <- lme4::lmerControl()
     globmod.ml <- do.call(lmerTest::lmer,
                           list(formula=stats::as.formula(glob.form),
                                data=dat.noNA,
                                na.action="na.fail",
-                               REML=FALSE))
+                               REML=FALSE,
+                               control=ctl))
     save(globmod.ml, file=saved.file)
     step_res <- lmerTest::step(object=globmod.ml,
                                reduce.fixed="fixed" %in% part.comp.sel,
@@ -6580,7 +6587,7 @@ plantTrialLmmFitCompSel <- function(glob.form, dat, part.comp.sel="fixed",
                                alpha.random=alpha.random)
     bestmod.ml <- lmerTest::get_model(step_res)
   } else{ # LM or LMM and select fix terms
-    allmod.sel <- plantTrialLmmFitFixed(glob.form, dat.noNA,
+    allmod.sel <- plantTrialLmmFitFixed(glob.form, dat.noNA, ctl,
                                         saved.file,
                                         cl, nb.cores, verbose)
     bestmod.ml <- MuMIn::get.models(allmod.sel, subset=1)[[1]]
@@ -6617,7 +6624,8 @@ plantTrialLmmFitCompSel <- function(glob.form, dat, part.comp.sel="fixed",
     bestmod.reml <- lme4::lmer(formula=stats::formula(bestmod.ml),
                                data=dat.noNA,
                                na.action="na.fail",
-                               REML=TRUE)
+                               REML=TRUE,
+                               control=ctl)
     out[["bestmod.reml"]] <- bestmod.reml
   }
 
