@@ -38,18 +38,18 @@ This document aims at presenting how to perform the analysis of such experiments
 This document requires external packages:
 ```{r load_pkg}
 suppressPackageStartupMessages(library(parallel)) # on the CRAN
-nb.cores <- max(1, detectCores() - 1)
-suppressPackageStartupMessages(library(scrm)) # on the CRAN
-suppressPackageStartupMessages(library(MASS)) # on the CRAN
+nb.cores <- ifelse(detectCores() > 20, 20, detectCores() - 1)
+suppressPackageStartupMessages(library(scrm))     # on the CRAN
+suppressPackageStartupMessages(library(MASS))     # on the CRAN
 suppressPackageStartupMessages(library(beanplot)) # on the CRAN
-suppressPackageStartupMessages(library(lattice)) # on the CRAN
-suppressPackageStartupMessages(library(MuMIn)) # on the CRAN
-suppressPackageStartupMessages(library(boot)) # on the CRAN
-suppressPackageStartupMessages(library(lme4)) # on the CRAN
-suppressPackageStartupMessages(library(nlme)) # on the CRAN
+suppressPackageStartupMessages(library(lattice))  # on the CRAN
+suppressPackageStartupMessages(library(MuMIn))    # on the CRAN
+suppressPackageStartupMessages(library(boot))     # on the CRAN
+suppressPackageStartupMessages(library(lme4))     # on the CRAN
+suppressPackageStartupMessages(library(nlme))     # on the CRAN
 suppressPackageStartupMessages(library(lmerTest)) # on the CRAN
 suppressPackageStartupMessages(library(rutilstimflutre)) # on GitHub
-stopifnot(compareVersion("0.166.0",
+stopifnot(compareVersion("0.170.0",
                          as.character(packageVersion("rutilstimflutre")))
           != 1)
 ```
@@ -102,7 +102,7 @@ with:
 
 * $\boldsymbol{\epsilon} \sim \mathcal{N}(0, \Sigma)$.
 
-For each replicate, $T$ errors are drawn at once from a multivariate Normal such that its correlation matrix is Toeplitz:
+For each replicate, $T$ errors are drawn at once from a multivariate Normal such that its correlation matrix is [Toeplitz](https://en.wikipedia.org/wiki/Toeplitz_matrix):
 
 \[
 \begin{pmatrix}
@@ -329,7 +329,8 @@ stopifnot(all(y >= 0))
 Option to add missing data:
 ```{r}
 y.NA <- y
-prop.NA <- 0 # 0.05
+## prop.NA <- 0.0
+prop.NA <- 0.30
 idx <- sample.int(n=length(y), size=floor(prop.NA * length(y)))
 if(length(idx) > 0)
   y.NA[idx] <- NA
@@ -364,7 +365,7 @@ cor(dat[[trait]][dat$year == "2001"],
 
 ```{r plots_data}
 hist(dat[[trait]], breaks="FD", col="grey", border="white", las=1,
-     main="Trait")
+     main=trait)
 ```
 
 ```{r}
@@ -387,33 +388,35 @@ dat[[x]][is.outlier] <- TRUE
 ```
 
 ```{r}
-set.seed(1234)
-(some.genos <- sample(names.genos, 3))
-tmp <- dat[dat$geno %in% some.genos &
-          dat$rep == "1",
-          c("geno", "year", "prod")]
-tmp$year <- as.numeric(levels(tmp$year))[tmp$year]
-plot(x=tmp$year[tmp$geno == some.genos[1]],
-     y=tmp$prod[tmp$geno == some.genos[1]],
-     ylim=range(tmp$prod),
-     type="b", pch=1, col=1,
-     main="Example of genotypes with alternate production",
-     xlab="years", las=1,
-     ylab="production")
-for(i in 2:length(some.genos))
-  points(x=tmp$year[tmp$geno == some.genos[i]],
-         y=tmp$prod[tmp$geno == some.genos[i]],
-         type="b", pch=1, col=i)
-legend("bottomright", legend=some.genos, col=1:length(some.genos),
-       lty=1, pch=1, bty="n")
+if(prop.NA == 0){
+  set.seed(1234)
+  print(some.genos <- sample(names.genos, 3))
+  tmp <- dat[dat$geno %in% some.genos &
+             dat$rep == "1",
+             c("geno", "year", "prod")]
+  tmp$year <- as.numeric(levels(tmp$year))[tmp$year]
+  plot(x=tmp$year[tmp$geno == some.genos[1]],
+       y=tmp$prod[tmp$geno == some.genos[1]],
+       ylim=range(tmp$prod),
+       type="b", pch=1, col=1,
+       main="Example of genotypes with alternate production",
+       xlab="years", las=1,
+       ylab="production")
+  for(i in 2:length(some.genos))
+    points(x=tmp$year[tmp$geno == some.genos[i]],
+           y=tmp$prod[tmp$geno == some.genos[i]],
+           type="b", pch=1, col=i)
+  legend("bottomright", legend=some.genos, col=1:length(some.genos),
+         lty=1, pch=1, bty="n")
+}
 ```
 
 
 # Data preparation
 
 ```{r}
-transfo <- "id"
-stopifnot(transfo %in% c("id", "log", "sqrt"))
+transf <- "id"
+stopifnot(transf %in% c("id", "log", "sqrt"))
 ```
 
 ```{r}
@@ -424,12 +427,12 @@ if(any(dat[[paste0(trait, ".outlier")]])){
 ```
 
 ```{r}
-if(transfo == "id"){
+if(transf == "id"){
   response <- trait
-} else if(transfo == "log"){
+} else if(transf == "log"){
   response <- paste0("log(", trait, ")")
   dat[[response]] <- log(dat[[trait]])
-} else if(transfo == "sqrt"){
+} else if(transf == "sqrt"){
   response <- paste0("sqrt(", trait, ")")
   dat[[response]] <- sqrt(dat[[trait]])
 }
@@ -445,6 +448,7 @@ str(dat.noNA)
 
 ## Model fitting, comparison and selection
 
+See also `?plantTrialLmmFitCompSel`:
 ```{r}
 form <- paste0(response, " ~ 1",
                " + year",
@@ -465,14 +469,16 @@ bestmod.reml.lme4 <- lmer(formula=formula(bestmod.ml),
 bestmod.reml <- bestmod.reml.lme4
 bestmod.reml.test <- lmerTest::lmer(formula=formula(bestmod.reml),
                                     data=dat.noNA,
-                                    na.action=na.fail, REML=TRUE)
+                                    na.action=na.fail,
+                                    REML=TRUE)
 allmod.sel <- lmerTest::step(bestmod.reml.test, reduce.fixed=FALSE)
 bestmod.reml.test.final <- lmerTest::get_model(allmod.sel)
 formula(bestmod.reml.test.final)
 bestmod.reml <- bestmod.reml.test.final
 bestmod.ml <- lmerTest::lmer(formula=formula(bestmod.reml),
                              data=dat.noNA,
-                             na.action=na.fail, REML=FALSE)
+                             na.action=na.fail,
+                             REML=FALSE)
 ```
 
 Parse the formula of the best model:
@@ -546,6 +552,7 @@ qqline(y=fit.all$scl.cond.res, col="red")
 
 ### Error temporal independence
 
+See also `?plotResidualsBtwYears`:
 ```{r}
 tmp <- do.call(cbind, lapply(sort(unique(fit.all$year)), function(year){
   fit.all$scl.cond.res[fit.all$year == year]
@@ -636,6 +643,7 @@ summary(bestmod.reml)
 
 ### Broad-sense heritability
 
+See also `?estimH2means`:
 ```{r H2}
 reps.geno.year <- tapply(dat.noNA[[trait]],
                          list(dat.noNA$geno, dat.noNA$year),
@@ -655,7 +663,7 @@ head(reps.geno.year)
 
 #### Profiling
 
-```{r bestmod_confint_prof, eval=TRUE}
+```{r bestmod_confint_prof, eval=FALSE}
 system.time(
     prof <- profile(bestmod.ml, signames=FALSE,
                     parallel="multicore", ncpus=nb.cores))
@@ -670,7 +678,7 @@ splom(prof, conf=c(0.8, 0.95), #which=1:3,
 
 #### Bootstrapping
 
-```{r bestmod_confint_boot, eval=TRUE}
+```{r bestmod_confint_boot, eval=FALSE}
 mySumm <- function(.){
   tmp <- c(ef=fixef(.),
            sd.err=sigma(.),
@@ -701,6 +709,15 @@ for(i in seq_along(fit.boot$t0)){
                 type=c("norm", "basic", "perc"),
                 index=i))
 }
+for(metric in c("H2.classic", "H2.oakey", "CV.geno")){
+  idx <- grep(metric, names(fit.boot$t0))
+  tmp <- boot.ci(boot.out=fit.boot, conf=0.95, type="perc",
+                 index=idx)
+  message(paste0(metric, " = ", round(tmp$t0, 3),
+                 " [", round(tmp$percent[length(tmp$percent)-1], 3),
+                 " ; ", round(tmp$percent[length(tmp$percent)], 3),
+                 "]"))
+}
 ```
 
 ### Hypothesis testing
@@ -724,6 +741,7 @@ ranova(bestmod.reml)
 ### In-sample prediction
 
 ```{r bestmod_in-sample_prediction}
+cor(fit.all$fitted, fit.all$response, use="complete.obs")
 plot(fit.all$fitted, fit.all$response, las=1, asp=1,
      xlab="observed response",
      ylab="fitted responses",
@@ -748,6 +766,7 @@ lattice::xyplot(response ~ fitted | year, #groups=block,
                 })
 ```
 
+
 # Statistical modeling with inter-annual correlation
 
 ## Model fitting, comparison and selection
@@ -758,26 +777,27 @@ if(length(all.preds.fix) > 0)
   form.fix <- paste0(form.fix,
                      " + ", paste(all.preds.fix, collapse=" + "))
 form.fix
-fit <- nlme::lme(fixed=as.formula(form.fix),
-                 random=list(geno=~1, rep=~1),
-                 correlation=corAR1(),
-                 data=dat, method="ML")
+bestmod.ml.nlme <- nlme::lme(fixed=as.formula(form.fix),
+                             random=list(geno=~1, rep=~1),
+                             correlation=corAR1(),
+                             data=dat.noNA, method="ML",
+                             na.action=na.fail)
 ```
 
 ```{r}
 stats::AIC(bestmod.ml)
-stats::AIC(fit)
+stats::AIC(bestmod.ml.nlme)
 ```
 
 According to the AIC, the model with inter-annual correlation is better than the model without.
 
 ```{r}
-bestmod.ml <- fit
 bestmod.reml.nlme <- nlme::lme(fixed=as.formula(form.fix),
                                random=list(geno=~1, rep=~1),
                                correlation=corAR1(),
-                               data=dat, method="REML")
-bestmod.reml <- bestmod.reml.nlme
+                               data=dat.noNA, method="REML",
+                               na.action=na.fail)
+bestmod.reml.nlme
 ```
 
 ## Assumption checking
@@ -790,13 +810,22 @@ fit.all <- cbind(dat,
                  cond.res=NA,
                  scl.cond.res=NA,
                  fitted=NA)
-fit.all$cond.res <- residuals(bestmod.reml)
-fit.all$scl.cond.res <- residuals(bestmod.reml) /
-  sigma(bestmod.reml)
-fit.all$fitted <- fitted(bestmod.reml)
-tmp <- nlme::ranef(bestmod.reml)$geno
+idx.NA <- attr(dat.noNA, "na.action")
+if(length(idx.NA) > 0){
+  fit.all$cond.res[- idx.NA] <- residuals(bestmod.reml.nlme)
+  fit.all$scl.cond.res[- idx.NA] <- residuals(bestmod.reml.nlme) /
+    sigma(bestmod.reml.nlme)
+  fit.all$fitted[- idx.NA] <- fitted(bestmod.reml.nlme)
+} else{
+  fit.all$cond.res <- residuals(bestmod.reml.nlme)
+  fit.all$scl.cond.res <- residuals(bestmod.reml.nlme) /
+    sigma(bestmod.reml.nlme)
+  fit.all$fitted <- fitted(bestmod.reml.nlme)
+}
+tmp <- nlme::ranef(bestmod.reml.nlme)$geno
 geno.blups <- setNames(tmp[,"(Intercept)"], rownames(tmp))
 geno.var.blups <- NULL # nlme doesn't produce the variance of the BLUPs
+## https://stat.ethz.ch/pipermail/r-sig-mixed-models/2009q1/001763.html
 ```
 
 ### Error homoscedasticity
@@ -928,11 +957,11 @@ as.data.frame.VarCorr.lme <- function(x){
 ### Summary
 
 ```{r}
-summary(bestmod.ml)
-(vc.ml <- as.data.frame(VarCorr(bestmod.ml)))
-summary(bestmod.reml)
-(vc.reml <- as.data.frame(VarCorr(bestmod.reml)))
-(phi <- as.numeric(coef(bestmod.reml$modelStruct$corStruct,
+summary(bestmod.ml.nlme)
+(vc.ml <- as.data.frame(VarCorr(bestmod.ml.nlme)))
+summary(bestmod.reml.nlme)
+(vc.reml <- as.data.frame(VarCorr(bestmod.reml.nlme)))
+(phi <- as.numeric(coef(bestmod.reml.nlme$modelStruct$corStruct,
                         unconstrained=FALSE)))
 ```
 
@@ -961,7 +990,7 @@ Not available for nlme.
 
 #### Bootstrapping
 
-```{r bestmod_confint_boot_nlme}
+```{r bestmod_confint_boot_nlme, eval=FALSE}
 mySumm <- function(x, form.fix, mean.nb.years, mean.nb.reps.per.year){
   if(is.data.frame(x)){
     x <- nlme::lme(fixed=as.formula(form.fix),
@@ -996,10 +1025,10 @@ mySumm <- function(x, form.fix, mean.nb.years, mean.nb.reps.per.year){
   names(tmp)[length(tmp)] <- "phi"
   return(tmp)
 }
-mySumm(bestmod.ml, form.fix, mean.nb.years, mean.nb.reps.per.year)
+mySumm(bestmod.ml.nlme, form.fix, mean.nb.years, mean.nb.reps.per.year)
 ## set.seed(1859)
 ## system.time(
-##     fit.boot <- lmeresampler::bootstrap(model=bestmod.ml,
+##     fit.boot <- lmeresampler::bootstrap(model=bestmod.ml.nlme,
 ##                                         fn=mySumm,
 ##                                         type="parametric",
 ##                                         B=1*10^3))
@@ -1026,8 +1055,8 @@ mySimulate <- function(data, par.est){
   data$prod <- y
   return(data)
 }
-myMle <- list(intercept=fixef(bestmod.ml)[["(Intercept)"]],
-              var.year=var(fitted(bestmod.ml)),
+myMle <- list(intercept=fixef(bestmod.ml.nlme)[["(Intercept)"]],
+              var.year=var(fitted(bestmod.ml.nlme)),
               var.geno=vc.ml[vc.ml == "geno", "vcov"],
               var.err=vc.ml[vc.ml == "Residual", "vcov"],
               phi=phi)
@@ -1073,7 +1102,7 @@ abline(h=mean(fit.all$response, na.rm=TRUE), lty=2)
 ```
 
 ```{r check_in-sample_prediction_year_block_nlme}
-lattice::xyplot(trait ~ fitted | year, #groups=block,
+lattice::xyplot(response ~ fitted | year, #groups=block,
                 data=fit.all,
                 auto.key=list(space="right"),
                 xlab="observed response",
@@ -1100,12 +1129,42 @@ geno.blups.nlme <- setNames(tmp[,"(Intercept)"], rownames(tmp))
 ##                                 names(geno.blups.lme4))
 ```
 
+## BLUPs (lme4) vs BLUPs (nlme)
+
 ```{r}
-cor(geno.blups.lme4, geno.blups.nlme)
-plot(geno.blups.lme4, geno.blups.nlme)
+cor(geno.blups.lme4, geno.blups.nlme, method="pearson")
+cor(geno.blups.lme4, geno.blups.nlme, method="spearman")
+tmp <- max(abs(c(geno.blups.lme4, geno.blups.nlme)))
+plot(geno.blups.lme4, geno.blups.nlme,
+     xlim=c(-tmp, tmp), ylim=c(-tmp, tmp), asp=1, las=1,
+     main="Temporal correlation: ignore vs estimate")
+abline(a=0, b=1, v=0, h=0, lty=2)
 abline(lm(geno.blups.nlme ~ geno.blups.lme4), col="red")
 ```
 
+## BLUPs vs true genotypic values
+
+```{r}
+cor(geno.blups.lme4, geno.vals, method="pearson")
+cor(geno.blups.lme4, geno.vals, method="spearman")
+cor(geno.blups.nlme, geno.vals, method="pearson")
+cor(geno.blups.nlme, geno.vals, method="spearman")
+tmp <- max(abs(c(geno.blups.lme4, geno.blups.nlme, geno.vals)))
+plot(geno.blups.lme4, geno.vals,
+     xlim=c(-tmp, tmp), ylim=c(-tmp, tmp), asp=1, las=1,
+     main="Temporal correlation: truth vs ignore")
+abline(a=0, b=1, v=0, h=0, lty=2)
+abline(lm(geno.vals ~ geno.blups.lme4), col="red")
+plot(geno.blups.nlme, geno.vals,
+     xlim=c(-tmp, tmp), ylim=c(-tmp, tmp), asp=1, las=1,
+     main="Temporal correlation: truth vs estimate")
+abline(a=0, b=1, v=0, h=0, lty=2)
+abline(lm(geno.vals ~ geno.blups.nlme), col="red")
+```
+
+## Conclusion
+
+When the genotypic values are of interest, ignoring the temporal correlation when computing the BLUPs of the genotypic values seems reasonnable.
 
 
 # Appendix
