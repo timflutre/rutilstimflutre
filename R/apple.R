@@ -102,3 +102,48 @@ BBI <- function(dat, coln.prod="prod", coln.geno="geno",
 
   return(out)
 }
+
+##' Genotypic values for fruit bearing
+##'
+##' Compute the AR(1) coefficient for each genotype averaged over tree replicates following the model in \href{https://dx.doi.org/10.1093/jxb/ert297}{Durand et al (2013)}.
+##' @param dat data frame
+##' @param coln.epsilon column name of the residuals
+##' @param coln.geno column name of the genotype
+##' @param coln.rep column name of the tree replicate
+##' @param coln.year column name of the year (the column data should be convertible to \code{numeric})
+##' @return vector
+##' @author Timothee Flutre
+##' @export
+genoAr1Coef <- function(dat, coln.epsilon="residual", coln.geno="geno",
+                        coln.rep="tree", coln.year="year"){
+  stopifnot(is.data.frame(dat),
+            coln.epsilon %in% colnames(dat),
+            coln.rep %in% colnames(dat),
+            coln.geno %in% colnames(dat),
+            coln.year %in% colnames(dat))
+
+  dat[[coln.geno]] <- as.factor(dat[[coln.geno]])
+  genos <- levels(dat[[coln.geno]])
+  G <- nlevels(dat[[coln.geno]])
+
+  fit.ar1.gr <-
+    do.call(rbind, lapply(1:G, function(g){
+      geno <- genos[g]
+      trees.g <- unique(dat[dat[[coln.geno]] == geno, coln.rep])
+      R.g <- length(trees.g)
+      out <- c()
+      for(r in 1:R.g){
+        tmp <- droplevels(dat[dat[[coln.geno]] == geno &
+                              dat[[coln.rep]] == as.character(r),])
+        fit <- stats::arima(x=tmp$epsilonB, order=c(1,0,0),
+                            method="ML") ## CSS can return an error
+        out <- c(out, stats::coef(fit)["ar1"])
+      }
+      out
+    }))
+  rownames(fit.ar1.gr) <- genos
+
+  fit.ar1.g <- apply(fit.ar1.gr, 1, mean)
+
+  return(fit.ar1.g)
+}

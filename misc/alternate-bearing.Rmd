@@ -1,0 +1,398 @@
+---
+title: "Using indices to study alternate bearing"
+author: "Timothée Flutre (INRA)"
+date: "`r format(Sys.time(), '%d/%m/%Y %H:%M:%S')`"
+colorlinks: true
+output:
+  html_document:
+    toc: true
+    toc_depth: 4
+    toc_float: true
+    number_sections: TRUE
+  pdf_document:
+    toc: true
+    toc_depth: 4
+    number_sections: TRUE
+---
+
+
+# Overview
+
+Perennial fruit species, such as apple trees, are known to have irregular fruit bearing, notably biennial.
+Several biennial bearing indices (BBI) hence have been proposed, notably to handle the fact that fruit production not only is irregular but also increases over the years, i.e. has a positive trend.
+See [Durand et al (2013)](https://academic.oup.com/jxb/article-lookup/doi/10.1093/jxb/ert297) for details.
+
+This document requires external packages:
+```{r}
+suppressPackageStartupMessages(library(parallel))
+nb.cores <- ifelse(detectCores() > 20, 20, detectCores() - 1)
+suppressPackageStartupMessages(library(MASS))
+suppressPackageStartupMessages(library(lme4))
+suppressPackageStartupMessages(library(nlme))
+suppressPackageStartupMessages(library(rutilstimflutre))
+```
+
+This R chunk is used to assess how much time it takes to execute the R code in this document until the end:
+```{r time_0}
+t0 <- proc.time()
+```
+
+
+# Modelling
+
+Indices:
+
+* $g$: genotype
+
+* $t$: year
+
+* $r$: tree (i.e. replicate)
+
+Fruit production (yield): prod = intercept + slope x t + error
+
+* $t$ is "year" treated continuously
+
+* intercept: $\beta + \beta_g + \zeta_{g,r}$
+
+* slope: $\alpha + \alpha_g + \xi_{g,r}$
+
+so that $\beta + \alpha \; t$ represents the mean trend, and $\beta_g + \alpha_g \; t$ the trend deviation for genotype $g$.
+Deviations for replicates (the $\zeta$'s and $\xi$'s) are ignored in this document.
+
+Likelihood:
+
+\[
+y_{g,r,t} = (\beta + \beta_g) + (\alpha + \alpha_g) \; t + \epsilon_{g,r,t}
+\]
+
+where $\epsilon_{g,r,t} = (\gamma + \gamma_g) \; \epsilon_{g,r,t-1} + u_{g,r,t}$ with $u_{g,r,t} \sim \mathcal{N}(0, \sigma^2)$.
+
+As the temporal dependency between errors is modeled as a first-order autoregressive process, AR(1), we can write the following:
+
+* data: $\mathcal{D} = \{ (y_{g,r,t})_{1 \le g \le G, \; 1 \le r \le R, \; 1 \le t \le T} \}$
+
+* parameters: $\Theta = \{ \beta, \; (\beta_g)_{1 \le g \le G}, \; \alpha, \; (\alpha_g)_{1 \le g \le G}, \; \gamma, \; (\gamma_g)_{1 \le g \le G}, \; \sigma^2 \}$
+
+* likelihood: $\mathcal{L} = p(\mathcal{D} \, | \, \Theta)$
+
+For any genotype $g$, let us introduce $\phi_{1,g} = \gamma + \gamma_g$ so that, $\forall g, \; \epsilon_{g,r,t} = \phi_{1,g} \, \epsilon_{g,r,t-1} + u_{g,r,t}$.
+
+By construction, the mean of this AR(1) process is zero: $E(\epsilon_{g,r,t}) = 0$.
+
+Moreover, its variance is: $v_g = V(\epsilon_{g,r,t-1}) = V(\epsilon_{g,r,t}) = \phi_{1,g}^2 \, V(\epsilon_{g,r,t-1}) + \sigma^2 \Rightarrow v_g = \frac{\sigma^2}{1 - \phi_{1,g}^2}$.
+
+To interpret $\phi_{1,g}$, it helps to write down the covariance and correlation between successive errors:
+
+$Cov(\epsilon_{g,r,t-1}, \, \epsilon_{g,r,t}) = E(\epsilon_{g,r,t-1} \epsilon_{g,r,t}) = \phi_{1,g} \, V(\epsilon_{g,r,t}) \Rightarrow cor(\epsilon_{g,r,t-1}, \, \epsilon_{g,r,t}) = \phi_{1,g} = \rho_g$
+
+That is why $\gamma + \gamma_g$ is close to 0 for regular bearing genotypes and to -1 for biennial bearing genotypes.
+
+With $\forall g, \; \epsilon_{g,r,1} \sim \mathcal{N}(0, \frac{\sigma^2}{1 - \rho_g^2})$, we can write the distribution of all errors for tree $r$ of genotype $g$ as a vector distributed according to a multivariate Normal:
+
+$\forall g,r, \; \boldsymbol{\epsilon_{g,r}} \sim \mathcal{N}_T(\boldsymbol{0}, \Sigma_g)$
+
+where the covariance matrix can be written as a scaled correlation matrix:
+
+\[
+\begin{equation}
+\Sigma_g = \frac{\sigma^2}{1 - \rho_g^2}
+\begin{pmatrix}
+1 & \rho_g & \rho_g^2 & \cdots \\
+\rho_g & 1 & \rho_g & \cdots \\
+\rho_g^2 & \rho_g & 1 & \cdots \\
+\vdots & \vdots & \vdots & \ddots \\
+\end{pmatrix}
+\end{equation}
+\]
+
+Genotype effects:
+
+* model A: as fixed
+
+* model B: as random
+
+* model selection by, say, minimizing AIC
+
+
+# Simulation
+
+Make the skeleton of a data frame:
+```{r}
+G <- 200 # number of genotypes
+genos <- paste0("geno", sprintf(fmt="%03i", 1:G))
+R <- 5   # number of trees per genotype, i.e. replicates
+T <- 10  # number of years
+years <- 2001:(2001 + T - 1)
+dat.annual <- data.frame(geno=rep(genos, each=R),
+                         tree=rep(1:R, G))
+dat <- dat.annual
+for(t in 2:T)
+  dat <- rbind(dat, dat.annual)
+dat$year <- rep(years, each=G * R)
+dat$year <- as.factor(dat$year)
+dat$tree <- as.factor(dat$tree)
+dat <- dat[order(dat$geno, dat$tree, dat$year),]
+rownames(dat) <- NULL
+str(dat)
+dat[1:(T+3),]
+```
+
+Set input parameter values:
+```{r}
+beta <- 100
+sd.beta.g <- 3
+alpha <- 1
+sd.alpha.g <- 1
+gamma <- -0.5
+sigma <- 2
+```
+
+Make design matrices:
+```{r}
+Z.g <- model.matrix(~ -1 + geno, data=dat)
+dat$year.num <- as.numeric(levels(dat$year))[dat$year]
+dat$t <- dat$year.num - min(dat$year.num)
+dat$geno.tree <- as.factor(paste0(dat$geno, "_", dat$tree))
+Z.gr <- model.matrix(~ -1 + geno.tree, data=dat)
+```
+
+Simulate production data, ignoring trend deviations for replicate $r$ of genotype $g$, and noting that $\gamma + \gamma_g = 0$ means regular bearing and -1 means biennial bearing:
+```{r, eval=TRUE}
+set.seed(1859)
+beta.g <- rnorm(n=G, mean=0, sd=sd.beta.g)
+alpha.g <- rnorm(n=G, mean=0, sd=sd.alpha.g)
+## gamma.g <- rep(0, G) # all genotypes have the same bearing pattern
+gamma.g <- c(rep(-0.4, floor(G/3)),           # -> gamma+gamma.g = -0.9
+             rep(0, floor(G/3)),              # -> gamma+gamma.g = gamma
+             rep(-gamma, G - 2 * floor(G/3))) # -> gamma+gamma.g = 0
+## gamma.g <- runif(n=G, min=-1-gamma, max=-gamma)
+summary(gamma + gamma.g)
+table(gamma + gamma.g)
+names(gamma.g) <- genos
+Sigma.g <- lapply(1:G, function(g){
+  covMatAR1(n=T, rho=gamma + gamma.g[g], sigma2=sigma^2)
+})
+epsilon.g <- lapply(1:G, function(g){
+  mvrnorm(n=R, mu=rep(0, T), Sigma=Sigma.g[[g]])
+})
+y <- beta + Z.g %*% beta.g +
+  dat$t * (alpha + Z.g %*% alpha.g)
+dat$error <- NA
+for(g in 1:G){
+  geno <- levels(dat$geno)[g]
+  for(r in 1:R){
+    tree <- levels(dat$tree)[r]
+    idx.gr <- grep(paste0("^", geno, "_", tree, "$"), dat$geno.tree)
+    stopifnot(length(idx.gr) == T)
+    dat$error[idx.gr] <- epsilon.g[[g]][r,]
+    y[idx.gr] <- y[idx.gr] + epsilon.g[[g]][r,]
+  }
+}
+dat$prod <- y
+```
+
+
+# Visual exploration
+
+Plot the distribution of the data:
+```{r, eval=TRUE}
+boxplot(prod ~ year, dat, las=1,
+        xlab="years", ylab="production", main="Phenotypic data")
+```
+
+Useful function to plot results for a subset of genotypes:
+```{r}
+plotSubsetGenos <- function(dat, response, some.genos, tree="1",
+                            add.lm=TRUE){
+  tmp <- dat[dat$geno %in% some.genos &
+             dat$tree == tree,
+             c("geno", "tree", "year", response)]
+  tmp <- droplevels(tmp)
+  tmp$year <- as.numeric(levels(tmp$year))[tmp$year]
+
+  ylim <- range(tmp[[response]])
+  if(grepl("error|epsilon", response))
+    ylim <- c(-max(abs(tmp[[response]])),
+              max(abs(tmp[[response]])))
+  plot(x=tmp$year[tmp$geno == some.genos[1]],
+       y=tmp[[response]][tmp$geno == some.genos[1]],
+       ylim=ylim,
+       type="b", pch=1, col=1,
+       main=paste0("'", response, "' for ",
+                   length(some.genos), " genotypes"),
+       xlab="years", las=1,
+       ylab=response)
+  form <- as.formula(paste0(response, " ~ year"))
+  if(add.lm){
+    fit <- lm(form, data=droplevels(tmp[tmp$geno == some.genos[1],]))
+    abline(fit, col=1, lty=2)
+  }
+
+  for(i in 2:length(some.genos)){
+    points(x=tmp$year[tmp$geno == some.genos[i]],
+           y=tmp[[response]][tmp$geno == some.genos[i]],
+           type="b", pch=1, col=i)
+    if(add.lm){
+      fit <- lm(form, data=droplevels(tmp[tmp$geno == some.genos[i],]))
+      abline(fit, col=i, lty=2)
+    }
+  }
+
+  if(add.lm){
+    fit <- lm(form, data=tmp)
+    abline(fit, col="darkgrey", lty=2, lwd=2)
+  }
+
+  legend("bottomright", legend=some.genos, col=1:length(some.genos),
+         lty=1, pch=1, bty="n")
+  invisible(tmp)
+}
+```
+
+Plot production for a subset of genotypes:
+```{r, eval=TRUE}
+## (some.genos <- sample(genos, 3))
+(some.genos <- genos[c(floor(0.5*G/3),
+                       floor(G/3+0.5*G/3),
+                       floor(2*G/3+0.5*G/3))])
+gamma + gamma.g[some.genos]
+plotSubsetGenos(dat, "prod", some.genos)
+abline(h=beta, col="darkgrey")
+```
+
+Plot errors for the same subset of genotypes as above:
+```{r, eval=TRUE}
+plotSubsetGenos(dat, "error", some.genos)
+abline(h=0, col="darkgrey")
+```
+
+Plot the absolute difference between consecutive yields as a function of yield (see figure S2 from Durand et al, 2013):
+```{r, eval=TRUE}
+yield <- c()
+abs.diff <- c()
+for(g in 1:nlevels(dat)){
+  geno <- levels(dat$geno)[g]
+  trees.g <- unique(dat[dat$geno == geno, "tree"])
+  R.g <- length(trees.g)
+  for(r in 1:R.g){
+    tree <- trees.g[r]
+    y.g.r <- dat[dat$geno == geno &
+                 dat$tree == tree,
+                 "prod"]
+    abs.diff.g.r <- diff(y.g.r)
+    yield <- c(yield, y.g.r[-1])
+    abs.diff <- c(abs.diff, abs.diff.g.r)
+  }
+}
+plot(yield, abs.diff, las=1,
+     xlab="Yt", ylab="|Yt - Yt-1|",
+     main=paste0("Correlation: ", round(cor(yield, abs.diff), 2)))
+```
+
+
+# Inference
+
+## Genotype as fixed effects
+
+```{r, eval=TRUE}
+fit.lm <- lm(formula=prod ~ 1 + geno + t + geno:t,
+             data=dat)
+AIC(fit.lm)
+summary(fit.lm)
+cbind(truth=c(beta, alpha),
+      estim=c(coef(fit.lm)["(Intercept)"], coef(fit.lm)["t"]))
+dat$epsilonA <- residuals(fit.lm)
+```
+
+Fit an AR(1) to the residuals:
+```{r, eval=TRUE}
+fit.ar1.gr <-
+  do.call(rbind, mclapply(1:G, function(g){
+    geno <- levels(dat$geno)[g]
+    out <- c()
+    for(r in 1:R){
+      tmp <- droplevels(dat[dat$geno == geno &
+                            dat$tree == as.character(r),])
+      fit <- arima(x=tmp$epsilonA, order=c(1,0,0), method="ML")
+      out <- c(out, coef(fit)["ar1"])
+    }
+    out
+  }, mc.cores=nb.cores))
+rownames(fit.ar1.gr) <- genos
+fit.ar1.g <- apply(fit.ar1.gr, 1, mean)
+cor(fit.ar1.g, gamma.g)
+plot(fit.ar1.g, gamma.g, las=1, asp=1)
+abline(a=0, b=1, h=0, v=0, lty=2)
+plot(fit.ar1.g, gamma + gamma.g, las=1, asp=1)
+abline(a=0, b=1, h=0, v=0, lty=2)
+```
+
+## Genotype as random effects
+
+```{r, eval=TRUE}
+fit.lmer <- lmer(formula=prod ~ 1 + t + (1|geno) + (0 + t|geno),
+                 data=dat,
+                 REML=TRUE)
+AIC(fit.lmer)
+summary(fit.lmer)
+vc <- as.data.frame(VarCorr(fit.lmer))
+cbind(c(beta, alpha, sd.beta.g, sd.alpha.g, sigma),
+      c(fixef(fit.lmer),
+        vc[vc$grp == "geno" & vc$var1 == "(Intercept)", "sdcor"],
+        vc[vc$grp == "geno.1" & vc$var1 == "t", "sdcor"],
+        vc[vc$grp == "Residual", "sdcor"]))
+dat$epsilonB <- residuals(fit.lmer)
+betterSummary(dat$epsilonB)
+```
+
+Plot residuals for the same subset of genotypes as above:
+```{r, eval=TRUE}
+plotSubsetGenos(dat, "epsilonB", some.genos)
+```
+
+```{r}
+plot(dat$epsilonB, dat$error, las=1, asp=1)
+abline(a=0, b=1, v=0, h=0, lty=2)
+```
+
+Fit an AR(1) to the residuals:
+```{r, eval=TRUE}
+fit.ar1.gr <- genoAr1Coef(dat=dat, coln.epsilon="epsilonB")
+cor(fit.ar1.g, gamma.g)
+plot(fit.ar1.g, gamma.g, las=1, asp=1)
+abline(a=0, b=1, h=0, v=0, lty=2)
+plot(fit.ar1.g, gamma + gamma.g, las=1, asp=1)
+abline(a=0, b=1, h=0, v=0, lty=2)
+```
+
+
+# BBI
+
+Compute indices:
+```{r, eval=TRUE}
+BBIs <- list()
+for(type in c("classic", "norm", "res_norm")){
+  BBIs[[type]] <- BBI(dat, type=type, coln.epsilon="epsilonB")
+  hist(BBIs[[type]], col="grey", border="white", las=1,
+       main=paste0("BBI (", type, ")"),
+       xlab=paste0("BBI (", type, ")"))
+}
+```
+
+```{r, eval=TRUE}
+plot(BBIs$classic, BBIs$norm, las=1, main="BBI: classic vs norm")
+abline(a=0, b=1, lty=2)
+plot(BBIs$classic, BBIs$res_norm, las=1, main="BBI: classic vs res_norm")
+abline(a=0, b=1, lty=2)
+plot(BBIs$norm, BBIs$res_norm, las=1, main="BBI: norm vs res_norm")
+abline(a=0, b=1, lty=2)
+```
+
+
+# Appendix
+
+```{r info}
+format(Sys.time(), '%d/%m/%Y %H:%M:%S')
+t1 <- proc.time(); t1 - t0
+print(sessionInfo(), locale=FALSE)
+```
