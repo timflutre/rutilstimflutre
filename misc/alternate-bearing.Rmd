@@ -302,28 +302,26 @@ summary(fit.lm)
 cbind(truth=c(beta, alpha),
       estim=c(coef(fit.lm)["(Intercept)"], coef(fit.lm)["t"]))
 dat$epsilonA <- residuals(fit.lm)
+betterSummary(dat$epsilonA)
+```
+
+Plot residuals for the same subset of genotypes as above:
+```{r, eval=TRUE}
+plotSubsetGenos(dat, "epsilonA", some.genos)
+```
+
+```{r}
+plot(dat$epsilonA, dat$error, las=1, asp=1)
+abline(a=0, b=1, v=0, h=0, lty=2)
 ```
 
 Fit an AR(1) to the residuals:
 ```{r, eval=TRUE}
-fit.ar1.gr <-
-  do.call(rbind, mclapply(1:G, function(g){
-    geno <- levels(dat$geno)[g]
-    out <- c()
-    for(r in 1:R){
-      tmp <- droplevels(dat[dat$geno == geno &
-                            dat$tree == as.character(r),])
-      fit <- arima(x=tmp$epsilonA, order=c(1,0,0), method="ML")
-      out <- c(out, coef(fit)["ar1"])
-    }
-    out
-  }, mc.cores=nb.cores))
-rownames(fit.ar1.gr) <- genos
-fit.ar1.g <- apply(fit.ar1.gr, 1, mean)
-cor(fit.ar1.g, gamma.g)
-plot(fit.ar1.g, gamma.g, las=1, asp=1)
+fitA.ar1.g <- genoAr1Coef(dat=dat, coln.epsilon="epsilonA")
+cor(fitA.ar1.g, gamma.g)
+plot(fitA.ar1.g, gamma.g, las=1, asp=1)
 abline(a=0, b=1, h=0, v=0, lty=2)
-plot(fit.ar1.g, gamma + gamma.g, las=1, asp=1)
+plot(fitA.ar1.g, gamma + gamma.g, las=1, asp=1)
 abline(a=0, b=1, h=0, v=0, lty=2)
 ```
 
@@ -357,11 +355,13 @@ abline(a=0, b=1, v=0, h=0, lty=2)
 
 Fit an AR(1) to the residuals:
 ```{r, eval=TRUE}
-fit.ar1.gr <- genoAr1Coef(dat=dat, coln.epsilon="epsilonB")
-cor(fit.ar1.g, gamma.g)
-plot(fit.ar1.g, gamma.g, las=1, asp=1)
+fitB.ar1.g <- genoAr1Coef(dat=dat, coln.epsilon="epsilonB")
+cor(fitB.ar1.g, gamma.g)
+plot(fitB.ar1.g, gamma.g, las=1, asp=1, main="Truth vs estimates")
 abline(a=0, b=1, h=0, v=0, lty=2)
-plot(fit.ar1.g, gamma + gamma.g, las=1, asp=1)
+plot(fitB.ar1.g, gamma + gamma.g, las=1, asp=1, main="Truth vs estimates")
+abline(a=0, b=1, h=0, v=0, lty=2)
+plot(fitA.ar1.g, fitB.ar1.g, las=1, main="Estimates A vs B")
 abline(a=0, b=1, h=0, v=0, lty=2)
 ```
 

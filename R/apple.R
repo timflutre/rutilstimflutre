@@ -135,7 +135,7 @@ genoAr1Coef <- function(dat, coln.epsilon="residual", coln.geno="geno",
       for(r in 1:R.g){
         tmp <- droplevels(dat[dat[[coln.geno]] == geno &
                               dat[[coln.rep]] == as.character(r),])
-        fit <- stats::arima(x=tmp$epsilonB, order=c(1,0,0),
+        fit <- stats::arima(x=tmp[[coln.epsilon]], order=c(1,0,0),
                             method="ML") ## CSS can return an error
         out <- c(out, stats::coef(fit)["ar1"])
       }
