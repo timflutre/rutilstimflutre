@@ -5,7 +5,8 @@
 \title{Genotypic values for fruit bearing}
 \usage{
 genoAr1Coef(dat, coln.epsilon = "residual", coln.geno = "geno",
-  coln.rep = "tree", coln.year = "year")
+  coln.rep = "tree", coln.year = "year", method = "ML|CSS",
+  transform.pars = TRUE, optim.control = list(), verbose = 0)
 }
 \arguments{
 \item{dat}{data frame}
@@ -17,6 +18,14 @@ genoAr1Coef(dat, coln.epsilon = "residual", coln.geno = "geno",
 \item{coln.rep}{column name of the tree replicate}
 
 \item{coln.year}{column name of the year (the column data should be convertible to \code{numeric})}
+
+\item{method}{fitting method passed to \code{arima} (ML/CSS/ML|CSS); if \code{"ML|CSS"}, first "ML" then "CSS" will be tried}
+
+\item{transform.pars}{if true, the AR parameters are transformed to ensure that they remain in the region of stationarity}
+
+\item{optim.control}{list of control parameters for \code{optim}}
+
+\item{verbose}{verbosity level (0/1)}
 }
 \value{
 vector
