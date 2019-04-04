@@ -5,7 +5,7 @@
 \title{Read SNP genotypes as dosage from bcftools}
 \usage{
 readGenoDoseFileFromBcftools(genos.file, get.coords = TRUE,
-  get.alleles = TRUE, use.fread = TRUE)
+  get.alleles = TRUE, use.fread = TRUE, rm.dup = FALSE, verbose = 0)
 }
 \arguments{
 \item{genos.file}{path to the input file containing the SNP genotype data}
@@ -15,6 +15,10 @@ readGenoDoseFileFromBcftools(genos.file, get.coords = TRUE,
 \item{get.alleles}{if TRUE, SNP alleles will also be extracted}
 
 \item{use.fread}{if TRUE, \code{\link[data.table]{fread}} will be used to speed-up}
+
+\item{rm.dup}{if TRUE, duplicated SNPs (i.e., with the exact same coordinate) will be removed}
+
+\item{verbose}{verbosity level (0/1)}
 }
 \value{
 list with a matrix of SNP genotypes and optional data frames of SNP coordinates and alleles

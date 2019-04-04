@@ -1149,12 +1149,15 @@ convertVcfToGenoDoseWithBcftools <- function(in.vcf.file, out.txt.file,
 ##' @param get.coords if TRUE, SNP coordinates will also be extracted
 ##' @param get.alleles if TRUE, SNP alleles will also be extracted
 ##' @param use.fread if TRUE, \code{\link[data.table]{fread}} will be used to speed-up
+##' @param rm.dup if TRUE, duplicated SNPs (i.e., with the exact same coordinate) will be removed
+##' @param verbose verbosity level (0/1)
 ##' @return list with a matrix of SNP genotypes and optional data frames of SNP coordinates and alleles
 ##' @author Timothee Flutre
 ##' @seealso \code{\link{convertVcfToGenoDoseWithBcftools}}
 ##' @export
 readGenoDoseFileFromBcftools <- function(genos.file, get.coords=TRUE,
-                                         get.alleles=TRUE, use.fread=TRUE){
+                                         get.alleles=TRUE, use.fread=TRUE,
+                                         rm.dup=FALSE, verbose=0){
   stopifnot(file.exists(genos.file),
             is.logical(get.coords),
             is.logical(get.alleles),
@@ -1203,6 +1206,21 @@ readGenoDoseFileFromBcftools <- function(genos.file, get.coords=TRUE,
                                  colnames(genos),
                                  list(ref=character(), alt=character()))
     rownames(alleles) <- colnames(genos)
+  }
+
+  if(all(rm.dup, get.coords)){
+    tmp <- paste0(coords$chr, "_", coords$coord)
+    is.dup <- duplicated(tmp)
+    if(verbose > 0){
+      txt <- paste0("duplicates: ", sum(is.dup), " / ", length(is.dup))
+      write(txt, stdout())
+    }
+    if(sum(is.dup) > 0){
+      coords <- coords[! is.dup,]
+      genos <- genos[, ! is.dup]
+      if(get.alleles)
+        alleles <- alleles[! is.dup,]
+    }
   }
 
   return(list(genos=genos, coords=coords, alleles=alleles))
