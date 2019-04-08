@@ -5246,6 +5246,87 @@ estimLd <- function(X, snp.coords, K=NULL, pops=NULL,
 
 ##' Pairwise linkage disequilibrium
 ##'
+##' Estimates linkage disequilibrium between pairs of SNPs belonging to the same chromosome when the observations are the genotypes of genotypes, not their gametes (i.e. the gametic phases are unknown).
+##' When ignoring kinship and population structure, the estimator of Rogers and Huff (Genetics, 2009) can be used.
+##' When kinship and/or population structure are controlled for, the estimator of Mangin et al (Heredity, 2012) is used via their LDcorSV package.
+##' @param X matrix of bi-allelic SNP genotypes encoded in allele doses in {0,1,2}, with genotypes in rows and SNPs in columns; missing values should be encoded as NA
+##' @param snp.coords data.frame with SNP identifiers as row names, and two columns, "chr" and "pos"
+##' @param K matrix of "kinship" (additive genetic relationships)
+##' @param pops vector of characters indicating the population of each genotype
+##' @param only.pop identifier of a given population
+##' @param use.ldcorsv required if K and/or pops are not NULL; otherwise use the square of \code{\link{cor}}
+##' @param nb.cores number of cores to estimate LD for each chromosome in parallel
+##' @param verbose verbosity level (0/1)
+##' @return data frame with at least three columns, "loc1", "loc2" and the LD values
+##' @author Timothee Flutre
+##' @seealso \code{\link{estimLd}}, \code{\link{plotLd}}
+##' @export
+estimLdPerChr <- function(X, snp.coords, K=NULL, pops=NULL,
+                          only.pop=NULL, use.ldcorsv=FALSE,
+                          nb.cores=1, verbose=1){
+  stopifnot(.isValidSnpCoords(snp.coords))
+  chrs <- sort(unique(snp.coords$chr))
+
+  out <- parallel::mclapply(seq_along(chrs), function(i){
+    chr <- chrs[i]
+    if(all(verbose > 0, nb.cores <= 1))
+      write(chr, stdout())
+    estimLd(X=X, snp.coords=snp.coords, K=K, pops=pops,
+            only.chr=chr, only.pop=only.pop,
+            use.ldcorsv=use.ldcorsv,
+            verbose=ifelse(all(verbose > 0, nb.cores <= 1), verbose, 0))
+  }, mc.cores=nb.cores)
+
+  out <- do.call(rbind, out)
+  rownames(out) <- NULL
+
+  return(out)
+}
+
+##' Pairwise linkage disequilibrium
+##'
+##' Summarize estimates of linkage disequilibrium between pairs of SNPs belonging to the same chromosome.
+##' @param ld data frame returned by \code{\link{estimLd}}
+##' @param coln.var name of the column in \code{ld} which contains the LD estimates
+##' @param coln.dist name of the column in \code{ld} which contains the physical distance between SNPs belonging to the same pair
+##' @param bin.width width of each successive bin (they won't overlap)
+##' @param max.phy.len maximum physical length to consider
+##' @param nb.cores the number of cores to use, i.e. at most how many child processes will be run simultaneously (not on Windows)
+##' @return matrix
+##' @author Timothee Flutre
+##' @seealso \code{\link{estimLd}}, \code{\link{estimLdPerChr}}
+##' @export
+summarizeLd <- function(ld, coln.var="cor2", coln.dist="dist.locs",
+                        bin.width=500, max.phy.len=10^6, nb.cores=1){
+  stopifnot(is.data.frame(ld),
+            all(c(coln.dist, coln.var) %in% colnames(ld)),
+            max.phy.len > bin.width)
+
+  bin.starts <- seq(0, max.phy.len, by=bin.width)
+
+  out <- parallel::mclapply(seq_along(bin.starts)[-1], function(i){
+    bin.start <- bin.starts[i-1]
+    bin.end <- bin.starts[i]
+    idx <- which(ld[[coln.dist]] >= bin.start & ld[[coln.dist]] < bin.end)
+    betterSummary(ld[[coln.var]][idx])
+  }, mc.cores=nb.cores)
+  out <- do.call(rbind, out)
+
+  out <- cbind(out,
+               bin.start=bin.starts[-length(bin.starts)])
+
+  fit <- stats::loess(out[,"mean"] ~ out[,"bin.start"])
+  out <- cbind(out,
+               loess.mean=fit$fitted)
+  fit <- stats::loess(out[,"med"] ~ out[,"bin.start"])
+  out <- cbind(out,
+               loess.med=fit$fitted)
+
+  return(out)
+}
+
+##' Pairwise linkage disequilibrium
+##'
 ##' Plots the linkage disequilibrium between pairs of SNPs, as a blue density or black points, with a red loess.
 ##' Possibility to add two analytical approximations of E[r^2] at equilibrium (see McVean, Handbook of Stat Gen, 2007): 1 / (1 + 4 Ne c x) by Sved (1971) and (10 + 4 Ne c x) / (22 + 13 * 4 Ne c x + (4 Ne c x)^2) by Ohta and Kimura (1971).
 ##' @param x vector of distances between SNPs (see \code{\link{distSnpPairs}})
