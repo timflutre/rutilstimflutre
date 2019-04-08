@@ -6583,7 +6583,7 @@ plantTrialLmmFitFixed <- function(glob.form, dat.noNA, ctl=NULL,
 ##'
 ##' For a plant field trial, fit by maximum likelihood (ML) a global linear (mixed) model with all the specified terms, then fit by ML various sub-models and compare them (AICc) or test each term (F-test for fixed effects and likelihood ratio test for random variables), finally select the best model and, if there are random variables, re-fit it using restricted maximum likelihood (ReML).
 ##'
-##' @param glob.form formula for the global model
+##' @param glob.form character containing the formula for the global model
 ##' @param dat data frame with all the columns required by \code{glob.form}; if the response contains an inline function (e.g., log or sqrt), the untransformed response may still be required
 ##' @param part.comp.sel part(s) of the model (fixed and/or random); if only "fixed", the lm/lme4 and MuMIn packages will be used, otherwise the lmerTest package will be used
 ##' @param alpha.fixed for lmerTest, threshold on p values of fixed effects below which they are kept
@@ -6660,7 +6660,13 @@ plantTrialLmmFitCompSel <- function(glob.form, dat, part.comp.sel="fixed",
                                na.action="na.fail",
                                REML=FALSE,
                                control=ctl))
-    save(globmod.ml, file=saved.file)
+    if(! is.null(saved.file)){
+      if(verbose > 0){
+        msg <- paste0("save the global model fit with ML in '", saved.file, "':")
+        write(msg, stdout())
+      }
+      save(globmod.ml, file=saved.file)
+    }
     step_res <- lmerTest::step(object=globmod.ml,
                                reduce.fixed="fixed" %in% part.comp.sel,
                                alpha.fixed=alpha.fixed,

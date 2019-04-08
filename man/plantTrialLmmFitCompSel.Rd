@@ -9,7 +9,7 @@ plantTrialLmmFitCompSel(glob.form, dat, part.comp.sel = "fixed",
   nb.cores = 1, cl = NULL, verbose = 1)
 }
 \arguments{
-\item{glob.form}{formula for the global model}
+\item{glob.form}{character containing the formula for the global model}
 
 \item{dat}{data frame with all the columns required by \code{glob.form}; if the response contains an inline function (e.g., log or sqrt), the untransformed response may still be required}
 
