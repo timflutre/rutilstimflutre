@@ -5622,6 +5622,7 @@ pruneSnpsLd <- function(X=NULL, snp.coords=NULL, gds=NULL,
                                num.thread=nb.cores,
                                verbose=ifelse(verbose > 0, TRUE, FALSE))
   out.snp.ids <- unlist(out.snp.ids)
+  names(out.snp.ids) <- NULL
 
   if(! is.null(gds.file)){
     SNPRelate::snpgdsClose(gds)
