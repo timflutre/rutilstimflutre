@@ -44,7 +44,7 @@ plotLd(x, y, main = "", estim = "r2", use.density = TRUE,
 \item{xlim}{numeric vector of length 2 specifying the x-axis limit (optional)}
 }
 \value{
-nothing
+invisible list
 }
 \description{
 Plots the linkage disequilibrium between pairs of SNPs, as a blue density or black points, with a red loess.

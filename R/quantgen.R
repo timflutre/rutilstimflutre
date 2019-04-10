@@ -5285,42 +5285,52 @@ estimLdPerChr <- function(X, snp.coords, K=NULL, pops=NULL,
 
 ##' Pairwise linkage disequilibrium
 ##'
-##' Summarize estimates of linkage disequilibrium between pairs of SNPs belonging to the same chromosome.
+##' Summarize estimates of linkage disequilibrium between pairs of SNPs belonging to the same chromosome over non-overlapping bins.
 ##' @param ld data frame returned by \code{\link{estimLd}}
 ##' @param coln.var name of the column in \code{ld} which contains the LD estimates
 ##' @param coln.dist name of the column in \code{ld} which contains the physical distance between SNPs belonging to the same pair
 ##' @param bin.width width of each successive bin (they won't overlap)
 ##' @param max.phy.len maximum physical length to consider
 ##' @param nb.cores the number of cores to use, i.e. at most how many child processes will be run simultaneously (not on Windows)
-##' @return matrix
+##' @param span the parameter alpha which controls the degree of loess smoothing
+##' @return list with the LD summarized over bins as well as loess fits of bin start versus LD summaries allowing to predict a physical distance from a given LD value
 ##' @author Timothee Flutre
 ##' @seealso \code{\link{estimLd}}, \code{\link{estimLdPerChr}}
 ##' @export
 summarizeLd <- function(ld, coln.var="cor2", coln.dist="dist.locs",
-                        bin.width=500, max.phy.len=10^6, nb.cores=1){
+                        bin.width=500, max.phy.len=10^6, nb.cores=1,
+                        span=0.75){
   stopifnot(is.data.frame(ld),
             all(c(coln.dist, coln.var) %in% colnames(ld)),
             max.phy.len > bin.width)
 
-  bin.starts <- seq(0, max.phy.len, by=bin.width)
+  out <- list()
 
-  out <- parallel::mclapply(seq_along(bin.starts)[-1], function(i){
+  ## summarize LD over non-overlapping bins
+  bin.starts <- seq(0, max.phy.len, by=bin.width)
+  ld.sry <- parallel::mclapply(seq_along(bin.starts)[-1], function(i){
     bin.start <- bin.starts[i-1]
     bin.end <- bin.starts[i]
     idx <- which(ld[[coln.dist]] >= bin.start & ld[[coln.dist]] < bin.end)
     betterSummary(ld[[coln.var]][idx])
   }, mc.cores=nb.cores)
-  out <- do.call(rbind, out)
+  ld.sry <- do.call(rbind, ld.sry)
+  ld.sry <- cbind(ld.sry,
+                  bin.start=bin.starts[-length(bin.starts)])
+  ld.sry <- as.data.frame(ld.sry)
 
-  out <- cbind(out,
-               bin.start=bin.starts[-length(bin.starts)])
+  ## get fitted values from loess of LD summary w.r.t bin start
+  fit.mean <- stats::loess(mean ~ bin.start, data=ld.sry, span=span)
+  ld.sry$loess.mean <- fit.mean$fitted
+  fit.med <- stats::loess(med ~ bin.start, data=ld.sry, span=span)
+  ld.sry$loess.med <- fit.med$fitted
+  out$ld.sry <- ld.sry
 
-  fit <- stats::loess(out[,"mean"] ~ out[,"bin.start"])
-  out <- cbind(out,
-               loess.mean=fit$fitted)
-  fit <- stats::loess(out[,"med"] ~ out[,"bin.start"])
-  out <- cbind(out,
-               loess.med=fit$fitted)
+  ## get loess fits of bin start w.r.t LD summary
+  fit.mean.inv <- stats::loess(bin.start ~ mean, data=ld.sry, span=span)
+  out$fit.loess.mean.inv <- fit.mean.inv
+  fit.med.inv <- stats::loess(bin.start ~ med, data=ld.sry, span=span)
+  out$fit.loess.med.inv <- fit.med.inv
 
   return(out)
 }
@@ -5345,7 +5355,7 @@ summarizeLd <- function(ld, coln.var="cor2", coln.dist="dist.locs",
 ##' @param Ne effective population size
 ##' @param c recomb rate in events per base per generation
 ##' @param xlim numeric vector of length 2 specifying the x-axis limit (optional)
-##' @return nothing
+##' @return invisible list
 ##' @author Timothee Flutre
 ##' @seealso \code{\link{estimLd}}, \code{\link{distSnpPairs}}
 ##' @export
@@ -5359,13 +5369,14 @@ plotLd <- function(x, y, main="", estim="r2",
                    xlim){
   stopifnot(is.vector(x),
             is.vector(y),
-            estim %in% c("r2","r"),
-            is.character(main))
+            estim %in% c("r2","r"))
   if(! is.null(sample.size))
     stopifnot(is.numeric(sample.size))
   if(any(c(add.ohta.kimura, add.sved)))
     stopifnot(! is.null(Ne),
               ! is.null(c))
+
+  out <- list()
 
   ## plot the pairwise estimates of LD
   lpars <- list(col="red", cex=2)
@@ -5379,6 +5390,7 @@ plotLd <- function(x, y, main="", estim="r2",
     pred <- stats::loess.smooth(x, y, span=span, degree=degree,
                                 evaluation=evaluation)
     do.call(graphics::lines, c(list(pred), lpars))
+    out$loess <- pred
   } else{
     stats::scatter.smooth(x, y, lpars=lpars,
                           main=main, xlab=xlab, ylab=ylab, las=1,
@@ -5396,6 +5408,7 @@ plotLd <- function(x, y, main="", estim="r2",
     graphics::abline(h=tmp,
            col=ifelse(use.density, "black", "blue"),
            lty=2, lwd=2)
+    out$X2 <- X2
   }
 
   ## add analytical approximations
@@ -5406,12 +5419,14 @@ plotLd <- function(x, y, main="", estim="r2",
     if(estim == "r")
       ok <- sqrt(ok)
     graphics::points(x, ok, pch=".", col="purple", cex=1.2)
+    out$ohta.kimura <- ok
   }
   if(add.sved){
     sved <- 1 / (1 + scaled.dist)
     if(estim == "r")
       sved <- sqrt(sved)
     graphics::points(x, sved, pch=".", col="green", cex=1.2)
+    out$sved <- sved
   }
 
   ## add the legend
@@ -5440,6 +5455,8 @@ plotLd <- function(x, y, main="", estim="r2",
     lwds <- c(lwds, 2)
   }
   graphics::legend("topright", legend=legs, col=cols, lty=ltys, lwd=lwds, bty="n")
+
+  invisible(out)
 }
 
 ##' Distance between consecutive SNPs
