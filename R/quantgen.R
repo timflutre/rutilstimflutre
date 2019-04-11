@@ -5293,9 +5293,9 @@ estimLdPerChr <- function(X, snp.coords, K=NULL, pops=NULL,
 ##' @param max.phy.len maximum physical length to consider
 ##' @param nb.cores the number of cores to use, i.e. at most how many child processes will be run simultaneously (not on Windows)
 ##' @param span the parameter alpha which controls the degree of loess smoothing
-##' @return list with the LD summarized over bins as well as loess fits of bin start versus LD summaries allowing to predict a physical distance from a given LD value
+##' @return list with the LD summarized over bins as well as loess fits of LD vs mid bin
 ##' @author Timothee Flutre
-##' @seealso \code{\link{estimLd}}, \code{\link{estimLdPerChr}}
+##' @seealso \code{\link{estimLd}}, \code{\link{estimLdPerChr}}, \code{\link{fitPhyDistVsLd}}
 ##' @export
 summarizeLd <- function(ld, coln.var="cor2", coln.dist="dist.locs",
                         bin.width=500, max.phy.len=10^6, nb.cores=1,
@@ -5316,21 +5316,66 @@ summarizeLd <- function(ld, coln.var="cor2", coln.dist="dist.locs",
   }, mc.cores=nb.cores)
   ld.sry <- do.call(rbind, ld.sry)
   ld.sry <- cbind(ld.sry,
-                  bin.start=bin.starts[-length(bin.starts)])
+                  bin.start=bin.starts[-length(bin.starts)],
+                  bin.mid=bin.starts[-length(bin.starts)] +
+                    round(bin.width/2))
   ld.sry <- as.data.frame(ld.sry)
 
-  ## get fitted values from loess of LD summary w.r.t bin start
-  fit.mean <- stats::loess(mean ~ bin.start, data=ld.sry, span=span)
+  ## get fitted values from loess of LD summary w.r.t mid bin
+  fit.mean <- stats::loess(mean ~ bin.mid, data=ld.sry, span=span)
   ld.sry$loess.mean <- fit.mean$fitted
-  fit.med <- stats::loess(med ~ bin.start, data=ld.sry, span=span)
+  fit.med <- stats::loess(med ~ bin.mid, data=ld.sry, span=span)
   ld.sry$loess.med <- fit.med$fitted
   out$ld.sry <- ld.sry
 
-  ## get loess fits of bin start w.r.t LD summary
-  fit.mean.inv <- stats::loess(bin.start ~ mean, data=ld.sry, span=span)
-  out$fit.loess.mean.inv <- fit.mean.inv
-  fit.med.inv <- stats::loess(bin.start ~ med, data=ld.sry, span=span)
-  out$fit.loess.med.inv <- fit.med.inv
+  return(out)
+}
+
+##' Pairwise linkage disequilibrium
+##'
+##' Fit a model of physical distance versus LD.
+##' @param ld numeric vector of LD values
+##' @param phy.dist numeric vector of physical distance
+##' @param method loess/loglm/asyreg/biexp
+##' @param span the parameter alpha which controls the degree of loess smoothing
+##' @param newdata an optional data frame in which to look for variables with which to predict
+##' @return list with data, model fit and prediction(s)
+##' @author Timothee Flutre
+##' @seealso \code{\link{summarizeLd}}
+##' @export
+fitPhyDistVsLd <- function(ld, phy.dist, method="loess", span=0.2,
+                           newdata){
+  stopifnot(length(ld) == length(phy.dist),
+            method %in% c("loess", "loglm", "asyreg", "biexp"))
+
+  dat <- data.frame(ld=ld,
+                    phy.dist=phy.dist)
+  out$dat <- dat
+
+  out <- list(fit=NULL, pred=NULL)
+
+  if(method == "loess"){
+    fit <- stats::loess(phy.dist ~ ld, data=dat, span=span)
+  } else if(method == "loglm"){
+    fit <- stats::lm(log(phy.dist) ~ ld, data=dat)
+  } else if(method == "asyreg"){
+    fit <- try(
+        stats::nls(phy.dist ~ SSasymp(ld, Asym, R0, lrc),
+                   data=dat))
+  } else if(method == "biexp"){
+    fit <- try(
+        stats::nls(phy.dist ~ SSbiexp(ld, A1, lrc1, A2, lrc2),
+                   data=dat))
+  }
+  out$fit <- fit
+
+  if(! missing(newdata)){
+    if(class(fit) != "try-error"){
+      out$pred <- stats::predict(fit, newdata=newdata)
+      if(method == "loglm")
+        out$pred <- exp(out$pred)
+    }
+  }
 
   return(out)
 }
