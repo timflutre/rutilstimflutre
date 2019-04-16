@@ -23,8 +23,8 @@
 ##' @export
 SIMQTL <- function (cross, response.in.cross=TRUE, response=NULL, numeric.chr.format=TRUE,
                     geno.joinmap=NULL, phase=NULL,
-                    pheno.col="y", nperm=100, threshold.alpha=0.05, QTL_position=NULL,
-                    method="em", plot=FALSE, verbose=0){
+                    pheno.col="y", nperm=100, threshold.alpha=c(0.05,0.2), 
+                    QTL_position=NULL, method="em", plot=FALSE, verbose=0){
   requireNamespace(c("qtl", "caret"))
 
   ## Reformat chromosome names
@@ -89,11 +89,14 @@ SIMQTL <- function (cross, response.in.cross=TRUE, response=NULL, numeric.chr.fo
   nb_interval <- 1
 
   for(i in 2:nrow(qtl.em)){
-    if(!qtl.em$is.qtl[i-1] & qtl.em$is.qtl[i]){  # if beginning new qtl (F -> T)
+    # beginning new qtl (F -> T)
+    if(!qtl.em$is.qtl[i-1] & qtl.em$is.qtl[i] | # if F > T
+       qtl.em$is.qtl[i-1] & qtl.em$is.qtl[i] & qtl.em$chr[i-1] != qtl.em$chr[i]){  # or if T -> T but different chromosome
       qtl.em$nb_interval[i] <- nb_interval
       nb_interval <- nb_interval + 1
     }
-    if(qtl.em$is.qtl[i-1] & qtl.em$is.qtl[i]){ # same qtl (T -> T)
+    # same qtl
+    if(qtl.em$is.qtl[i-1] & qtl.em$is.qtl[i] & qtl.em$chr[i-1] == qtl.em$chr[i]){ # if T -> T and same chromosome
       qtl.em$nb_interval[i] <- qtl.em$nb_interval[i-1]
       if(i==2){ # QTL at the beginning
         qtl.em$nb_interval[c(i-1,i)] <- 1
