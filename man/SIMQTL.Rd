@@ -6,7 +6,7 @@
 \usage{
 SIMQTL(cross, response.in.cross = TRUE, response = NULL,
   numeric.chr.format = TRUE, geno.joinmap = NULL, phase = NULL,
-  pheno.col = "y", nperm = 100, threshold.alpha = 0.05,
+  pheno.col = "y", nperm = 100, threshold.alpha = c(0.05, 0.2),
   QTL_position = NULL, method = "em", plot = FALSE, verbose = 0)
 }
 \arguments{
