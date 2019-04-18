@@ -30,6 +30,7 @@ caretSummary <- function(data, lev=NULL, model=NULL, plot=FALSE){
             all(c("obs", "pred") %in% colnames(data)))
 
   data <- data[order(data$obs, decreasing=TRUE),] # sort best -> worse
+  is.pred.constant <- ifelse(stats::sd(data$pred) == 0, TRUE, FALSE)
   nb.inds <- nrow(data)
   idx.best50p <- floor(0.50 * nb.inds)
   idx.best25p <- floor(0.25 * nb.inds)
@@ -54,7 +55,8 @@ caretSummary <- function(data, lev=NULL, model=NULL, plot=FALSE){
                    xlab="Predictions", ylab="Observations",
                    asp=1, las=1, pch=20)
     graphics::abline(a=0, b=1, lty=2)
-    graphics::abline(fit, lty=1)
+    if(! is.pred.constant)
+      graphics::abline(fit, lty=1)
     graphics::legend("topleft", bty="n",
                      legend=sapply(c(bquote("Adjusted"~R^2==.(round(R2,2))),
                                      bquote(y==.(round(coefOls[1],2))+.(round(coefOls[2],2))~"x")),
@@ -64,20 +66,26 @@ caretSummary <- function(data, lev=NULL, model=NULL, plot=FALSE){
   out <- c(rmse=sqrt(mean((data$pred - data$obs)^2)),
            var.obs=stats::var(data$obs),
            var.pred=stats::var(data$pred),
-           corP=stats::cor(data$obs, data$pred, method="pearson"),
-           corS=stats::cor(data$obs, data$pred, method="spearman"),
-           corP.best50p=stats::cor(data$obs[1:idx.best50p],
-                                   data$pred[1:idx.best50p],
-                                   method="pearson"),
-           corS.best50p=stats::cor(data$obs[1:idx.best50p],
-                                   data$pred[1:idx.best50p],
-                                   method="spearman"),
-           corP.best25p=stats::cor(data$obs[1:idx.best25p],
-                                   data$pred[1:idx.best25p],
-                                   method="pearson"),
-           corS.best25p=stats::cor(data$obs[1:idx.best25p],
-                                   data$pred[1:idx.best25p],
-                                   method="spearman"),
+           corP=ifelse(is.pred.constant, NA,
+                       stats::cor(data$obs, data$pred, method="pearson")),
+           corS=ifelse(is.pred.constant, NA,
+                       stats::cor(data$obs, data$pred, method="spearman")),
+           corP.best50p=ifelse(is.pred.constant, NA,
+                               stats::cor(data$obs[1:idx.best50p],
+                                          data$pred[1:idx.best50p],
+                                          method="pearson")),
+           corS.best50p=ifelse(is.pred.constant, NA,
+                               stats::cor(data$obs[1:idx.best50p],
+                                          data$pred[1:idx.best50p],
+                                          method="spearman")),
+           corP.best25p=ifelse(is.pred.constant, NA,
+                               stats::cor(data$obs[1:idx.best25p],
+                                          data$pred[1:idx.best25p],
+                                          method="pearson")),
+           corS.best25p=ifelse(is.pred.constant, NA,
+                               stats::cor(data$obs[1:idx.best25p],
+                                          data$pred[1:idx.best25p],
+                                          method="spearman")),
            reg.intercept=coefOls[1],
            reg.slope=coefOls[2],
            reg.R2=R2,
@@ -85,6 +93,7 @@ caretSummary <- function(data, lev=NULL, model=NULL, plot=FALSE){
            stat.nobias=stat.nobias,
            pval.nobias=pval.nobias,
            mod.eff=mod.eff)
+
   return(out)
 }
 
