@@ -4,13 +4,15 @@
 \alias{convertVcfToGenoDoseWithBcftools}
 \title{Convert VCF file to dosage file}
 \usage{
-convertVcfToGenoDoseWithBcftools(in.vcf.file, out.txt.file,
+convertVcfToGenoDoseWithBcftools(in.vcf.file, out.txt.file, tag = NULL,
   save.timestamp = FALSE, nb.cores = 1)
 }
 \arguments{
 \item{in.vcf.file}{path to the input VCF file (gzip-compressed)}
 
 \item{out.txt.file}{path to the output file (gzip-compressed)}
+
+\item{tag}{VCF tags to determine the dosage (PL/GL/GT); if NULL, chosen in that order}
 
 \item{save.timestamp}{if TRUE, the time stamp (and original name) will be saved, making the output file not bit-by-bit reproducible}
 
@@ -21,6 +23,10 @@ nothing
 }
 \description{
 Convert a VCF file to a genotype dosage file with \code{bcftools +dosage} and \code{datamash}.
+Caution, by default, if PL is 0,3,16 and GT=./., only PL will be used; if tag=GT is specified, then the output will contain -1, which will be converted into NA by \code{\link{readGenoDoseFileFromBcftools}}.
+}
+\seealso{
+\code{\link{readGenoDoseFileFromBcftools}}
 }
 \author{
 Timothee Flutre

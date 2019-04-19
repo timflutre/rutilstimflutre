@@ -1113,14 +1113,18 @@ readBcftoolsCounts <- function(files){
 ##' Convert VCF file to dosage file
 ##'
 ##' Convert a VCF file to a genotype dosage file with \code{bcftools +dosage} and \code{datamash}.
+##' Caution, by default, if PL is 0,3,16 and GT=./., only PL will be used; if tag=GT is specified, then the output will contain -1, which will be converted into NA by \code{\link{readGenoDoseFileFromBcftools}}.
 ##' @param in.vcf.file path to the input VCF file (gzip-compressed)
 ##' @param out.txt.file path to the output file (gzip-compressed)
+##' @param tag VCF tags to determine the dosage (PL/GL/GT); if NULL, chosen in that order
 ##' @param save.timestamp if TRUE, the time stamp (and original name) will be saved, making the output file not bit-by-bit reproducible
 ##' @param nb.cores number of threads for bcftools
 ##' @return nothing
 ##' @author Timothee Flutre
+##' @seealso \code{\link{readGenoDoseFileFromBcftools}}
 ##' @export
 convertVcfToGenoDoseWithBcftools <- function(in.vcf.file, out.txt.file,
+                                             tag=NULL,
                                              save.timestamp=FALSE,
                                              nb.cores=1){
   stopifnot(file.exists(Sys.which("bcftools")),
@@ -1129,10 +1133,13 @@ convertVcfToGenoDoseWithBcftools <- function(in.vcf.file, out.txt.file,
             file.exists(Sys.which("gzip")),
             file.exists(in.vcf.file),
             out.txt.file != in.vcf.file)
+  if(! is.null(tag))
+    stopifnot(tag %in% c("PL", "GL", "GT"))
 
   cmd <- paste0("bcftools +dosage",
                 " --threads ", nb.cores,
                 " ", in.vcf.file,
+                ifelse(is.null(tag), "", paste0(" -- -t ", tag)),
                 " | tr ' ' '\t'",
                 " | datamash transpose",
                 " | gzip",
@@ -1191,6 +1198,17 @@ readGenoDoseFileFromBcftools <- function(genos.file, get.coords=TRUE,
   genos <- as.matrix(genos[-c(1:4), -1])
   mode(genos) <- "numeric"
   rownames(genos) <- ind.names
+  is.neg <- (genos < 0)
+  if(any(is.neg)){
+    if(verbose > 0){
+      perc <- 100 * sum(is.neg) / length(is.neg)
+      txt <- paste0("negative entries converted to NA: ",
+                    sum(is.neg), " / ", length(is.neg),
+                    " (", round(perc, 2), "%)")
+      write(txt, stdout())
+    }
+    genos[which(is.neg)] <- NA
+  }
 
   coords <- NULL
   if(get.coords){
@@ -1212,7 +1230,9 @@ readGenoDoseFileFromBcftools <- function(genos.file, get.coords=TRUE,
     tmp <- paste0(coords$chr, "_", coords$coord)
     is.dup <- duplicated(tmp)
     if(verbose > 0){
-      txt <- paste0("duplicates: ", sum(is.dup), " / ", length(is.dup))
+      perc <- 100 * sum(is.dup) / length(is.dup)
+      txt <- paste0("duplicates: ", sum(is.dup), " / ", length(is.dup),
+                    " (", round(perc, 2), "%)")
       write(txt, stdout())
     }
     if(sum(is.dup) > 0){
