@@ -5265,6 +5265,7 @@ estimLdPerChr <- function(X, snp.coords, K=NULL, pops=NULL,
                           only.pop=NULL, use.ldcorsv=FALSE,
                           nb.cores=1, verbose=1){
   stopifnot(.isValidSnpCoords(snp.coords))
+
   chrs <- sort(unique(snp.coords$chr))
 
   out <- parallel::mclapply(seq_along(chrs), function(i){
@@ -5291,15 +5292,15 @@ estimLdPerChr <- function(X, snp.coords, K=NULL, pops=NULL,
 ##' @param coln.dist name of the column in \code{ld} which contains the physical distance between SNPs belonging to the same pair
 ##' @param bin.width width of each successive bin (they won't overlap)
 ##' @param max.phy.len maximum physical length to consider
-##' @param nb.cores the number of cores to use, i.e. at most how many child processes will be run simultaneously (not on Windows)
 ##' @param span the parameter alpha which controls the degree of loess smoothing
+##' @param nb.cores the number of cores to use, i.e. at most how many child processes will be run simultaneously (not on Windows)
 ##' @return list with the LD summarized over bins as well as loess fits of LD vs mid bin
 ##' @author Timothee Flutre
 ##' @seealso \code{\link{estimLd}}, \code{\link{estimLdPerChr}}, \code{\link{fitPhyDistVsLd}}
 ##' @export
 summarizeLd <- function(ld, coln.var="cor2", coln.dist="dist.locs",
-                        bin.width=500, max.phy.len=10^6, nb.cores=1,
-                        span=0.75){
+                        bin.width=500, max.phy.len=10^6, span=0.75,
+                        nb.cores=1){
   stopifnot(is.data.frame(ld),
             all(c(coln.dist, coln.var) %in% colnames(ld)),
             max.phy.len > bin.width)
@@ -5312,7 +5313,7 @@ summarizeLd <- function(ld, coln.var="cor2", coln.dist="dist.locs",
     bin.start <- bin.starts[i-1]
     bin.end <- bin.starts[i]
     idx <- which(ld[[coln.dist]] >= bin.start & ld[[coln.dist]] < bin.end)
-    betterSummary(ld[[coln.var]][idx])
+    suppressWarnings(betterSummary(ld[[coln.var]][idx]))
   }, mc.cores=nb.cores)
   ld.sry <- do.call(rbind, ld.sry)
   ld.sry <- cbind(ld.sry,
@@ -5322,10 +5323,12 @@ summarizeLd <- function(ld, coln.var="cor2", coln.dist="dist.locs",
   ld.sry <- as.data.frame(ld.sry)
 
   ## get fitted values from loess of LD summary w.r.t mid bin
-  fit.mean <- stats::loess(mean ~ bin.mid, data=ld.sry, span=span)
-  ld.sry$loess.mean <- fit.mean$fitted
-  fit.med <- stats::loess(med ~ bin.mid, data=ld.sry, span=span)
-  ld.sry$loess.med <- fit.med$fitted
+  fit.mean <- stats::loess(mean ~ bin.mid, data=ld.sry, span=span,
+                           na.action=stats::na.exclude)
+  ld.sry$loess.mean <- stats::fitted(fit.mean)
+  fit.med <- stats::loess(med ~ bin.mid, data=ld.sry, span=span,
+                          na.action=stats::na.exclude)
+  ld.sry$loess.med <- stats::fitted(fit.med)
   out$ld.sry <- ld.sry
 
   return(out)
@@ -5333,39 +5336,90 @@ summarizeLd <- function(ld, coln.var="cor2", coln.dist="dist.locs",
 
 ##' Pairwise linkage disequilibrium
 ##'
-##' Fit a model of physical distance versus LD.
-##' @param ld numeric vector of LD values
-##' @param phy.dist numeric vector of physical distance
-##' @param method loess/loglm/asyreg/biexp
+##' Summarize estimates of linkage disequilibrium between pairs of SNPs belonging to the same chromosome over non-overlapping bins per chromosome.
+##' @param ld data frame returned by \code{\link{estimLd}}
+##' @param coln.var name of the column in \code{ld} which contains the LD estimates
+##' @param coln.dist name of the column in \code{ld} which contains the physical distance between SNPs belonging to the same pair
+##' @param coln.chr name of the column in \code{ld} which contains the chromosome of each SNP pair
+##' @param bin.width width of each successive bin (they won't overlap)
+##' @param max.phy.len maximum physical length to consider
+##' @param span the parameter alpha which controls the degree of loess smoothing
+##' @param nb.cores the number of cores to use, i.e. at most how many child processes will be run simultaneously (not on Windows)
+##' @param verbose verbosity level (0/1)
+##' @return list with a list per chromosome with the LD summarized over bins as well as loess fits of LD vs mid bin
+##' @author Timothee Flutre
+##' @seealso \code{\link{summarizeLd}}
+##' @export
+summarizeLdPerChr <- function(ld, coln.var="cor2", coln.dist="dist.locs",
+                              coln.chr="chr",
+                              bin.width=500, max.phy.len=10^6, span=0.75,
+                              nb.cores=1, verbose=0){
+  stopifnot(is.data.frame(ld),
+            all(c(coln.dist, coln.var) %in% colnames(ld)))
+
+  if(! is.factor(ld[[coln.chr]]))
+    ld[[coln.chr]] <- as.factor(ld[[coln.chr]])
+  chrs <- levels(ld[[coln.chr]])
+
+  out <- lapply(seq_along(chrs), function(i){
+    chr <- chrs[i]
+    if(verbose > 0)
+      write(chr, stdout())
+    summarizeLd(ld=droplevels(ld[ld[[coln.chr]] == chr,]),
+                coln.var=coln.var, coln.dist=coln.dist,
+                bin.width=bin.width, max.phy.len=max.phy.len, span=span,
+                nb.cores=nb.cores)
+  })
+  names(out) <- chrs
+
+  return(out)
+}
+
+##' Pairwise linkage disequilibrium
+##'
+##' Fit a model of physical distance versus LD (or reciprocally).
+##' @param x numeric vector of predictors (LD values or physical distances)
+##' @param y numeric vector of responses (LD values or physical distances)
+##' @param method loess/lm/loglm/asyreg/biexp
 ##' @param span the parameter alpha which controls the degree of loess smoothing
 ##' @param newdata an optional data frame in which to look for variables with which to predict
 ##' @return list with data, model fit and prediction(s)
 ##' @author Timothee Flutre
 ##' @seealso \code{\link{summarizeLd}}
 ##' @export
-fitPhyDistVsLd <- function(ld, phy.dist, method="loess", span=0.2,
+fitPhyDistVsLd <- function(x, y, method="loess", span=0.2,
                            newdata){
-  stopifnot(length(ld) == length(phy.dist),
-            method %in% c("loess", "loglm", "asyreg", "biexp"))
-
-  dat <- data.frame(ld=ld,
-                    phy.dist=phy.dist)
-  out$dat <- dat
+  stopifnot(length(x) == length(y),
+            method %in% c("loess", "lm", "loglm", "asyreg", "biexp"))
 
   out <- list(fit=NULL, pred=NULL)
 
+  dat <- data.frame(x=x, y=y)
+  out$dat <- dat
+
   if(method == "loess"){
-    fit <- stats::loess(phy.dist ~ ld, data=dat, span=span)
+    fit <- stats::loess(y ~ x,
+                        data=dat,
+                        na.action=stats::na.exclude,
+                        span=span)
+  } else if(method == "lm"){
+    fit <- stats::lm(y ~ x,
+                     data=dat,
+                     na.action=stats::na.exclude)
   } else if(method == "loglm"){
-    fit <- stats::lm(log(phy.dist) ~ ld, data=dat)
+    fit <- stats::lm(log(y) ~ x,
+                     data=dat,
+                     na.action=stats::na.exclude)
   } else if(method == "asyreg"){
     fit <- try(
-        stats::nls(phy.dist ~ SSasymp(ld, Asym, R0, lrc),
-                   data=dat))
+        stats::nls(y ~ SSasymp(x, Asym, R0, lrc),
+                   data=dat,
+                   na.action=stats::na.exclude))
   } else if(method == "biexp"){
     fit <- try(
-        stats::nls(phy.dist ~ SSbiexp(ld, A1, lrc1, A2, lrc2),
-                   data=dat))
+        stats::nls(y ~ SSbiexp(x, A1, lrc1, A2, lrc2),
+                   data=dat,
+                   na.action=stats::na.exclude))
   }
   out$fit <- fit
 

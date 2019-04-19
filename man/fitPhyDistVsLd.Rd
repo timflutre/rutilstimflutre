@@ -4,14 +4,14 @@
 \alias{fitPhyDistVsLd}
 \title{Pairwise linkage disequilibrium}
 \usage{
-fitPhyDistVsLd(ld, phy.dist, method = "loess", span = 0.2, newdata)
+fitPhyDistVsLd(x, y, method = "loess", span = 0.2, newdata)
 }
 \arguments{
-\item{ld}{numeric vector of LD values}
+\item{x}{numeric vector of predictors (LD values or physical distances)}
 
-\item{phy.dist}{numeric vector of physical distance}
+\item{y}{numeric vector of responses (LD values or physical distances)}
 
-\item{method}{loess/loglm/asyreg/biexp}
+\item{method}{loess/lm/loglm/asyreg/biexp}
 
 \item{span}{the parameter alpha which controls the degree of loess smoothing}
 
@@ -21,7 +21,7 @@ fitPhyDistVsLd(ld, phy.dist, method = "loess", span = 0.2, newdata)
 list with data, model fit and prediction(s)
 }
 \description{
-Fit a model of physical distance versus LD.
+Fit a model of physical distance versus LD (or reciprocally).
 }
 \seealso{
 \code{\link{summarizeLd}}

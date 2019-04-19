@@ -23,19 +23,17 @@ betterSummary <- function(x){
 
   out["n"] <- length(x)
   isNa <- is.na(x)
-  if(any(isNa))
-    x <- x[! isNa]
   out["num.na"] <- sum(isNa)
   out["perc.na"] <- 100 * out["num.na"] / out["n"]
-  out["mean"] <- mean(x)
-  out["var"] <- stats::var(x)
-  out["sd"] <- stats::sd(x)
+  out["mean"] <- mean(x, na.rm=TRUE)
+  out["var"] <- stats::var(x, na.rm=TRUE)
+  out["sd"] <- stats::sd(x, na.rm=TRUE)
   out["cv"] <- out["sd"] / out["mean"]
-  out["min"] <- min(x)
-  out["q1"] <- stats::quantile(x, 0.25)
-  out["med"] <- stats::median(x)
-  out["q3"] <- stats::quantile(x, 0.75)
-  out["max"] <- max(x)
+  out["min"] <- min(x, na.rm=TRUE)
+  out["q1"] <- stats::quantile(x, probs=0.25, na.rm=TRUE)
+  out["med"] <- stats::median(x, na.rm=TRUE)
+  out["q3"] <- stats::quantile(x, probs=0.75, na.rm=TRUE)
+  out["max"] <- max(x, na.rm=TRUE)
 
   return(out)
 }
