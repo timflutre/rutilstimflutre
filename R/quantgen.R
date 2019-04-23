@@ -5398,18 +5398,25 @@ fitPhyDistVsLd <- function(x, y, method="loess", span=0.2,
   out$dat <- dat
 
   if(method == "loess"){
-    fit <- stats::loess(y ~ x,
-                        data=dat,
-                        na.action=stats::na.exclude,
-                        span=span)
+    fit <- try(
+        stats::loess(y ~ x,
+                     data=dat,
+                     na.action=stats::na.exclude,
+                     span=span))
   } else if(method == "lm"){
-    fit <- stats::lm(y ~ x,
-                     data=dat,
-                     na.action=stats::na.exclude)
+    fit <- try(
+        stats::lm(y ~ x,
+                  data=dat,
+                  na.action=stats::na.exclude))
   } else if(method == "loglm"){
-    fit <- stats::lm(log(y) ~ x,
-                     data=dat,
-                     na.action=stats::na.exclude)
+    dat$log.y <- log(dat$y)
+    idx <- which(is.nan(dat$log.y) | is.infinite(dat$log.y))
+    if(length(idx) > 0)
+      dat$log.y[idx] <- NA
+    fit <- try(
+        stats::lm(log.y ~ x,
+                  data=dat,
+                  na.action=stats::na.exclude))
   } else if(method == "asyreg"){
     fit <- try(
         stats::nls(y ~ SSasymp(x, Asym, R0, lrc),
