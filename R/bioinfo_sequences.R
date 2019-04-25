@@ -399,6 +399,68 @@ statsAllPairAligns <- function(aligns, nb.sequences){
 							nmismatchs=nmismatchs, ninss=ninss, ndels=ndels))
 }
 
+##' Convert data frame to GRanges
+##'
+##' Convert a data frame of genomic coordinates to GRanges.
+##' @param x data frame of genomic coordinates
+##' @param seq name of the column containing the sequence of the intervals
+##' @param start name of the column containing the start of the intervals
+##' @param end name of the column containing the end of the intervals
+##' @param strand name of the column containing the strand of the intervals
+##' @param si output from the "seqinfo" function from the GenomeInfoDb package
+##' @return GRanges
+##' @author Timothee Flutre
+##' @export
+df2gr <- function(x, seq="chr", start="start", end="end", strand=NULL,
+                  si=NULL){
+  requireNamespace("GenomicRanges")
+  requireNamespace("S4Vectors")
+  requireNamespace("IRanges")
+  requireNamespace("GenomeInfoDb")
+  stopifnot(all(c(seq, start, end, strand) %in% colnames(x)))
+  if(! is.null(si))
+    stopifnot(class(si) == "Seqinfo")
+
+  if(is.null(strand)){
+    out.gr <-
+      GenomicRanges::GRanges(seqnames=S4Vectors::Rle(x[[seq]]),
+                             ranges=IRanges::IRanges(start=x[[start]],
+                                                     end=x[[end]]))
+  } else
+    out.gr <-
+      GenomicRanges::GRanges(seqnames=S4Vectors::Rle(x[[seq]]),
+                             ranges=IRanges::IRanges(start=x[[start]],
+                                                     end=x[[end]]),
+                             strand=S4Vectors::Rle(x[[strand]]))
+  if(! is.null(rownames(x)))
+    names(out.gr) <- rownames(x)
+  out.gr <- GenomeInfoDb::sortSeqlevels(out.gr)
+
+  if(any(! colnames(x) %in% c(seq, start, end, strand))){
+    for(coln in colnames(x))
+      if(! coln %in% c(seq, start, end, strand))
+        S4Vectors::mcols(out.gr)[[coln]] <- x[[coln]]
+  }
+
+  if(! is.null(si)){
+    GenomeInfoDb::seqlevels(si) <-
+      GenomeInfoDb::sortSeqlevels(GenomeInfoDb::seqlevels(si))
+    if(length(GenomeInfoDb::seqlevels(out.gr)) ==
+       length(GenomeInfoDb::seqlevels(si))){
+      stopifnot(all(GenomeInfoDb::seqlevels(out.gr) ==
+                    GenomeInfoDb::seqlevels(si)))
+    } else{
+      stopifnot(all(GenomeInfoDb::seqlevels(out.gr) %in%
+                    GenomeInfoDb::seqlevels(si)))
+      si <- GenomeInfoDb::keepSeqlevels(x=si,
+                                        value=GenomeInfoDb::seqlevels(out.gr))
+    }
+    GenomeInfoDb::seqinfo(out.gr) <- si
+  }
+
+  return(out.gr)
+}
+
 ##' Genomic bins
 ##'
 ##' Summarize a given metric per \code{GRanges} over genomic bins.

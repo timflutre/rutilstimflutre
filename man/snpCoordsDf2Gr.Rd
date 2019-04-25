@@ -7,7 +7,7 @@
 snpCoordsDf2Gr(x, si = NULL)
 }
 \arguments{
-\item{x}{data frame of SNP coordinates}
+\item{x}{data frame of SNP coordinates with at least two columns, "chr" and "coord" (or "pos")}
 
 \item{si}{output from the "seqinfo" function from the GenomeInfoDb package}
 }

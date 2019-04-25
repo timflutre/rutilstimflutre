@@ -9,7 +9,7 @@ distSnpPairs(snp.pairs, snp.coords, nb.cores = 1, verbose = 1)
 \arguments{
 \item{snp.pairs}{data.frame with two columns "loc1" and "loc2"}
 
-\item{snp.coords}{data.frame with SNP identifiers as row names, and two columns, "chr" and "coord" or "pos"}
+\item{snp.coords}{data.frame with SNP identifiers as row names, and two columns, "chr" and "coord" (or "pos")}
 
 \item{nb.cores}{the number of cores to use}
 

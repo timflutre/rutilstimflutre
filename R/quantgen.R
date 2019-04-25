@@ -4784,51 +4784,27 @@ subsetDiffHaplosWithinParent <- function(haplos.chr, snps.tokeep){
 ##' SNP coordinates from data frame to GRanges
 ##'
 ##' Convert a data frame of SNP coordinates to GRanges.
-##' @param x data frame of SNP coordinates
+##' @param x data frame of SNP coordinates with at least two columns, "chr" and "coord" (or "pos")
 ##' @param si output from the "seqinfo" function from the GenomeInfoDb package
 ##' @return GRanges
 ##' @author Timothee Flutre
 ##' @export
 snpCoordsDf2Gr <- function(x, si=NULL){
-  requireNamespace("GenomicRanges")
-  requireNamespace("S4Vectors")
-  requireNamespace("IRanges")
-  requireNamespace("GenomeInfoDb")
   stopifnot(.isValidSnpCoords(x))
-  if(! is.null(si))
-    stopifnot(class(si) == "Seqinfo")
 
-  out.gr <-
-    GenomicRanges::GRanges(seqnames=S4Vectors::Rle(x$chr),
-                           ranges=IRanges::IRanges(start=x$coord,
-                                                   end=x$coord))
-  names(out.gr) <- rownames(x)
-  out.gr <- GenomeInfoDb::sortSeqlevels(out.gr)
+  if("pos" %in% colnames(x))
+    colnames(x)[colnames(x) == "pos"] <- "coord"
 
-  if(! is.null(si)){
-    GenomeInfoDb::seqlevels(si) <-
-      GenomeInfoDb::sortSeqlevels(GenomeInfoDb::seqlevels(si))
-    if(length(GenomeInfoDb::seqlevels(out.gr)) ==
-       length(GenomeInfoDb::seqlevels(si))){
-      stopifnot(all(GenomeInfoDb::seqlevels(out.gr) ==
-                    GenomeInfoDb::seqlevels(si)))
-    } else{
-      stopifnot(all(GenomeInfoDb::seqlevels(out.gr) %in%
-                    GenomeInfoDb::seqlevels(si)))
-      si <- GenomeInfoDb::keepSeqlevels(x=si,
-                                        value=GenomeInfoDb::seqlevels(out.gr))
-    }
-    GenomeInfoDb::seqinfo(out.gr) <- si
-  }
+  out <- df2gr(x=x, seq="chr", start="coord", end="coord", strand=NULL, si=si)
 
-  return(out.gr)
+  return(out)
 }
 
 ##' Distance between SNP pairs
 ##'
 ##' For each SNP pair, return the number of "blocks" (i.e. nucleotides) between both SNPs via the \code{\link[GenomicRanges]{distance}} function.
 ##' @param snp.pairs data.frame with two columns "loc1" and "loc2"
-##' @param snp.coords data.frame with SNP identifiers as row names, and two columns, "chr" and "coord" or "pos"
+##' @param snp.coords data.frame with SNP identifiers as row names, and two columns, "chr" and "coord" (or "pos")
 ##' @param nb.cores the number of cores to use
 ##' @param verbose verbosity level (0/1)
 ##' @return vector
