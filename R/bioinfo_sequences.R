@@ -409,11 +409,12 @@ statsAllPairAligns <- function(aligns, nb.sequences){
 ##' @param strand name of the column containing the strand of the intervals
 ##' @param si output from the "seqinfo" function from the GenomeInfoDb package
 ##' @param keep.all.seqlevels if TRUE, all sequence levels from \code{si} are kept, otherwise, only those present in \code{x}
+##' @param names2use if NULL, the output will have no names; if "row", it will have the row names of the input (if any); else, it will have the content of the specified column (if it exists)
 ##' @return GRanges
 ##' @author Timothee Flutre
 ##' @export
 df2gr <- function(x, seq="chr", start="start", end="end", strand=NULL,
-                  si=NULL, keep.all.seqlevels=FALSE){
+                  si=NULL, keep.all.seqlevels=FALSE, names2use="row"){
   requireNamespace("GenomicRanges")
   requireNamespace("S4Vectors")
   requireNamespace("IRanges")
@@ -434,8 +435,12 @@ df2gr <- function(x, seq="chr", start="start", end="end", strand=NULL,
                              ranges=IRanges::IRanges(start=x[[start]],
                                                      end=x[[end]]),
                              strand=S4Vectors::Rle(x[[strand]]))
-  if(! is.null(rownames(x)))
-    names(out.gr) <- rownames(x)
+  if(! is.null(names2use)){
+    if(names2use == "row"){
+      names(out.gr) <- rownames(x)
+    } else if(names2use %in% colnames(x))
+      names(out.gr) <- x[[names2use]]
+  }
   out.gr <- GenomeInfoDb::sortSeqlevels(out.gr)
 
   if(any(! colnames(x) %in% c(seq, start, end, strand))){
@@ -465,6 +470,68 @@ df2gr <- function(x, seq="chr", start="start", end="end", strand=NULL,
   }
 
   return(out.gr)
+}
+
+##' Merge overlapping genomic intervals
+##'
+##' Merges overlapping genomic intervals (as proposed \href{https://support.bioconductor.org/p/68021/}{here}).
+##' @param x input \code{GRanges}
+##' @param thresh threshold of relative overlap above which \code{GRanges} are merged
+##' @return \code{GRanges}
+##' @author Herve Pages [aut], Timothee Flutre [ctb]
+##' @export
+mergeOverlaps <- function(x, thresh=0.0){
+  requireNamespace("methods")
+  requireNamespace("S4Vectors")
+  requireNamespace("BiocGenerics")
+  requireNamespace("IRanges")
+  requireNamespace("GenomicRanges")
+
+  hits <- GenomicRanges::findOverlaps(x)
+  if(thresh >= 0){
+    gr.qry <- x[S4Vectors::queryHits(hits)]
+    gr.sbj <- x[S4Vectors::subjectHits(hits)]
+    relative_overlap <-
+      BiocGenerics::width(GenomicRanges::pintersect(gr.qry, gr.sbj)) /
+      BiocGenerics::pmin(BiocGenerics::width(gr.qry),
+                         BiocGenerics::width(gr.sbj))
+    hits <- hits[relative_overlap >= thresh]
+  }
+
+  extractClustersFromSelfHits <- function(hits){
+    stopifnot(methods::is(hits, "Hits"))
+    stopifnot(S4Vectors::queryLength(hits) == S4Vectors::subjectLength(hits))
+    hits <- BiocGenerics::union(hits, t(hits))
+    qh <- S4Vectors::queryHits(hits)
+    sh <- S4Vectors::subjectHits(hits)
+    cid <- seq_len(S4Vectors::queryLength(hits))  # cluster IDs
+    while(TRUE){
+      h <- S4Vectors::Hits(qh, cid[sh],
+                           S4Vectors::queryLength(hits),
+                           S4Vectors::subjectLength(hits))
+      cid2 <- BiocGenerics::pmin(cid, S4Vectors::selectHits(h, "first"))
+      if (identical(cid2, cid))
+        break
+      cid <- cid2
+    }
+    unname(IRanges::splitAsList(seq_len(S4Vectors::queryLength(hits)), cid))
+  }
+  clusters <- extractClustersFromSelfHits(hits)
+
+  gr.out <- range(IRanges::extractList(x, clusters))
+  if(any(S4Vectors::elementNROWS(gr.out) != 1L))
+    stop("some connected ranges are not on the same ",
+         "chromosome and strand, and thus cannot be ",
+         "merged")
+  gr.out <- BiocGenerics::unlist(gr.out)
+  S4Vectors::mcols(gr.out)$revmap <- clusters
+  if(! is.null(names(x)))
+    S4Vectors::mcols(gr.out)$revnames <-
+                             IRanges::CharacterList(lapply(clusters, function(clu){
+                               paste(names(x)[clu], collapse=", ")
+                             }))
+
+  return(gr.out)
 }
 
 ##' Genomic bins

@@ -55,6 +55,7 @@ Suggests:
     lmerTest,
     loo,
     MASS,
+    methods,
     MuMIn,
     nlme,
     pdftools,
