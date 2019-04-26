@@ -5,7 +5,7 @@
 \title{Convert data frame to GRanges}
 \usage{
 df2gr(x, seq = "chr", start = "start", end = "end", strand = NULL,
-  si = NULL)
+  si = NULL, keep.all.seqlevels = FALSE)
 }
 \arguments{
 \item{x}{data frame of genomic coordinates}
@@ -19,6 +19,8 @@ df2gr(x, seq = "chr", start = "start", end = "end", strand = NULL,
 \item{strand}{name of the column containing the strand of the intervals}
 
 \item{si}{output from the "seqinfo" function from the GenomeInfoDb package}
+
+\item{keep.all.seqlevels}{if TRUE, all sequence levels from \code{si} are kept, otherwise, only those present in \code{x}}
 }
 \value{
 GRanges

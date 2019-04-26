@@ -408,16 +408,18 @@ statsAllPairAligns <- function(aligns, nb.sequences){
 ##' @param end name of the column containing the end of the intervals
 ##' @param strand name of the column containing the strand of the intervals
 ##' @param si output from the "seqinfo" function from the GenomeInfoDb package
+##' @param keep.all.seqlevels if TRUE, all sequence levels from \code{si} are kept, otherwise, only those present in \code{x}
 ##' @return GRanges
 ##' @author Timothee Flutre
 ##' @export
 df2gr <- function(x, seq="chr", start="start", end="end", strand=NULL,
-                  si=NULL){
+                  si=NULL, keep.all.seqlevels=FALSE){
   requireNamespace("GenomicRanges")
   requireNamespace("S4Vectors")
   requireNamespace("IRanges")
   requireNamespace("GenomeInfoDb")
-  stopifnot(all(c(seq, start, end, strand) %in% colnames(x)))
+  stopifnot(all(c(seq, start, end, strand) %in% colnames(x)),
+            is.logical(keep.all.seqlevels))
   if(! is.null(si))
     stopifnot(class(si) == "Seqinfo")
 
@@ -452,8 +454,12 @@ df2gr <- function(x, seq="chr", start="start", end="end", strand=NULL,
     } else{
       stopifnot(all(GenomeInfoDb::seqlevels(out.gr) %in%
                     GenomeInfoDb::seqlevels(si)))
-      si <- GenomeInfoDb::keepSeqlevels(x=si,
-                                        value=GenomeInfoDb::seqlevels(out.gr))
+      if(keep.all.seqlevels){
+        GenomeInfoDb::seqlevels(out.gr, pruning.mode="coarse") <-
+          GenomeInfoDb::seqlevels(si)
+      } else
+        si <- GenomeInfoDb::keepSeqlevels(x=si,
+                                          value=GenomeInfoDb::seqlevels(out.gr))
     }
     GenomeInfoDb::seqinfo(out.gr) <- si
   }
