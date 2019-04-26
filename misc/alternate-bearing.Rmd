@@ -389,6 +389,20 @@ abline(a=0, b=1, lty=2)
 ```
 
 
+# Comparison BBI vs AR1
+
+```{r}
+cor(fitB.ar1.g, BBIs$classic[names(fitB.ar1.g)], method="pearson")
+cor(fitB.ar1.g, BBIs$classic[names(fitB.ar1.g)], method="spearman")
+plot(fitB.ar1.g, BBIs$classic[names(fitB.ar1.g)], las=1,
+     main="BBI classic vs AR1 (random)")
+plot(fitB.ar1.g, BBIs$norm[names(fitB.ar1.g)], las=1,
+     main="BBI norm vs AR1 (random)")
+plot(fitB.ar1.g, BBIs$res_norm[names(fitB.ar1.g)], las=1,
+     main="BBI res_norm vs AR1 (random)")
+```
+
+
 # Appendix
 
 ```{r info}
