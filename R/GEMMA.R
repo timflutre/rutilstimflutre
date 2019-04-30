@@ -61,7 +61,7 @@ genoDoses2bimbam <- function(X=NULL, tX=NULL, alleles, file=NULL, format="mean")
 ##' @param alleles data.frame with SNPs in rows (names as row names) and alleles in columns (exactly 2 columns are required); the second column should correspond to the allele which number of copies is counted at each SNP in \code{X}; if NULL, fake alleles will be generated
 ##' @param maf SNPs with minor allele frequency strictly below this threshold will be discarded
 ##' @param K.c kinship matrix; if NULL, will be estimated using X via \code{\link{estimGenRel}} with \code{relationships="additive"} and \code{method="zhou"}
-##' @param W matrix of covariates with genotypes in rows (names as row names), a first column of 1 and a second column of covariates values
+##' @param W matrix of covariates with genotypes in rows (names as row names), a first column of 1 for the intercept and, if needed, a second column of covariates values; if NULL, a column of 1 will be used for the intercept
 ##' @param weights vector of positive weights with genotype names
 ##' @param out.dir directory in which the output files will be saved
 ##' @param task.id identifier of the task (used in temporary and output file names)
@@ -163,7 +163,7 @@ genoDoses2bimbam <- function(X=NULL, tX=NULL, alleles, file=NULL, format="mean")
 ##' @export
 gemma <- function(model="ulmm", y, X, snp.coords, recode.genos=TRUE,
                   alleles=NULL, maf=0.01,
-                  K.c=NULL, W, weights=NULL,
+                  K.c=NULL, W=NULL, weights=NULL,
                   out.dir=getwd(), task.id="gemma", verbose=1, clean="none",
                   seed=1859, burnin=1000, nb.iters=7000, thin=10){
   stopifnot(file.exists(Sys.which("gemma")))
@@ -189,11 +189,15 @@ gemma <- function(model="ulmm", y, X, snp.coords, recode.genos=TRUE,
             is.numeric(maf),
             length(maf) == 1,
             maf >= 0,
-            maf <= 1,
-            is.matrix(W),
-            all(W[,1] == 1),
-            nrow(W) == length(y),
-            file.exists(out.dir),
+            maf <= 1)
+  if(! is.null(K.c)){
+    stopifnot(is.matrix(K.c))
+  }
+  if(! is.null(W))
+    stopifnot(is.matrix(W),
+              all(W[,1] == 1),
+              nrow(W) == length(y))
+  stopifnot(file.exists(out.dir),
             is.character(task.id),
             length(task.id) == 1,
             clean %in% c("none", "some", "all"))
@@ -253,6 +257,10 @@ gemma <- function(model="ulmm", y, X, snp.coords, recode.genos=TRUE,
                          chr=snp.coords$chr,
                          stringsAsFactors=FALSE)
 
+  ## make design matrix, if necessary
+  if(is.null(W))
+    W <- matrix(data=1, nrow=nrow(X), ncol=1)
+
   ## prepare input files
   tmp.files <- c()
   tmp.files <- c(tmp.files,
@@ -264,9 +272,11 @@ gemma <- function(model="ulmm", y, X, snp.coords, recode.genos=TRUE,
   utils::write.table(x=sc.gemma,
                      file=tmp.files["snp.coords"],
                      quote=FALSE, sep="\t", row.names=FALSE, col.names=FALSE)
-  if(is.null(K.c))
+  if(is.null(K.c)){
     K.c <- estimGenRel(X=X, thresh=maf, relationships="additive",
                        method="zhou", verbose=verbose)
+  } else
+    K.c <- K.c[rownames(X), rownames(X)]
   tmp.files <- c(tmp.files,
                  kinship.center=paste0(out.dir, "/kinship-center_", task.id,
                                        ".txt"))

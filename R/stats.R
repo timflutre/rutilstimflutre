@@ -809,6 +809,9 @@ plotHistPval <- function(pvalues, breaks=seq(0, 1, 0.05), freq=FALSE,
 ##' Therefore, the 95\% confidence interval for the j-th quantile of the set of p values can be calculated with: qbeta(0.95, j, N-j+1).
 ##' See also the \href{https://cran.r-project.org/package=qqman}{qqman} package.
 ##' @param pvalues vector of raw p values (missing values will be omitted)
+##' @param use.density if TRUE, uses \code{\link[graphics]{smoothScatter}}
+##' @param nrpoints if \code{use.density=TRUE}, number of points to be superimposed on the density image
+##' @param pch point symbol used if \code{use.density=TRUE}
 ##' @param plot.conf.int show the confidence interval
 ##' @param xlab a title for the x axis (see default)
 ##' @param ylab a title for the x axis (see default)
@@ -840,7 +843,8 @@ plotHistPval <- function(pvalues, breaks=seq(0, 1, 0.05), freq=FALSE,
 ##' names(out$pvalues)[out$pv.bh <= thresh]
 ##' }
 ##' @export
-qqplotPval <- function(pvalues, plot.conf.int=TRUE,
+qqplotPval <- function(pvalues, use.density=FALSE, nrpoints=1000, pch=1,
+                       plot.conf.int=TRUE,
                        xlab=expression(Expected~~-log[10](italic(p)~values)),
                        ylab=expression(Observed~~-log[10](italic(p)~values)),
                        thresh=0.05, ctl.fwer.bonf=FALSE, ctl.fdr.bh=FALSE,
@@ -904,10 +908,16 @@ qqplotPval <- function(pvalues, plot.conf.int=TRUE,
   ## add the Q-Q plot
   if(is.null(main))
     main <- paste0("Q-Q plot (", N, " p values)")
-  graphics::plot(x=sort(expected), y=sort(observed),
-                 xlim=c(0,MAX), ylim=c(0,MAX),
-                 las=1, col=col[order(observed)],
-                 xlab=xlab, ylab=ylab, main=main)
+  if(use.density){
+    graphics::smoothScatter(x=sort(expected), y=sort(observed),
+                            xlim=c(0,MAX), ylim=c(0,MAX),
+                            las=1, nrpoints=nrpoints, pch=pch,
+                            xlab=xlab, ylab=ylab, main=main)
+  } else
+    graphics::plot(x=sort(expected), y=sort(observed),
+                   xlim=c(0,MAX), ylim=c(0,MAX),
+                   las=1, col=col[order(observed)],
+                   xlab=xlab, ylab=ylab, main=main)
   graphics::abline(0, 1, col="red")
 
   ## multiple testing correction: FWER with Bonferroni

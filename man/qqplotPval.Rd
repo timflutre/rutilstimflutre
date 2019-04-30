@@ -4,14 +4,21 @@
 \alias{qqplotPval}
 \title{Q-Q plot for p values}
 \usage{
-qqplotPval(pvalues, plot.conf.int = TRUE, xlab = expression(Expected ~
-  ~-log[10](italic(p) ~ values)), ylab = expression(Observed ~
-  ~-log[10](italic(p) ~ values)), thresh = 0.05, ctl.fwer.bonf = FALSE,
-  ctl.fdr.bh = FALSE, ctl.fdr.storey = FALSE, plot.signif = FALSE,
-  main = NULL, col = NULL, verbose = 1)
+qqplotPval(pvalues, use.density = FALSE, nrpoints = 1000, pch = 1,
+  plot.conf.int = TRUE, xlab = expression(Expected ~ ~-log[10](italic(p) ~
+  values)), ylab = expression(Observed ~ ~-log[10](italic(p) ~ values)),
+  thresh = 0.05, ctl.fwer.bonf = FALSE, ctl.fdr.bh = FALSE,
+  ctl.fdr.storey = FALSE, plot.signif = FALSE, main = NULL, col = NULL,
+  verbose = 1)
 }
 \arguments{
 \item{pvalues}{vector of raw p values (missing values will be omitted)}
+
+\item{use.density}{if TRUE, uses \code{\link[graphics]{smoothScatter}}}
+
+\item{nrpoints}{if \code{use.density=TRUE}, number of points to be superimposed on the density image}
+
+\item{pch}{point symbol used if \code{use.density=TRUE}}
 
 \item{plot.conf.int}{show the confidence interval}
 
