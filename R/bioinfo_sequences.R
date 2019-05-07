@@ -1347,7 +1347,9 @@ readGenoDoseFileFromBcftools <- function(genos.file, get.coords=TRUE,
 
   coords <- NULL
   if(get.coords){
-    coords <- utils::strcapture("^([0-9a-zA-Z]+):([0-9]+)_",
+    ## should be able to handle "chr1:4499_G/A"
+    ## as well as "Super-Scaffold_90:2864_T/C"
+    coords <- utils::strcapture("^([0-9a-zA-Z_-]+):([0-9]+)_",
                                 colnames(genos),
                                 list(chr=character(), coord=double()))
     rownames(coords) <- colnames(genos)
