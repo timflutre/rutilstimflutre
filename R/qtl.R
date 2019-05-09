@@ -23,7 +23,7 @@
 ##' @export
 SIMQTL <- function (cross, response.in.cross=TRUE, response=NULL, numeric.chr.format=TRUE,
                     geno.joinmap=NULL, phase=NULL,
-                    pheno.col="y", nperm=100, threshold.alpha=c(0.05,0.2), 
+                    pheno.col="y", nperm=100, threshold.alpha=c(0.05,0.2),
                     QTL_position=NULL, method="em", plot=FALSE, verbose=0){
   requireNamespace(c("qtl", "caret"))
 
@@ -438,7 +438,7 @@ MIMQTL <- function(cross, response.in.cross=TRUE, response=NULL,
     if (nbnull == nrun | nbnull > 0) {
       qtltemp <- "NO QTL"
       form.tmp <- "NO QTL"
-      qtl <- qtltemp #### Agnes : nb_run'ai rajouté cette ligne pour ne pas avoir de liste nulle pour qtl quand il n'y a pas de QTL, est-ce que c'est correct ?
+      qtl <- qtltemp #### Agnes : nb_run'ai rajoute cette ligne pour ne pas avoir de liste nulle pour qtl quand il n'y a pas de QTL, est-ce que c'est correct ?
 
       ## 3.2: No Null model, several possible cases
     } else if (nbnull == 0) {
