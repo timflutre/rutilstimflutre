@@ -527,7 +527,7 @@ isSingular <- function(x){
 ##' Random generation for the matrix-variate Normal distribution.
 ##' See \url{https://en.wikipedia.org/wiki/Matrix_normal_distribution}.
 ##' @param n number of observations
-##' @param M mean matrix
+##' @param M mean matrix; if \code{dimnames(M)} is not NULL, the column and row names will be compared to those of U and V (if any) and, in the absence of conflict, propagated to the output
 ##' @param U between-row covariance matrix
 ##' @param V between-column covariance matrix
 ##' @param pivot 2-element vector with values TRUE/FALSE/"auto", where TRUE (FALSE) means using pivoting (or not) for Choleski decomposition of U and/or V (see \code{\link[base]{chol}}); useful when U and/or V are singular; with "auto", this will be automatically determined
@@ -556,6 +556,18 @@ rmatnorm <- function(n=1, M, U, V, pivot=c(U="auto", V="auto")){
             is.vector(pivot),
             all(c("U","V") %in% names(pivot)),
             all(pivot %in% c(TRUE, FALSE, "auto")))
+  if(! is.null(colnames(M))){
+    if(! is.null(colnames(V)))
+      stopifnot(all(colnames(M) == colnames(V)))
+    if(! is.null(rownames(V)))
+      stopifnot(all(colnames(M) == rownames(V)))
+  }
+  if(! is.null(rownames(M))){
+    if(! is.null(colnames(U)))
+      stopifnot(all(colnames(M) == colnames(U)))
+    if(! is.null(rownames(U)))
+      stopifnot(all(colnames(M) == rownames(U)))
+  }
 
   ## chol() returns upper triangular factor of Cholesky decomp
   if(pivot["U"] == "auto"){
@@ -575,8 +587,11 @@ rmatnorm <- function(n=1, M, U, V, pivot=c(U="auto", V="auto")){
            nrow=nrow(M), ncol=ncol(M))
   })
 
-  return(array(data=do.call(c, tmp),
-               dim=c(nrow(M), ncol(M), n)))
+  out <- array(data=do.call(c, tmp),
+               dim=c(nrow(M), ncol(M), n))
+  dimnames(out) <- list(rownames(M), colnames(M), NULL)
+
+  return(out)
 }
 
 ##' Tridiagonal matrix

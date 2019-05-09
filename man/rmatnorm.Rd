@@ -9,7 +9,7 @@ rmatnorm(n = 1, M, U, V, pivot = c(U = "auto", V = "auto"))
 \arguments{
 \item{n}{number of observations}
 
-\item{M}{mean matrix}
+\item{M}{mean matrix; if \code{dimnames(M)} is not NULL, the column and row names will be compared to those of U and V (if any) and, in the absence of conflict, propagated to the output}
 
 \item{U}{between-row covariance matrix}
 
