@@ -361,7 +361,7 @@ test_that("setGt2Na", {
     vcf.init <- VariantAnnotation::readVcf(file=vcf.init.file.bgz,
                                            genome=genome)
     expected <- vcf.init
-    VariantAnnotation::geno(expected)[["GT"]][3, c(2,3)] <- "."
+    VariantAnnotation::geno(expected)[["GT"]][3, c(2,3)] <- "./."
 
     vcf.obs.file <- sprintf("%s.vcf", tempfile())
     vcf.obs.file.bgz <- setGt2Na(vcf.file=vcf.init.file.bgz,
