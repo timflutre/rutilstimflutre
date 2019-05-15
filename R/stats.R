@@ -834,12 +834,13 @@ plotHistPval <- function(pvalues, breaks=seq(0, 1, 0.05), freq=FALSE,
 ##' @param ctl.fwer.bonf control the family-wise error rate with the Bonferroni procedure
 ##' @param ctl.fdr.bh control the false discovery rate with the Benjamini-Hochberg procedure
 ##' @param ctl.fdr.storey control the false discovery rate with Storey's procedure in the \href{http://bioconductor.org/packages/release/bioc/html/qvalue.html}{qvalue} package
+##' @param pfdr logical passed to \code{qvalue()}
 ##' @param plot.signif show line(s) corresponding to the significance threshold
 ##' @param main an overall title for the plot (default: "Q-Q plot (<length(pvalues)> p values)")
 ##' @param col vector of plotting color(s) for the points (default is all points in black)
 ##' @param verbose verbosity level (0/1)
 ##' @return invisible matrix with a column of p values (NA omitted) and the adjusted p values if any of \code{ctl.fwer.bonf} and \code{ctl.fdr.bh} is set
-##' @seealso \code{\link{plotHistPval}}
+##' @seealso \code{\link{plotHistPval}}, \code{\link{significantTests}}
 ##' @author Timothee Flutre (inspired by an anonymous comment at http://gettinggeneticsdone.blogspot.fr/2009/11/qq-plots-of-p-values-in-r-using-ggplot2.html)
 ##' @examples
 ##' \dontrun{set.seed(1859)
@@ -854,8 +855,8 @@ plotHistPval <- function(pvalues, breaks=seq(0, 1, 0.05), freq=FALSE,
 ##' qqplotPval(pvalues)
 ##' out <- qqplotPval(pvalues, ctl.fwer.bonf=TRUE, ctl.fdr.bh=TRUE, plot.signif=TRUE)
 ##' pvalues <- out$pvalues # NA omitted
-##' names(out$pvalues)[out$pv.bonf <= thresh]
-##' names(out$pvalues)[out$pv.bh <= thresh]
+##' sum(out$pv.bonf <= thresh)
+##' sum(out$pv.bh <= thresh)
 ##' }
 ##' @export
 qqplotPval <- function(pvalues, use.density=FALSE, nrpoints=1000, pch=1,
@@ -863,7 +864,7 @@ qqplotPval <- function(pvalues, use.density=FALSE, nrpoints=1000, pch=1,
                        xlab=expression(Expected~~-log[10](italic(p)~values)),
                        ylab=expression(Observed~~-log[10](italic(p)~values)),
                        thresh=0.05, ctl.fwer.bonf=FALSE, ctl.fdr.bh=FALSE,
-                       ctl.fdr.storey=FALSE, plot.signif=FALSE,
+                       ctl.fdr.storey=FALSE, pfdr=TRUE, plot.signif=FALSE,
                        main=NULL, col=NULL, verbose=1){
   stopifnot(is.numeric(pvalues),
             is.vector(pvalues),
@@ -972,7 +973,7 @@ qqplotPval <- function(pvalues, use.density=FALSE, nrpoints=1000, pch=1,
   ## multiple testing correction: FDR with Storey
   qv.st <- NULL
   if(ctl.fdr.storey){
-    out.st <- qvalue::qvalue(p=pvalues, fdr.level=thresh, pfdr=TRUE)
+    out.st <- qvalue::qvalue(p=pvalues, fdr.level=thresh, pfdr=pfdr)
     qv.st <- out.st$qvalues
     if(verbose > 0){
       msg <- paste0("signif tests at ", format(100*thresh, digits=2),
@@ -1028,13 +1029,14 @@ qqplotPval <- function(pvalues, use.density=FALSE, nrpoints=1000, pch=1,
 ##' @param thresh.fwer.bonf if not NULL, vector of significance thresholds for the FWER criterion and the Bonferroni procedure
 ##' @param thresh.fdr.bh if not NULL, vector of significance thresholds for the FDR criterion and the Benjamini-Hochberg procedure
 ##' @param thresh.fdr.storey if not NULL, vector of significance thresholds for the FDR criterion and the Storey procedure (via the \href{http://bioconductor.org/packages/release/bioc/html/qvalue.html}{qvalue} package)
+##' @param pfdr logical passed to \code{qvalue()}
 ##' @return list
 ##' @author Timothee Flutre
 ##' @seealso \code{\link{qqplotPval}}, \code{\link{binaryClassif}}
 ##' @export
 significantTests <- function(pvalues, thresh.fwer.bonf=c(0.01, 0.05, 0.1),
                              thresh.fdr.bh=c(0.01, 0.05, 0.1),
-                             thresh.fdr.storey=NULL){
+                             thresh.fdr.storey=NULL, pfdr=TRUE){
   stopifnot(is.numeric(pvalues),
             is.vector(pvalues))
   if(! is.null(thresh.fwer.bonf))
@@ -1074,7 +1076,7 @@ significantTests <- function(pvalues, thresh.fwer.bonf=c(0.01, 0.05, 0.1),
   }
 
   if(! is.null(thresh.fdr.storey)){
-    tmp <- qvalue::qvalue(p=pvalues, pfdr=TRUE)
+    tmp <- qvalue::qvalue(p=pvalues, pfdr=pfdr)
     output[["fdr.storey"]][["qv"]] <- tmp$qvalues
     for(thresh in thresh.fdr.bh)
       output[["fdr.storey"]][[as.character(thresh)]] <-

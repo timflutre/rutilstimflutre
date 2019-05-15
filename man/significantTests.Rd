@@ -5,7 +5,8 @@
 \title{Multiple tests correction}
 \usage{
 significantTests(pvalues, thresh.fwer.bonf = c(0.01, 0.05, 0.1),
-  thresh.fdr.bh = c(0.01, 0.05, 0.1), thresh.fdr.storey = NULL)
+  thresh.fdr.bh = c(0.01, 0.05, 0.1), thresh.fdr.storey = NULL,
+  pfdr = TRUE)
 }
 \arguments{
 \item{pvalues}{vector of p values (can contain NA's)}
@@ -15,6 +16,8 @@ significantTests(pvalues, thresh.fwer.bonf = c(0.01, 0.05, 0.1),
 \item{thresh.fdr.bh}{if not NULL, vector of significance thresholds for the FDR criterion and the Benjamini-Hochberg procedure}
 
 \item{thresh.fdr.storey}{if not NULL, vector of significance thresholds for the FDR criterion and the Storey procedure (via the \href{http://bioconductor.org/packages/release/bioc/html/qvalue.html}{qvalue} package)}
+
+\item{pfdr}{logical passed to \code{qvalue()}}
 }
 \value{
 list

@@ -8,8 +8,8 @@ qqplotPval(pvalues, use.density = FALSE, nrpoints = 1000, pch = 1,
   plot.conf.int = TRUE, xlab = expression(Expected ~ ~-log[10](italic(p) ~
   values)), ylab = expression(Observed ~ ~-log[10](italic(p) ~ values)),
   thresh = 0.05, ctl.fwer.bonf = FALSE, ctl.fdr.bh = FALSE,
-  ctl.fdr.storey = FALSE, plot.signif = FALSE, main = NULL, col = NULL,
-  verbose = 1)
+  ctl.fdr.storey = FALSE, pfdr = TRUE, plot.signif = FALSE, main = NULL,
+  col = NULL, verbose = 1)
 }
 \arguments{
 \item{pvalues}{vector of raw p values (missing values will be omitted)}
@@ -33,6 +33,8 @@ qqplotPval(pvalues, use.density = FALSE, nrpoints = 1000, pch = 1,
 \item{ctl.fdr.bh}{control the false discovery rate with the Benjamini-Hochberg procedure}
 
 \item{ctl.fdr.storey}{control the false discovery rate with Storey's procedure in the \href{http://bioconductor.org/packages/release/bioc/html/qvalue.html}{qvalue} package}
+
+\item{pfdr}{logical passed to \code{qvalue()}}
 
 \item{plot.signif}{show line(s) corresponding to the significance threshold}
 
@@ -66,12 +68,12 @@ plotHistPval(pvalues, pi0=(P-P1)/P, freq=TRUE)
 qqplotPval(pvalues)
 out <- qqplotPval(pvalues, ctl.fwer.bonf=TRUE, ctl.fdr.bh=TRUE, plot.signif=TRUE)
 pvalues <- out$pvalues # NA omitted
-names(out$pvalues)[out$pv.bonf <= thresh]
-names(out$pvalues)[out$pv.bh <= thresh]
+sum(out$pv.bonf <= thresh)
+sum(out$pv.bh <= thresh)
 }
 }
 \seealso{
-\code{\link{plotHistPval}}
+\code{\link{plotHistPval}}, \code{\link{significantTests}}
 }
 \author{
 Timothee Flutre (inspired by an anonymous comment at http://gettinggeneticsdone.blogspot.fr/2009/11/qq-plots-of-p-values-in-r-using-ggplot2.html)
