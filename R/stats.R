@@ -564,9 +564,9 @@ rmatnorm <- function(n=1, M, U, V, pivot=c(U="auto", V="auto")){
   }
   if(! is.null(rownames(M))){
     if(! is.null(colnames(U)))
-      stopifnot(all(colnames(M) == colnames(U)))
+      stopifnot(all(rownames(M) == colnames(U)))
     if(! is.null(rownames(U)))
-      stopifnot(all(colnames(M) == rownames(U)))
+      stopifnot(all(rownames(M) == rownames(U)))
   }
 
   ## chol() returns upper triangular factor of Cholesky decomp
