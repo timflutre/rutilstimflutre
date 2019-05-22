@@ -9458,6 +9458,8 @@ calcL10ApproximateBayesFactorWen <- function(Y, Xg, Xc,
 ##' @param ylab label of the y-axis
 ##' @param main.title main title
 ##' @param show.points if TRUE, individual points will be shown, with \code{\link{jitter}}, especially useful if some genotypic classes have very low counts
+##' @param jit.fact jitter factor used if \code{show.points} is TRUE
+##' @param varwidth if TRUE, the boxes are drawn with widths proportional to the square-roots of the number of observations in the groups
 ##' @param notch if TRUE, a notch is drawn in each side of the boxes (see \code{\link[graphics]{boxplot}})
 ##' @param suppress.warnings if TRUE, \code{\link{suppressWarnings}} is used for \code{\link[graphics]{boxplot}}
 ##' @param regline.intercept intercept of the regression line
@@ -9465,7 +9467,7 @@ calcL10ApproximateBayesFactorWen <- function(Y, Xg, Xc,
 ##' @param regline.col color of the regression line
 ##' @param regline.lty style of the regression line
 ##' @param regline.legend legend of the regression line
-##' @param alleles vector of characters of length 2, the second element being the allele which copies are counted in X
+##' @param alleles vector of characters of length 2, the second element being the allele which copies are counted in \code{X}
 ##' @param title.line line at which the main title should appear
 ##' @param counts.xticks if TRUE, the sample size of each genotypic class will be added to the x-axis ticks
 ##' @param mtext.y.line line at which the y-axis label should appear
@@ -9515,8 +9517,8 @@ boxplotCandidateQtl <- function(y, X, snp, simplify.imputed=TRUE,
                                 xlab="SNP genotypes", maf.xlab=TRUE,
                                 ylab="Phenotypes",
                                 main.title=NULL,
-                                show.points=FALSE,
-                                notch=TRUE, suppress.warnings=TRUE,
+                                show.points=FALSE, jit.fact=1,
+                                varwidth=TRUE, notch=TRUE, suppress.warnings=TRUE,
                                 regline.intercept=NA, regline.slope=NA,
                                 regline.col="red", regline.lty=1,
                                 regline.legend=NULL,
@@ -9538,9 +9540,6 @@ boxplotCandidateQtl <- function(y, X, snp, simplify.imputed=TRUE,
   }
   stopifnot(is.vector(y),
             ! is.null(names(y)),
-            length(y) == nrow(X),
-            all(names(y) %in% rownames(X)),
-            all(rownames(X) %in% names(y)),
             is.character(snp),
             snp %in% colnames(X))
   X.snp <- X[names(y), snp, drop=FALSE]
@@ -9604,29 +9603,27 @@ boxplotCandidateQtl <- function(y, X, snp, simplify.imputed=TRUE,
     x$final <- x$all
   }
   if(counts.xticks){
-    x$final <- as.character(x$final)
-    counts <- table(x$final)
-    for(i in seq_along(counts)){
-      idx <- x$final == names(counts)[i]
-      x$final[idx] <- paste0(x$final[idx], " (", counts[i], ")")
-    }
-    x$final <- as.factor(x$final)
+    counts <- table(as.character(x$final))[levels(x$final)]
+    for(i in seq_along(counts))
+      levels(x$final)[levels(x$final) == names(counts)[i]] <-
+        paste0(names(counts)[i], " (", counts[i], ")")
   }
   if(suppress.warnings){
     bp <- suppressWarnings(
-        graphics::boxplot(y ~ x$final, las=1, varwidth=TRUE, notch=notch,
+        graphics::boxplot(y ~ x$final, las=1, varwidth=varwidth, notch=notch,
                           xlab=xlab, ylab="", at=c(0,1,2), ...))
   } else
-    bp <- graphics::boxplot(y ~ x$final, las=1, varwidth=TRUE, notch=notch,
+    bp <- graphics::boxplot(y ~ x$final, las=1, varwidth=varwidth, notch=notch,
                             xlab=xlab, ylab="", at=c(0,1,2), ...)
   graphics::mtext(text=ylab, side=2, line=mtext.y.line, cex=mtext.y.cex)
   if(! is.null(main.title))
     graphics::title(main=main.title, line=title.line)
 
   if(show.points){
-    for(ct in sort(unique(x$dose.num))){
-      tmp <- y[x$dose.num == ct]
-      graphics::points(x=jitter(rep(ct, length(tmp))), y=tmp)
+    for(i in 1:nlevels(x$final)){
+      tmp <- y[x$final == levels(x$final)[i]]
+      graphics::points(x=jitter(x=rep(i-1, length(tmp)), factor=jit.fact),
+                       y=tmp)
     }
   }
 

@@ -6,11 +6,12 @@
 \usage{
 boxplotCandidateQtl(y, X, snp, simplify.imputed = TRUE,
   xlab = "SNP genotypes", maf.xlab = TRUE, ylab = "Phenotypes",
-  main.title = NULL, show.points = FALSE, notch = TRUE,
-  suppress.warnings = TRUE, regline.intercept = NA, regline.slope = NA,
-  regline.col = "red", regline.lty = 1, regline.legend = NULL,
-  alleles = NULL, title.line = NA, counts.xticks = FALSE,
-  mtext.y.line = 3, mtext.y.cex = 1, verbose = 1, ...)
+  main.title = NULL, show.points = FALSE, jit.fact = 1, varwidth = TRUE,
+  notch = TRUE, suppress.warnings = TRUE, regline.intercept = NA,
+  regline.slope = NA, regline.col = "red", regline.lty = 1,
+  regline.legend = NULL, alleles = NULL, title.line = NA,
+  counts.xticks = FALSE, mtext.y.line = 3, mtext.y.cex = 1, verbose = 1,
+  ...)
 }
 \arguments{
 \item{y}{vector of phenotypes with genotype names}
@@ -31,6 +32,10 @@ boxplotCandidateQtl(y, X, snp, simplify.imputed = TRUE,
 
 \item{show.points}{if TRUE, individual points will be shown, with \code{\link{jitter}}, especially useful if some genotypic classes have very low counts}
 
+\item{jit.fact}{jitter factor used if \code{show.points} is TRUE}
+
+\item{varwidth}{if TRUE, the boxes are drawn with widths proportional to the square-roots of the number of observations in the groups}
+
 \item{notch}{if TRUE, a notch is drawn in each side of the boxes (see \code{\link[graphics]{boxplot}})}
 
 \item{suppress.warnings}{if TRUE, \code{\link{suppressWarnings}} is used for \code{\link[graphics]{boxplot}}}
@@ -45,7 +50,7 @@ boxplotCandidateQtl(y, X, snp, simplify.imputed = TRUE,
 
 \item{regline.legend}{legend of the regression line}
 
-\item{alleles}{vector of characters of length 2, the second element being the allele which copies are counted in X}
+\item{alleles}{vector of characters of length 2, the second element being the allele which copies are counted in \code{X}}
 
 \item{title.line}{line at which the main title should appear}
 
