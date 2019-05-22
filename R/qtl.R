@@ -6,16 +6,17 @@
 ##' Perform QTL detection by simple interval mapping
 ##' @param cross object
 ##' @param response.in.cross logical
-##' @param response character
+##' @param response matrix of phenotypes if not given in cross object
 ##' @param numeric.chr.format logical
 ##' @param geno.joinmap genotypes at markers in the JoinMap format
 ##' @param phase phase
-##' @param pheno.col character
-##' @param nperm number of permutations to be done in \code{qtl::scanone}
-##' @param threshold.alpha vector of length 1 or 2 (optional) with thresholds for (1) the significance of QTL presence (based on permutations) and (2) the significance of QTL effects
+##' @param threshold genomewide significance LOD threshold, if NULL (default), is found by permutations (with nperm parameter).
+##' @param pheno.col character indicating column to study in cross$pheno
+##' @param nperm number of permutations to be done in \code{qtl::scanone}, default is 100
+##' @param alpha vector of length 1 or 2 (optional) with thresholds for (1) the significance of QTL presence (based on permutations) and (2) the significance of QTL effects
 ##' @param QTL_position useful for simulated data
 ##' @param method method to detect QTL in \code{qtl::scanone}
-##' @param plot logical
+##' @param plot logical, default is FALSE.
 ##' @param verbose verbosity level (0/1/2)
 ##' @return list
 ##' @author Charlotte Brault [aut], Timothee Flutre [ctb]
@@ -23,46 +24,53 @@
 ##' @export
 SIMQTL <- function (cross, response.in.cross=TRUE, response=NULL, numeric.chr.format=TRUE,
                     geno.joinmap=NULL, phase=NULL,
-                    pheno.col="y", nperm=100, threshold.alpha=c(0.05,0.2),
+                    threshold=NULL, pheno.col="y", nperm=100, alpha=c(0.05,0.2),
                     QTL_position=NULL, method="em", plot=FALSE, verbose=0){
   requireNamespace(c("qtl", "caret"))
-
+  
   ## Reformat chromosome names
   if(! numeric.chr.format){
     nb_chr <- length(lapply(cross$geno, attributes))
     chr_renamed <- seq(1:nb_chr)
     names(cross$geno) <- chr_renamed
   }
-
+  
   ## Verifications
-  stopifnot(all(threshold.alpha <= 0.2),
-            threshold.alpha[1] %in% c(0.05,0.1),
+  stopifnot(all(is.numeric(alpha)),
             xor(all(!response.in.cross, !is.null(response)),
                 all(response.in.cross & is.null(response))))
   if(! is.null(QTL_position))
     stopifnot(c("linkage.group", "genetic.distance") %in% colnames(QTL_position))
+  
   ## Check the conformity between geno.joinmap and cross
   if(!is.null(geno.joinmap)){
     jm <- data.frame(seg=getJoinMapSegregs(geno.joinmap), phase=phase)
     jm <- cbind(jm, geno.joinmap)
     jm[jm == "--"] <- NA
     converted_qtl <- phasedJoinMapCP2qtl(jm, verbose=verbose)
-
+    
     tmp1 <- t(cross$geno$`1`$data) ; geno_qtl <- tmp1
     for(i in 2:length(cross$geno)){
       tmp <- t(cross$geno[[i]]$data)
       geno_qtl <- rbind(geno_qtl, tmp)
     }
+    colnames(geno_qtl) <-cross$pheno$indiv 
     geno_qtl <- geno_qtl[order(rownames(geno_qtl)),]
     converted_qtl <- converted_qtl[order(rownames(converted_qtl)),]
+    
+    # Keep same genotypes 
+    converted_qtl <- converted_qtl[, colnames(converted_qtl) %in% colnames(geno_qtl)]
+    geno_qtl <- geno_qtl[, colnames(geno_qtl) %in% colnames(converted_qtl)]
     colnames(geno_qtl) <- NULL ; colnames(converted_qtl) <- NULL
-    stopifnot(identical(as.numeric(converted_qtl), as.numeric(geno_qtl)))
+    converted_qtl <- apply(converted_qtl, 2, as.numeric)
+    geno_qtl <- apply(geno_qtl, 2, as.numeric)
+    stopifnot(identical(converted_qtl, geno_qtl))
   }
-
+  
   ## if no 2nd threshold provided, take the same as the first one
-  if(length(threshold.alpha) == 1)
-    threshold.alpha[2] <- threshold.alpha[1]
-
+  if(length(alpha) == 1)
+    alpha[2] <- alpha[1]
+  
   cross <- qtl::calc.genoprob(cross, step=1, map.function="kosambi")
   if(! response.in.cross){
     cross$pheno[[pheno.col]] <- NA
@@ -74,29 +82,28 @@ SIMQTL <- function (cross, response.in.cross=TRUE, response=NULL, numeric.chr.fo
       }
     }
   }
-
+  
   ## Find LOD threshold to apply with permutations
-  qtl.em.perm <- qtl::scanone(cross, pheno.col=pheno.col, method=method, n.perm=nperm, verbose=verbose)
-  threshold.LOD <- ifelse(threshold.alpha[1] == 0.05,
-                          threshold.LOD <- summary(qtl.em.perm)[1], # 5% alpha error
-                          threshold.LOD <- summary(qtl.em.perm)[2]) # 10% alpha error
-
+  if(is.null(threshold)){
+    qtl.em.perm <- qtl::scanone(cross, pheno.col=pheno.col, method=method,
+                                n.perm=nperm, verbose=verbose)
+    threshold <- summary(qtl.em.perm, alpha=alpha[1])
+  } 
+  
   qtl.em <- qtl::scanone(cross, pheno.col=pheno.col, method=method, verbose=verbose)
   qtl.em$chr <- as.numeric(qtl.em$chr)
   LOD.max <- 0 ; pos <- 0
   qtl.em$is.qtl <- FALSE ; qtl.em$nb_interval <- NA
-  qtl.em$is.qtl[which(qtl.em$lod> threshold.LOD)] <- TRUE
+  qtl.em$is.qtl[which(qtl.em$lod > as.numeric(threshold))] <- TRUE
   nb_interval <- 1
-
+  
   for(i in 2:nrow(qtl.em)){
-    # beginning new qtl (F -> T)
-    if(!qtl.em$is.qtl[i-1] & qtl.em$is.qtl[i] | # if F > T
-       qtl.em$is.qtl[i-1] & qtl.em$is.qtl[i] & qtl.em$chr[i-1] != qtl.em$chr[i]){  # or if T -> T but different chromosome
+    if(!qtl.em$is.qtl[i-1] & qtl.em$is.qtl[i] | # if beginning new qtl (F -> T)
+       qtl.em$is.qtl[i-1] & qtl.em$is.qtl[i] & qtl.em$chr[i-1] != qtl.em$chr[i]){  
       qtl.em$nb_interval[i] <- nb_interval
       nb_interval <- nb_interval + 1
     }
-    # same qtl
-    if(qtl.em$is.qtl[i-1] & qtl.em$is.qtl[i] & qtl.em$chr[i-1] == qtl.em$chr[i]){ # if T -> T and same chromosome
+    if(qtl.em$is.qtl[i-1] & qtl.em$is.qtl[i] & qtl.em$chr[i-1] == qtl.em$chr[i]){ # same qtl (T -> T)
       qtl.em$nb_interval[i] <- qtl.em$nb_interval[i-1]
       if(i==2){ # QTL at the beginning
         qtl.em$nb_interval[c(i-1,i)] <- 1
@@ -128,7 +135,7 @@ SIMQTL <- function (cross, response.in.cross=TRUE, response=NULL, numeric.chr.fo
              main=paste0("Profile LOD score \n linkage group ",link),
              ylim=c(0, max(qtl.df$LOD[qtl.df$linkage.group == link])+2))
         panel.first=graphics::grid()
-        graphics::abline(h=threshold.LOD, col="red")
+        graphics::abline(h=threshold, col="red")
         graphics::abline(v=qtl.df$interval.inf[qtl.df$linkage.group == link], col="blue", lty=2)
         graphics::abline(v=qtl.df$interval.sup[qtl.df$linkage.group == link], col="blue", lty=2)
         if(! is.null(QTL_position))
@@ -136,28 +143,28 @@ SIMQTL <- function (cross, response.in.cross=TRUE, response=NULL, numeric.chr.fo
         graphics::text(x=qtl.df$position[qtl.df$linkage.group == link],
                        y=qtl.df$LOD[qtl.df$linkage.group == link]+1,
                        labels=paste0("Max LOD = ", round(qtl.df$LOD[qtl.df$linkage.group == link], 2),
-                                       " \n at ", qtl.df$position[qtl.df$linkage.group == link], " cM"))
+                                     " \n at ", qtl.df$position[qtl.df$linkage.group == link], " cM"))
       }
     }
-
+    
     ## Provide list of markers in the interval
     selected.markers <- NA
     for(i in 1:nb_interval){
       tmp <- colnames(cross$geno[[qtl.df$linkage.group[i]]]$map)[cross[["geno"]][[qtl.df$linkage.group[i]]]$map[1,] >=
-                                                                 qtl.df$interval.inf[i] &
-                                                                 cross$geno[[qtl.df$linkage.group[i]]]$map[1,] <= qtl.df$interval.sup[i]]
+                                                                   qtl.df$interval.inf[i] &
+                                                                   cross$geno[[qtl.df$linkage.group[i]]]$map[1,] <= qtl.df$interval.sup[i]]
       selected.markers <- append(selected.markers, tmp)
     }
     selected.markers <- as.character(selected.markers)
     selected.markers <- subset(selected.markers, subset= !is.na(selected.markers))
-
+    
   } else { # no QTL found
     qtl.df <- data.frame(linkage.group=NA,
                          position=NA, nearest.mrk=NA,
                          LOD=NA, interval.inf=NA, interval.sup=NA)
     selected.markers <- 0 ; length(selected.markers) <- 0
   }
-
+  
   ## Fit a linear model to estimate allelic effects
   if(! is.null(geno.joinmap)){
     if(length(selected.markers) != 0) {
@@ -176,19 +183,19 @@ SIMQTL <- function (cross, response.in.cross=TRUE, response=NULL, numeric.chr.fo
       lin.comb <- caret::findLinearCombos(X)
       X <- X[,-lin.comb$remove]
       X <- X[,-1] # remove intercept
-
+      
       ## Estimate allele effects by multiple linear regression model
       fit.lm <- stats::lm(cross[["pheno"]][[pheno.col]]  ~ X)
       summary.fit <- summary(fit.lm)
-      signif.coeff <- as.matrix(summary.fit$coefficients[,1][summary.fit$coefficients[,4] < threshold.alpha[2]])
+      signif.coeff <- as.matrix(summary.fit$coefficients[,1][summary.fit$coefficients[,4] < alpha[2]])
       rownames(signif.coeff) <- substr(rownames(signif.coeff), start=2, stop=nchar(signif.coeff))
-
+      
       allelic.effects <- data.frame(predictor=colnames(joinMap2designMatrix(jm=jm, verbose=0))[-1], effect=0)
-
+      
       for(i in 1:nrow(signif.coeff)){
         allelic.effects[allelic.effects$predictor %in% rownames(signif.coeff)[i], "effect"] <- signif.coeff[i]
       }
-
+      
     } else { # There is no QTL found
       tmp <- data.frame(locus=rownames(geno.joinmap),
                         seg=getJoinMapSegregs(geno.joinmap),
@@ -201,7 +208,7 @@ SIMQTL <- function (cross, response.in.cross=TRUE, response=NULL, numeric.chr.fo
   } else { # No genetic map entered
     allelic.effects <- NULL
   }
-
+  
   out <- list(qtl.df=qtl.df,
               selected.markers=selected.markers,
               allelic.effects=allelic.effects)
