@@ -5541,6 +5541,67 @@ plotLd <- function(x, y, main="", estim="r2",
   invisible(out)
 }
 
+##' Pairwise linkage disequilibrium
+##'
+##' Plots a summary of linkage disequilibrium between pairs of SNPs per non-overlapping bin (mean, median and quartiles 1 and 3).
+##' @param x vector of distances between SNPs (see \code{\link{distSnpPairs}})
+##' @param y vector of LD estimates (see \code{\link{estimLd}})
+##' @param bin.len length of each bin
+##' @param max.dist maximum distance between SNPs to consider
+##' @param main main title
+##' @param xlab label for the x axis
+##' @param ylab label for the y axis
+##' @return invisible data frame with the summary per bin
+##' @author Timothee Flutre
+##' @seealso \code{\link{estimLd}}, \code{\link{distSnpPairs}}, \code{\link{plotLd}}
+##' @export
+plotLdSry <- function(x, y, bin.len=10^3, max.dist=10^5,
+                      main="", xlab="Physical distance (bp)",
+                      ylab="Summarized LD"){
+  stopifnot(length(x) == length(y))
+
+  idx <- which(x <= max.dist)
+  if(length(idx) == 0){
+    msg <- paste0("no SNP pair with distance below threshold (", max.dist, ")")
+    write(msg, stdout())
+    return()
+  }
+  x <- x[idx]
+  y <- y[idx]
+
+  ## summarize LD
+  out <- data.frame(bin.start=seq(0, max.dist, by=bin.len),
+                    mid.bin=NA,
+                    ld.mean=NA,
+                    ld.q1=NA,
+                    ld.med=NA,
+                    ld.q3=NA)
+  out <- out[-nrow(out),]
+  for(i in 1:nrow(out)){
+    idx.bin <- which(x >= out$bin.start[i] &
+                     x < out$bin.start[i] + bin.len)
+    out$mid.bin[i] <- out$bin.start[i] + bin.len / 2
+    out$ld.mean[i] <- mean(y[idx.bin])
+    out$ld.q1[i] <- stats::quantile(y[idx.bin], probs=0.25)
+    out$ld.med[i] <- stats::median(y[idx.bin])
+    out$ld.q3[i] <- stats::quantile(y[idx.bin], probs=0.75)
+  }
+
+  ## plot summarized LD
+  graphics::plot(x=out$bin.start, y=out$ld.mean,
+                 ylim=c(0, 0.5),
+                 xlab=xlab, ylab=ylab, main=main,
+                 las=1, col="red")
+  graphics::points(out$bin.start, out$ld.med, col="black")
+  graphics::segments(x0=out$bin.start, y0=out$ld.q1,
+                     x1=out$bin.start, y1=out$ld.q3)
+  graphics::legend("topright", legend=c("mean", "median", "quartiles 1-3"), bty="n",
+                   col=c("red", "black", "black"), pch=c(1, 1, NA),
+                   lty=c(NA, NA, 1))
+
+  invisible(out)
+}
+
 ##' Distance between consecutive SNPs
 ##'
 ##' For each pair of consecutive SNPs, return the number of "blocks" (i.e. nucleotides) between both SNPs (to be coherent with \code{\link{distSnpPairs}}).
