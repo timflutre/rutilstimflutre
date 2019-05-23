@@ -5,27 +5,29 @@
 ##'
 ##' Perform QTL detection by simple interval mapping
 ##' @param cross object
-##' @param response.in.cross logical
-##' @param response matrix of phenotypes if not given in cross object
-##' @param numeric.chr.format logical
-##' @param geno.joinmap genotypes at markers in the JoinMap format
-##' @param phase phase
+##' @param numeric.chr.format logical to indicate if chromosome names are numeric
+##' @param response.in.cross logical to indicate if response studied is in \code{cross$pheno}, default is TRUE
+##' @param pheno.col character indicating column to study in \code{cross$pheno}
+##' @param response named numeric or vector for response if not in \code{cross$pheno}, default is NULL
+##' @param method method to detect QTL in \code{qtl::scanone}, default is "em"
+##' @param geno.joinmap genotypes at markers in the JoinMap format, if NULL (default), no estimation of allelic effects is given
+##' @param phase marker phases
 ##' @param threshold genomewide significance LOD threshold, if NULL (default), is found by permutations (with nperm parameter).
-##' @param pheno.col character indicating column to study in cross$pheno
 ##' @param nperm number of permutations to be done in \code{qtl::scanone}, default is 100
-##' @param alpha vector of length 1 or 2 (optional) with thresholds for (1) the significance of QTL presence (based on permutations) and (2) the significance of QTL effects
-##' @param QTL_position useful for simulated data
-##' @param method method to detect QTL in \code{qtl::scanone}
+##' @param alpha vector of length 1 or 2 (optional) with thresholds for (1) the significance of QTL presence (based on permutations) and (2) the significance of linear regression on QTL effect.
+##' @param QTL_position matrix with genetic.distance and linkage.group as columns indicating QTL positions for plotting
 ##' @param plot logical, default is FALSE.
 ##' @param verbose verbosity level (0/1/2)
-##' @return list
+##' @return list of 3 elements: qtl.df is a data frame with QTL informations (linkage.group, position, LOD, interval.inf and interval.sup) / 
+##' selected markers is a character vector for markers inside confidence interval /allelic effetcs is a data frame with a column predictor and a column effect with estimated allelic effects.
 ##' @author Charlotte Brault [aut], Timothee Flutre [ctb]
 ##' @seealso \code{\link{MIMQTL}}
 ##' @export
-SIMQTL <- function (cross, response.in.cross=TRUE, response=NULL, numeric.chr.format=TRUE,
-                    geno.joinmap=NULL, phase=NULL,
-                    threshold=NULL, pheno.col="y", nperm=100, alpha=c(0.05,0.2),
-                    QTL_position=NULL, method="em", plot=FALSE, verbose=0){
+SIMQTL <- function (cross, numeric.chr.format=TRUE, method="em", 
+                    response.in.cross=TRUE, pheno.col="y", response=NULL, 
+                    geno.joinmap=NULL, phase, 
+                    threshold=NULL,  nperm=100, alpha=c(0.05,0.2),
+                    plot=FALSE, QTL_position=NULL, verbose=0){
   requireNamespace(c("qtl", "caret"))
   
   ## Reformat chromosome names
@@ -58,7 +60,7 @@ SIMQTL <- function (cross, response.in.cross=TRUE, response=NULL, numeric.chr.fo
     geno_qtl <- geno_qtl[order(rownames(geno_qtl)),]
     converted_qtl <- converted_qtl[order(rownames(converted_qtl)),]
     
-    # Keep same genotypes 
+    ### Keep same genotypes 
     converted_qtl <- converted_qtl[, colnames(converted_qtl) %in% colnames(geno_qtl)]
     geno_qtl <- geno_qtl[, colnames(geno_qtl) %in% colnames(converted_qtl)]
     colnames(geno_qtl) <- NULL ; colnames(converted_qtl) <- NULL
@@ -71,8 +73,12 @@ SIMQTL <- function (cross, response.in.cross=TRUE, response=NULL, numeric.chr.fo
   if(length(alpha) == 1)
     alpha[2] <- alpha[1]
   
+  ## Apply calc.genoprob to get genotype probabilities
   cross <- qtl::calc.genoprob(cross, step=1, map.function="kosambi")
+  
+  ## If response studied is not in object cross, add to it
   if(! response.in.cross){
+    pheno.col <- ifelse(is.null(colnames(response)), pheno.col, colnames(response))
     cross$pheno[[pheno.col]] <- NA
     stopifnot(!is.null(rownames(response)))
     for(i in 1:nrow(cross$pheno)){
@@ -83,13 +89,14 @@ SIMQTL <- function (cross, response.in.cross=TRUE, response=NULL, numeric.chr.fo
     }
   }
   
-  ## Find LOD threshold to apply with permutations
+  ## If threshold is not given, apply permutations to find it with error rate alpha
   if(is.null(threshold)){
     qtl.em.perm <- qtl::scanone(cross, pheno.col=pheno.col, method=method,
                                 n.perm=nperm, verbose=verbose)
     threshold <- summary(qtl.em.perm, alpha=alpha[1])
   } 
   
+  ## Apply scanone to get LOD profile
   qtl.em <- qtl::scanone(cross, pheno.col=pheno.col, method=method, verbose=verbose)
   qtl.em$chr <- as.numeric(qtl.em$chr)
   LOD.max <- 0 ; pos <- 0
@@ -97,9 +104,10 @@ SIMQTL <- function (cross, response.in.cross=TRUE, response=NULL, numeric.chr.fo
   qtl.em$is.qtl[which(qtl.em$lod > as.numeric(threshold))] <- TRUE
   nb_interval <- 1
   
+  ## Find QTL intervals
   for(i in 2:nrow(qtl.em)){
     if(!qtl.em$is.qtl[i-1] & qtl.em$is.qtl[i] | # if beginning new qtl (F -> T)
-       qtl.em$is.qtl[i-1] & qtl.em$is.qtl[i] & qtl.em$chr[i-1] != qtl.em$chr[i]){  
+       qtl.em$is.qtl[i-1] & qtl.em$is.qtl[i] & qtl.em$chr[i-1] != qtl.em$chr[i]){ # T -> T new chr = new qtl
       qtl.em$nb_interval[i] <- nb_interval
       nb_interval <- nb_interval + 1
     }
