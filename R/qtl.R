@@ -195,14 +195,13 @@ SIMQTL <- function (cross, numeric.chr.format=TRUE,
       
       ## Estimate allele effects by multiple linear regression model
       fit.lm <- stats::lm(cross[["pheno"]][[pheno.col]]  ~ X)
-      coeff <- fit.lm$coefficients[-1]
-      names(coeff) <- substr(names(coeff), start=2, stop=nchar(names(coeff)))
+      coeff <- as.matrix(fit.lm$coefficients[-1])
+      rownames(coeff) <- substr(rownames(coeff), start=2, stop=nchar(rownames(coeff)))
       if(!is.na(alpha[2])){
         summary.fit <- summary(fit.lm)$coefficient
         rownames(summary.fit)[-1] <- substr(rownames(summary.fit)[-1], start=2, stop=nchar(rownames(summary.fit)[-1]))
         coeff <- as.matrix(summary.fit[,1][summary.fit[,4] < alpha[2]])
       } 
-      
       allelic.effects <- data.frame(predictor=colnames(joinMap2designMatrix(jm=jm, verbose=0))[-1], effect=0)
       for(i in 1:length(coeff)){
         allelic.effects[allelic.effects$predictor %in% rownames(coeff)[i], "effect"] <- coeff[i]
@@ -783,14 +782,13 @@ MIMQTL <- function(cross, numeric.chr.format=FALSE,
       
       ## Estimate allele effects by multiple linear regression model
       fit.lm <- stats::lm(cross[["pheno"]][[pheno.col]]  ~ X)
-      coeff <- fit.lm$coefficients[-1]
-      names(coeff) <- substr(names(coeff), start=2, stop=nchar(names(coeff)))
+      coeff <- as.matrix(fit.lm$coefficients[-1])
+      rownames(coeff) <- substr(rownames(coeff), start=2, stop=nchar(rownames(coeff)))
       if(!is.na(alpha[2])){
         summary.fit <- summary(fit.lm)$coefficient
         rownames(summary.fit)[-1] <- substr(rownames(summary.fit)[-1], start=2, stop=nchar(rownames(summary.fit)[-1]))
         coeff <- as.matrix(summary.fit[,1][summary.fit[,4] < alpha[2]])
       } 
-      
       allelic.effects <- data.frame(predictor=colnames(joinMap2designMatrix(jm=jm, verbose=0))[-1], effect=0)
       for(i in 1:length(coeff)){
         allelic.effects[allelic.effects$predictor %in% rownames(coeff)[i], "effect"] <- coeff[i]
