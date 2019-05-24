@@ -4,40 +4,44 @@
 \alias{SIMQTL}
 \title{QTL detection by SIM}
 \usage{
-SIMQTL(cross, response.in.cross = TRUE, response = NULL,
-  numeric.chr.format = TRUE, geno.joinmap = NULL, phase = NULL,
-  pheno.col = "y", nperm = 100, threshold.alpha = c(0.05, 0.2),
-  QTL_position = NULL, method = "em", plot = FALSE, verbose = 0)
+SIMQTL(cross, numeric.chr.format = TRUE, response.in.cross = TRUE,
+  pheno.col = "y", response = NULL, method = "em", geno.joinmap = NULL,
+  phase, threshold = NULL, nperm = 100, alpha = c(0.05, NA),
+  plot = FALSE, QTL_position = NULL, verbose = 0)
 }
 \arguments{
 \item{cross}{object}
 
-\item{response.in.cross}{logical}
+\item{numeric.chr.format}{logical to indicate if chromosome names are numeric}
 
-\item{response}{character}
+\item{response.in.cross}{logical to indicate if response studied is in \code{cross$pheno}, default is TRUE}
 
-\item{numeric.chr.format}{logical}
+\item{pheno.col}{character indicating column to study in \code{cross$pheno}}
 
-\item{geno.joinmap}{genotypes at markers in the JoinMap format}
+\item{response}{named numeric or vector for response if not in \code{cross$pheno}, default is NULL}
 
-\item{phase}{phase}
+\item{method}{method to detect QTL in \code{qtl::scanone}, default is "em"}
 
-\item{pheno.col}{character}
+\item{geno.joinmap}{genotypes at markers in the JoinMap format, if NULL (default), no estimation of allelic effects is given}
 
-\item{nperm}{number of permutations to be done in \code{qtl::scanone}}
+\item{phase}{marker phases}
 
-\item{threshold.alpha}{vector of length 1 or 2 (optional) with thresholds for (1) the significance of QTL presence (based on permutations) and (2) the significance of QTL effects}
+\item{threshold}{genomewide significance LOD threshold, if NULL (default), is found by permutations (with nperm parameter).}
 
-\item{QTL_position}{useful for simulated data}
+\item{nperm}{number of permutations to be done in \code{qtl::scanone}, default is 100}
 
-\item{method}{method to detect QTL in \code{qtl::scanone}}
+\item{alpha}{vector of length 1 or 2 (optional) with thresholds for (1) the significance of QTL presence (based on permutations) and 
+(2) the significance of linear regression on QTL effect, if NA, no threshold is applied and all allelic effects are kept.}
 
-\item{plot}{logical}
+\item{plot}{logical, default is FALSE.}
+
+\item{QTL_position}{matrix with genetic.distance and linkage.group as columns indicating QTL positions for plotting}
 
 \item{verbose}{verbosity level (0/1/2)}
 }
 \value{
-list
+list of 3 elements: qtl.df is a data frame with QTL informations (linkage.group, position, LOD, interval.inf and interval.sup) / 
+selected markers is a character vector for markers inside confidence interval /allelic effetcs is a data frame with a column predictor and a column effect with estimated allelic effects.
 }
 \description{
 Perform QTL detection by simple interval mapping

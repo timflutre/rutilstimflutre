@@ -4,57 +4,61 @@
 \alias{MIMQTL}
 \title{QTL detection by MIM}
 \usage{
-MIMQTL(cross, response.in.cross = TRUE, response = NULL,
-  numeric.chr.format = FALSE, geno.joinmap = NULL, phase = NULL,
-  pheno.col = "y", nperm = 100, threshold.alpha = 0.05,
-  QTL_position = NULL, method = "hk", plot = c(FALSE, FALSE),
+MIMQTL(cross, numeric.chr.format = FALSE, response.in.cross = TRUE,
+  pheno.col = "y", response = NULL, method = "hk", geno.joinmap = NULL,
+  phase = NULL, threshold = NULL, nperm = 100, alpha = c(0.05, NA),
+  plot = c(FALSE, FALSE), QTL_position = NULL,
   range_nb_qtl_max = seq(1:5), nrun = 10, additive.only = TRUE,
-  p2d = "", scan2file = "", type.CI = "LOD-1", nb.cores = 1,
-  verbose = 0)
+  p2d = "", scan2file = "", type.CI = "LOD-1",
+  nb.cores = parallel::detectCores() - 2, verbose = 0)
 }
 \arguments{
 \item{cross}{object}
 
-\item{response.in.cross}{logical}
+\item{numeric.chr.format}{logical to indicate if chromosome names are numeric}
 
-\item{response}{character}
+\item{response.in.cross}{logical to indicate if response studied is in \code{cross$pheno}, default is TRUE}
 
-\item{numeric.chr.format}{logical}
+\item{pheno.col}{character indicating column to study in \code{cross$pheno}}
 
-\item{geno.joinmap}{genotypes at markers in the JoinMap format}
+\item{response}{named numeric or vector for response if not in \code{cross$pheno}, default is NULL}
 
-\item{phase}{phase}
+\item{method}{method to detect QTL in \code{qtl::scanone}, default is "em"}
 
-\item{pheno.col}{character}
+\item{geno.joinmap}{genotypes at markers in the JoinMap format, if NULL (default), no estimation of allelic effects is given}
 
-\item{nperm}{number of permutations to be done in \code{qtl::scantwo}}
+\item{phase}{marker phases}
 
-\item{threshold.alpha}{vector of length 1 or 2 (optional) with thresholds for (1) the significance of QTL presence (based on permutations) and (2) the significance of QTL effects}
+\item{threshold}{genomewide significance LOD threshold, if NULL (default), is found by permutations (with nperm parameter).}
 
-\item{QTL_position}{useful for simulated data}
+\item{nperm}{number of permutations to be done in \code{qtl::scantwo}, default is 100}
 
-\item{method}{method to detect QTL in \code{qtl::scantwo}}
+\item{alpha}{vector of length 1 or 2 (optional) with thresholds for (1) the significance of QTL presence (based on permutations) and 
+(2) the significance of linear regression on QTL effect, if NA, no threshold is applied and all allelic effects are kept.}
 
-\item{plot}{logical}
+\item{plot}{logical, default is FALSE.}
 
-\item{range_nb_qtl_max}{vector}
+\item{QTL_position}{matrix with genetic.distance and linkage.group as columns indicating QTL positions for plotting}
 
-\item{nrun}{integer}
+\item{range_nb_qtl_max}{vector, default is seq(1:5)}
 
-\item{additive.only}{logical}
+\item{nrun}{integer, number of times to rerun \code{qtl::stepwiseqtl}}
 
-\item{p2d}{character}
+\item{additive.only}{logical, default is TRUE: no interaction between QTLs are added to the model}
 
-\item{scan2file}{optional path to file}
+\item{p2d}{character, path to directory to save results}
 
-\item{type.CI}{type of confidence interval}
+\item{scan2file}{optional path to scan2file (is added to p2d)}
+
+\item{type.CI}{type of confidence interval, default is "LOD-1"}
 
 \item{nb.cores}{number of cores}
 
 \item{verbose}{verbosity level (0/1/2)}
 }
 \value{
-list
+list of 3 elements: qtl.df is a data frame with QTL informations (linkage.group, position, LOD, interval.inf and interval.sup) / 
+selected markers is a character vector for markers inside confidence interval /allelic effetcs is a data frame with a column predictor and a column effect with estimated allelic effects.
 }
 \description{
 Perform QTL detection by multiple interval mapping
