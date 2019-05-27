@@ -272,19 +272,20 @@ caretGridBglr <- function(x, y, len=NULL, search="grid"){
 ##' Second, a \code{cross} object is made.
 ##' Third, SIMQTL or MIMQTL is run (calc.genoprob, scanone or scantwo).
 ##' Fourth, allelic effects are estimated.
-##' @param x current predictors used to fit the model
-##' @param y current outcome used to fit the model
+##' @param x current predictors used to fit the model, i.e genotypes in Joinmap format, genotypes are in rows and markers in columns with names
+##' @param y vector of outcome used to fit the model
 ##' @param wts optional instance weights
 ##' @param param current tuning parameter values
 ##' @param lev class levels of the outcome (or NULL in regression)
 ##' @param last logical for whether the current fit is the final fit
 ##' @param weights ?
 ##' @param classProbs logical for whether class probabilities should be computed
-##' @param genmap genetic map
-##' @param pop.type population type in the JoinMap format
-##' @param nperm number of permutations
-##' @param threshold.alpha vector
-##' @param plot logical
+##' @param genmap data frame of genetic map with linkage.group, genetic.distance and locus as column names
+##' @param pop.type population type in the JoinMap format, only "CP" is handled here
+##' @param tuneThreshold logical if caret is used to make LOD significance vary and optimize it according to a metric like RMSE.In that case, there is no permutation.
+##' @param nperm number of permutations, default is 100
+##' @param alpha vector with error rate for LOD threshold and for significance of allelic effects (optionnal)
+##' @param plot logical, default is FALSE
 ##' @param phase vector of character (length nb of markers) in the format '{--}'
 ##' @param QTLmethod character (SIM/MIM)
 ##' @param QTL_position data frame with columns linkage.group, genetic.distance and locus to plot abline at simulated QTL position
@@ -297,8 +298,9 @@ caretGridBglr <- function(x, y, len=NULL, search="grid"){
 ##' @author Timothee Flutre
 ##' @export
 caretFitQtl <- function(x, y, wts, param, lev, last, weights, classProbs, genmap,
-                        pop.type = "CP", nperm = 10, threshold.alpha = 0.05, plot = FALSE,
-                        phase, QTLmethod = "SIM", p2d = "", nb.cores = 1, QTL_position = NULL,
+                        pop.type = "CP",tuneThreshold=TRUE, nperm = 100, alpha = c(0.05, NA), 
+                        plot = FALSE, phase, QTLmethod = "SIM", p2d = "", 
+                        nb.cores = parallel::detectCores()-2, QTL_position = NULL,
                         cross.geno.prob=NULL, verbose = 0){
 
   requireNamespace("qtl")
