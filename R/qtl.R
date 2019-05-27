@@ -12,7 +12,7 @@
 ##' @param method method to detect QTL in \code{qtl::scanone}, default is "em"
 ##' @param geno.joinmap genotypes at markers in the JoinMap format, if NULL (default), no estimation of allelic effects is given
 ##' @param phase marker phases
-##' @param threshold genomewide significance LOD threshold, if NULL (default), is found by permutations (with nperm parameter).
+##' @param threshold genomewide significance LOD threshold, if NA (default), is found by permutations (with nperm parameter).
 ##' @param nperm number of permutations to be done in \code{qtl::scanone}, default is 100
 ##' @param alpha vector of length 1 or 2 (optional) with thresholds for (1) the significance of QTL presence (based on permutations) and 
 ##' (2) the significance of linear regression on QTL effect, if NA, no threshold is applied and all allelic effects are kept.
@@ -27,7 +27,7 @@
 SIMQTL <- function (cross, numeric.chr.format=TRUE, 
                     response.in.cross=TRUE, pheno.col="y", response=NULL, 
                     method="em", geno.joinmap=NULL, phase, 
-                    threshold=NULL,  nperm=100, alpha=c(0.05,NA),
+                    threshold=NA,  nperm=100, alpha=c(0.05,NA),
                     plot=FALSE, QTL_position=NULL, verbose=0){
   requireNamespace(c("qtl", "caret"))
   
@@ -91,7 +91,7 @@ SIMQTL <- function (cross, numeric.chr.format=TRUE,
   }
   
   ## If threshold is not given, apply permutations to find it with error rate alpha
-  if(is.null(threshold)){
+  if(is.na(threshold)){
     qtl.em.perm <- qtl::scanone(cross, pheno.col=pheno.col, method=method,
                                 n.perm=nperm, verbose=verbose)
     threshold <- summary(qtl.em.perm, alpha=alpha[1])
@@ -275,7 +275,7 @@ make.formula <- function(cross, big_list, range_qtl, nb_run, pLOD=FALSE){
 ##' @param method method to detect QTL in \code{qtl::scanone}, default is "em"
 ##' @param geno.joinmap genotypes at markers in the JoinMap format, if NULL (default), no estimation of allelic effects is given
 ##' @param phase marker phases
-##' @param threshold genomewide significance LOD threshold, if NULL (default), is found by permutations (with nperm parameter).
+##' @param threshold genomewide significance LOD threshold, if NA (default), is found by permutations (with nperm parameter).
 ##' @param nperm number of permutations to be done in \code{qtl::scantwo}, default is 100
 ##' @param alpha vector of length 1 or 2 (optional) with thresholds for (1) the significance of QTL presence (based on permutations) and 
 ##' (2) the significance of linear regression on QTL effect, if NA, no threshold is applied and all allelic effects are kept.
@@ -298,7 +298,7 @@ MIMQTL <- function(cross, numeric.chr.format=FALSE,
                    response.in.cross=TRUE, pheno.col="y",
                    response=NULL,method="hk",
                    geno.joinmap=NULL, phase=NULL, 
-                   threshold=NULL, nperm=100, alpha =c(0.05,NA), 
+                   threshold=NA, nperm=100, alpha =c(0.05,NA), 
                    plot=c(FALSE, FALSE), QTL_position=NULL,
                    range_nb_qtl_max=seq(1:5),
                    nrun=10, additive.only=TRUE, p2d="",
@@ -365,7 +365,7 @@ MIMQTL <- function(cross, numeric.chr.format=FALSE,
   cross <- qtl::calc.genoprob(cross, step=1, map.function="kosambi")
   
   ## Run scantwo
-  if(is.null(threshold)){
+  if(is.na(threshold)){
   if(file.exists(paste0(p2d, "/", scan2file)) & scan2file != ""){
     load(paste0(p2d, "/", scan2file))
   } else {
