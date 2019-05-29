@@ -12,7 +12,7 @@
 ##' @param method method to detect QTL in \code{qtl::scanone}, default is "em"
 ##' @param geno.joinmap genotypes at markers in the JoinMap format, if NULL (default), no estimation of allelic effects is given
 ##' @param phase marker phases
-##' @param threshold genomewide significance LOD threshold, if NULL (default), is found by permutations (with nperm parameter).
+##' @param threshold genomewide significance LOD threshold, if NA (default), is found by permutations (with nperm parameter).
 ##' @param nperm number of permutations to be done in \code{qtl::scanone}, default is 100
 ##' @param alpha vector of length 1 or 2 (optional) with thresholds for (1) the significance of QTL presence (based on permutations) and 
 ##' (2) the significance of linear regression on QTL effect, if NA, no threshold is applied and all allelic effects are kept.
@@ -27,9 +27,9 @@
 SIMQTL <- function (cross, numeric.chr.format=TRUE, 
                     response.in.cross=TRUE, pheno.col="y", response=NULL, 
                     method="em", geno.joinmap=NULL, phase, 
-                    threshold=NULL,  nperm=100, alpha=c(0.05,NA),
+                    threshold=NA,  nperm=100, alpha=c(0.05,NA),
                     plot=FALSE, QTL_position=NULL, verbose=0){
-  requireNamespace(c("qtl", "caret"))
+   requireNamespace(c("qtl", "caret"))
   
   ## Reformat chromosome names
   if(! numeric.chr.format){
@@ -91,7 +91,7 @@ SIMQTL <- function (cross, numeric.chr.format=TRUE,
   }
   
   ## If threshold is not given, apply permutations to find it with error rate alpha
-  if(is.null(threshold)){
+  if(is.na(threshold)){
     qtl.em.perm <- qtl::scanone(cross, pheno.col=pheno.col, method=method,
                                 n.perm=nperm, verbose=verbose)
     threshold <- summary(qtl.em.perm, alpha=alpha[1])
@@ -106,23 +106,20 @@ SIMQTL <- function (cross, numeric.chr.format=TRUE,
   nb_interval <- 1
   
   ## Find QTL intervals
+  if(qtl.em$is.qtl[1]){ # if first row is a QTL
+    qtl.em$nb_interval[1] <- 1
+    nb_interval <- nb_interval + 1
+  }
   for(i in 2:nrow(qtl.em)){
     if(!qtl.em$is.qtl[i-1] & qtl.em$is.qtl[i] | # if beginning new qtl (F -> T)
        qtl.em$is.qtl[i-1] & qtl.em$is.qtl[i] & qtl.em$chr[i-1] != qtl.em$chr[i]){ # T -> T new chr = new qtl
       qtl.em$nb_interval[i] <- nb_interval
       nb_interval <- nb_interval + 1
-    }
-    if(qtl.em$is.qtl[i-1] & qtl.em$is.qtl[i] & qtl.em$chr[i-1] == qtl.em$chr[i]){ # same qtl (T -> T)
+    }else if (qtl.em$is.qtl[i-1] & qtl.em$is.qtl[i] & qtl.em$chr[i-1] == qtl.em$chr[i]){ # same qtl (T -> T)
       qtl.em$nb_interval[i] <- qtl.em$nb_interval[i-1]
-      if(i==2){ # QTL at the beginning
-        qtl.em$nb_interval[c(i-1,i)] <- 1
-        nb_interval <- nb_interval +1
-      }
-    }
+    } 
   }
-  ifelse(!all(is.na(qtl.em$nb_interval)),
-         nb_interval <- max(qtl.em$nb_interval, na.rm=TRUE),
-         nb_interval <- 0)
+  nb_interval <- ifelse(!all(is.na(qtl.em$nb_interval)), max(qtl.em$nb_interval, na.rm=TRUE), 0)
   stopifnot(nrow(qtl.em[qtl.em$is.qtl,]) == nrow(qtl.em[! is.na(qtl.em$nb_interval),]))
   if(nb_interval != 0){
     qtl.df <- data.frame(linkage.group=rep(0, nb_interval),
@@ -195,14 +192,13 @@ SIMQTL <- function (cross, numeric.chr.format=TRUE,
       
       ## Estimate allele effects by multiple linear regression model
       fit.lm <- stats::lm(cross[["pheno"]][[pheno.col]]  ~ X)
-      coeff <- fit.lm$coefficients[-1]
-      names(coeff) <- substr(names(coeff), start=2, stop=nchar(names(coeff)))
+      coeff <- as.matrix(fit.lm$coefficients[-1])
+      rownames(coeff) <- substr(rownames(coeff), start=2, stop=nchar(rownames(coeff)))
       if(!is.na(alpha[2])){
         summary.fit <- summary(fit.lm)$coefficient
         rownames(summary.fit)[-1] <- substr(rownames(summary.fit)[-1], start=2, stop=nchar(rownames(summary.fit)[-1]))
         coeff <- as.matrix(summary.fit[,1][summary.fit[,4] < alpha[2]])
       } 
-      
       allelic.effects <- data.frame(predictor=colnames(joinMap2designMatrix(jm=jm, verbose=0))[-1], effect=0)
       for(i in 1:length(coeff)){
         allelic.effects[allelic.effects$predictor %in% rownames(coeff)[i], "effect"] <- coeff[i]
@@ -226,6 +222,7 @@ SIMQTL <- function (cross, numeric.chr.format=TRUE,
               allelic.effects=allelic.effects)
   return(out)
 }
+
 
 ##' make.formula
 ##'
@@ -275,7 +272,7 @@ make.formula <- function(cross, big_list, range_qtl, nb_run, pLOD=FALSE){
 ##' @param method method to detect QTL in \code{qtl::scanone}, default is "em"
 ##' @param geno.joinmap genotypes at markers in the JoinMap format, if NULL (default), no estimation of allelic effects is given
 ##' @param phase marker phases
-##' @param threshold genomewide significance LOD threshold, if NULL (default), is found by permutations (with nperm parameter).
+##' @param threshold genomewide significance LOD threshold, if NA (default), is found by permutations (with nperm parameter).
 ##' @param nperm number of permutations to be done in \code{qtl::scantwo}, default is 100
 ##' @param alpha vector of length 1 or 2 (optional) with thresholds for (1) the significance of QTL presence (based on permutations) and 
 ##' (2) the significance of linear regression on QTL effect, if NA, no threshold is applied and all allelic effects are kept.
@@ -298,14 +295,14 @@ MIMQTL <- function(cross, numeric.chr.format=FALSE,
                    response.in.cross=TRUE, pheno.col="y",
                    response=NULL,method="hk",
                    geno.joinmap=NULL, phase=NULL, 
-                   threshold=NULL, nperm=100, alpha =c(0.05,NA), 
+                   threshold=NA, nperm=100, alpha =c(0.05,NA), 
                    plot=c(FALSE, FALSE), QTL_position=NULL,
                    range_nb_qtl_max=seq(1:5),
                    nrun=10, additive.only=TRUE, p2d="",
                    scan2file="", type.CI="LOD-1",
                    nb.cores=parallel::detectCores()-2,
                    verbose=0){
-  requireNamespace(c("qtl", "caret"))
+    requireNamespace(c("qtl", "caret"))
   
   ## Reformat chromosome names
   if(! numeric.chr.format){
@@ -365,7 +362,7 @@ MIMQTL <- function(cross, numeric.chr.format=FALSE,
   cross <- qtl::calc.genoprob(cross, step=1, map.function="kosambi")
   
   ## Run scantwo
-  if(is.null(threshold)){
+  if(is.na(threshold)){
   if(file.exists(paste0(p2d, "/", scan2file)) & scan2file != ""){
     load(paste0(p2d, "/", scan2file))
   } else {
@@ -783,14 +780,13 @@ MIMQTL <- function(cross, numeric.chr.format=FALSE,
       
       ## Estimate allele effects by multiple linear regression model
       fit.lm <- stats::lm(cross[["pheno"]][[pheno.col]]  ~ X)
-      coeff <- fit.lm$coefficients[-1]
-      names(coeff) <- substr(names(coeff), start=2, stop=nchar(names(coeff)))
+      coeff <- as.matrix(fit.lm$coefficients[-1])
+      rownames(coeff) <- substr(rownames(coeff), start=2, stop=nchar(rownames(coeff)))
       if(!is.na(alpha[2])){
         summary.fit <- summary(fit.lm)$coefficient
         rownames(summary.fit)[-1] <- substr(rownames(summary.fit)[-1], start=2, stop=nchar(rownames(summary.fit)[-1]))
         coeff <- as.matrix(summary.fit[,1][summary.fit[,4] < alpha[2]])
       } 
-      
       allelic.effects <- data.frame(predictor=colnames(joinMap2designMatrix(jm=jm, verbose=0))[-1], effect=0)
       for(i in 1:length(coeff)){
         allelic.effects[allelic.effects$predictor %in% rownames(coeff)[i], "effect"] <- coeff[i]
