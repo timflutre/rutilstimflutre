@@ -5,18 +5,19 @@
 \title{Fit with qtl for caret}
 \usage{
 caretFitQtl(x, y, wts, param, lev, last, weights, classProbs, genmap,
-  pop.type = "CP", nperm = 10, threshold.alpha = 0.05, plot = FALSE,
-  phase, QTLmethod = "SIM", p2d = "", nb.cores = 1, QTL_position = NULL,
-  cross.geno.prob = NULL, verbose = 0)
+  cross.geno.prob = NULL, phase, tuneThreshold = TRUE, alpha = c(0.05,
+  NA), nperm = 10, pop.type = "CP", QTLmethod = "SIM", p2d = "",
+  plot = FALSE, QTL_position = NULL, nb.cores = parallel::detectCores() -
+  2, verbose = 0)
 }
 \arguments{
-\item{x}{current predictors used to fit the model}
+\item{x}{current predictors used to fit the model, i.e genotypic matrix in Joinmap format with genotypes in rows and markers in columns}
 
-\item{y}{current outcome used to fit the model}
+\item{y}{current outcome used to fit the model, i.e trait to study in numeric format with genotype names}
 
 \item{wts}{optional instance weights}
 
-\item{param}{current tuning parameter values}
+\item{param}{data frame with current tuning parameter values}
 
 \item{lev}{class levels of the outcome (or NULL in regression)}
 
@@ -26,28 +27,32 @@ caretFitQtl(x, y, wts, param, lev, last, weights, classProbs, genmap,
 
 \item{classProbs}{logical for whether class probabilities should be computed}
 
-\item{genmap}{genetic map}
+\item{genmap}{genetic map in data frame with columns linkage.group, genetic.distance and locus}
 
-\item{pop.type}{population type in the JoinMap format}
-
-\item{nperm}{number of permutations}
-
-\item{threshold.alpha}{vector}
-
-\item{plot}{logical}
+\item{cross.geno.prob}{list containing genotypic class probabilities calculated from calc.genoprob.
+If not passed (NULL), prediction is done with allelic effects at the closest marker.}
 
 \item{phase}{vector of character (length nb of markers) in the format '{--}'}
+
+\item{tuneThreshold}{logical, if TRUE (default), the threshold is chosen for minimizing prediction error with a criterion,
+else threshold is chosen by permutations for minimizing False Positive error in QTL detection.}
+
+\item{alpha}{numeric vector with first element corresponding to alpha rate error for chosing LOD significance threshold after permutations,
+and the 2nd element is a threshold applied after linear regression with selected markers, if NA, no selection is applied.}
+
+\item{nperm}{number of permutations to be done is tuneThreshold=FALSE}
+
+\item{pop.type}{population type in the JoinMap format, only "CP" is handled here}
 
 \item{QTLmethod}{character (SIM/MIM)}
 
 \item{p2d}{path to directory with results of \code{scantwo} (passed to MIMQTL)}
 
-\item{nb.cores}{number of cores (passed to MIMQTL)}
+\item{plot}{logical, default is FALSE. If method is MIM, 2 arguments are needed.}
 
 \item{QTL_position}{data frame with columns linkage.group, genetic.distance and locus to plot abline at simulated QTL position}
 
-\item{cross.geno.prob}{list containing genotypic class probabilities calculated from calc.genoprob.
-If not passed (NULL), prediction is done with allelic effects at the closest marker.}
+\item{nb.cores}{number of cores (passed to MIMQTL)}
 
 \item{verbose}{verbosity level (0/1/2)}
 }

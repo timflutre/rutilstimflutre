@@ -6,7 +6,7 @@
 \usage{
 MIMQTL(cross, numeric.chr.format = FALSE, response.in.cross = TRUE,
   pheno.col = "y", response = NULL, method = "hk", geno.joinmap = NULL,
-  phase = NULL, threshold = NULL, nperm = 100, alpha = c(0.05, NA),
+  phase = NULL, threshold = NA, nperm = 100, alpha = c(0.05, NA),
   plot = c(FALSE, FALSE), QTL_position = NULL,
   range_nb_qtl_max = seq(1:5), nrun = 10, additive.only = TRUE,
   p2d = "", scan2file = "", type.CI = "LOD-1",
@@ -29,7 +29,7 @@ MIMQTL(cross, numeric.chr.format = FALSE, response.in.cross = TRUE,
 
 \item{phase}{marker phases}
 
-\item{threshold}{genomewide significance LOD threshold, if NULL (default), is found by permutations (with nperm parameter).}
+\item{threshold}{genomewide significance LOD threshold, if NA (default), is found by permutations (with nperm parameter).}
 
 \item{nperm}{number of permutations to be done in \code{qtl::scantwo}, default is 100}
 
