@@ -8,7 +8,7 @@ joinMap2designMatrix(jm, use.phase = FALSE, parameterization = "allele",
   constraints = NULL, rm.col.zeros = TRUE, rm.dom = FALSE, verbose = 1)
 }
 \arguments{
-\item{jm}{data frame in the JoinMap format, for instance from \code{\link{genoClasses2JoinMap}}; the first four columns should be "locus", "seg", "phase" and "clas" (only the first two are used for the moment); no missing data is allowed}
+\item{jm}{data frame in the JoinMap format, for instance from \code{\link{genoClasses2JoinMap}}; the first three columns should be "locus", "seg" and "phase"; any "clas" column will be discarded; if \code{use.phase=FALSE}, "phase" will also be discarded; no missing data is allowed}
 
 \item{use.phase}{if TRUE, phase information will be used}
 
@@ -32,6 +32,25 @@ Genotypes are assumed to come from a bi-parental family with heterozygous parent
 Additive and dominance effects are handled, but epistasis is ignored.
 * When phase information is used, each marker is coded with four columns, one per parental haplotype.
 Only additive effects are handled.
+}
+\examples{
+\dontrun{nb.snps <- 6
+x <- data.frame(par1=c("AA", "GC", "CG", "AT", NA, "AA"),
+                par2=c("AT", "GC", "GG", "AT", "AT", "AT"),
+                off1=c("AA", "GG", "CG", "AA", "AA", "AT"),
+                off2=c("AT", "GG", "CG", "AT", "AT", "AA"),
+                off3=c("AT", "GG", "GG", "TT", "TT", NA),
+                off4=c(NA, NA, NA, NA, NA, NA),
+                row.names=paste0("snp", 1:nb.snps),
+                stringsAsFactors=FALSE)
+jm <- genoClasses2JoinMap(x=x, reformat.input=TRUE, thresh.na=2, verbose=1)
+jm <- jm[! is.na(jm$seg),
+         c("seg", grep("^off", colnames(jm), value=TRUE))]
+jm <- cbind(locus=rownames(jm), jm)
+any.na <- apply(jm, 2, function(x) any(is.na(x)))
+jm <- jm[, - which(any.na)]
+joinMap2designMatrix(jm)
+}
 }
 \seealso{
 \code{\link{genoClasses2JoinMap}}, \code{\link{writeSegregJoinMap}}, \code{\link{updateJoinMap}}

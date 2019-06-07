@@ -2244,7 +2244,7 @@ setJoinMapPhasesFromParentalLinkGroups <- function(x, lg.par1, lg.par2){
 ##' Additive and dominance effects are handled, but epistasis is ignored.
 ##' * When phase information is used, each marker is coded with four columns, one per parental haplotype.
 ##' Only additive effects are handled.
-##' @param jm data frame in the JoinMap format, for instance from \code{\link{genoClasses2JoinMap}}; the first four columns should be "locus", "seg", "phase" and "clas" (only the first two are used for the moment); no missing data is allowed
+##' @param jm data frame in the JoinMap format, for instance from \code{\link{genoClasses2JoinMap}}; the first three columns should be "locus", "seg" and "phase"; any "clas" column will be discarded; if \code{use.phase=FALSE}, "phase" will also be discarded; no missing data is allowed
 ##' @param use.phase if TRUE, phase information will be used
 ##' @param parameterization parameterization (allele/F_infinity/allele-count); ignored if \code{use.phase=TRUE}
 ##' @param constraints constraints (NULL/mu-zero/last-zero); ignored if \code{use.phase=TRUE}
@@ -2254,6 +2254,24 @@ setJoinMapPhasesFromParentalLinkGroups <- function(x, lg.par1, lg.par2){
 ##' @return matrix, with genotypes in rows and markers in columns
 ##' @author Timothee Flutre
 ##' @seealso \code{\link{genoClasses2JoinMap}}, \code{\link{writeSegregJoinMap}}, \code{\link{updateJoinMap}}
+##' @examples
+##' \dontrun{nb.snps <- 6
+##' x <- data.frame(par1=c("AA", "GC", "CG", "AT", NA, "AA"),
+##'                 par2=c("AT", "GC", "GG", "AT", "AT", "AT"),
+##'                 off1=c("AA", "GG", "CG", "AA", "AA", "AT"),
+##'                 off2=c("AT", "GG", "CG", "AT", "AT", "AA"),
+##'                 off3=c("AT", "GG", "GG", "TT", "TT", NA),
+##'                 off4=c(NA, NA, NA, NA, NA, NA),
+##'                 row.names=paste0("snp", 1:nb.snps),
+##'                 stringsAsFactors=FALSE)
+##' jm <- genoClasses2JoinMap(x=x, reformat.input=TRUE, thresh.na=2, verbose=1)
+##' jm <- jm[! is.na(jm$seg),
+##'          c("seg", grep("^off", colnames(jm), value=TRUE))]
+##' jm <- cbind(locus=rownames(jm), jm)
+##' any.na <- apply(jm, 2, function(x) any(is.na(x)))
+##' jm <- jm[, - which(any.na)]
+##' joinMap2designMatrix(jm)
+##' }
 ##' @export
 joinMap2designMatrix <- function(jm, use.phase=FALSE,
                                  parameterization="allele",
@@ -2261,12 +2279,21 @@ joinMap2designMatrix <- function(jm, use.phase=FALSE,
                                  rm.dom=FALSE,
                                  verbose=1){
   stopifnot(is.data.frame(jm),
-            all(colnames(jm)[1:4] == c("locus", "seg", "phase", "clas")),
+            all(colnames(jm)[1:2] == c("locus", "seg")),
             all(jm$seg %in% c("<abxcd>", "<efxeg>", "<hkxhk>", "<lmxll>",
                               "<nnxnp>")),
-            is.logical(use.phase),
-            parameterization %in% c("allele", "F_infinity", "allele-count"),
-            all(! is.na(jm[, -c(1:4)])),
+            is.logical(use.phase))
+  if("clas" %in% colnames(jm))
+    jm[["clas"]] <- NULL
+  if(use.phase){
+    stopifnot(colnames(jm)[3] == "phase",
+              all(! is.na(jm[, -c(1:3)])))
+  } else{
+    if("phase" %in% colnames(jm))
+      jm[["phase"]] <- NULL
+    stopifnot(all(! is.na(jm[, -c(1:2)])))
+  }
+  stopifnot(parameterization %in% c("allele", "F_infinity", "allele-count"),
             is.logical(rm.col.zeros),
             is.logical(rm.dom))
   if(! is.null(constraints))
@@ -2275,7 +2302,10 @@ joinMap2designMatrix <- function(jm, use.phase=FALSE,
   out <- NULL
 
   nb.locus <- nrow(jm)
-  nb.inds <- ncol(jm) - 4
+  if(use.phase){
+    nb.inds <- ncol(jm) - 3
+  } else
+    nb.inds <- ncol(jm) - 2
   if(verbose > 0){
     msg <- paste0("nb of locus: ", nb.locus,
                   "\nnb of inds: ", nb.inds)
@@ -2297,7 +2327,7 @@ joinMap2designMatrix <- function(jm, use.phase=FALSE,
 
       locus <- jm$locus[l]
       X[[l]] <- matrix(data=0, nrow=nb.inds, ncol=4)
-      rownames(X[[l]]) <- colnames(jm)[-(1:4)]
+      rownames(X[[l]]) <- colnames(jm)[-(1:3)]
       colnames(X[[l]]) <- paste0(locus,
                                  rep(paste0(rep(paste0(".par", 1:2), each=2),
                                             rep(paste0(".haplo", 1:2), 2))))
@@ -2324,7 +2354,7 @@ joinMap2designMatrix <- function(jm, use.phase=FALSE,
         locus <- jm$locus[l]
         m <- nb.alleles[l]
         X[[l]] <- matrix(data=0, nrow=nb.inds, ncol=m + m*(m+1)/2)
-        rownames(X[[l]]) <- colnames(jm)[-(1:4)]
+        rownames(X[[l]]) <- colnames(jm)[-(1:2)]
         tmp <- c()
         for(j in 1:m)
           tmp <- c(tmp, paste0(locus, ".", alleles[[l]][j]))
@@ -2337,67 +2367,67 @@ joinMap2designMatrix <- function(jm, use.phase=FALSE,
         ## fill the design matrix
         ## caution, not all cases are present in a bi-parental family!
         if(jm$seg[l] == "<abxcd>"){ # a b c d aa ab ac ad bb bc bd cc cd dd
-          idx <- which(jm[l,-(1:4)] == "ac")
+          idx <- which(jm[l,-(1:2)] == "ac")
           if(length(idx) > 0)
             X[[l]][idx, c(1,3,7)] <- matrix(c(1,1,1), nrow=length(idx),
                                             ncol=3, byrow=TRUE)
-          idx <- which(jm[l,-(1:4)] == "ad")
+          idx <- which(jm[l,-(1:2)] == "ad")
           if(length(idx) > 0)
             X[[l]][idx, c(1,4,8)] <- matrix(c(1,1,1), nrow=length(idx),
                                             ncol=3, byrow=TRUE)
-          idx <- which(jm[l,-(1:4)] == "bc")
+          idx <- which(jm[l,-(1:2)] == "bc")
           if(length(idx) > 0)
             X[[l]][idx, c(2,3,10)] <- matrix(c(1,1,1), nrow=length(idx),
                                              ncol=3, byrow=TRUE)
-          idx <- which(jm[l,-(1:4)] == "bd")
+          idx <- which(jm[l,-(1:2)] == "bd")
           if(length(idx) > 0)
             X[[l]][idx, c(2,4,11)] <- matrix(c(1,1,1), nrow=length(idx),
                                              ncol=3, byrow=TRUE)
         } else if(jm$seg[l] == "<efxeg>"){ # e f g ee ef eg ff fg gg
-          idx <- which(jm[l,-(1:4)] == "ee")
+          idx <- which(jm[l,-(1:2)] == "ee")
           if(length(idx) > 0)
             X[[l]][idx, c(1,4)] <- matrix(c(2,1), nrow=length(idx), ncol=2,
                                           byrow=TRUE)
-          idx <- which(jm[l,-(1:4)] == "eg")
+          idx <- which(jm[l,-(1:2)] == "eg")
           if(length(idx) > 0)
             X[[l]][idx, c(1,3,6)] <- matrix(c(1,1,1), nrow=length(idx), ncol=3,
                                             byrow=TRUE)
-          idx <- which(jm[l,-(1:4)] == "ef")
+          idx <- which(jm[l,-(1:2)] == "ef")
           if(length(idx) > 0)
             X[[l]][idx, c(1,2,5)] <- matrix(c(1,1,1), nrow=length(idx), ncol=3,
                                             byrow=TRUE)
-          idx <- which(jm[l,-(1:4)] == "fg")
+          idx <- which(jm[l,-(1:2)] == "fg")
           if(length(idx) > 0)
             X[[l]][idx, c(2,3,8)] <- matrix(c(1,1,1), nrow=length(idx), ncol=3,
                                             byrow=TRUE)
         } else if(jm$seg[l] == "<hkxhk>"){ # h k hh hk kk
-          idx <- which(jm[l,-(1:4)] == "hh")
+          idx <- which(jm[l,-(1:2)] == "hh")
           if(length(idx) > 0)
             X[[l]][idx, c(1,3)] <- matrix(c(2,1), nrow=length(idx), ncol=2,
                                           byrow=TRUE)
-          idx <- which(jm[l,-(1:4)] == "hk")
+          idx <- which(jm[l,-(1:2)] == "hk")
           if(length(idx) > 0)
             X[[l]][idx, c(1,2,4)] <- matrix(c(1,1,1), nrow=length(idx), ncol=3,
                                             byrow=TRUE)
-          idx <- which(jm[l,-(1:4)] == "kk")
+          idx <- which(jm[l,-(1:2)] == "kk")
           if(length(idx) > 0)
             X[[l]][idx, c(2,5)] <- matrix(c(2,1), nrow=length(idx), ncol=2,
                                           byrow=TRUE)
         } else if(jm$seg[l] == "<lmxll>"){ # l m ll lm mm
-          idx <- which(jm[l,-(1:4)] == "ll")
+          idx <- which(jm[l,-(1:2)] == "ll")
           if(length(idx) > 0)
             X[[l]][idx, c(1,3)] <- matrix(c(2,1), nrow=length(idx), ncol=2,
                                           byrow=TRUE)
-          idx <- which(jm[l,-(1:4)] == "lm")
+          idx <- which(jm[l,-(1:2)] == "lm")
           if(length(idx) > 0)
             X[[l]][idx, c(1,2,4)] <- matrix(c(1,1,1), nrow=length(idx), ncol=3,
                                             byrow=TRUE)
         } else if(jm$seg[l] == "<nnxnp>"){ # n p nn np pp
-          idx <- which(jm[l,-(1:4)] == "nn")
+          idx <- which(jm[l,-(1:2)] == "nn")
           if(length(idx) > 0)
             X[[l]][idx, c(1,3)] <- matrix(c(2,1), nrow=length(idx), ncol=2,
                                           byrow=TRUE)
-          idx <- which(jm[l,-(1:4)] == "np")
+          idx <- which(jm[l,-(1:2)] == "np")
           if(length(idx) > 0)
             X[[l]][idx, c(1,2,4)] <- matrix(c(1,1,1), nrow=length(idx), ncol=3,
                                             byrow=TRUE)
