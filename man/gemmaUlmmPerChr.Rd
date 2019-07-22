@@ -5,8 +5,9 @@
 \title{GEMMA uLMM per chromosome}
 \usage{
 gemmaUlmmPerChr(y, X, snp.coords, recode.genos = TRUE, alleles = NULL,
-  maf = 0.01, chr.ids = NULL, W, weights = NULL, out.dir = getwd(),
-  task.id = "gemma", clean = "none", verbose = 1)
+  maf = 0.01, chr.ids = NULL, W, weights = NULL,
+  exe = Sys.which("gemma"), out.dir = getwd(), task.id = "gemma",
+  clean = "none", verbose = 1)
 }
 \arguments{
 \item{y}{vector of phenotypes with genotype names}
@@ -26,6 +27,8 @@ gemmaUlmmPerChr(y, X, snp.coords, recode.genos = TRUE, alleles = NULL,
 \item{W}{matrix of covariates with genotypes in rows (names as row names), a first column of 1 and a second column of covariates values}
 
 \item{weights}{vector of positive weights with genotype names}
+
+\item{exe}{path to the executable of GEMMA}
 
 \item{out.dir}{directory in which the data files will be found}
 

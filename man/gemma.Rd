@@ -6,8 +6,9 @@
 \usage{
 gemma(model = "ulmm", y, X, snp.coords, recode.genos = TRUE,
   alleles = NULL, maf = 0.01, K.c = NULL, W = NULL, weights = NULL,
-  out.dir = getwd(), task.id = "gemma", verbose = 1, clean = "none",
-  seed = 1859, burnin = 1000, nb.iters = 7000, thin = 10)
+  exe = Sys.which("gemma"), out.dir = getwd(), task.id = "gemma",
+  verbose = 1, clean = "none", seed = 1859, burnin = 1000,
+  nb.iters = 7000, thin = 10)
 }
 \arguments{
 \item{model}{name of the model to fit (ulmm/bslmm)}
@@ -29,6 +30,8 @@ gemma(model = "ulmm", y, X, snp.coords, recode.genos = TRUE,
 \item{W}{matrix of covariates with genotypes in rows (names as row names), a first column of 1 for the intercept and, if needed, a second column of covariates values; if NULL, a column of 1 will be used for the intercept}
 
 \item{weights}{vector of positive weights with genotype names}
+
+\item{exe}{path to the executable of GEMMA}
 
 \item{out.dir}{directory in which the output files will be saved}
 

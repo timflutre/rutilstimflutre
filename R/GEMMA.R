@@ -63,6 +63,7 @@ genoDoses2bimbam <- function(X=NULL, tX=NULL, alleles, file=NULL, format="mean")
 ##' @param K.c kinship matrix; if NULL, will be estimated using X via \code{\link{estimGenRel}} with \code{relationships="additive"} and \code{method="zhou"}
 ##' @param W matrix of covariates with genotypes in rows (names as row names), a first column of 1 for the intercept and, if needed, a second column of covariates values; if NULL, a column of 1 will be used for the intercept
 ##' @param weights vector of positive weights with genotype names
+##' @param exe path to the executable of GEMMA
 ##' @param out.dir directory in which the output files will be saved
 ##' @param task.id identifier of the task (used in temporary and output file names)
 ##' @param verbose verbosity level (0/1)
@@ -164,10 +165,11 @@ genoDoses2bimbam <- function(X=NULL, tX=NULL, alleles, file=NULL, format="mean")
 gemma <- function(model="ulmm", y, X, snp.coords, recode.genos=TRUE,
                   alleles=NULL, maf=0.01,
                   K.c=NULL, W=NULL, weights=NULL,
+                  exe=Sys.which("gemma"),
                   out.dir=getwd(), task.id="gemma", verbose=1, clean="none",
                   seed=1859, burnin=1000, nb.iters=7000, thin=10){
-  stopifnot(file.exists(Sys.which("gemma")))
-  stopifnot(system("gemma > /dev/null") == 0)
+  stopifnot(file.exists(exe))
+  stopifnot(system(paste0(exe, " > /dev/null")) == 0)
   stopifnot(model %in% c("ulmm", "bslmm"))
   if(! is.vector(y)){
     if(is.matrix(y)){
@@ -303,7 +305,7 @@ gemma <- function(model="ulmm", y, X, snp.coords, recode.genos=TRUE,
 
   ## prepare cmd-line and execute it
   cmd <- paste0("cd ", out.dir,
-                "; gemma",
+                "; ", exe,
                 " -g ", tmp.files["genos"],
                 " -maf ", maf,
                 " -p ", tmp.files["phenos"],
@@ -410,6 +412,7 @@ gemma <- function(model="ulmm", y, X, snp.coords, recode.genos=TRUE,
 ##' @param chr.ids set of chromosome identifiers to analyze (optional, all by default)
 ##' @param W matrix of covariates with genotypes in rows (names as row names), a first column of 1 and a second column of covariates values
 ##' @param weights vector of positive weights with genotype names
+##' @param exe path to the executable of GEMMA
 ##' @param out.dir directory in which the data files will be found
 ##' @param task.id identifier of the task (used in output file names)
 ##' @param clean remove files: none, some (temporary only), all (temporary and results)
@@ -421,10 +424,11 @@ gemma <- function(model="ulmm", y, X, snp.coords, recode.genos=TRUE,
 gemmaUlmmPerChr <- function(y, X, snp.coords, recode.genos=TRUE,
                             alleles=NULL, maf=0.01,
                             chr.ids=NULL, W, weights=NULL,
+                            exe=Sys.which("gemma"),
                             out.dir=getwd(), task.id="gemma",
                             clean="none", verbose=1){
-  stopifnot(file.exists(Sys.which("gemma")))
-  stopifnot(system("gemma > /dev/null") == 0)
+  stopifnot(file.exists(exe))
+  stopifnot(system(paste0(exe, " > /dev/null")) == 0)
   if(is.matrix(y)){
     stopifnot(ncol(y) == 1,
               ! is.null(rownames(y)))
@@ -519,6 +523,7 @@ gemmaUlmmPerChr <- function(y, X, snp.coords, recode.genos=TRUE,
                         recode.genos=recode.genos,
                         alleles=alleles[subset.snp.ids,],
                         maf=maf, K.c=K.c, W=W, weights=weights,
+                        exe=exe,
                         out.dir=out.dir,
                         task.id=paste0(task.id, "-", chr.id),
                         verbose=verbose-1, clean=clean)
