@@ -297,7 +297,7 @@ imageWithScale <- function(z, main=NULL, idx.rownames=NULL, idx.colnames=NULL,
   if(! is.null(idx.colnames) & is.null(colnames(z)))
     stop("non-null idx.colnames requires z to have column names")
   if(is.null(breaks))
-    breaks <- seq(min(z), max(z), length.out=nb.breaks)
+    breaks <- seq(min(z, na.rm=TRUE), max(z, na.rm=TRUE), length.out=nb.breaks)
 
   def.par <- graphics::par(no.readonly=TRUE)
 
@@ -332,9 +332,9 @@ imageWithScale <- function(z, main=NULL, idx.rownames=NULL, idx.colnames=NULL,
   graphics::par(mar=c(1,0,6,4), no.readonly=TRUE)
   plotWithScale(z, col=col.pal(length(breaks)-1), breaks=breaks, horiz=FALSE,
                 yaxt="n")
-  graphics::axis(4, at=format(breaks[seq.int(1, length(breaks), length.out=5)],
-                              digits=2),
-       las=2, lwd=0, lwd.ticks=1, cex.axis=cex.sc)
+  coords.ticks <- breaks[seq.int(1, length(breaks), length.out=5)]
+  graphics::axis(4, at=coords.ticks, label=format(coords.ticks, digits=2),
+                 las=2, lwd=0, lwd.ticks=1, cex.axis=cex.sc)
 
   on.exit(graphics::par(def.par))
 }
