@@ -9,7 +9,7 @@ indexVcfFile(vcf.file, software = "Rsamtools", nb.cores = 1)
 \arguments{
 \item{vcf.file}{path to a VCF file (must be sorted!)}
 
-\item{software}{name of the sofwatre with which to index the file (Rsamtools/bcftools)}
+\item{software}{name of the software with which to index the file (Rsamtools/bcftools)}
 
 \item{nb.cores}{number of threads for "bcftools"}
 }

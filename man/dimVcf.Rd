@@ -4,10 +4,12 @@
 \alias{dimVcf}
 \title{VCF dimensions}
 \usage{
-dimVcf(vcf.file, genome = "", yieldSize = 10000)
+dimVcf(vcf.file, software = "Rsamtools", genome = "", yieldSize = 10000)
 }
 \arguments{
 \item{vcf.file}{path to the VCF file (if the bgzip index doesn't exist in the same directory, it will be created)}
+
+\item{software}{name of the software with which to obtain the dimension of the file (Rsamtools/grep)}
 
 \item{genome}{genome identifier (e.g. "VITVI_12x2")}
 

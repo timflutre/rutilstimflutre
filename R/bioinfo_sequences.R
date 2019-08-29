@@ -1387,26 +1387,44 @@ readGenoDoseFileFromBcftools <- function(genos.file, get.coords=TRUE,
 ##'
 ##' Return the dimensions of a VCF file, i.e. the number of sites (rows) and samples (columns)
 ##' @param vcf.file path to the VCF file (if the bgzip index doesn't exist in the same directory, it will be created)
+##' @param software name of the software with which to obtain the dimension of the file (Rsamtools/grep)
 ##' @param genome genome identifier (e.g. "VITVI_12x2")
 ##' @param yieldSize number of records to yield each time the file is read from
 ##' @return vector
 ##' @author Timothee Flutre
 ##' @export
-dimVcf <- function(vcf.file, genome="", yieldSize=10000){
-  requireNamespaces(c("Rsamtools", "VariantAnnotation"))
+dimVcf <- function(vcf.file, software="Rsamtools", genome="", yieldSize=10000){
+  stopifnot(software %in% c("Rsamtools", "grep"))
+  if(software == "Rsamtools"){
+    requireNamespaces(c("Rsamtools", "VariantAnnotation"))
+  } else
+    stopifnot(file.exists(Sys.which("grep")))
   stopifnot(file.exists(vcf.file))
 
   out <- stats::setNames(object=c(NA, NA), nm=c("sites", "samples"))
 
-  if(! file.exists(paste0(vcf.file, ".tbi")))
-    Rsamtools::indexTabix(file=vcf.file, format="vcf")
-  tabix.file <- Rsamtools::TabixFile(file=vcf.file,
-                                     yieldSize=yieldSize)
-  open(tabix.file)
-  hdr <- VariantAnnotation::scanVcfHeader(file=tabix.file)
-  out["samples"] <- length(VariantAnnotation::samples(hdr))
-  out["sites"] <- Rsamtools::countTabix(tabix.file)[[1]]
-  close(tabix.file)
+  if(software == "Rsamtools"){
+    if(! file.exists(paste0(vcf.file, ".tbi")))
+      Rsamtools::indexTabix(file=vcf.file, format="vcf")
+    tabix.file <- Rsamtools::TabixFile(file=vcf.file,
+                                       yieldSize=yieldSize)
+    open(tabix.file)
+    hdr <- VariantAnnotation::scanVcfHeader(file=tabix.file)
+    out["samples"] <- length(VariantAnnotation::samples(hdr))
+    out["sites"] <- Rsamtools::countTabix(tabix.file)[[1]]
+    close(tabix.file)
+  } else if(software == "grep"){
+    exe <- ""
+    if(tools::file_ext(vcf.file) == "gz")
+      exe <- "z"
+    exe <- paste0(exe, "cat")
+    cmd <- paste0(exe, " ", vcf.file,
+                  " | grep -v \"#\" -c")
+    out["sites"] <- as.numeric(system(cmd, intern=TRUE))
+    cmd <- paste0(exe, " ", vcf.file,
+                  " | grep -m 1 \"#CHROM\" | wc -w")
+    out["samples"] <- as.numeric(system(cmd, intern=TRUE)) - 9
+  }
 
   return(out)
 }
@@ -2642,7 +2660,7 @@ sortVcfFile <- function(in.vcf.file, out.vcf.file){
 ##'
 ##' Index a VCF file if it exists and if its index file doesn't already exist or is older.
 ##' @param vcf.file path to a VCF file (must be sorted!)
-##' @param software name of the sofwatre with which to index the file (Rsamtools/bcftools)
+##' @param software name of the software with which to index the file (Rsamtools/bcftools)
 ##' @param nb.cores number of threads for "bcftools"
 ##' @return invisible path to the index file
 ##' @author Timothee Flutre

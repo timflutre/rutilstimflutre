@@ -305,9 +305,30 @@ test_that("readBcftoolsCounts", {
   return(vcf)
 }
 
-test_that("dimVcf", {
+test_that("dimVcf_Rsamtools", {
   if(all(requireNamespace("Rsamtools"),
          requireNamespace("VariantAnnotation"))){
+    tmpd <- tempdir()
+
+    vcf.file <- system.file("extdata", "example.vcf",
+                            package="rutilstimflutre")
+    bgz.file <- Rsamtools::bgzip(vcf.file,
+                                 paste0(tmpd, "/", basename(vcf.file), ".gz"),
+                                 overwrite=TRUE)
+
+    expected <- stats::setNames(object=c(3, 3),
+                                nm=c("sites", "samples"))
+
+    observed <- dimVcf(bgz.file)
+
+    expect_equal(observed, expected)
+
+    file.remove(bgz.file)
+  }
+})
+
+test_that("dimVcf_grep", {
+  if(file.exists(Sys.which("grep"))){
     tmpd <- tempdir()
 
     vcf.file <- system.file("extdata", "example.vcf",
