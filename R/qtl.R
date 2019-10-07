@@ -448,30 +448,29 @@ MIMQTL <- function(cross, numeric.chr.format=FALSE,
     temp <- list()
     pLOD <- 0
     
-    ## 1:If the outcome of 1st run is Null model
+    ## 1:If the outcome of 1st run is Null model -> go to 3.1
     if (attr(big_list[[range_qtl]][[1]],"pLOD") == 0) {
       nbnull <- nbnull + 1
-    }
-    
-    for (nb_run in 2:nrun) {
-      ## 2.1: If other outcome is  Null model
-      if (attr(big_list[[range_qtl]][[nb_run]],"pLOD") == 0) {
-        nbnull <- nbnull + 1
-        ## 2.2: Else if all is identical to the 1st model
-      } else if(identical(big_list[[range_qtl]][[1]]$pos, big_list[[range_qtl]][[nb_run]]$pos) &
-                identical(big_list[[range_qtl]][[1]]$chr, big_list[[range_qtl]][[nb_run]]$chr) &
-                identical(attr(big_list[[range_qtl]][[1]],"pLOD"), attr(big_list[[range_qtl]][[nb_run]],"pLOD")) &
-                identical(attr(big_list[[range_qtl]][[1]],"formula"),
-                          attr(big_list[[range_qtl]][[nb_run]],"formula"))) {
-        nbid1 <- nbid1 + 1 # outcome identical to the 1st
+    } else {
+      for (nb_run in 2:nrun) {
+        ## 2.1: If other outcome is  Null model
+        if (attr(big_list[[range_qtl]][[nb_run]],"pLOD") == 0) {
+          nbnull <- nbnull + 1
+          ## 2.2: Else if all is identical to the 1st model
+        } else if(identical(big_list[[range_qtl]][[1]]$pos, big_list[[range_qtl]][[nb_run]]$pos) &
+                  identical(big_list[[range_qtl]][[1]]$chr, big_list[[range_qtl]][[nb_run]]$chr) &
+                  identical(attr(big_list[[range_qtl]][[1]],"pLOD"), attr(big_list[[range_qtl]][[nb_run]],"pLOD")) &
+                  identical(attr(big_list[[range_qtl]][[1]],"formula"),
+                            attr(big_list[[range_qtl]][[nb_run]],"formula"))) {
+          nbid1 <- nbid1 + 1 # outcome identical to the 1st
+        }
       }
     }
-    
     ## 3.1: All or some outcomes are Null model
     if (nbnull == nrun | nbnull > 0) {
       qtltemp <- "NO QTL"
       form.tmp <- "NO QTL"
-      qtl <- qtltemp #### Agnes : nb_run'ai rajouté cette ligne pour ne pas avoir de liste nulle pour qtl quand il n'y a pas de QTL, est-ce que c'est correct ?
+      qtl <- qtltemp 
       
       ## 3.2: No Null model, several possible cases
     } else if (nbnull == 0) {
@@ -493,7 +492,7 @@ MIMQTL <- function(cross, numeric.chr.format=FALSE,
                      (attr(big_list[[range_qtl]][[nb_run]],"pLOD") > pLOD)) {
             out <- make.formula(cross, big_list, range_qtl, nb_run=nb_run, pLOD=TRUE)
             
-          } # end else if pLOD is > fir this outcome
+          } # end else if pLOD is > for this outcome
         } # end for nb_run in 2:nrun
       } # end of else: some outcomes are different from the first one
       
@@ -559,7 +558,7 @@ MIMQTL <- function(cross, numeric.chr.format=FALSE,
   ## Summary
   if (length(attr(fit, "names")) < 3) {
     ## Null Model
-    temp <- as.data.frame(t(rep("NO QTL", 5)))            ## why t ?
+    temp <- as.data.frame(t(rep("NO QTL", 5)))            
     names(temp) <- c("df", "Type III SS", "LOD", "perc.var")
   } else if (length(attr(fit, "names")) == 3) {
     # model with only one QTL
