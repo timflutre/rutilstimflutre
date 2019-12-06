@@ -6,13 +6,13 @@ colorlinks: true
 output:
   html_document:
     toc: true
-    toc_depth: 3
+    toc_depth: 5
     toc_float: true
     number_sections: TRUE
     code_folding: show
   pdf_document:
     toc: true
-    toc_depth: 3
+    toc_depth: 5
     number_sections: TRUE
 urlcolor: blue
 ---
@@ -33,6 +33,12 @@ It draws heavily on the references listed at the end of the document.
 In an example, `yield` as the response variable is regressed on an unordered factor, `genotype`.
 A small data set will be simulated, then a first version of the statistical model will be described, then a second, leading to the motivation behind the usage of contrasts.
 Finally, two different contrasts will be described in details.
+
+For one of them, the "sum" contrast, everything can be computed "by hand".
+But it is also shown how to obtain the required information (incidence matrix, contrast estimates, standard errors, test statistics and p values) using an external package, [`emmeans`](https://cran.r-project.org/package=emmeans):
+```{r}
+library(emmeans)
+```
 
 
 # Simulate some data
@@ -81,7 +87,7 @@ dat$rep <- as.factor(dat$rep)
 
 ```{r}
 str(dat)
-mean(dat$yield)
+(grand.mean <- mean(dat$yield))
 (geno.means <- tapply(dat$yield, dat$geno, mean))
 ```
 
@@ -89,21 +95,21 @@ mean(dat$yield)
 
 ```{r}
 hist(dat$yield, col="grey", border="white", las=1)
-abline(v=mean(dat$yield), lty=2)
-legend("topright", legend="data mean", lty=2, bty="n")
+abline(v=grand.mean, lty=2)
+legend("topright", legend="grand mean", lty=2, bty="n")
 ```
 
 ```{r}
 boxplot(yield ~ geno, data=dat, las=1, varwidth=TRUE,
         main="Boxplots of dat$yield")
-abline(h=mean(dat$yield), lty=2)
-legend("topleft", legend="data mean", lty=2, bty="n")
+abline(h=grand.mean, lty=2)
+legend("topleft", legend="grand mean", lty=2, bty="n")
 ```
 
 
-# Build the model
+# Build the models
 
-The goal of the statistical model here will be to estimate the means of the explanatory factor.
+The goal of the statistical models here will be to estimate the means of the explanatory factor as well as combinations of them.
 
 ## Version 1
 
@@ -125,7 +131,7 @@ As a first model, one can choose to explain the mean of the responses directly b
 
 - $\epsilon_{gr}$: error for replicate $r$ of genotype $g$
 
-- $\sigma$: variance of the errors
+- $\sigma^2$: variance of the errors
 
 ### Likelihood
 
@@ -142,11 +148,11 @@ A few other notations:
 
 - $N$: total number of observations (here, $N = G \times R$)
 
-- $i$: index of the observation
+- $i \in \{1,\ldots,N\}$: index of the observation
 
 - $\boldsymbol{y}$: $N$-vector of observations
 
-- $X_1$: $N \times G$ design/incidence matrix relating observations (the $y_{gr}$'s) to genotypes
+- $X_1$: $N \times G$ design/incidence matrix relating observations to genotypes
 
 - $\boldsymbol{m} = \{m_1,\ldots,m_G\}$: $G$-vector of parameters explaining the mean of the response variable
 
@@ -164,21 +170,27 @@ which is equivalent to:
 \boldsymbol{y} \, | \, X_1, \boldsymbol{m}, \sigma^2 \; \sim \; \mathcal{N}_N(X_1 \boldsymbol{m}, \sigma^2 \text{I}_N)
 \]
 
-Note that this model has $G$ parameters for the expectation (regression coefficients).
+Note that this model has $G$ parameters for the expectation, called regression coefficients.
 
 ### Inference
 
-Generically, by minimizing the squared errors or by maximizing the likelihood, one ends up with the same estimator of $\boldsymbol{m}$, noted $\hat{\boldsymbol{m}}$ (more [here](https://en.wikipedia.org/wiki/Gauss%E2%80%93Markov_theorem)):
+#### Effect estimation
+
+Under our assumptions, by minimizing the squared errors or by maximizing the likelihood, one ends up with the same estimator of $\boldsymbol{m}$, noted $\hat{\boldsymbol{m}}$ (see the [Gauss-Markov theorem](https://en.wikipedia.org/wiki/Gauss%E2%80%93Markov_theorem)):
 
 \[
 X^T \, X \; \hat{\boldsymbol{m}} \; = \, X^T \, \boldsymbol{y}
 \]
 
-Without going into too much mathematical details, this system of equations can be easily resolved (by inverting $X^T X$) if the columns of $X$ are independent from each other.
+Without going into too many mathematical details, this system of equations can be easily resolved (by inverting $X^T X$) if the columns of $X$ are independent from each other:
+
+\[
+\hat{\boldsymbol{m}} \; = \, (X^T X)^{-1} \,  X^T \, \boldsymbol{y}
+\]
 
 Importantly, to obtain the estimates of the regression coefficients, one first needs to specify a *coding scheme* for $X$.
 At this stage, it helps writing down the insides of the model vectors/matrices.
-Here is the most obvious coding scheme (using $R=2$):
+Here it is using $R=2$:
 
 \[
 \begin{bmatrix}
@@ -244,12 +256,42 @@ mean(epsilons.hat)
 
 <!-- TODO: comprendre Le Barbier et al page 46 "ce modèle n'est pas identifiable" -->
 
+#### Uncertainty quantification
+
+Obtaining an estimate of the parameters is important, but quantifying our uncertainty about it is better.
+
+Here is the variance of the estimator $\hat{\boldsymbol{m}}$:
+
+\[
+\mathbb{V}(\hat{\boldsymbol{m}}) = (X^T X)^{-1} \sigma^2
+\]
+
+To compute it, one hence needs to estimate the error variance.
+The estimate of $\sigma^2$ will be noted $S^2$:
+
+\[
+\mathbb{E}(S^2) = \frac{RSS}{N - r}
+\]
+
+where $RSS$ is the residual sum of squares ($\sum_i (y_i - \hat{y_i})^2$) and $r$ is the number of independent columns of $X$ (called the rank of $X$).
+
+#### Hypothesis testing
+
+Say our null hypothesis is "$m_g = a$".
+One can reject it at level $l$ if:
+
+\[
+\frac{|m_g - a|}{\sqrt{\mathbb{V}(\hat{m_g})}} \ge t_{1-l/2, N-r}
+\]
+
+where $t$ is the [Student's distribution](https://en.wikipedia.org/wiki/Student%27s_t-distribution).
+
 
 ## Version 2
 
 The "cell-mean" model (v1 above) is intuitive, but one may want the regression coefficients to have a different interpretation than exactly the means of the explanatory factor.
 In some cases, one may even be forced to do that, notably when the incidence matrix $X$ has non-independent columns (more below).
-In such cases, one defines an additional parameter, the intercept.
+In such cases, one introduces a new parameter, the intercept.
 
 ### Likelihood
 
@@ -257,13 +299,11 @@ In such cases, one defines an additional parameter, the intercept.
 
 A few other notations:
 
-- $\mu$: intercept (can also be noted $\alpha_0$)
-
-- $\alpha_g$: effect of genotype $g$
+- $\mu$: intercept
 
 \[
 \forall g \in \{1,\ldots,G\} \text{ and } r \in \{1,\ldots,R\},
-\; y_{gr} = \mu + \alpha_g + \epsilon_{gr} \text{ with } \epsilon_{gr} \sim \mathcal{N}(0, \sigma^2)
+\; y_{gr} = \mu + m_g + \epsilon_{gr} \text{ with } \epsilon_{gr} \sim \mathcal{N}(0, \sigma^2)
 \]
 
 #### Matrix way
@@ -272,15 +312,17 @@ A few other notations:
 
 - $X_2$: $N \times (G+1)$ design/incidence matrix relating observations (the $y_{gr}$'s) to genotypes
 
-- $\boldsymbol{\alpha} = \{\mu,\alpha_1,\ldots,\alpha_G\}$: $(G+1)$-vector of parameters explaining the mean of the response variable
+- $\boldsymbol{\theta} = \{\mu,m_1,\ldots,m_G\}$: $(G+1)$-vector of parameters explaining the mean of the response variable
 
 \[
-\boldsymbol{y} = X_2 \boldsymbol{\alpha} + \boldsymbol{\epsilon} \text{ where } \boldsymbol{\epsilon} \sim \mathcal{N}_N(\boldsymbol{0}, \sigma^2 \text{I}_N)
+\boldsymbol{y} = X_2 \boldsymbol{\theta} + \boldsymbol{\epsilon} \text{ where } \boldsymbol{\epsilon} \sim \mathcal{N}_N(\boldsymbol{0}, \sigma^2 \text{I}_N)
 \]
 
 Note that this model has $G+1$ parameters for the expectation.
 
 ### Inference
+
+#### Effect estimation
 
 Let us make the same exercise as before, that is, writing the insides of the model vectors/matrices:
 
@@ -303,10 +345,10 @@ Let us make the same exercise as before, that is, writing the insides of the mod
 \times
 \begin{bmatrix}
   \mu \\
-  \alpha_1 \\
-  \alpha_2 \\
+  m_1 \\
+  m_2 \\
   \vdots \\
-  \alpha_G
+  m_G
 \end{bmatrix}
 +
 \begin{bmatrix}
@@ -321,16 +363,16 @@ Let us make the same exercise as before, that is, writing the insides of the mod
 
 Again as above, using the rule of matrix multiplication, one can easily retrieve the following equations:
 
-- $y_{11} = \mu + \alpha_1 + \epsilon_{11}$
+- $y_{11} = \mu + m_1 + \epsilon_{11}$
 
-- $y_{12} = \mu + \alpha_1 + \epsilon_{12}$
+- $y_{12} = \mu + m_1 + \epsilon_{12}$
 
-- $y_{21} = \mu + \alpha_2 + \epsilon_{21}$
+- $y_{21} = \mu + m_2 + \epsilon_{21}$
 
 - ...
 
-However, note that the first column of $X$ (corresponding to the intercept $\mu$) is equal to the sum of all its other columns.
-This lack of independence between the columns of $X$ (such a matrix is said to be *singular*) means that one needs to add constraints (only one in here) if one aims at estimating the intercept as well as the effects.
+However, note that the first column of $X_2$ (corresponding to the intercept $\mu$) is equal to the sum of all its other columns.
+This lack of independence between the columns of $X_2$ (such a matrix is said to be *singular*) means that one needs to add constraints (only one in here) if one aims at estimating the intercept as well as the effects.
 
 Here is an example in R:
 ```{r}
@@ -351,6 +393,13 @@ try(inv_tXX_2 <- solve(tXX_2))
 
 ## Contrasts
 
+Still a few other notations:
+
+- $\boldsymbol{\alpha}$: $G$-vector of regression coefficient, where $\alpha_0$ corresponds to the intercept
+
+- $\{c_0,\ldots,c_G\}$: set of real numbers
+
+As said above, to deal with the non-independence between columns of the incidence matrix $X$, one needs to add constraint(s).
 Typically, a constraint takes the form of a [linear combination](https://en.wikipedia.org/wiki/Linear_combination) of the regression coefficients:
 
 \begin{equation} \label{eq:contrast_lin_comb}
@@ -369,92 +418,145 @@ Such transformations can be easily seen using matrix calculus:
 
 where $B = C^{-1}$ and both are $G \times G$ matrices.
 
-Hence one also has $X_1 \boldsymbol{m} = X_1 B \boldsymbol{\alpha} = \tilde{X} \boldsymbol{\alpha}$.
-
 One typically chooses $B$ so that its first column is made of 1's: $B = [ \boldsymbol{1}_G \; B_\star ]$.
-The $B_\star$ matrix is $G \times (G-1)$ and is called a **coding matrix**.
-This leads to $X_1 B \boldsymbol{\alpha} = \boldsymbol{1}_N \mu + X_\star \boldsymbol{\alpha}_\star$.
+
+$\Rightarrow$ The $B_\star$ matrix is $G \times (G-1)$ and is called a **coding matrix**.
+
+This leads to:
+
+\[
+X_1 \boldsymbol{m} = X_1 B \boldsymbol{\alpha} = \boldsymbol{1}_N \mu + B_\star \boldsymbol{\alpha}_\star
+\]
 
 Similarly, $C$ will be partitioned by separating the first row: $C = \begin{bmatrix} \boldsymbol{c}_0^T \\ C_\star^T \end{bmatrix}$.
-The $C_\star$ matrix is $G \times (G-1)$ and is called a **contrast matrix**.
-Its rows are *contrasts*.
 
-**CAUTION:** in R, the `contr.treatment`, `contr.sum`, `contr.helmert`, etc functions take factor levels as input and return a coding matrix ($B_\star$), not a contrast matrix ($C_\star$)!
+
+$\Rightarrow$ The $C_\star$ matrix is $G \times (G-1)$ and is called a **contrast matrix**.
+
+Its rows are the *contrasts* we want to estimate.
+
+<br>
+
+<span style="color:red">**CAUTION**</span>: **in R, the `contr.treatment`, `contr.sum`, `contr.helmert`, `contr.poly`, `contr.diff`, etc functions take factor levels as input and return a coding matrix ($B_\star$), not a contrast matrix ($C_\star$)!**
 
 Several possible coding schemes exist, each leading to different contrasts, and the interpretation of the contrasts depends on the coding used to obtain them.
+
+### Estimation
+
+As a contrast is a linear combination of parameters, say $C_g \, \boldsymbol{m}$ (where $C_g$ is the $g^\text{th}$ row of $C$), one can easily compute its estimate:
+
+\[
+C_g \, \hat{\boldsymbol{m}}
+\]
+
+### Uncertainty quantification
+
+The variance of a given contrast will be:
+\[
+C_g \, \mathbb{V}(\hat{\boldsymbol{m}}) \, C_g^T
+\]
+
+### Hypothesis testing
+
+The null hypothesis "$C_g \, \boldsymbol{m} = a$" is rejected a level $l$ if:
+
+\[
+\frac{|C_g \, \boldsymbol{m} - a|}{\sqrt{C_g \, \mathbb{V}(\hat{\boldsymbol{m}}) \, C_g^T}} \ge t_{1-l/2, N-r}
+\]
 
 
 # Dummy coding (`contr.treatment`)
 
 ## Look at the contrasts
 
-This coding leads to the comparison between each level and a reference level, which is chosen arbitrarily.
-In R, this coding is obtained with `contr.treatment`, which also happens to be the default coding for unordered factors, and the first level of the factor is by default the reference (the levels are, by defaut, sorted alphabetically).
-It usually makes sense to choose this coding when one level is a natural reference for the others, such as a control.
+In R, this coding is obtained with `contr.treatment`, which also happens to be the default coding for unordered factors.
 
 ```{r}
 getOption("contrasts")
 contrasts(dat$geno)
-(Bstar <- contr.treatment(levels(dat$geno)))
+(Bstar.ct <- contr.treatment(levels(dat$geno)))
 ```
 
 As explained above, the columns of `Bstar` are clearly not contrasts as they don't sum to zero.
-But to obtain the contrast matrix is easy: one only has to add a column of 1's to obtain the full $B$ matrix and to inverse it:
-
+But obtaining the contrast matrix is easy: one only has to add a column of 1's to obtain the full $B$ matrix and to inverse it:
 ```{r}
-(B <- cbind(intercept=1, Bstar))
-(C <- solve(B))
+(B.ct <- cbind(intercept=1, Bstar.ct))
+(C.ct <- solve(B.ct))
 ```
 
-As explained above, the rows of `C` (except the first one corresponding to the intercept) are contrasts and they sum to zero.
-They show how to interpret the regression coefficients (the $\alpha$'s) in terms of the factor means (the $m$'s):
+As explained above, the rows of `C` (except the first one corresponding to the intercept) are contrasts and they sum to zero:
+```{r}
+apply(C.ct[-1,], 1, sum)
+```
 
-- $\alpha_0 = \mu = m_1$
+They show how to interpret the regression coefficients (the $\alpha$'s) in terms of the factor level means (the $m$'s):
 
-- $\alpha_1 = m_2 - m_1$
+- $\alpha_0 = 1 \times m_1 + 0 \times m_2 + 0 \times m_3 = m_1$
 
-- $\alpha_2 = m_3 - m_1$
+- $\alpha_1 = -1 \times m_1 + 1 \times m_2 + 0 \times m_3 = m_2 - m_1$
+
+- $\alpha_2 = -1 \times m_1 + 0 \times m_2 + 1 \times m_3 = m_3 - m_1$
+
+The intercept is the mean of a factor level chosen arbitrarily (the first level by default).
+It usually makes sense to choose this coding when one level is a natural reference for the others, such as a control.
 
 ## Fit the model
 
 ```{r}
 fit.ct <- lm(yield ~ geno, data=dat, contrasts=list(geno="contr.treatment"))
 summary(fit.ct)
-(alpha.hat <- coef(fit.ct))
+(alpha.ct.hat <- coef(fit.ct))
 ```
 
 Note that all three estimates are deemed significantly different than 0.
 
-## Retrieve the estimates from the data means
+Residual sum of squares and estimate of error variance:
+```{r}
+(tmp <- anova(fit.ct))
+(RSS.ct <- tmp["Residuals", "Sum Sq"])
+summary(fit.ct)$sigma
+summary(fit.ct)$sigma^2
+(r.ct <- fit.ct$rank)
+(S2.ct <- RSS.ct / (N - r.ct))
+```
+
+## Retrieve the contrast estimates from the data means
 
 ### Reference level
 
+$\alpha_0 = \mu = m_1$
+
 ```{r}
-alpha.hat[1]
+alpha.ct.hat[1+0]
 geno.means[1]
+C.ct[1,,drop=FALSE] %*% geno.means
 ```
 
 ### Estimate of the first contrast
 
+$\alpha_1 = m_2 - m_1$
+
 ```{r}
-alpha.hat[2]
+alpha.ct.hat[1+1]
 geno.means[2] - geno.means[1]
-geno.means %*% C[,2,drop=FALSE]
+C.ct[2,,drop=FALSE] %*% geno.means
 ```
 
 ### Estimate of the second contrast
 
+$\alpha_2 = m_3 - m_1$
+
 ```{r}
-alpha.hat[3]
+alpha.ct.hat[1+2]
 geno.means[3] - geno.means[1]
-geno.means %*% C[,3,drop=FALSE]
+C.ct[3,,drop=FALSE] %*% geno.means
 ```
 
 ### As a matrix multiplication
 
 ```{r}
-alpha.hat
-C %*% geno.means
+alpha.ct.hat
+C.ct %*% geno.means
 ```
 
 Knowing the interpretation of the intercept in terms of data means and looking at the boxplots below, it makes sense that all three regression coefficients are significantly different than zero:
@@ -462,16 +564,16 @@ Knowing the interpretation of the intercept in terms of data means and looking a
 ```{r}
 boxplot(yield ~ geno, data=dat, las=1, varwidth=TRUE,
         main="Boxplots of dat$yield")
-abline(h=alpha.hat[1], lty=2)
+abline(h=alpha.ct.hat[1], lty=2)
 legend("topleft", legend="intercept", lty=2, bty="n")
 ```
 
-## Retrieve the data means from the estimates
+## Retrieve the data means from the contrast estimates
 
 As a matrix multiplication:
 ```{r}
 geno.means
-B %*% alpha.hat
+B.ct %*% alpha.ct.hat
 ```
 
 
@@ -480,60 +582,103 @@ B %*% alpha.hat
 ## Look at the contrasts
 
 In R, this coding is obtained with `contr.sum`.
-The reference is the mean of all the means per factor level.
-It usually makes sense to choose this coding when no level is a natural reference for the others.
 
 ```{r}
 options(contrasts=c("contr.sum", "contr.poly"))
 getOption("contrasts")
 contrasts(dat$geno)
-(Bstar <- contr.sum(levels(dat$geno)))
+(Bstar.cs <- contr.sum(levels(dat$geno)))
 ```
 
-As above:
+As explained above, the columns of `Bstar` are clearly not contrasts as they don't sum to zero.
+But obtaining the contrast matrix is easy: one only has to add a column of 1's to obtain the full $B$ matrix and to inverse it:
 ```{r}
-(B <- cbind(intercept=1, Bstar))
-(C <- solve(B))
+(B.cs <- cbind(intercept=1, Bstar.cs))
+(C.cs <- solve(B.cs))
 ```
+
+As explained above, the rows of `C` (except the first one corresponding to the intercept) are contrasts and they sum to zero:
+```{r}
+apply(C.cs[-1,], 1, sum)
+```
+
+They show how to interpret the regression coefficients (the $\alpha$'s) in terms of the factor level means (the $m$'s):
+
+- $\alpha_0 = \mu = \frac{1}{G} \sum_{g=1}^G m_g$
+
+- $\alpha_1 = m_1 - \mu$
+
+- $\alpha_2 = m_2 - \mu$
+
+The intercept is the mean of all the factor level means.
+It usually makes sense to choose this coding when no level is a natural reference for the others.
+
+Even though it is not returned by the `lm` function, the contrast of the last factor level is of interest and can be deduced from the others:
+
+- $\alpha_3 = m_3 - \mu$
 
 ## Fit the model
 
 ```{r}
 fit.cs <- lm(yield ~ geno, data=dat, contrasts=list(geno="contr.sum"))
 summary(fit.cs)
-(alpha.hat <- coef(fit.cs))
+(alpha.cs.hat <- coef(fit.cs))
 ```
 
 Note that only the estimates of the intercept and the first contrast are deemed significantly different than 0.
 
-## Retrieve the estimates from the data means
+Residual sum of squares and estimate of error variance:
+```{r}
+(tmp <- anova(fit.cs))
+(RSS.cs <- tmp["Residuals", "Sum Sq"])
+summary(fit.cs)$sigma
+summary(fit.cs)$sigma^2
+(r.cs <- fit.cs$rank)
+(S2.cs <- RSS.cs / (N - r.cs))
+```
+
+## Retrieve the contrast estimates from the data means
 
 ### Reference level
 
+$\alpha_0 = \mu = \frac{1}{G} \sum_{g=1}^G m_g$
+
 ```{r}
-alpha.hat[1]
+alpha.cs.hat[1+0]
 mean(geno.means)
 ```
 
 ### Estimate of the first contrast
 
+$\alpha_1 = m_1 - \mu$
+
 ```{r}
-alpha.hat[2]
+alpha.cs.hat[1+1]
 geno.means[1] - mean(geno.means)
 ```
 
 ### Estimate of the second contrast
 
+$\alpha_2 = m_2 - \mu$
+
 ```{r}
-alpha.hat[3]
+alpha.cs.hat[1+2]
 geno.means[2] - mean(geno.means)
+```
+
+### Estimate of the last contrast
+
+$\alpha_3 = m_3 - \mu$
+
+```{r}
+geno.means[3] - mean(geno.means)
 ```
 
 ### As a matrix multiplication
 
 ```{r}
-alpha.hat
-C %*% geno.means
+alpha.cs.hat
+C.cs %*% geno.means
 ```
 
 Knowing the interpretation of the intercept in terms of data means and looking at the boxplots below, it makes sense that all three regression coefficients are significantly different than zero except the one corresponding to `var2`:
@@ -541,16 +686,126 @@ Knowing the interpretation of the intercept in terms of data means and looking a
 ```{r}
 boxplot(yield ~ geno, data=dat, las=1, varwidth=TRUE,
         main="Boxplots of dat$yield")
-abline(h=alpha.hat[1], lty=2)
+abline(h=alpha.cs.hat[1], lty=2)
 legend("topleft", legend="intercept", lty=2, bty="n")
 ```
 
-## Retrieve the data means from the estimates
+### Variances and p values
+
+```{r}
+## var.m.hat <- t(X)
+## C.cs %*% 
+```
+
+## Retrieve the data means from the contrast estimates
 
 As a matrix multiplication:
 ```{r}
 geno.means
-B %*% alpha.hat
+B.cs %*% alpha.cs.hat
+```
+
+## By hand
+
+### Same as with `lm`
+
+In this section, we show how to obtain all the information we want using only low-level functions (incidence matrix, contrast estimates, standard errors, test statistics and p values).
+
+The `model.matrix` function returns the design/incidence matrix:
+```{r}
+X.cs <- model.matrix(yield ~ geno, data=dat,
+                     contrasts.arg=list(geno="contr.sum"))
+print(X.cs)
+```
+
+But we can also compute it as $X_1 B$:
+```{r}
+X.1 <- matrix(data=0, nrow=nrow(dat), ncol=nlevels(dat$geno))
+colnames(X.1) <- levels(dat$geno)
+for(j in 1:ncol(X.1))
+  X.1[,j] <- as.numeric(dat$geno == colnames(X.1)[j])
+X.1
+B.cs
+(X.cs <- X.1 %*% B.cs)
+```
+
+Estimates of regression coefficients:
+```{r}
+tXX_cs <- t(X.cs) %*% X.cs
+inv_tXX_cs <- solve(tXX_cs)
+(alpha.cs.hat <- inv_tXX_cs %*% t(X.cs) %*% dat$yield)
+```
+
+Residual sum of squares and estimate of error variance:
+```{r}
+epsilon.cs.hat <- dat$yield - X.cs %*% alpha.cs.hat
+(RSS.cs <- t(epsilon.cs.hat) %*% epsilon.cs.hat)
+(S2.cs <- RSS.cs / (N - r.cs))
+S2.cs <- S2.cs[1,1]
+```
+
+Variance of estimates of regression coefficients:
+```{r}
+(var.alpha.cs.hat <- inv_tXX_cs * S2.cs)
+(se.alpha.cs.hat <- sqrt(diag(var.alpha.cs.hat)))
+```
+
+Test statistics:
+```{r}
+(test.stats.cs <- alpha.cs.hat / se.alpha.cs.hat)
+```
+
+p values:
+```{r}
+l <- 0.05
+(pvals.cs <- 2 * pt(q=abs(test.stats.cs), df=N-r.cs, ncp=1-l/2, lower.tail=FALSE))
+(pvals.cs <- 2 * pt(q=abs(test.stats.cs), df=N-r.cs, lower.tail=FALSE))
+```
+
+### Custom set of contrasts
+
+Now that we know how to compute the same contrast estimates by hand as with `lm`, we can decide to compute the estimates for the contrasts corresponding to, say, the second and third factor level, omitting the first one.
+This is done by *carefully* making the $B_\star$ matrix, noted here `Bstar.cs2` (second version of the coding matrix corresponding to the sum contrast, and then all the same equations apply:
+```{r}
+Bstar.cs2 <- matrix(data=c(-1, -1,
+                           1, 0,
+                           0, 1),
+                    byrow=TRUE,
+                    nrow=G, ncol=G-1)
+rownames(Bstar.cs2) <- lev.genos
+(B.cs2 <- cbind(intercept=1, Bstar.cs2))
+X.cs2 <- X.1 %*% B.cs2
+```
+
+As expected, we obtain the same estimate for the intercept and the contrast corresponding to the second factor level, but we also now obtain the estimate for the last factor level which we didn't obtain with the usual call of `lm` above:
+```{r}
+tXX_cs2 <- t(X.cs2) %*% X.cs2
+inv_tXX_cs2 <- solve(tXX_cs2)
+(alpha.cs2.hat <- inv_tXX_cs2 %*% t(X.cs2) %*% dat$yield)
+```
+
+The rest of the information (standard errors, test statistics and p values) are also obtained with the same equations as above:
+```{r}
+epsilon.cs2.hat <- dat$yield - X.cs2 %*% alpha.cs2.hat
+(RSS.cs2 <- t(epsilon.cs2.hat) %*% epsilon.cs2.hat)
+(S2.cs2 <- RSS.cs2 / (N - r.cs))
+S2.cs2 <- S2.cs2[1,1]
+(var.alpha.cs2.hat <- inv_tXX_cs2 * S2.cs2)
+(se.alpha.cs2.hat <- sqrt(diag(var.alpha.cs2.hat)))
+(test.stats.cs2 <- alpha.cs2.hat / se.alpha.cs2.hat)
+l <- 0.05
+(pvals.cs2 <- 2 * pt(q=abs(test.stats.cs2), df=N-r.cs, ncp=1-l/2, lower.tail=FALSE))
+(pvals.cs2 <- 2 * pt(q=abs(test.stats.cs2), df=N-r.cs, lower.tail=FALSE))
+```
+
+
+# Marginal means
+
+The `emmeans` package aims at simplifying all this:
+```{r}
+(emm <- emmeans(object=fit.cs, specs="geno"))
+contrast(object=emm, method="dunnett") # same as contr.treatment
+contrast(object=emm, method="eff")     # same as contr.sum
 ```
 
 
