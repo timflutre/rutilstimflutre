@@ -662,6 +662,7 @@ MIMQTL <- function(cross, numeric.chr.format=FALSE,
   CI <- temp4
   CI[,c(2:6)] <- suppressWarnings(lapply(CI[,c(2:6)], as.character))
   CI[,c(2:6)] <- suppressWarnings(lapply(CI[,c(2:6)], as.numeric))
+  CI$position <- round(CI$position, digits=1) # position is rounded in QTLest
   
   ## QTL table
   if(all(apply(QTLest, 1, is.na)) & all(apply(CI[-1], 1, is.na))){
@@ -670,7 +671,7 @@ MIMQTL <- function(cross, numeric.chr.format=FALSE,
                          "est.BC"=NA, "est.AD"=NA, "est.BD"=NA,
                          "effect.Af"=NA, "effect.Am"=NA, "effect.D"=NA)
   } else {
-    qtl.df <- merge(QTLest, CI, by=c("Trait", "linkage.group", "position"), all=TRUE)
+    qtl.df <- merge(QTLest, CI, by=c("Trait", "linkage.group", "position"), all=FALSE)
     if(all(is.numeric(qtl.df[,c("LOD", "perc.var")])))
       qtl.df[,c("LOD", "perc.var")] <- round(qtl.df[,c("LOD", "perc.var")], 2)
     qtl.df <- qtl.df[order(qtl.df$ord),]
