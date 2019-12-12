@@ -606,15 +606,11 @@ MIMQTL <- function(cross, numeric.chr.format=FALSE,
   }
   
   QTLest <- temp
-  tmp <- strsplit(QTLest$Terms, split="@")
-  QTLest$linkage.group <- suppressWarnings(as.numeric(unlist(lapply(tmp, `[`, 1))))
-  QTLest$position <- suppressWarnings(as.numeric(unlist(lapply(tmp, `[`, 2))))
   ## Add a column for further order purpose
   QTLest$ord <- seq(from=1, to=nrow(QTLest), by=1)
   if(all(QTLest$df == "NO QTL")){
     QTLest[,c(1:ncol(QTLest))] <- NA
   }
-  
   ## Refine QTL location
   refine <- list()
   if (all(qtl == "NO QTL")) {   # if Null model
@@ -623,6 +619,8 @@ MIMQTL <- function(cross, numeric.chr.format=FALSE,
     refine <- qtl::refineqtl(cross, pheno.col=pheno.col, qtl=qtl,
                              formula=form, method=method, verbose=verbose,
                              keeplodprofile=TRUE)
+    QTLest$position <- refine$pos
+    QTLest$linkage.group <- refine$chr
   }
   
   ## Confidence intervals
@@ -662,7 +660,6 @@ MIMQTL <- function(cross, numeric.chr.format=FALSE,
   CI <- temp4
   CI[,c(2:6)] <- suppressWarnings(lapply(CI[,c(2:6)], as.character))
   CI[,c(2:6)] <- suppressWarnings(lapply(CI[,c(2:6)], as.numeric))
-  CI$position <- round(CI$position, digits=1) # position is rounded in QTLest
   
   ## QTL table
   if(all(apply(QTLest, 1, is.na)) & all(apply(CI[-1], 1, is.na))){
