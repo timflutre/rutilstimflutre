@@ -1,6 +1,8 @@
 Package "rutilstimflutre"
 =========================
 
+[![DOI](https://zenodo.org/badge/38322097.svg)](https://zenodo.org/badge/latestdoi/38322097)
+
 This directory contains the "rutilstimflutre" package for the R programming language.
 This package contains Timothee Flutre's personal R code (mostly, as some functions are also contributed by others), which can nevertheless be useful to others.
 The development is funded by the Institut National de la Recherche Agronomique (INRA).
