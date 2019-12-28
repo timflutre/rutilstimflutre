@@ -644,7 +644,9 @@ MIMQTL <- function(cross, numeric.chr.format=FALSE,
       }
       interval.inf <- as.numeric(min(temp$pos))
       interval.sup <- as.numeric(max(temp$pos))
-      position <- as.numeric(temp$pos[2])
+      # Verify that QTL peak position from temp is same as in QTLest
+      stopifnot(abs(QTLest$position[j] - as.numeric(temp$pos[2])) < 0.1)
+      position <- as.numeric(QTLest$position[j])
       CI.int <- interval.sup - interval.inf
       linkage.group <- as.numeric(strsplit(Terms, split="@")[[1]][1])
       temp3 <- as.data.frame(cbind(Trait, linkage.group, position,
