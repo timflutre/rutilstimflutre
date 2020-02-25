@@ -64,7 +64,9 @@ Set the seed:
 set.seed(1859)
 ```
 
-Simulate haplotypes and genotypes in two populations:
+## Simulate haplotypes and genotypes
+
+In two populations:
 ```{r simul_haplos_genos}
 nb.genos <- 5 * 10^2
 nb.chrs <- 2
@@ -94,10 +96,16 @@ A.vr.pop <- estimGenRel(X=genomes$genos, afs=afs.pop, method="vanraden1")
 mrk2chr <- setNames(genomes$snp.coords$chr, rownames(genomes$snp.coords))
 ```
 
-Look at some visual checks:
-```{r check_simul_genos}
+## Check allele frequencies
+
+```{r check_simul_allfreqs}
 plotHistAllelFreq(afs=afs.pop, main="Allele frequencies")
 plotHistMinAllelFreq(mafs=mafs.pop, main="Minor allele frequencies")
+```
+
+## Check additive relationships
+
+```{r check_simul_A}
 imageWithScale(A.vr.pop, main="Additive genetic relationships")
 summary(diag(A.vr.pop))
 hist(diag(A.vr.pop), col="grey", border="white")
@@ -105,8 +113,46 @@ summary(A.vr.pop[upper.tri(A.vr.pop)])
 hist(A.vr.pop[upper.tri(A.vr.pop)], col="grey", border="white")
 ```
 
+## Check LD
+
+```{r check_simul_LD}
+if(all(c("GenomicRanges", "S4Vectors", "IRanges", "LDcorSV") %in%
+       installed.packages()[,"Package"])){
+  chr <- "chr1"
+  min.maf <- 0.15
+  snps.tokeep <- rownames(genomes$snp.coords[genomes$snp.coords$chr == chr &
+                                             mafs.pop >= min.maf,])
+  print(length(snps.tokeep))
+  ld <- estimLd(X=genomes$genos[,snps.tokeep],
+                snp.coords=genomes$snp.coords[snps.tokeep,],
+                use.ldcorsv=FALSE)
+  ## st <- system.time(
+  ##     ld <- estimLd(X=genomes$genos[,snps.tokeep],
+  ##                   snp.coords=genomes$snp.coords[snps.tokeep,],
+  ##                   K=A.vr.pop,
+  ##                   use.ldcorsv=TRUE))
+  ## print(st)
+  print(nrow(ld))
+  print(summary(ld$cor2))
+  snp.dist <- distSnpPairs(snp.pairs=ld[, c("loc1","loc2")],
+                           snp.coords=genomes$snp.coords[snps.tokeep,])
+  plotLd(snp.dist,
+         sqrt(ld$cor2), estim="r",
+         ## xlim=c(0, 4*10^4),
+         main=paste0(length(snps.tokeep), " SNPs with MAF >= ", min.maf,
+                     " on ", chr),
+         use.density=TRUE,
+         span=1/20,
+         sample.size=2*nb.genos,
+         Ne=Ne, c=c.r,
+         add.ohta.kimura=TRUE)
+}
+```
+
 
 # Perform controlled crosses
+
+## Choose parents
 
 Choose two individuals as parents (one per population):
 ```{r choose_parents}
@@ -118,6 +164,8 @@ names.parents <- rownames(genos.parents)
 haplos.parents <- getHaplosInds(haplos=genomes$haplos,
                                 ind.names=names.parents)
 ```
+
+## Make offsprings
 
 Cross them several times to make offsprings:
 ```{r crosse_to_make_offsprings}
@@ -139,6 +187,8 @@ haplos.offs <- makeCrosses(haplos=haplos.parents, crosses=crosses.off,
 genos.offs <- segSites2allDoses(seg.sites=haplos.offs,
                                 ind.ids=getIndNamesFromHaplos(haplos.offs),
                                 snp.ids=rownames(genomes$snp.coords))
+afs.offs <- estimSnpAf(X=genos.offs)
+mafs.offs <- estimSnpMaf(afs=afs.offs)
 dim(genos.doses <- rbind(genos.parents, genos.offs))
 genos.classes <- genoDoses2genoClasses(X=genos.doses,
                                        alleles=genomes$alleles)
@@ -172,7 +222,8 @@ Otherwise, they are said to be "in repulsion".
 
 For instance, if a locus $l_1$ is of segregation type `<hkxhk>` and phase type `{00}` and another locus $l_2$ is of segregation type `<abxcd>` and phase type `{01}`, this means that, in the first parent, the `h`-allele of $l_1$ and the `a`-allele of $l_2$ are in coupling (and thus also their `k`- and `b`-alleles), and that, in the second parent, the `h`-allele of $l_1$ is in repulsion with the `c`-allele of $l_2$ (and thus in coupling with the `d`-allele of $l_2$).
 
-Plot pedigree:
+## Plot pedigree
+
 ```{r plot_ped}
 ped <- data.frame(ind=c(names.parents,
                         crosses.off$child),
@@ -191,7 +242,16 @@ plotPedigree(inds=ped.tmp$ind, mothers=ped.tmp$mother, fathers=ped.tmp$father,
              generations=ped.tmp$gen, main="Pedigree of the controlled cross")
 ```
 
-Check additive genetic relationships:
+## Plot allele frequencies
+
+```{r plot_allfreqs_offs}
+plotHistAllelFreq(afs=afs.offs, main="Allele frequencies among offsprings")
+plotHistMinAllelFreq(mafs=mafs.offs, main="Minor allele frequencies among offsprings")
+```
+
+
+## Check additive genetic relationships
+
 ```{r add_gen_rel}
 A.vr.cross <- estimGenRel(X=genos.doses, afs=afs.pop, method="vanraden1")
 A.t.cross <- estimGenRel(X=genos.doses, afs=afs.pop, method="toro2011_eq10")
@@ -209,6 +269,33 @@ summary(A.t.cross[names.parents[2], grep("off", colnames(A.t.cross))])
 ```
 
 Under HWE in a single population, the additive genetic relationships between all parent-child pairs should be centered around 0.5, corresponding to a coancestry coefficient of 1/4.
+
+## Check LD
+
+```{r check_ld}
+if(all(c("GenomicRanges", "S4Vectors", "IRanges", "LDcorSV") %in%
+       installed.packages()[,"Package"])){
+  chr <- "chr1"
+  min.maf <- 0.1
+  max.maf <- 0.49
+  snps.tokeep <- rownames(genomes$snp.coords[genomes$snp.coords$chr == chr &
+                                             mafs.offs >= min.maf &
+                                            mafs.offs <= max.maf,])
+  print(length(snps.tokeep))
+  ld <- estimLd(X=genos.offs[,snps.tokeep],
+                snp.coords=genomes$snp.coords[snps.tokeep,],
+                use.ldcorsv=FALSE)
+  print(nrow(ld))
+  print(summary(ld$cor2))
+  snp.dist <- distSnpPairs(snp.pairs=ld[, c("loc1","loc2")],
+                           snp.coords=genomes$snp.coords[snps.tokeep,])
+  plotLd(snp.dist,
+         sqrt(ld$cor2), estim="r",
+         main=paste0(length(snps.tokeep), " SNPs with MAF >= ", min.maf,
+                     " on ", chr),
+         use.density=TRUE)
+}
+```
 
 
 
