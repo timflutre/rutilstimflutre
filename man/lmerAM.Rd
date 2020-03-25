@@ -13,7 +13,7 @@ lmerAM(formula, data, relmat, REML = TRUE, na.action = stats::na.exclude,
 
 \item{data}{data.frame containing the data corresponding to formula and relmat (see \code{\link[lme4]{lmer}}); the additive genotypic effect should be named "geno.add" and the dominance genotypic effect, if any, should be named "geno.dom"}
 
-\item{relmat}{list containing the matrices of genetic relationships (A is compulsory but D is optional); should use the same names as the colnames in data; can be in the "matrix" class (base) or the "dsCMatrix" class (Matrix package); see \code{\link{estimGenRel}}}
+\item{relmat}{list containing the matrices of genetic relationships (A is compulsory but D is optional); the list should use the same names as the colnames in data (i.e., \code{"geno.add"} and \code{"geno.dom"}) to compute heritability properly; the matrices can be in the "matrix" class (base) or the "dsCMatrix" class (Matrix package); see \code{\link{estimGenRel}}}
 
 \item{REML}{default is TRUE (use FALSE to compare models with different fixed effects)}
 
