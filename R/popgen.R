@@ -1,5 +1,48 @@
 ## Contains functions useful for population genetics.
 
+##' Clusteredness
+##'
+##' Computes the statistic which "measures the extent to which a randomly chosen individual is inferred to have ancestry in only one cluster (clusteredness = 1), with the other extreme being equal membership in all clusters (clusteredness = 0)", from \href{http://dx.plos.org/10.1371/journal.pgen.0010070}{Rosenberg et al (2005)}.
+##' @param q.ik matrix of assignment probabilities with individuals in rows and clusters in columns
+##' @return numeric
+##' @author Timothee Flutre
+##' @export
+clusteredness <- function(q.ik){
+  I <- nrow(q.ik)
+  K <- ncol(q.ik)
+  (1/I) * sum(sqrt((K/(K-1)) * rowSums((q.ik - (1/K))^2)))
+}
+
+##' Genetic clustering
+##'
+##' Describes the strong assignment of individuals per cluster.
+##' @param assign.probs vector of assignment probabilities
+##' @param assign.grps vector of assigned clusters
+##' @param thresh.strong.assign threshold
+##' @return list
+##' @author Timothee Flutre
+##' @export
+statsStrongAssign <- function(assign.probs, assign.grps, thresh.strong.assign=0.8){
+  stopifnot(nrow(assign.probs) == length(assign.grps),
+            all(unique(assign.grps) %in% colnames(assign.probs)))
+  out <- list()
+  assign.grps <- as.character(assign.grps)
+  id.grps <- sort(unique(assign.grps))
+  nb.grps <- length(id.grps)
+  out[["nb.samples.per.grp"]] <- stats::setNames(rep(NA, nb.grps), id.grps)
+  out[["nb.samples.strong.assign.per.grp"]] <- stats::setNames(rep(NA, nb.grps), id.grps)
+  out[["perc.samples.strong.assign.per.grp"]] <- stats::setNames(rep(NA, nb.grps), id.grps)
+  for(id in id.grps){
+    idx <- which(assign.grps == id)
+    out[["nb.samples.per.grp"]][id] <- length(idx)
+    out[["nb.samples.strong.assign.per.grp"]][id] <-
+      sum(assign.probs[idx, id] >= thresh.strong.assign)
+  }
+  out[["perc.samples.strong.assign.per.grp"]] <- 100 * out[["nb.samples.strong.assign.per.grp"]] /
+    out[["nb.samples.per.grp"]]
+  return(out)
+}
+
 ##' STRUCTURE
 ##'
 ##' Read the output file from STRUCTURE.
