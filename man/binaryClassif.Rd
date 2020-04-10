@@ -18,9 +18,9 @@ vector with names
 Return the number of true positives, false positives, true negatives,
 false negatives, true positive proportion (sensitivity), false positive
 proportion, accuracy, true negative proportion (specificity), false
-discovery proportion, false negative proportion and positive predictive
-value (precision).
-More details on \href{http://en.wikipedia.org/wiki/Sensitivity_and_specificity}{Wikipedia}.
+discovery proportion, false negative proportion, positive predictive
+value (precision) and Matthews correlation coefficient.
+More details on Wikipedia (\href{http://en.wikipedia.org/wiki/Sensitivity_and_specificity}{[1]}, \href{http://en.wikipedia.org/wiki/Matthews_correlation_coefficient}{[2]}).
 }
 \author{
 Timothee Flutre

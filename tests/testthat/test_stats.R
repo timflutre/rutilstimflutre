@@ -12,10 +12,13 @@ test_that("binaryClassif", {
   tnp <- tn / n0; fpp <- fp / n0
   fdp <- fp / r; ppv <- tp / r
   acc <- (tp + tn) / n
+  mcc <- (tp * tn - fp * fn) /
+    sqrt((tp + fp) * (tp + fn) * (tn + fp) * (tn + fn))
   expected <- c(n=n, n0=n0, n1=n1,
                 r=r, tp=tp, fp=fp,
                 a=a, tn=tn, fn=fn,
-                tpp=tpp, fnp=fnp, tnp=tnp, fpp=fpp, fdp=fdp, ppv=ppv, acc=acc)
+                tpp=tpp, fnp=fnp, tnp=tnp, fpp=fpp, fdp=fdp, ppv=ppv, acc=acc,
+                mcc=mcc)
 
   observed <- binaryClassif(known.nulls=known.nulls, called.nulls=called.nulls)
 

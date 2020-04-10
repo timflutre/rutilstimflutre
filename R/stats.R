@@ -190,9 +190,9 @@ getMeanVarBetaDist <- function(alpha, beta){
 ##' Return the number of true positives, false positives, true negatives,
 ##' false negatives, true positive proportion (sensitivity), false positive
 ##' proportion, accuracy, true negative proportion (specificity), false
-##' discovery proportion, false negative proportion and positive predictive
-##' value (precision).
-##' More details on \href{http://en.wikipedia.org/wiki/Sensitivity_and_specificity}{Wikipedia}.
+##' discovery proportion, false negative proportion, positive predictive
+##' value (precision) and Matthews correlation coefficient.
+##' More details on Wikipedia (\href{http://en.wikipedia.org/wiki/Sensitivity_and_specificity}{[1]}, \href{http://en.wikipedia.org/wiki/Matthews_correlation_coefficient}{[2]}).
 ##' @param known.nulls vector of booleans (TRUE if the null is true)
 ##' @param called.nulls vector of booleans (TRUE if the null is accepted); should be in the same order as the othr vector!
 ##' @return vector with names
@@ -239,11 +239,13 @@ binaryClassif <- function(known.nulls, called.nulls){
   fdp <- fp / r         # false discovery prop
   ppv <- tp / r         # positive predictive value (precision)
   acc <- (tp + tn) / n  # accuracy
+  mcc <- (tp * tn - fp * fn) / sqrt((tp + fp) * (tp + fn) * (tn + fp) * (tn + fn))
 
   return(c(n=n, n0=n0, n1=n1,
            r=r, tp=tp, fp=fp,
            a=a, tn=tn, fn=fn,
-           tpp=tpp, fnp=fnp, tnp=tnp, fpp=fpp, fdp=fdp, ppv=ppv, acc=acc))
+           tpp=tpp, fnp=fnp, tnp=tnp, fpp=fpp, fdp=fdp, ppv=ppv, acc=acc,
+           mcc=mcc))
 }
 
 ##' Log of weighted sum
