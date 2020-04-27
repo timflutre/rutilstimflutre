@@ -1303,7 +1303,7 @@ summaryMcmcChain <- function(res.mcmc, param.names){
   ## safespec0 in coda is not exported
   safespectrum0 <- function(x){
     result <- try(coda::spectrum0.ar(x)$spec)
-    if(class(result) == "try-error") result <- NA
+    if(methods::is(result, "try-error")) result <- NA
     result
   }
 

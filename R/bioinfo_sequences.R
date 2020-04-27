@@ -422,7 +422,7 @@ df2gr <- function(x, seq="chr", start="start", end="end", strand=NULL,
   stopifnot(all(c(seq, start, end, strand) %in% colnames(x)),
             is.logical(keep.all.seqlevels))
   if(! is.null(si))
-    stopifnot(class(si) == "Seqinfo")
+    stopifnot(methods::is(si, "Seqinfo"))
 
   if(is.null(strand)){
     out.gr <-
@@ -1856,7 +1856,7 @@ plotInfoVariantCalls <- function(x, main=""){
 ##' @export
 confidenceGenoOneVar <- function(x, plot.it=FALSE){
   requireNamespaces("VariantAnnotation")
-  stopifnot(class(x) == "CollapsedVCF",
+  stopifnot(methods::is(x, "CollapsedVCF"),
             nrow(x) == 1,
             VariantAnnotation::isSNV(x))
 
@@ -2199,7 +2199,7 @@ varqual2summary <- function(vcf, fields="GQ"){
 
   for(field in fields){
     mat <- VariantAnnotation::geno(vcf)[[field]]
-    if(class(mat[1,1]) != "list"){ # DP, GQ
+    if(! methods::is(mat[1,1], "list")){ # DP, GQ
       output[[field]] <-
         cbind(n=rep(ncol(mat), nrow(mat)),
               na=rowSums(t(apply(mat, 1, is.na))),

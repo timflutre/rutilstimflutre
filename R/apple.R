@@ -166,10 +166,10 @@ genoAr1Coef <- function(dat, coln.epsilon="residual", coln.geno="geno",
                                     transform.pars=transform.pars,
                                     optim.control=optim.control),
                        silent=ifelse(verbose <= 0, TRUE, FALSE))
-            if(class(fit) != "try-error")
+            if(! methods::is(fit, "try-error"))
               break
           }
-          if(class(fit) == "Arima")
+          if(methods::is(fit, "Arima"))
             out[r] <- stats::coef(fit)["ar1"]
         }
       }

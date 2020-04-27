@@ -2914,7 +2914,7 @@ genoDoses2Vcf <- function(X, snp.coords, alleles,
             is.character(file.date))
   if(! is.null(si)){
     requireNamespace("GenomeInfoDb")
-    stopifnot(class(si) == "Seqinfo")
+    stopifnot(methods::is(si, "Seqinfo"))
   }
 
   ind.ids <- rownames(X)
@@ -3725,7 +3725,7 @@ coancestry2relmat <- function(x, estim.coancestry, estim.inbreeding=NULL,
 ##' @export
 haplosList2Matrix <- function(haplos){
   stopifnot(is.list(haplos),
-            all(sapply(haplos, class) == "matrix"))
+            all(sapply(haplos, methods::is, "matrix")))
 
   nb.chroms <- length(haplos)
   nb.haplos <- nrow(haplos[[1]]) # 2 x nb of genotypes
@@ -4335,8 +4335,7 @@ getHaplosInd <- function(haplos, ind.name){
 ##' @export
 getHaplosInds <- function(haplos, ind.names){
   stopifnot(is.list(haplos),
-            length(unique(sapply(haplos, class))) == 1,
-            unique(sapply(haplos, class)) == "matrix",
+            all(sapply(haplos, methods::is, "matrix")),
             length(unique(sapply(haplos, nrow))) == 1, # same nb of genotypes
             all(sapply(haplos, function(x){! is.null(rownames(x))})), # has row names
             is.character(ind.names))
@@ -4706,8 +4705,7 @@ makeCrosses <- function(haplos, crosses, loc.crossovers=NULL,
                         howto.start.haplo=0,
                         nb.cores=1, verbose=1){
   stopifnot(is.list(haplos),
-            length(unique(sapply(haplos, class))) == 1,
-            unique(sapply(haplos, class)) == "matrix",
+            all(sapply(haplos, methods::is, "matrix")),
             length(unique(sapply(haplos, nrow))) == 1, # same nb of genotypes
             is.data.frame(crosses),
             ncol(crosses) >= 3,
@@ -5437,7 +5435,7 @@ fitPhyDistVsLd <- function(x, y, method="loess", span=0.2,
   out$fit <- fit
 
   if(! missing(newdata)){
-    if(class(fit) != "try-error"){
+    if(! methods::is(fit, "try-error")){
       out$pred <- stats::predict(fit, newdata=newdata)
       if(method == "loglm")
         out$pred <- exp(out$pred)
@@ -6811,7 +6809,7 @@ plantTrialLmmFitCompSel <- function(glob.form, dat, part.comp.sel="fixed",
       requireNamespace("parallel")
   }
   if(! is.null(cl))
-    stopifnot("cluster" %in% class(cl))
+    stopifnot(methods::is(cl, "cluster"))
   inFctResp <- inlineFctForm(glob.form, only.resp=TRUE)
   if(! all(is.na(inFctResp[[1]]))){
     orig.resp <- inFctResp[[1]][1]
