@@ -3566,10 +3566,11 @@ plotHistMinAllelFreq <- function(X=NULL, mafs=NULL, main=NULL, xlim=c(0,0.5),
                     "\nuse recodeGenosMinorSnpAllele()")
       stop(msg)
     }
-  } else # is.null(X)
+  } else{ # is.null(X)
     stopifnot(is.vector(mafs),
               is.numeric(mafs),
-              all(mafs <= 0.5))
+              all(mafs[! is.na(mafs)] <= 0.5))
+  }
 
   if(is.null(main))
     main <- paste0("MAFs of ", length(mafs), " markers")

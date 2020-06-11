@@ -369,6 +369,7 @@ pca <- function(X=NULL, S=NULL, ct=TRUE, sc=FALSE, plot=NULL, main="PCA",
       X <- as.matrix(X)
     stopifnot(is.matrix(X),
               ! isSymmetric(X),
+              all(! is.na(X)),
               is.logical(ct),
               is.logical(sc),
               is.logical(ES10))
