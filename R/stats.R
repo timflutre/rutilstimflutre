@@ -314,6 +314,7 @@ matrixTrace <- function(x=NULL, l=NULL){
 ##'
 ##' Given a data matrix X with N rows and P columns, principal component analysis can be performed using the singular value decomposition (SVD), X = U D V^T, where U is NxN, D is NxN and diagonal (singular values), and V is PxN.
 ##' Another way to perform it, is to first compute a symmetric matrix, S (e.g. the scatter matrix X X^T, but not necessarily), and then to use the eigendecomposition (EVD) of it, S = Q Delta Q^-1, where Q is NxN and Delta is NxN and diagonal (eigenvalues).
+##' TODO: for large matrices, use the \href{https://cran.r-project.org/package=RSpectra}{RSpectra} package which allows to calculate only the k largest singular values and corresponding singular vectors.
 ##' @param X data matrix with N rows ("units") and P columns ("variables"); P can be equal to N but X shouldn't be symmetric; a data frame will be converted into a matrix; specify X or S, but not both
 ##' @param S symmetric matrix with N rows and columns; a data frame will be converted into a matrix; specify X or S, but not both
 ##' @param ct if TRUE, the columns of X will be centered (recommended); a good reason to center the data matrix for PCA is given in \href{http://link.springer.com/10.1007/s11063-007-9069-2}{Miranda et al (2008)}
@@ -835,6 +836,7 @@ plotHistPval <- function(pvalues, breaks=seq(0, 1, 0.05), freq=FALSE,
 ##' @param ylab a title for the x axis (see default)
 ##' @param thresh significance threshold at which to control the FWER and the FDR
 ##' @param ctl.fwer.bonf control the family-wise error rate with the Bonferroni procedure
+##' @param ctl.fwer.sidak control the family-wise error rate with the Sidak procedure
 ##' @param ctl.fdr.bh control the false discovery rate with the Benjamini-Hochberg procedure
 ##' @param ctl.fdr.storey control the false discovery rate with Storey's procedure in the \href{http://bioconductor.org/packages/release/bioc/html/qvalue.html}{qvalue} package
 ##' @param pfdr logical passed to \code{qvalue()}
@@ -866,13 +868,14 @@ qqplotPval <- function(pvalues, use.density=FALSE, nrpoints=1000, pch=1,
                        plot.conf.int=TRUE,
                        xlab=expression(Expected~~-log[10](italic(p)~values)),
                        ylab=expression(Observed~~-log[10](italic(p)~values)),
-                       thresh=0.05, ctl.fwer.bonf=FALSE, ctl.fdr.bh=FALSE,
-                       ctl.fdr.storey=FALSE, pfdr=TRUE, plot.signif=FALSE,
-                       main=NULL, col=NULL, verbose=1){
+                       thresh=0.05, ctl.fwer.bonf=FALSE, ctl.fwer.sidak=FALSE,
+                       ctl.fdr.bh=FALSE, ctl.fdr.storey=FALSE, pfdr=TRUE,
+                       plot.signif=FALSE, main=NULL, col=NULL, verbose=1){
   stopifnot(is.numeric(pvalues),
             is.vector(pvalues),
             is.logical(plot.conf.int),
             is.logical(ctl.fwer.bonf),
+            is.logical(ctl.fwer.sidak),
             is.logical(ctl.fdr.bh),
             is.logical(ctl.fdr.storey),
             is.logical(plot.signif))
@@ -949,9 +952,26 @@ qqplotPval <- function(pvalues, use.density=FALSE, nrpoints=1000, pch=1,
       write(msg, stdout())
     }
     if(plot.signif){
-      lim.pv.bonf <- thresh / length(pvalues)
+      lim.pv.bonf <- adjustThreshBonf(length(pvalues), thresh)
       graphics::segments(x0=graphics::par("usr")[1], y0=-log10(lim.pv.bonf),
                          x1=-log10(lim.pv.bonf), y1=-log10(lim.pv.bonf),
+                         lty=2)
+    }
+  }
+
+  ## multiple testing correction: FWER with Sidak
+  pv.sidak <- NULL
+  if(ctl.fwer.sidak){
+    pv.sidak <- adjustPvaluesSidak(pvalues)
+    if(verbose > 0){
+      msg <- paste0("signif tests at ", format(100*thresh, digits=2),
+                    "% (FWER, Sidak): ", sum(pv.sidak <= thresh))
+      write(msg, stdout())
+    }
+    if(plot.signif){
+      lim.pv.sidak <- adjustThreshSidak(length(pvalues), thresh)
+      graphics::segments(x0=graphics::par("usr")[1], y0=-log10(lim.pv.sidak),
+                         x1=-log10(lim.pv.sidak), y1=-log10(lim.pv.sidak),
                          lty=2)
     }
   }
@@ -1000,6 +1020,11 @@ qqplotPval <- function(pvalues, use.density=FALSE, nrpoints=1000, pch=1,
                "threshold (FWER-Bonferroni)")
       lty <- c(lty, 2)
     }
+    if(ctl.fwer.sidak){
+      lgd <- c(lgd,
+               "threshold (FWER-Sidak)")
+      lty <- c(lty, 2)
+    }
     if(ctl.fdr.bh){
       lgd <- c(lgd,
                expression(largest~significant~italic(p)~"value (FDR-BH)"))
@@ -1017,6 +1042,8 @@ qqplotPval <- function(pvalues, use.density=FALSE, nrpoints=1000, pch=1,
   output <- data.frame(pvalues=pvalues)
   if(! is.null(pv.bonf))
     output$pv.bonf <- pv.bonf
+  if(! is.null(pv.sidak))
+    output$pv.sidak <- pv.sidak
   if(! is.null(pv.bh))
     output$pv.bh <- pv.bh
   if(! is.null(qv.st))
@@ -1030,14 +1057,16 @@ qqplotPval <- function(pvalues, use.density=FALSE, nrpoints=1000, pch=1,
 ##' Call significance tests after multiplicity correction based on various criteria (FWER, FDR) and various procedure for each of them.
 ##' @param pvalues vector of p values (can contain NA's)
 ##' @param thresh.fwer.bonf if not NULL, vector of significance thresholds for the FWER criterion and the Bonferroni procedure
+##' @param thresh.fwer.sidak if not NULL, vector of significance thresholds for the FWER criterion and the Sidak procedure
 ##' @param thresh.fdr.bh if not NULL, vector of significance thresholds for the FDR criterion and the Benjamini-Hochberg procedure
 ##' @param thresh.fdr.storey if not NULL, vector of significance thresholds for the FDR criterion and the Storey procedure (via the \href{http://bioconductor.org/packages/release/bioc/html/qvalue.html}{qvalue} package)
 ##' @param pfdr logical passed to \code{qvalue()}
 ##' @return list
 ##' @author Timothee Flutre
-##' @seealso \code{\link{qqplotPval}}, \code{\link{binaryClassif}}
+##' @seealso \code{\link{qqplotPval}}, \code{\link{binaryClassif}}, \code{\link{adjustPvaluesSidak}}
 ##' @export
 significantTests <- function(pvalues, thresh.fwer.bonf=c(0.01, 0.05, 0.1),
+                             thresh.fwer.sidak=c(0.01, 0.05, 0.1),
                              thresh.fdr.bh=c(0.01, 0.05, 0.1),
                              thresh.fdr.storey=NULL, pfdr=TRUE){
   stopifnot(is.numeric(pvalues),
@@ -1047,6 +1076,11 @@ significantTests <- function(pvalues, thresh.fwer.bonf=c(0.01, 0.05, 0.1),
               is.vector(thresh.fwer.bonf),
               all(thresh.fwer.bonf >= 0),
               all(thresh.fwer.bonf <= 1))
+  if(! is.null(thresh.fwer.sidak))
+    stopifnot(is.numeric(thresh.fwer.sidak),
+              is.vector(thresh.fwer.sidak),
+              all(thresh.fwer.sidak >= 0),
+              all(thresh.fwer.sidak <= 1))
   if(! is.null(thresh.fdr.bh))
     stopifnot(is.numeric(thresh.fdr.bh),
               is.vector(thresh.fdr.bh),
@@ -1070,6 +1104,14 @@ significantTests <- function(pvalues, thresh.fwer.bonf=c(0.01, 0.05, 0.1),
         output[["fwer.bonf"]][["pv.adj"]] <= thresh
   }
 
+  if(! is.null(thresh.fwer.sidak)){
+    output[["fwer.sidak"]] <-
+      data.frame(pv.adj=adjustPvaluesSidak(pvalues))
+    for(thresh in thresh.fwer.sidak)
+      output[["fwer.sidak"]][[as.character(thresh)]] <-
+        output[["fwer.sidak"]][["pv.adj"]] <= thresh
+  }
+
   if(! is.null(thresh.fdr.bh)){
     output[["fdr.bh"]] <-
       data.frame(pv.adj=stats::p.adjust(pvalues, method="BH"))
@@ -1087,6 +1129,153 @@ significantTests <- function(pvalues, thresh.fwer.bonf=c(0.01, 0.05, 0.1),
   }
 
   return(output)
+}
+
+##' Multiple testing
+##'
+##' Return the significance threshold adjusted according to the Bonferroni correction.
+##' @param nbPvals number of p values (without NA's)
+##' @param thresh nominal significance threshold on the familywise error rate (FWER)
+##' @return numeric
+##' @seealso \code{\link{adjustThreshSidak}}
+##' @author Timothee Flutre
+##' @export
+adjustThreshBonf <- function(nbPvals, thresh=0.05){
+  stopifnot(is.numeric(nbPvals),
+            length(nbPvals) == 1,
+            is.numeric(thresh),
+            length(thresh) == 1,
+            thresh >= 0,
+            thresh <= 1)
+
+  out <- NA
+
+  if(nbPvals > 0){
+    out <- thresh / nbPvals
+  }
+
+  return(out)
+}
+
+##' Multiple testing
+##'
+##' Return the significance threshold adjusted according to the Sidak correction.
+##' @param nbPvals number of p values (without NA's)
+##' @param thresh nominal significance threshold on the familywise error rate (FWER)
+##' @return numeric
+##' @seealso \code{\link{adjustThreshBonf}}
+##' @author Timothee Flutre
+##' @export
+adjustThreshSidak <- function(nbPvals, thresh=0.05){
+  stopifnot(is.numeric(nbPvals),
+            length(nbPvals) == 1,
+            is.numeric(thresh),
+            length(thresh) == 1,
+            thresh >= 0,
+            thresh <= 1)
+
+  out <- NA
+
+  if(nbPvals > 0){
+    out <- 1 - (1 - thresh)^(1 / nbPvals)
+  }
+
+  return(out)
+}
+
+##' Multiple testing
+##'
+##' Return the p values adjusted according to the Sidak correction.
+##' @param pvalues vector of p values (can contain NA's)
+##' @return numeric
+##' @author Timothee Flutre
+##' @export
+adjustPvaluesSidak <- function(pvalues){
+  stopifnot(is.numeric(pvalues),
+            is.vector(pvalues))
+
+  out <- NA
+
+  ## if any NA in "pvalues", omit them
+  hasNA <- FALSE
+  if(anyNA(pvalues)){
+    hasNA <- TRUE
+    pvaluesInit <- pvalues
+    pvalues <- stats::na.omit(pvalues)
+  }
+
+  if(length(pvalues) > 0){
+    tmp <- data.frame(initord=order(pvalues),
+                      pvalue=sort(pvalues),
+                      k=length(pvalues):1)
+    tmp$sidak <- 1 - (1 - tmp$pvalue)^(tmp$k)
+    idx <- 1 + which(tmp$sidak[2:nrow(tmp)] - tmp$sidak[1:(nrow(tmp)-1)] < 0)
+    while(length(idx) > 0){
+      tmp$sidak[idx] <- tmp$sidak[idx-1]
+      idx <- 1 + which(tmp$sidak[2:nrow(tmp)] - tmp$sidak[1:(nrow(tmp)-1)] < 0)
+    }
+    out <- tmp$sidak[order(tmp$initord)]
+
+    ## reintroduce the NA's
+    ## copied from the code of naresid.exclude()
+    if(hasNA){
+      n <- length(pvalues)
+      omit <- attr(pvalues, "na.action")
+      keep <- rep.int(NA, n + length(omit))
+      keep[-omit] <- 1L:n
+      out <- out[keep]
+    }
+  }
+
+  return(out)
+}
+
+##' Multiple testing
+##'
+##' Return the effective number of independent tests according to the method of \href{https://dx.doi.org/10.1002/gepi.20408}{Galwey (2009)}.
+##' @param evCorX eigenvalues of the correlation matrix between SNP genotypes
+##' @param corX correlation matrix between SNP genotypes
+##' @param X SNP genotypes in allele dose (i.e., 0, 1, 2) with individuals in rows and SNPs in columns
+##' @param method for now, only "galwey" is implemented
+##' @return numeric
+##' @seealso \code{\link{adjustThreshGalwey}}
+##' @author Timothee Flutre
+##' @export
+effNbIndepTests <- function(evCorX, corX, X, method="galwey"){
+  stopifnot(method %in% c("galwey"))
+
+  out <- NA
+
+  if(missing(evCorX)){
+    if(missing(corX)){
+      if(missing(X)){
+        stop("missing X", call.=FALSE)
+      }
+      corX <- stats::cor(X)
+    }
+    evCorX <- eigen(corX)$values
+  }
+
+  if(method == "galwey"){
+    evCorX[evCorX < 0] <- 0
+    out <- sum(sqrt(evCorX))^2 / sum(evCorX)
+  }
+
+  return(out)
+}
+
+##' Multiple testing
+##'
+##' Return the significance threshold adjusted according to the \href{https://dx.doi.org/10.1002/gepi.20408}{Galwey correction (2009)}.
+##' @param effNbIndepTests effective number of independent tests
+##' @param thresh nominal significance threshold on the familywise error rate (FWER)
+##' @return numeric
+##' @seealso \code{\link{effNbIndepTests}}
+##' @author Timothee Flutre
+##' @export
+adjustThreshGalwey <- function(effNbIndepTests, thresh=0.05){
+  ## see equation 21 in Galwey (2009)
+  return(adjustThreshSidak(effNbIndepTests, thresh))
 }
 
 ##' FDR

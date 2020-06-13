@@ -5,13 +5,15 @@
 \title{Multiple tests correction}
 \usage{
 significantTests(pvalues, thresh.fwer.bonf = c(0.01, 0.05, 0.1),
-  thresh.fdr.bh = c(0.01, 0.05, 0.1), thresh.fdr.storey = NULL,
-  pfdr = TRUE)
+  thresh.fwer.sidak = c(0.01, 0.05, 0.1), thresh.fdr.bh = c(0.01, 0.05,
+  0.1), thresh.fdr.storey = NULL, pfdr = TRUE)
 }
 \arguments{
 \item{pvalues}{vector of p values (can contain NA's)}
 
 \item{thresh.fwer.bonf}{if not NULL, vector of significance thresholds for the FWER criterion and the Bonferroni procedure}
+
+\item{thresh.fwer.sidak}{if not NULL, vector of significance thresholds for the FWER criterion and the Sidak procedure}
 
 \item{thresh.fdr.bh}{if not NULL, vector of significance thresholds for the FDR criterion and the Benjamini-Hochberg procedure}
 
@@ -26,7 +28,7 @@ list
 Call significance tests after multiplicity correction based on various criteria (FWER, FDR) and various procedure for each of them.
 }
 \seealso{
-\code{\link{qqplotPval}}, \code{\link{binaryClassif}}
+\code{\link{qqplotPval}}, \code{\link{binaryClassif}}, \code{\link{adjustPvaluesSidak}}
 }
 \author{
 Timothee Flutre

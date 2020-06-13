@@ -25,6 +25,58 @@ test_that("binaryClassif", {
   expect_equal(observed, expected)
 })
 
+test_that("adjustThreshSidak", {
+  nbPvals <- 10
+  thresh <- 0.05
+
+  expected <- 1 - (1 - thresh)^(1/nbPvals)
+
+  observed <- adjustThreshSidak(nbPvals, thresh)
+
+  expect_equal(observed, expected)
+})
+
+test_that("adjustThreshSidak_1pv", {
+  nbPvals <- 1
+  thresh <- 0.01
+
+  expected <- thresh
+
+  observed <- adjustThreshSidak(nbPvals, thresh)
+
+  expect_equal(observed, expected)
+})
+
+test_that("adjustPvaluesSidak", {
+  ## https://stats.idre.ucla.edu/stata/code/idak-holm-adjusted-p-values/
+  pvalues <- c(0.2703633, 0.2861805, 0.0674455, 0.2884618, 0.0522945,
+               0.0094186, 0.0412532, 0.1566575, 0.00296, 0.0068728,
+               0.025553, 0.3102804, 0.0042578, 0.0031542, 0.000024)
+
+  expected <- c(0.7165824, 0.7165824, 0.3422735, 0.7165824, 0.313384,
+                0.0902925, 0.2861095, 0.573401, 0.0406521, 0.0730554,
+                0.2078198, 0.7165824, 0.0499139, 0.0406521, 0.0003597)
+
+  observed <- adjustPvaluesSidak(pvalues)
+
+  expect_equal(observed, expected, tolerance=10^(-6))
+})
+
+test_that("adjustPvaluesSidak_with-NA", {
+  ## https://stats.idre.ucla.edu/stata/code/idak-holm-adjusted-p-values/
+  pvalues <- c(0.2703633, NA, 0.2861805, 0.0674455, 0.2884618, 0.0522945,
+               0.0094186, 0.0412532, 0.1566575, 0.00296, 0.0068728,
+               0.025553, 0.3102804, 0.0042578, NA, 0.0031542, 0.000024)
+
+  expected <- c(0.7165824, NA, 0.7165824, 0.3422735, 0.7165824, 0.313384,
+                0.0902925, 0.2861095, 0.573401, 0.0406521, 0.0730554,
+                0.2078198, 0.7165824, 0.0499139, NA, 0.0406521, 0.0003597)
+
+  observed <- adjustPvaluesSidak(pvalues)
+
+  expect_equal(observed, expected, tolerance=10^(-6))
+})
+
 test_that("log10WeightedSum_without_weights", {
   x <- c(0.3, 0.01, 0.7)
 
@@ -109,6 +161,12 @@ test_that("significantTests", {
     expected[["fwer.bonf"]][["pv.adj"]] <= 0.01
   expected[["fwer.bonf"]][["0.05"]] <-
     expected[["fwer.bonf"]][["pv.adj"]] <= 0.05
+  expected[["fwer.sidak"]] <-
+    data.frame(pv.adj=adjustPvaluesSidak(pvalues))
+  expected[["fwer.sidak"]][["0.01"]] <-
+    expected[["fwer.sidak"]][["pv.adj"]] <= 0.01
+  expected[["fwer.sidak"]][["0.05"]] <-
+    expected[["fwer.sidak"]][["pv.adj"]] <= 0.05
   expected[["fdr.bh"]] <-
     data.frame(pv.adj=p.adjust(pvalues, method="BH"))
   expected[["fdr.bh"]][["0.01"]] <-
@@ -118,6 +176,7 @@ test_that("significantTests", {
 
   observed <- significantTests(pvalues=pvalues,
                                thresh.fwer.bonf=c(0.01, 0.05),
+                               thresh.fwer.sidak=c(0.01, 0.05),
                                thresh.fdr.bh=c(0.01, 0.05),
                                thresh.fdr.storey=NULL)
 

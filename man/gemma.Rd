@@ -21,7 +21,7 @@ gemma(model = "ulmm", y, X, snp.coords, recode.genos = TRUE,
 
 \item{recode.genos}{if TRUE, SNP genotypes in X will be recoded so that the minor allele is counted}
 
-\item{alleles}{data.frame with SNPs in rows (names as row names) and alleles in columns (exactly 2 columns are required); the second column should correspond to the allele which number of copies is counted at each SNP in \code{X}; if NULL, fake alleles will be generated}
+\item{alleles}{data.frame with SNPs in rows (names as row names) and alleles in columns (exactly 2 columns are required); the second column should correspond to the allele which number of copies is counted at each SNP in \code{X}; if NULL, fake alleles will be generated; if it is a matrix, it will be silently converted into a data.frame}
 
 \item{maf}{SNPs with minor allele frequency strictly below this threshold will be discarded}
 

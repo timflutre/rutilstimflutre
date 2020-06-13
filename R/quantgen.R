@@ -5838,24 +5838,25 @@ imputeGenosWithMean <- function(X, min.maf=0.1, max.miss=0.3, rm.still.miss=TRUE
   stopIfNotValidGenosDose(X, check.noNA=FALSE, check.isDose=FALSE)
 
   X.out <- X
+  if(any(is.na(X))){
+    ## perform imputation
+    ## tmp <- rrBLUP::A.mat(X=X - 1, min.MAF=min.maf, max.missing=max.miss,
+    ##                      impute.method="mean", return.imputed=TRUE)
+    ## X.out <- tmp$imputed + 1
+    freq.miss <- calcFreqMissSnpGenosPerSnp(X)
+    afs <- estimSnpAf(X=X)
+    mafs <- estimSnpMaf(afs=afs)
+    tokeep <- which((mafs >= min.maf) & (freq.miss <= max.miss))
+    ones <- matrix(data=1, nrow=nrow(X), ncol=1)
+    afs.mat <- tcrossprod(ones, matrix(afs[tokeep]))
+    idx.na <- which(is.na(X.out[,tokeep]))
+    X.out[,tokeep][idx.na] <- 0
+    X.out[,tokeep][idx.na] <- (X.out[,tokeep] + 2 * afs.mat)[idx.na]
 
-  ## perform imputation
-  ## tmp <- rrBLUP::A.mat(X=X - 1, min.MAF=min.maf, max.missing=max.miss,
-  ##                      impute.method="mean", return.imputed=TRUE)
-  ## X.out <- tmp$imputed + 1
-  freq.miss <- calcFreqMissSnpGenosPerSnp(X)
-  afs <- estimSnpAf(X=X)
-  mafs <- estimSnpMaf(afs=afs)
-  tokeep <- which((mafs >= min.maf) & (freq.miss <= max.miss))
-  ones <- matrix(data=1, nrow=nrow(X), ncol=1)
-  afs.mat <- tcrossprod(ones, matrix(afs[tokeep]))
-  idx.na <- which(is.na(X.out[,tokeep]))
-  X.out[,tokeep][idx.na] <- 0
-  X.out[,tokeep][idx.na] <- (X.out[,tokeep] + 2 * afs.mat)[idx.na]
-
-  ## remove SNPs with remaining missing genotypes
-  if(all(rm.still.miss, sum(is.na(X.out)) > 0))
-    X.out <- discardMarkersMissGenos(X=X.out, verbose=0)
+    ## remove SNPs with remaining missing genotypes
+    if(all(rm.still.miss, sum(is.na(X.out)) > 0))
+      X.out <- discardMarkersMissGenos(X=X.out, verbose=0)
+  }
 
   return(X.out)
 }

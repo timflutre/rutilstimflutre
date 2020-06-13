@@ -32,6 +32,7 @@ list with (1) if X is given, the rotated data matrix (= X V) which rows correspo
 \description{
 Given a data matrix X with N rows and P columns, principal component analysis can be performed using the singular value decomposition (SVD), X = U D V^T, where U is NxN, D is NxN and diagonal (singular values), and V is PxN.
 Another way to perform it, is to first compute a symmetric matrix, S (e.g. the scatter matrix X X^T, but not necessarily), and then to use the eigendecomposition (EVD) of it, S = Q Delta Q^-1, where Q is NxN and Delta is NxN and diagonal (eigenvalues).
+TODO: for large matrices, use the \href{https://cran.r-project.org/package=RSpectra}{RSpectra} package which allows to calculate only the k largest singular values and corresponding singular vectors.
 }
 \examples{
 \dontrun{## simulate genotypes from 3 populations

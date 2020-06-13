@@ -58,7 +58,7 @@ genoDoses2bimbam <- function(X=NULL, tX=NULL, alleles, file=NULL, format="mean")
 ##' @param X matrix of bi-allelic SNP genotypes encoded, for each SNP, in number of copies of its second allele, i.e. as allele doses in {0,1,2}, with genotypes in rows and SNPs in columns; the "second" allele is arbitrary, it corresponds to the second column of \code{alleles}, which can be the minor or the major allele
 ##' @param snp.coords data.frame with SNPs as row names and two columns named "coord" and "chr"
 ##' @param recode.genos if TRUE, SNP genotypes in X will be recoded so that the minor allele is counted
-##' @param alleles data.frame with SNPs in rows (names as row names) and alleles in columns (exactly 2 columns are required); the second column should correspond to the allele which number of copies is counted at each SNP in \code{X}; if NULL, fake alleles will be generated
+##' @param alleles data.frame with SNPs in rows (names as row names) and alleles in columns (exactly 2 columns are required); the second column should correspond to the allele which number of copies is counted at each SNP in \code{X}; if NULL, fake alleles will be generated; if it is a matrix, it will be silently converted into a data.frame
 ##' @param maf SNPs with minor allele frequency strictly below this threshold will be discarded
 ##' @param K.c kinship matrix; if NULL, will be estimated using X via \code{\link{estimGenRel}} with \code{relationships="additive"} and \code{method="zhou"}
 ##' @param W matrix of covariates with genotypes in rows (names as row names), a first column of 1 for the intercept and, if needed, a second column of covariates values; if NULL, a column of 1 will be used for the intercept
@@ -203,11 +203,14 @@ gemma <- function(model="ulmm", y, X, snp.coords, recode.genos=TRUE,
             is.character(task.id),
             length(task.id) == 1,
             clean %in% c("none", "some", "all"))
-  if(! is.null(alleles))
+  if(! is.null(alleles)){
+    if(is.matrix(alleles))
+      alleles <- as.data.frame(alleles)
     stopifnot(is.data.frame(alleles),
               ! is.null(rownames(alleles)),
               ncol(alleles) == 2,
               all(colnames(X) %in% rownames(alleles)))
+  }
   if(! is.null(weights))
     stopifnot(is.vector(weights),
               is.numeric(weights),

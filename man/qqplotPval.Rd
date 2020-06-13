@@ -7,9 +7,9 @@
 qqplotPval(pvalues, use.density = FALSE, nrpoints = 1000, pch = 1,
   plot.conf.int = TRUE, xlab = expression(Expected ~ ~-log[10](italic(p) ~
   values)), ylab = expression(Observed ~ ~-log[10](italic(p) ~ values)),
-  thresh = 0.05, ctl.fwer.bonf = FALSE, ctl.fdr.bh = FALSE,
-  ctl.fdr.storey = FALSE, pfdr = TRUE, plot.signif = FALSE, main = NULL,
-  col = NULL, verbose = 1)
+  thresh = 0.05, ctl.fwer.bonf = FALSE, ctl.fwer.sidak = FALSE,
+  ctl.fdr.bh = FALSE, ctl.fdr.storey = FALSE, pfdr = TRUE,
+  plot.signif = FALSE, main = NULL, col = NULL, verbose = 1)
 }
 \arguments{
 \item{pvalues}{vector of raw p values (missing values will be omitted)}
@@ -29,6 +29,8 @@ qqplotPval(pvalues, use.density = FALSE, nrpoints = 1000, pch = 1,
 \item{thresh}{significance threshold at which to control the FWER and the FDR}
 
 \item{ctl.fwer.bonf}{control the family-wise error rate with the Bonferroni procedure}
+
+\item{ctl.fwer.sidak}{control the family-wise error rate with the Sidak procedure}
 
 \item{ctl.fdr.bh}{control the false discovery rate with the Benjamini-Hochberg procedure}
 
