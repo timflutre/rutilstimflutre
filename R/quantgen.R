@@ -6763,8 +6763,10 @@ plantTrialLmmFitFixed <- function(glob.form, dat.noNA, ctl=NULL,
     load(saved.file)
   }
   if(verbose > 0){
-    msg <- paste0("MD5 sum: ", md5.allmod.sel)
-    write(msg, stdout())
+    if(! is.null(saved.file)){	  
+      msg <- paste0("MD5 sum: ", md5.allmod.sel)
+      write(msg, stdout())
+    }
   }
 
   return(allmod.sel)
