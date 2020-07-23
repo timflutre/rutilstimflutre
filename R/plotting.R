@@ -7,11 +7,11 @@
 ##' @param y vector or 1-column matrix (missing data coded as NA will be automatically discarded)
 ##' @param reg specifies which model(s) to use to add regression lines(s) (lm/loess/rlm; can be \code{c("lm", "rlm")})
 ##' @param col named vector specifying the color(s) of the regression line(s) specified via \code{reg}
-##' @param show.cor if TRUE, Pearson and Spearman correlation coefficients are shown in the top left corner
+##' @param show.crit specifies which criterion to show in the top left corner (corP/corS/R2adj); can be \code{c("R2adj", "corP")}) or \code{NULL}
 ##' @param ci.int if \code{reg="lm"}, add lines corresponding to confidence intervals
 ##' @param pred.int if \code{reg="lm"}, add lines corresponding to prediction intervals
-##' @param legend.x the x co-ordinate to be used to position the legend (see \code{\link[graphics]{legend}})
-##' @param legend.y the y co-ordinate to be used to position the legend (see \code{\link[graphics]{legend}})
+##' @param legend.x the x coordinate to be used to position the legend (see \code{\link[graphics]{legend}})
+##' @param legend.y the y coordinate to be used to position the legend (see \code{\link[graphics]{legend}})
 ##' @param las see \code{\link[graphics]{par}}
 ##' @param ... arguments to be passed to \code{\link[graphics]{plot}}
 ##' @return list of object(s) returned by the function(s) specified via \code{reg}
@@ -30,7 +30,7 @@
 ##'                col=c(lm="red", rlm="blue"), legend.x="bottomright",
 ##'                main="(Robust) linear regressions")
 ##' @export
-regplot <- function(x, y, reg="lm", col=c(lm="red"), show.cor=TRUE,
+regplot <- function(x, y, reg="lm", col=c(lm="red"), show.crit=c("corP", "corS"),
                     ci.int=TRUE, pred.int=TRUE,
                     legend.x="right", legend.y=NULL,
                     las=1, ...){
@@ -45,6 +45,9 @@ regplot <- function(x, y, reg="lm", col=c(lm="red"), show.cor=TRUE,
   if("rlm" %in% reg){
     requireNamespace("MASS")
   }
+  if("R2adj" %in% show.crit){
+    stopifnot("lm" %in% reg)
+  }
 
   fit <- list()
 
@@ -57,12 +60,14 @@ regplot <- function(x, y, reg="lm", col=c(lm="red"), show.cor=TRUE,
   graphics::plot(formula=y ~ x, data=tmp, las=las, ...)
   legd <- c()
   col.order <- c()
+  lty <- c()
 
   if("lm" %in% reg){
     fit$lm <- stats::lm(formula=y ~ x, data=tmp)
     graphics::abline(fit$lm, col=col["lm"])
-    legd <- append(legd, "lm")
+    legd <- append(legd, "lm fit")
     col.order <- append(col.order, col["lm"])
+    lty <- append(lty, 1)
 
     newx <- seq(min(tmp$x), max(tmp$x), length.out=length(tmp$x))
     if(ci.int){
@@ -70,12 +75,18 @@ regplot <- function(x, y, reg="lm", col=c(lm="red"), show.cor=TRUE,
                                 interval="confidence")
       graphics::lines(newx, pred.ci[,"lwr"], lty=2)
       graphics::lines(newx, pred.ci[,"upr"], lty=2)
+      legd <- append(legd, "lm conf. int.")
+      col.order <- append(col.order, "black")
+      lty <- append(lty, 2)
     }
     if(pred.int){
       pred.pi <- stats::predict(fit$lm, newdata=data.frame(x=newx),
                                 interval="prediction")
       graphics::lines(newx, pred.pi[,"lwr"], lty=3)
       graphics::lines(newx, pred.pi[,"upr"], lty=3)
+      legd <- append(legd, "lm pred. int.")
+      col.order <- append(col.order, "black")
+      lty <- append(lty, 3)
     }
   }
   if("loess" %in% reg){
@@ -86,6 +97,7 @@ regplot <- function(x, y, reg="lm", col=c(lm="red"), show.cor=TRUE,
                     col=col["loess"])
     legd <- append(legd, "loess")
     col.order <- append(col.order, col["loess"])
+    lty <- append(lty, 1)
   }
   if("rlm" %in% reg){
     fit$rlm <- MASS::rlm(formula=y ~ x, data=tmp)
@@ -95,14 +107,33 @@ regplot <- function(x, y, reg="lm", col=c(lm="red"), show.cor=TRUE,
                     col=col["rlm"])
     legd <- append(legd, "rlm")
     col.order <- append(col.order, col["rlm"])
+    lty <- append(lty, 1)
   }
 
-  graphics::legend(x=legend.x, y=legend.y, legend=legd, col=col.order, lty=1,
-                   bty="n")
+  graphics::legend(x=legend.x, y=legend.y, legend=legd, col=col.order,
+                   lty=lty, bty="n")
 
-  if(show.cor){
-    fit$cor.p <- stats::cor(x=x, y=y, method="pearson")
-    fit$cor.s <- stats::cor(x=x, y=y, method="spearman")
+  txt <- c()
+  if("corP" %in% show.crit){
+    fit$cor.p <- stats::cor(x=tmp$x, y=tmp$y, method="pearson")
+    txt <- append(txt,
+                  paste0("cor.Pearson=",
+                         format(fit$cor.p, digits=2)))
+  }
+  if("corS" %in% show.crit){
+    fit$cor.s <- stats::cor(x=tmp$x, y=tmp$y, method="spearman")
+    txt <- append(txt,
+                  paste0("cor.Spearman=",
+                         format(fit$cor.s, digits=2)))
+  }
+  if("R2adj" %in% show.crit){
+    txt <- append(txt,
+                  paste0("R2adj=",
+                         format(summary(fit$lm)$adj.r.squared, digits=2)))
+  }
+
+  if(! is.null(show.crit)){
+    txt <- paste0(txt, collapse="\n")
     graphics::text(x=graphics::par("usr")[1] +
                      0.03 * abs(graphics::par("usr")[2] -
                                 graphics::par("usr")[1]),
@@ -110,9 +141,7 @@ regplot <- function(x, y, reg="lm", col=c(lm="red"), show.cor=TRUE,
                      0.03 * abs(graphics::par("usr")[4] -
                                 graphics::par("usr")[3]),
                    adj=c(0, 1),
-                   labels=paste0("cor.Pearson=", format(fit$cor.p, digits=2),
-                                 "\n",
-                                 "cor.Spearman=", format(fit$cor.s, digits=2)))
+                   labels=txt)
   }
 
   invisible(fit)

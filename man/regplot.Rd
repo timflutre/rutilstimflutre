@@ -4,9 +4,9 @@
 \alias{regplot}
 \title{Scatter plot with regression lines}
 \usage{
-regplot(x, y, reg = "lm", col = c(lm = "red"), show.cor = TRUE,
-  ci.int = TRUE, pred.int = TRUE, legend.x = "right", legend.y = NULL,
-  las = 1, ...)
+regplot(x, y, reg = "lm", col = c(lm = "red"), show.crit = c("corP",
+  "corS"), ci.int = TRUE, pred.int = TRUE, legend.x = "right",
+  legend.y = NULL, las = 1, ...)
 }
 \arguments{
 \item{x}{vector or 1-column matrix (missing data coded as NA will be automatically discarded)}
@@ -17,15 +17,15 @@ regplot(x, y, reg = "lm", col = c(lm = "red"), show.cor = TRUE,
 
 \item{col}{named vector specifying the color(s) of the regression line(s) specified via \code{reg}}
 
-\item{show.cor}{if TRUE, Pearson and Spearman correlation coefficients are shown in the top left corner}
+\item{show.crit}{specifies which criterion to show in the top left corner (corP/corS/R2adj); can be \code{c("R2adj", "corP")}) or \code{NULL}}
 
 \item{ci.int}{if \code{reg="lm"}, add lines corresponding to confidence intervals}
 
 \item{pred.int}{if \code{reg="lm"}, add lines corresponding to prediction intervals}
 
-\item{legend.x}{the x co-ordinate to be used to position the legend (see \code{\link[graphics]{legend}})}
+\item{legend.x}{the x coordinate to be used to position the legend (see \code{\link[graphics]{legend}})}
 
-\item{legend.y}{the y co-ordinate to be used to position the legend (see \code{\link[graphics]{legend}})}
+\item{legend.y}{the y coordinate to be used to position the legend (see \code{\link[graphics]{legend}})}
 
 \item{las}{see \code{\link[graphics]{par}}}
 
