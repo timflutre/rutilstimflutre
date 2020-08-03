@@ -382,7 +382,7 @@ imageWithScale <- function(z, main=NULL, idx.rownames=NULL, idx.colnames=NULL,
 ##' @param ... arguments to be passed to \code{\link[graphics]{plot}}, such as "xlim", ylim", etc
 ##' @return nothing
 ##' @author Timothee Flutre
-##' @seealso \code{\link{pca}}
+##' @seealso \code{\link{pca}}, \code{\link{orthoRotate2D}}
 ##' @export
 plotPca <- function(rotation, prop.vars,
                     idx.x=1, idx.y=2,

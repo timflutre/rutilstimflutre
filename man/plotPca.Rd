@@ -34,7 +34,7 @@ nothing
 Plot the two first principal components from a PCA.
 }
 \seealso{
-\code{\link{pca}}
+\code{\link{pca}}, \code{\link{orthoRotate2D}}
 }
 \author{
 Timothee Flutre

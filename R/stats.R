@@ -435,6 +435,23 @@ pca <- function(X=NULL, S=NULL, ct=TRUE, sc=FALSE, plot=NULL, main="PCA",
   return(output)
 }
 
+##' Rotation
+##'
+##' Rotates the input matrix by a certain angle (useful for the output of PCA).
+##' @param x 2-column matrix to be rotated
+##' @param angle angle of rotation (in degrees)
+##' @return matrix
+##' @seealso \code{\link{pca}}, \code{\link{plotPca}}
+##' @author Timothee Flutre
+##' @export
+orthoRotate2D <- function(x, angle=90){
+  stopifnot(ncol(x) == 2)
+  rotmat <- matrix(c(cos(angle), -sin(angle),
+                     sin(angle), cos(angle)),
+                   nrow=2, ncol=2, byrow=TRUE)
+  x %*% rotmat
+}
+
 ##' Choose the number of PCs
 ##'
 ##' Return the number of PCs that minimizes the average squared partial correlation, from Shriner (Heredity, 2011).
