@@ -5208,7 +5208,7 @@ estimLd <- function(X, snp.coords, K=NULL, pops=NULL,
         tmp[upper.tri(tmp)] <- NA
         diag(tmp) <- NA
         ld <- data.frame(t(utils::combn(colnames(X), 2)),
-                         tmp[! is.na(tmp)],
+                         tmp[lower.tri(tmp)],
                          stringsAsFactors=TRUE)
         colnames(ld) <- c("loc1", "loc2", "cor2")
       }
@@ -6763,7 +6763,7 @@ plantTrialLmmFitFixed <- function(glob.form, dat.noNA, ctl=NULL,
     load(saved.file)
   }
   if(verbose > 0){
-    if(! is.null(saved.file)){	  
+    if(! is.null(saved.file)){
       msg <- paste0("MD5 sum: ", md5.allmod.sel)
       write(msg, stdout())
     }
