@@ -5631,6 +5631,77 @@ plotLdSry <- function(x, y, bin.len=10^3, max.dist=10^5,
   invisible(out)
 }
 
+##' Pairwise linkage disequilibrium
+##'
+##' Plots a summary of linkage disequilibrium between pairs of SNPs versus physical distance.
+##' @param x vector of pysical coordinates of mid bins (see output of \code{\link{summarizeLd}})
+##' @param y vector of LD estimates (see output of \code{\link{summarizeLd}})
+##' @param xlab label for the x axis
+##' @param ylab label for the y axis
+##' @param main main title
+##' @param fitted.loess see the output of \code{\link{fitPhyDistVsLd}}
+##' @param fitted.lm see the output of \code{\link{fitPhyDistVsLd}}
+##' @param fitted.loglm see the output of \code{\link{fitPhyDistVsLd}}
+##' @param fitted.asyreg see the output of \code{\link{fitPhyDistVsLd}}
+##' @param fitted.biexp see the output of \code{\link{fitPhyDistVsLd}}
+##' @param ... arguments passed to \code{\link{plot}}
+##' @return nothing
+##' @seealso \code{\link{summarizeLd}}, \code{\link{fitPhyDistVsLd}}
+##' @author Timothee Flutre
+##' @export
+plotPhyDistVsLdSry <- function(x, y, xlab, ylab, main="",
+                               fitted.loess=NULL, fitted.lm=NULL, fitted.loglm=NULL,
+                               fitted.asyreg=NULL, fitted.biexp=NULL, ...){
+  graphics::plot(x=x, y=y, xlab=xlab, ylab=ylab, main=main, col="darkgrey", pch=1, ...)
+  graphics::abline(h=0)
+  lgds <- "LD summary"
+  cols <- "darkgrey"
+  pchs <- 1
+  ltys <- NA
+  lwds <- NA
+  if(! is.null(fitted.loess)){
+    graphics::points(x=x, y=fitted.loess, col="blue", pch=1)
+    lgds <- c(lgds, "loess")
+    cols <- c(cols, "blue")
+    pchs <- c(pchs, 1)
+    ltys <- c(ltys, NA)
+    lwds <- c(lwds, NA)
+  }
+  if(! is.null(fitted.lm)){
+    graphics::lines(x=x, y=fitted.lm, col="red", lty=1, lwd=2)
+    lgds <- c(lgds, "LM")
+    cols <- c(cols, "red")
+    pchs <- c(pchs, NA)
+    ltys <- c(ltys, 1)
+    lwds <- c(lwds, 2)
+  }
+  if(! is.null(fitted.loglm)){
+    graphics::points(x=x, y=fitted.loglm, col="red", pch=2)
+    lgds <- c(lgds, "log LM")
+    cols <- c(cols, "red")
+    pchs <- c(pchs, 2)
+    ltys <- c(ltys, NA)
+    lwds <- c(lwds, NA)
+  }
+  if(! is.null(fitted.asyreg)){
+    graphics::points(x=x, y=fitted.asyreg, col="green", pch=3)
+    lgds <- c(lgds, "asymptotic regression")
+    cols <- c(cols, "green")
+    pchs <- c(pchs, 3)
+    ltys <- c(ltys, NA)
+    lwds <- c(lwds, NA)
+  }
+  if(! is.null(fitted.biexp)){
+    graphics::points(x=x, y=fitted.biexp, col="orange", pch=4)
+    lgds <- c(lgds, "biexponential")
+    cols <- c(cols, "orange")
+    pchs <- c(pchs, 4)
+    ltys <- c(ltys, NA)
+    lwds <- c(lwds, NA)
+  }
+  graphics::legend("topright", bty="n", legend=lgds, col=cols, pch=pchs, lty=ltys, lwd=lwds)
+}
+
 ##' Distance between consecutive SNPs
 ##'
 ##' For each pair of consecutive SNPs, return the number of "blocks" (i.e. nucleotides) between both SNPs (to be coherent with \code{\link{distSnpPairs}}).
