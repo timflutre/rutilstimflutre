@@ -426,7 +426,7 @@ readOutputsFimpute <- function(out.dir){
 ##' @param vcf.file path to the VCF file (if the bgzip index doesn't exist in the same directory, it will be created); used only if \code{X=NULL}
 ##' @param yieldSize number of records to yield each time the file is read from  (see \code{?TabixFile})
 ##' @param ped data frame of pedigree with four columns in that order, genotype identifiers (same as in \code{X}), parent1 identifiers (considered as father/sire), parent2 identifiers (considered as mother/dam), and sex (as M or F)
-##' @param exe.name name of the fimpute version, default is "FImpute"
+##' @param exe path to the executable of FImpute
 ##' @param work.dir directory in which the input and output files will be saved
 ##' @param task.id identifier of the task (used in temporary and output file names)
 ##' @param params.fimpute list of additional parameters to pass to FImpute
@@ -486,11 +486,12 @@ readOutputsFimpute <- function(out.dir){
 ##' @export
 runFimpute <- function(X=NULL, chips=NULL, snp.coords=NULL,
                        vcf.file=NULL, yieldSize=10000,
-                       ped=NULL, exe.name="FImpute",
+                       ped=NULL, exe=Sys.which("FImpute"),
                        work.dir=getwd(), task.id="fimpute",
                        params.fimpute=NULL,
                        clean="none", verbose=1){
-  stopifnot(file.exists(Sys.which(exe.name)))
+  exe <- path.expand(exe)
+  stopifnot(file.exists(exe))
   stopifnot(! all(is.null(X), is.null(vcf.file)))
   stopifnot(is.character(task.id),
             length(task.id) == 1,
@@ -542,21 +543,21 @@ runFimpute <- function(X=NULL, chips=NULL, snp.coords=NULL,
                      verbose=verbose)
 
   if(verbose > 0){
-    msg <- paste0("run ", exe.name, "...")
+    msg <- paste0("run ", exe, "...")
     write(msg, stdout())
   }
   args <- paste(tmp.files["ctl"], "-o")
   if(verbose > 0){
-    msg <- paste(exe.name, args)
+    msg <- paste(exe, args)
     write(msg, stdout())
   }
   tmp.files["stdouterr"] <- paste0(task.id, "_stdouterr.txt")
-  ret <- system2(command=exe.name, args=args,
+  ret <- system2(command=exe, args=args,
                  stdout=tmp.files["stdouterr"], stderr=tmp.files["stdouterr"],
                  wait=TRUE)
 
   if(ret != 0){
-    msg <- paste0("command '", exe.name, "' returned '", ret, "'")
+    msg <- paste0("command '", exe, "' returned '", ret, "'")
     warning(msg)
   } else{
     if(verbose > 0){

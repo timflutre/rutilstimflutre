@@ -5,9 +5,9 @@
 \title{Genotype imputation via FImpute}
 \usage{
 runFimpute(X = NULL, chips = NULL, snp.coords = NULL, vcf.file = NULL,
-  yieldSize = 10000, ped = NULL, work.dir = getwd(),
-  task.id = "fimpute", params.fimpute = NULL, clean = "none",
-  verbose = 1)
+  yieldSize = 10000, ped = NULL, exe = Sys.which("FImpute"),
+  work.dir = getwd(), task.id = "fimpute", params.fimpute = NULL,
+  clean = "none", verbose = 1)
 }
 \arguments{
 \item{X}{matrix of bi-allelic SNP genotypes encoded in number of copies of the 2nd allele, i.e. as allele doses in {0,1,2}, with genotypes in rows and SNPs in columns; missing values should be encoded as NA; the maximum length of genotypes identifiers is 30 characters; if not NULL, will be used in priority even if \code{vcf.file} is not NULL}
@@ -21,6 +21,8 @@ runFimpute(X = NULL, chips = NULL, snp.coords = NULL, vcf.file = NULL,
 \item{yieldSize}{number of records to yield each time the file is read from  (see \code{?TabixFile})}
 
 \item{ped}{data frame of pedigree with four columns in that order, genotype identifiers (same as in \code{X}), parent1 identifiers (considered as father/sire), parent2 identifiers (considered as mother/dam), and sex (as M or F)}
+
+\item{exe}{path to the executable of FImpute}
 
 \item{work.dir}{directory in which the input and output files will be saved}
 
