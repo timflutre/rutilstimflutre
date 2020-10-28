@@ -426,6 +426,7 @@ readOutputsFimpute <- function(out.dir){
 ##' @param vcf.file path to the VCF file (if the bgzip index doesn't exist in the same directory, it will be created); used only if \code{X=NULL}
 ##' @param yieldSize number of records to yield each time the file is read from  (see \code{?TabixFile})
 ##' @param ped data frame of pedigree with four columns in that order, genotype identifiers (same as in \code{X}), parent1 identifiers (considered as father/sire), parent2 identifiers (considered as mother/dam), and sex (as M or F)
+##' @param exe.name name of the fimpute version, default is "FImpute"
 ##' @param work.dir directory in which the input and output files will be saved
 ##' @param task.id identifier of the task (used in temporary and output file names)
 ##' @param params.fimpute list of additional parameters to pass to FImpute
@@ -485,11 +486,10 @@ readOutputsFimpute <- function(out.dir){
 ##' @export
 runFimpute <- function(X=NULL, chips=NULL, snp.coords=NULL,
                        vcf.file=NULL, yieldSize=10000,
-                       ped=NULL,
+                       ped=NULL, exe.name="FImpute",
                        work.dir=getwd(), task.id="fimpute",
                        params.fimpute=NULL,
                        clean="none", verbose=1){
-  exe.name <- "FImpute"
   stopifnot(file.exists(Sys.which(exe.name)))
   stopifnot(! all(is.null(X), is.null(vcf.file)))
   stopifnot(is.character(task.id),
