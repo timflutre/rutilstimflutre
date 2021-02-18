@@ -6710,48 +6710,53 @@ aireml <- function(A, y, X, Z, initE, initU, verbose=0){
 	Ze <- diag(N)
 	oldE <- initE
 	oldU <- initU
-	AI <- matrix(0, ncol=2, nrow=2)
-	s <- matrix(0, ncol=1, nrow=2)
+	AI <- matrix(0, ncol=2, nrow=2) # average information matrix
+	s <- matrix(0, ncol=1, nrow=2)  # score function (first derivative of the log-likelihood)
 
 	diff1 <- 1
 	diff2 <- 1
 	i <- 0
 	while(diff1 > 10^(-6) & diff2 > 10^(-7)){
-		i <- i + 1
+    i <- i + 1
 
-		G <- oldU * A
-		R <- oldE * Ze %*% t(Ze)
-		V <- Z %*% G %*% t(Z) + R
-		Vinv <- solve(V)
-		P <- Vinv - Vinv %*% X %*% solve(t(X) %*% Vinv %*% X) %*% t(X) %*% Vinv
-		AI[1,1] <- sum(diag((t(y) %*% P %*% Z %*% t(Z) %*%
+    G <- oldU * A
+    R <- oldE * Ze %*% t(Ze)
+    V <- Z %*% G %*% t(Z) + R
+    Vinv <- solve(V)
+    P <- Vinv - Vinv %*% X %*% solve(t(X) %*% Vinv %*% X) %*% t(X) %*% Vinv
+    ## TODO -> compute log-likelihood: l propto -(1/2)[log|V| + log|X' V^-1 X| + y' P y]
+    ## see Mrode (2005) page 240
+
+    AI[1,1] <- sum(diag((t(y) %*% P %*% Z %*% t(Z) %*%
                          P %*% Z %*% t(Z) %*% P %*% y)))
-		AI[1,2] <-  sum(diag((t(y) %*% P %*% Z %*% t(Z) %*%
+    AI[1,2] <-  sum(diag((t(y) %*% P %*% Z %*% t(Z) %*%
                           P %*% Ze %*% t(Ze) %*% P %*% y)))
-		AI[2,1] <- AI[1,2]
-		AI[2,2] <- sum(diag((t(y) %*% P %*% Ze %*% t(Ze) %*%
+    AI[2,1] <- AI[1,2]
+    AI[2,2] <- sum(diag((t(y) %*% P %*% Ze %*% t(Ze) %*%
                          P %*% Ze %*% t(Ze) %*% P %*% y)))
-		s[1,1] <- sum(diag((P %*% Z %*% t(Z)))) -
+
+    s[1,1] <- sum(diag((P %*% Z %*% t(Z)))) -
       (t(y) %*% P %*% Z %*% t(Z) %*% P %*% y)
-		s[2,1] <- sum(diag((P %*% Ze %*% t(Ze)))) -
+    s[2,1] <- sum(diag((P %*% Ze %*% t(Ze)))) -
       (t(y) %*% P %*% Ze %*% t(Ze) %*% P %*% y)
-		newvarcomps <- c(oldU, oldE) - solve(AI) %*% s
+
+    newvarcomps <- c(oldU, oldE) - solve(AI) %*% s
     varU <- newvarcomps[1]
     varE <- newvarcomps[2]
 
-		diff1 <- abs(varE - oldE)
-		diff2 <- abs(varU - oldU)
-		if(verbose > 0){
+    diff1 <- abs(varE - oldE)
+    diff2 <- abs(varU - oldU)
+    if(verbose > 0){
       txt <- paste0("iteration ", i, ":",
                     " varE=", format(varE, digits=5),
                     " varU=", format(varU, digits=5))
       write(txt, stdout())
 		}
-		oldE <- varE
-		oldU <- varU
+    oldE <- varE
+    oldU <- varU
 	}
 
-	return(c(varE=varE, varU=varU))
+  return(c(varE=varE, varU=varU))
 }
 
 ## not exported: used only in plantTrialLmmFitCompSel
