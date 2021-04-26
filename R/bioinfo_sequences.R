@@ -2005,8 +2005,7 @@ filterVariantCalls <- function(vcf.file, genome="", out.file,
                                max.var.nb.gt.na=NULL, max.var.perc.gt.na=NULL,
                                verbose=1){
   requireNamespaces(c("IRanges", "GenomicRanges", "VariantAnnotation",
-                      "Rsamtools", "S4Vectors", "BiocInstaller",
-                      "SummarizedExperiment"))
+                      "Rsamtools", "S4Vectors", "SummarizedExperiment"))
   stopifnot(file.exists(vcf.file))
   if(! is.null(seq.id) & is.null(seq.start) & is.null(seq.end))
     stopifnot(! is.null(dict.file),
@@ -2049,11 +2048,7 @@ filterVariantCalls <- function(vcf.file, genome="", out.file,
 
   ## return TRUE if at most one alternate allele
   filterBiall <- function(x){
-    if(utils::compareVersion(as.character(BiocInstaller::biocVersion()),
-                             "3.4") < 0){
-      (S4Vectors::elementLengths(VariantAnnotation::alt(x)) <= 1)
-    } else
-      (S4Vectors::elementNROWS(VariantAnnotation::alt(x)) <= 1)
+    (S4Vectors::elementNROWS(VariantAnnotation::alt(x)) <= 1)
   }
 
   ## return TRUE if variant-level DP inside of given range
@@ -2355,17 +2350,9 @@ subsetVcfOnAllelicity <- function(vcf, single.ref=TRUE, single.alt=TRUE){
   idx <- 1:nrow(vcf)
 
   if(any(single.ref, single.alt)){
-    requireNamespaces(c("S4Vectors", "VariantAnnotation", "BiocInstaller"))
-
-    if(utils::compareVersion(as.character(BiocInstaller::biocVersion()),
-                             "3.4") < 0){
-      idxRef <- S4Vectors::elementLengths(VariantAnnotation::ref(vcf)) == 1L
-      idxAlt <- S4Vectors::elementLengths(VariantAnnotation::alt(vcf)) == 1L
-
-    } else{
-      idxRef <- S4Vectors::elementNROWS(VariantAnnotation::ref(vcf)) == 1L
-      idxAlt <- S4Vectors::elementNROWS(VariantAnnotation::alt(vcf)) == 1L
-    }
+    requireNamespaces(c("S4Vectors", "VariantAnnotation"))
+    idxRef <- S4Vectors::elementNROWS(VariantAnnotation::ref(vcf)) == 1L
+    idxAlt <- S4Vectors::elementNROWS(VariantAnnotation::alt(vcf)) == 1L
 
     if(single.ref){
       idx <- idxRef

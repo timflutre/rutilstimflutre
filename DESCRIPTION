@@ -1,8 +1,8 @@
 Package: rutilstimflutre
 Title: Timothee Flutre's personal R code
-Version: 0.170.0
+Version: 0.170.1
 Authors@R: c(
-    person("Timothee", "Flutre", email="timothee.flutre@inra.fr", role=c("aut", "ctb", "cre"), comment=c(ORCID="0000-0003-4489-4782")),
+    person("Timothee", "Flutre", email="timothee.flutre@inrae.fr", role=c("aut", "ctb", "cre"), comment=c(ORCID="0000-0003-4489-4782")),
     person("Peter", "Carbonetto", role="aut", comment="function from varbvs example"),
     person("Dalel", "Ahmed", role="ctb", comment="few functions during internship"),
     person("Xiaoquan", "Wen", role="aut", comment="function via collaboration"),
@@ -13,7 +13,7 @@ Authors@R: c(
     person("Agnes", "Doligez", role="ctb", comment="help on joinMap2backcross() and MIMQTL()"),
     person("Gota", "Morota", email="morota@unl.edu", role="ctb", comment="variance components estimation"),
     person("Julien", "Diot", email="juliendiot42@gmail.com", role="ctb", comment="subset a pedigree"),
-    person("Charlotte", "Brault", email="charlotte.brault@inra.fr", role="ctb", comment="JoinMap segregation types, SIMQTL(), MIMQTL()")
+    person("Charlotte", "Brault", email="charlotte.brault@inrae.fr", role="ctb", comment="JoinMap segregation types, SIMQTL(), MIMQTL()")
     )
 Description: Timothee Flutre's personal R package (+ parts from other contributors).
 Depends:
@@ -23,13 +23,12 @@ Depends:
     Matrix,
     Rcpp
 License: GPL-3 | AGPL-3
-Copyright: Institut National de la Recherche Agronomique (INRA)
+Copyright: INRAE
 LazyData: true
 URL: https://github.com/timflutre/rutilstimflutre
 BugReports: https://github.com/timflutre/rutilstimflutre/issues
 Suggests:
     BiocGenerics,
-    BiocInstaller,
     Biostrings,
     BGLR,
     BLR,
