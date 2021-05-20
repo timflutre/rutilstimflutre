@@ -1,0 +1,367 @@
+---
+title: "Tutorial on variance partitioning"
+author: "Timothée Flutre (INRAE)"
+date: "`r format(Sys.time(), '%d/%m/%Y %H:%M:%S')`"
+colorlinks: true
+output:
+  html_document:
+    toc: true
+    toc_depth: 5
+    toc_float: true
+    number_sections: TRUE
+    code_folding: show
+  pdf_document:
+    toc: true
+    toc_depth: 5
+    number_sections: TRUE
+urlcolor: blue
+---
+
+
+# Preamble
+
+This document was generated from a file in the [Rmd](https://cran.r-project.org/package=rmarkdown) format.
+Both the source and target files are under the [CC BY-SA](https://creativecommons.org/licenses/by-sa/3.0/fr/deed.en) license.
+The source file is versioned [online](https://github.com/timflutre/rutilstimflutre/tree/master/misc).
+
+
+# Overview
+
+This tutorial aims at exploring the partitioning of variance between factors in linear models.
+In an simulated example, `yield` as the response variable is regressed on two factors, `fertilization` and `genotype`.
+
+External packages are required:
+```{r}
+suppressPackageStartupMessages(library(MuMIn))
+suppressPackageStartupMessages(library(lme4))
+## suppressPackageStartupMessages(library(brms))
+suppressPackageStartupMessages(library(rsq))
+suppressPackageStartupMessages(library(vegan))
+```
+
+
+# Write the model
+
+Let $y_{ijk}$ be the yield of genotype $i$ with fertilization level $j$ in micro-plot $k$:
+\[
+y_{ijk} = \mu + a_i + b_j + d_{ij} + \epsilon_{ijk}
+\]
+
+In matrix notation, when all effects are modeled as fixed:
+\[
+\boldsymbol{y} = X \boldsymbol{\beta} + \boldsymbol{\epsilon} \text{ with } \boldsymbol{\epsilon} \sim \mathcal{N}_N(\boldsymbol{0}, R)
+\]
+
+In matrix notation, when fertilization effects are modeled as fixed and genotype effects as random:
+\[
+\boldsymbol{y} = X \boldsymbol{\beta} + Z \boldsymbol{u} + \boldsymbol{\epsilon} \text{ with } \boldsymbol{u} \sim \mathcal{N}_I(\boldsymbol{0}, G) \text{ and } \boldsymbol{\epsilon} \sim \mathcal{N}_N(\boldsymbol{0}, R)
+\]
+
+Usually, $G = \sigma_u^2 A$ and $R = \sigma^2 \text{Id}$.
+
+
+# Simulate some data
+
+## Choose the data dimensions
+
+```{r}
+I <- 10  # number of genotypes
+J <- 3   # number of fertilization level
+K <- 4   # number of replicates per treatment
+(N <- I * J * K) # total number of observations
+```
+
+## Set up the data structure
+
+```{r}
+(levGenos <- sprintf("cv%02i", 1:I))
+(levFerti <- c("low", "med", "high"))
+(levReps <- LETTERS[1:K])
+dat <- data.frame(geno=rep(levGenos, each=J*K),
+                  ferti=rep(rep(levFerti, each=K), I),
+                  rep=rep(levReps, I*J),
+                  yield=NA)
+dat$ferti <- factor(dat$ferti, levels=levFerti) # so that levels are ordered
+head(dat)
+str(dat)
+```
+
+## Generate the data
+
+Set the seed:
+```{r}
+set.seed(12345) # to make the simulation reproducible
+```
+
+Make the design matrix:
+```{r}
+X <- model.matrix(~ 1 + geno + ferti + geno:ferti, data=dat,
+                  contrasts.arg=list(geno="contr.sum", ferti="contr.sum"))
+dim(X)
+colnames(X)
+```
+
+Fix the intercept:
+```{r}
+mu <- 100
+```
+
+Draw genotype effects:
+```{r}
+sd_a <- 10
+a <- rnorm(n=I-1,
+           mean=0, sd=sd_a)
+```
+
+Draw fertilization effects:
+```{r}
+sd_b <- 10
+b <- rnorm(n=J-1, mean=0, sd=sd_b)
+```
+
+Draw interaction effects:
+```{r}
+sd_d <- 2
+d <- rnorm(n=(I-1)*(J-1), mean=0, sd=sd_d)
+```
+
+Make the effect vector:
+```{r}
+beta <- matrix(c(mu, a, b, d), nrow=ncol(X), ncol=1)
+rownames(beta) <- colnames(X)
+```
+
+Draw errors:
+```{r}
+sd_e <- 1
+epsilon <- rnorm(n=N, mean=0, sd=sd_e)
+```
+
+Compute the yield:
+```{r}
+y <- X %*% beta + epsilon
+dat$yield <- as.vector(y)
+```
+
+
+# Explore the data
+
+## Data means
+
+```{r}
+str(dat)
+(grandMean <- mean(dat$yield))
+(genoMeans <- tapply(dat$yield, dat$geno, mean))
+(fertiMeans <- tapply(dat$yield, dat$ferti, mean))
+```
+
+## Plots
+
+```{r}
+hist(dat$yield, col="grey", border="white", las=1)
+abline(v=grandMean, lty=2)
+legend("topright", legend="grand mean", lty=2, bty="n")
+```
+
+```{r}
+colsFerti <- c("yellow", "orange", "red")
+boxplot(yield ~ geno + ferti, data=dat, las=2, varwidth=TRUE,
+        col=rep(colsFerti, each=I),
+        main="Boxplots of dat$yield")
+abline(h=grandMean, lty=2)
+legend("bottomright", bty="n",
+       legend=c("grand mean", paste0("ferti.: ", levFerti)),
+       lty=c(2, rep(NA, J)), col=c("black", colsFerti),
+       fill=c(NA, colsFerti), border=c("white", colsFerti),
+       x.intersp=c(2, rep(0.5, J)))
+```
+
+
+# Perform the statistical analysis
+
+## Model with fixed-effects only
+
+### Fit the models
+
+```{r}
+fitFix1 <- lm(yield ~ 1 + geno, data=dat,
+              contrasts=list(geno="contr.sum"))
+fitFix2 <- lm(yield ~ 1 + ferti, data=dat,
+              contrasts=list(ferti="contr.sum"))
+fitFix3a <- lm(yield ~ 1 + geno + ferti, data=dat,
+               contrasts=list(geno="contr.sum", ferti="contr.sum"))
+fitFix3b <- lm(yield ~ 1 + geno + ferti + geno:ferti, data=dat,
+               contrasts=list(geno="contr.sum", ferti="contr.sum"))
+```
+
+### Compare the models
+
+```{r}
+extractAIC(fitFix1)
+extractAIC(fitFix2)
+extractAIC(fitFix3a)
+extractAIC(fitFix3b)
+```
+
+Best model:
+```{r}
+fitGlobModFix <- lm(yield ~ 1 + geno + ferti + geno:ferti, data=dat,
+                    contrasts=list(geno="contr.sum", ferti="contr.sum"),
+                    na.action="na.fail")
+(allModelsFix <- dredge(global.model=fitGlobModFix, rank="AICc"))
+```
+
+### Select the best model
+
+```{r}
+fitBestModFix <- get.models(allModelsFix, 1)[[1]]
+```
+
+### Check the assumptions
+
+```{r}
+par(mfrow=c(1,2))
+plot(fitBestModFix, which=c(1,2), ask=FALSE)
+```
+
+### Look at the results
+
+#### Overall
+
+```{r}
+summary(fitBestModFix)
+```
+
+#### Analysis of variance
+
+ANOVA table:
+```{r}
+(aovFix <- anova(fitBestModFix))
+```
+
+```{r}
+(tmp <- setNames(aovFix[, "Mean Sq"] / sum(aovFix[, "Mean Sq"]),
+                 rownames(aovFix)))
+sum(tmp)
+sum(tmp[-length(tmp)])
+```
+
+#### R2
+
+```{r}
+summary(fitBestModFix)$r.squared
+summary(fitBestModFix)$adj.r.squared
+```
+
+```{r}
+rsq.partial(objF=fitBestModFix, adj=FALSE, type="v")
+rsq.partial(objF=fitBestModFix, adj=TRUE, type="v")
+rsq.partial(objF=fitBestModFix, adj=FALSE, type="sse")
+rsq.partial(objF=fitBestModFix, adj=TRUE, type="sse")
+```
+
+#### Partition of variance
+
+```{r}
+vpG <- varpart(dat$yield,
+               ~ geno,
+               ~ geno + ferti + geno:ferti, data=dat)
+vpG
+plot(vpG)
+```
+
+```{r}
+vpF <- varpart(dat$yield,
+               ~ ferti,
+               ~ geno + ferti + geno:ferti, data=dat)
+vpF
+plot(vpF)
+```
+
+```{r}
+vpGF <- varpart(dat$yield,
+                ~ geno + ferti,
+               ~ geno + ferti + geno:ferti, data=dat)
+vpGF
+plot(vpGF)
+```
+
+## Model with fixed and random effects
+
+### Fit the models
+
+```{r}
+fitMix1 <- lmer(yield ~ 1 + (1|geno), data=dat, REML=FALSE)
+fitMix2 <- lm(yield ~ 1 + ferti, data=dat,
+              contrasts=list(ferti="contr.sum"))
+fitMix3a <- lmer(yield ~ 1 + (1|geno) + ferti, data=dat,
+                 contrasts=list(ferti="contr.sum"), REML=FALSE)
+fitMix3b <- lmer(yield ~ 1 + ferti + (ferti-1|geno), data=dat,
+                 contrasts=list(ferti="contr.sum"), REML=FALSE)
+```
+
+### Compare the models
+
+```{r}
+extractAIC(fitMix1)
+extractAIC(fitMix2)
+extractAIC(fitMix3a)
+extractAIC(fitMix3b)
+```
+
+Best model:
+```{r}
+fitGlobModMix <- lmer(yield ~ 1 + ferti + (ferti-1|geno), data=dat,
+                      contrasts=list(ferti="contr.sum"),
+                      na.action="na.fail", REML=FALSE)
+(allModelsMix <- dredge(global.model=fitGlobModMix, rank="AICc"))
+```
+
+### Select the best model
+
+```{r}
+fitBestModMix <- get.models(allModelsMix, 1)[[1]]
+fitBestModFix <- update(fitBestModMix, REML=TRUE)
+```
+
+### Check the assumptions
+
+```{r}
+plot(fitBestModMix)
+qqmath(fitBestModMix)
+```
+
+### Look at the results
+
+#### Overall
+
+```{r}
+summary(fitBestModMix)
+```
+
+#### Decomposition of the variance
+
+```{r}
+anova(fitBestModMix)
+as.data.frame(VarCorr(fitBestModMix))
+```
+
+
+# References
+
+- https://cran.r-project.org/web/packages/rsq/rsq.pdf#page=15
+
+- https://cran.r-project.org/web/packages/vegan/vegan.pdf#page=266
+
+- Legendre et Legendre
+
+- Lebarbier et Robin
+
+- Villemereuil et al
+
+
+# Appendix
+
+```{r info}
+print(sessionInfo(), locale=FALSE)
+```
