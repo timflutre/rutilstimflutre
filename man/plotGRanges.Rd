@@ -4,8 +4,14 @@
 \alias{plotGRanges}
 \title{Plot GRanges}
 \usage{
-plotGRanges(gr, main = "Alignments", xlab = NULL, xlim = NULL,
-  col.qry.lab = "black", shape = "segments")
+plotGRanges(
+  gr,
+  main = "Alignments",
+  xlab = NULL,
+  xlim = NULL,
+  col.qry.lab = "black",
+  shape = "segments"
+)
 }
 \arguments{
 \item{gr}{GRanges}

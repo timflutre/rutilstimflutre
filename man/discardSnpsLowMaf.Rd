@@ -4,8 +4,7 @@
 \alias{discardSnpsLowMaf}
 \title{Minor allele frequencies}
 \usage{
-discardSnpsLowMaf(X, mafs = NULL, thresh = 0.01, rmv.mono = FALSE,
-  verbose = 1)
+discardSnpsLowMaf(X, mafs = NULL, thresh = 0.01, rmv.mono = FALSE, verbose = 1)
 }
 \arguments{
 \item{X}{matrix of bi-allelic SNP genotypes encoded in allele doses in [0,2], with genotypes in rows and SNPs in columns; missing values should be encoded as NA}

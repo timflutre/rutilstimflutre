@@ -4,10 +4,21 @@
 \alias{runFastphase}
 \title{Genotype imputation via fastPHASE}
 \usage{
-runFastphase(X, snp.coords, alleles, out.dir = getwd(),
-  task.id = "fastphase", nb.starts = 20, nb.iters = 25,
-  nb.samp.haplos = 50, estim.haplos = TRUE, nb.clusters = 10,
-  seed = 1859, clean = FALSE, verbose = 1)
+runFastphase(
+  X,
+  snp.coords,
+  alleles,
+  out.dir = getwd(),
+  task.id = "fastphase",
+  nb.starts = 20,
+  nb.iters = 25,
+  nb.samp.haplos = 50,
+  estim.haplos = TRUE,
+  nb.clusters = 10,
+  seed = 1859,
+  clean = FALSE,
+  verbose = 1
+)
 }
 \arguments{
 \item{X}{matrix of bi-allelic SNP genotypes encoded in number of copies of the 2nd allele, i.e. as allele doses in {0,1,2}, with genotypes in rows and SNPs in columns}

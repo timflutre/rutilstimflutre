@@ -4,10 +4,16 @@
 \alias{plotMapSxGDomaineChapitre}
 \title{Plot the map of SxG}
 \usage{
-plotMapSxGDomaineChapitre(map, main = "default", lang = "FR",
+plotMapSxGDomaineChapitre(
+  map,
+  main = "default",
+  lang = "FR",
   col.block = stats::setNames(c("grey81", "bisque1"), c("A", "B")),
-  show.plant.types = TRUE, show.pu.type = FALSE, x.off = 4, mar = c(5,
-  4, 4, 1))
+  show.plant.types = TRUE,
+  show.pu.type = FALSE,
+  x.off = 4,
+  mar = c(5, 4, 4, 1)
+)
 }
 \arguments{
 \item{map}{data.frame with columns rank, location, x and y}

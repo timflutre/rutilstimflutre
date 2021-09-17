@@ -4,9 +4,21 @@
 \alias{simulBslmm}
 \title{BSLMM}
 \usage{
-simulBslmm(Q = 3, mu = 50, mean.a = 5, sd.a = 2, X, pi = NULL,
-  h = NULL, rho = NULL, tau = 1, enforce.zhou = TRUE, perc.NA = 0,
-  err.df = Inf, seed = NULL)
+simulBslmm(
+  Q = 3,
+  mu = 50,
+  mean.a = 5,
+  sd.a = 2,
+  X,
+  pi = NULL,
+  h = NULL,
+  rho = NULL,
+  tau = 1,
+  enforce.zhou = TRUE,
+  perc.NA = 0,
+  err.df = Inf,
+  seed = NULL
+)
 }
 \arguments{
 \item{Q}{number of fixed effects, i.e. the intercept plus the number of years during which genotypes are phenotyped (starting in 2010)}

@@ -4,9 +4,16 @@
 \alias{plotVcfPercNa}
 \title{Plot VCF}
 \usage{
-plotVcfPercNa(vcf.file, yieldSize = NA_integer_, dict.file = NULL,
-  seq.id = NULL, seq.start = NULL, seq.end = NULL,
-  main = "Density of missing genotypes", plot.it = TRUE)
+plotVcfPercNa(
+  vcf.file,
+  yieldSize = NA_integer_,
+  dict.file = NULL,
+  seq.id = NULL,
+  seq.start = NULL,
+  seq.end = NULL,
+  main = "Density of missing genotypes",
+  plot.it = TRUE
+)
 }
 \arguments{
 \item{vcf.file}{path to the VCF file (if the bgzip index doesn't exist in the same directory, it will be created)}

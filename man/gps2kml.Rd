@@ -23,7 +23,7 @@ kml <- gps2kml(x=coords)
 
 \dontrun{## save to a file
 out.file <- "coords.kml"
-cat(kml, file=out.file, sep="\\n")
+cat(kml, file=out.file, sep="\n")
 }
 }
 \author{

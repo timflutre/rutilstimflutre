@@ -4,8 +4,12 @@
 \alias{summaryFasta}
 \title{Fasta file}
 \usage{
-summaryFasta(fa.file, letters = c("A", "T", "G", "C", "N"), algo = NULL,
-  verbose = 0)
+summaryFasta(
+  fa.file,
+  letters = c("A", "T", "G", "C", "N"),
+  algo = NULL,
+  verbose = 0
+)
 }
 \arguments{
 \item{fa.file}{path to the fasta file (can be gzip-compressed)}

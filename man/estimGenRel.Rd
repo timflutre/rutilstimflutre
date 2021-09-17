@@ -4,8 +4,15 @@
 \alias{estimGenRel}
 \title{Genomic relatedness}
 \usage{
-estimGenRel(X, afs = NULL, thresh = NULL, relationships = "additive",
-  method = "vanraden1", theta = 0.5, verbose = 1)
+estimGenRel(
+  X,
+  afs = NULL,
+  thresh = NULL,
+  relationships = "additive",
+  method = "vanraden1",
+  theta = 0.5,
+  verbose = 1
+)
 }
 \arguments{
 \item{X}{matrix of bi-allelic SNP genotypes encoded in allele doses in {0,1,2}, with genotypes in rows and SNPs in columns; missing values should be encoded as NA}

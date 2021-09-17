@@ -4,11 +4,29 @@
 \alias{caretFitQtl}
 \title{Fit with qtl for caret}
 \usage{
-caretFitQtl(x, y, wts, param, lev, last, weights, classProbs, genmap,
-  cross.geno.prob = NULL, phase, tuneThreshold = TRUE, alpha = c(0.05,
-  NA), nperm = 10, pop.type = "CP", QTLmethod = "SIM", p2d = "",
-  plot = FALSE, QTL_position = NULL, nb.cores = parallel::detectCores() -
-  2, verbose = 0)
+caretFitQtl(
+  x,
+  y,
+  wts,
+  param,
+  lev,
+  last,
+  weights,
+  classProbs,
+  genmap,
+  cross.geno.prob = NULL,
+  phase,
+  tuneThreshold = TRUE,
+  alpha = c(0.05, NA),
+  nperm = 10,
+  pop.type = "CP",
+  QTLmethod = "SIM",
+  p2d = "",
+  plot = FALSE,
+  QTL_position = NULL,
+  nb.cores = parallel::detectCores() - 2,
+  verbose = 0
+)
 }
 \arguments{
 \item{x}{current predictors used to fit the model, i.e genotypic matrix in Joinmap format with genotypes in rows and markers in columns}

@@ -4,8 +4,14 @@
 \alias{makeCrosses}
 \title{Crosses}
 \usage{
-makeCrosses(haplos, crosses, loc.crossovers = NULL, howto.start.haplo = 0,
-  nb.cores = 1, verbose = 1)
+makeCrosses(
+  haplos,
+  crosses,
+  loc.crossovers = NULL,
+  howto.start.haplo = 0,
+  nb.cores = 1,
+  verbose = 1
+)
 }
 \arguments{
 \item{haplos}{list of matrices (one per chromosome)}

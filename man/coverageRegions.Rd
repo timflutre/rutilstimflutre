@@ -4,9 +4,17 @@
 \alias{coverageRegions}
 \title{Plot the covered fraction of regions as a function of depth}
 \usage{
-coverageRegions(path = NULL, pattern = NULL, covrg = NULL,
-  plot.it = TRUE, xlim = NULL, ylim = c(0, 1), points.type = "l",
-  plot.legend = TRUE, verbose = 1)
+coverageRegions(
+  path = NULL,
+  pattern = NULL,
+  covrg = NULL,
+  plot.it = TRUE,
+  xlim = NULL,
+  ylim = c(0, 1),
+  points.type = "l",
+  plot.legend = TRUE,
+  verbose = 1
+)
 }
 \arguments{
 \item{path}{string}

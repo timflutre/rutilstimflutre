@@ -4,8 +4,15 @@
 \alias{plotLdSry}
 \title{Pairwise linkage disequilibrium}
 \usage{
-plotLdSry(x, y, bin.len = 10^3, max.dist = 10^5, main = "",
-  xlab = "Physical distance (bp)", ylab = "Summarized LD")
+plotLdSry(
+  x,
+  y,
+  bin.len = 10^3,
+  max.dist = 10^5,
+  main = "",
+  xlab = "Physical distance (bp)",
+  ylab = "Summarized LD"
+)
 }
 \arguments{
 \item{x}{vector of distances between SNPs (see \code{\link{distSnpPairs}})}

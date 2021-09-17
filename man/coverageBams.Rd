@@ -4,16 +4,34 @@
 \alias{coverageBams}
 \title{Coverage}
 \usage{
-coverageBams(bamFiles, yieldSize = 10^4, seq.ids = NULL, out.file = NULL,
-  max.depth = 10^4, min.base.quality = 1, min.mapq = 5,
-  min.nucleotide.depth = 1, distinguish.strands = FALSE,
-  distinguish.nucleotides = FALSE, ignore.query.Ns = FALSE,
-  include.deletions = FALSE, include.insertions = FALSE, is.paired = NA,
-  is.proper.pair = NA, is.unmapped.query = FALSE, has.unmapped.mate = NA,
-  is.minus.strand = NA, is.mate.minus.strand = NA,
-  is.first.mate.read = NA, is.second.mate.read = NA,
-  is.secondary.align = FALSE, is.not.passing.qc = FALSE, is.dupl = FALSE,
-  verbose = 1, nb.cores = 1)
+coverageBams(
+  bamFiles,
+  yieldSize = 10^4,
+  seq.ids = NULL,
+  out.file = NULL,
+  max.depth = 10^4,
+  min.base.quality = 1,
+  min.mapq = 5,
+  min.nucleotide.depth = 1,
+  distinguish.strands = FALSE,
+  distinguish.nucleotides = FALSE,
+  ignore.query.Ns = FALSE,
+  include.deletions = FALSE,
+  include.insertions = FALSE,
+  is.paired = NA,
+  is.proper.pair = NA,
+  is.unmapped.query = FALSE,
+  has.unmapped.mate = NA,
+  is.minus.strand = NA,
+  is.mate.minus.strand = NA,
+  is.first.mate.read = NA,
+  is.second.mate.read = NA,
+  is.secondary.align = FALSE,
+  is.not.passing.qc = FALSE,
+  is.dupl = FALSE,
+  verbose = 1,
+  nb.cores = 1
+)
 }
 \arguments{
 \item{bamFiles}{vector of paths to BAM file(s), each of them having an index file with the same name but finishing by ".bai"; if there are several BAM files, all of them should contain reads aligned on the same set of sequences (i.e. the same reference genome)}

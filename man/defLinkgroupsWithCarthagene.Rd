@@ -4,9 +4,16 @@
 \alias{defLinkgroupsWithCarthagene}
 \title{Define linkage groups with CarthaGene}
 \usage{
-defLinkgroupsWithCarthagene(file = NULL, task.id = NULL, cg = NULL,
-  dist.thresh = 0.3, lod.thresh = 3, mrk2chr = NULL, close.cg = FALSE,
-  verbose = 1)
+defLinkgroupsWithCarthagene(
+  file = NULL,
+  task.id = NULL,
+  cg = NULL,
+  dist.thresh = 0.3,
+  lod.thresh = 3,
+  mrk2chr = NULL,
+  close.cg = FALSE,
+  verbose = 1
+)
 }
 \arguments{
 \item{file}{path to the file containing the dataset (used if cg is NULL)}

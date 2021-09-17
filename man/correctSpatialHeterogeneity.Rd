@@ -4,9 +4,17 @@
 \alias{correctSpatialHeterogeneity}
 \title{Correct spatial heterogeneity}
 \usage{
-correctSpatialHeterogeneity(dat, response, fix.eff = NULL,
-  min.ctls.per.year = 10, cressie = TRUE, vgm.model = c("Exp", "Sph",
-  "Gau", "Ste"), nb.folds = 5, out.prefix = NULL, verbose = 1)
+correctSpatialHeterogeneity(
+  dat,
+  response,
+  fix.eff = NULL,
+  min.ctls.per.year = 10,
+  cressie = TRUE,
+  vgm.model = c("Exp", "Sph", "Gau", "Ste"),
+  nb.folds = 5,
+  out.prefix = NULL,
+  verbose = 1
+)
 }
 \arguments{
 \item{dat}{data frame with, at least, columns named "geno", "control" (TRUE/FALSE), "rank", "location", "year" and <response>}

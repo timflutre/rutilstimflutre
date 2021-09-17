@@ -4,8 +4,12 @@
 \alias{quantilesBinnedSnpData}
 \title{Quantiles of allelic R2 after binning}
 \usage{
-quantilesBinnedSnpData(snp.data, snp.bins, quant.probs = seq(0, 1, 0.25),
-  verbose = 1)
+quantilesBinnedSnpData(
+  snp.data,
+  snp.bins,
+  quant.probs = seq(0, 1, 0.25),
+  verbose = 1
+)
 }
 \arguments{
 \item{snp.data}{numeric vector of SNP data (one value per SNP) with SNP identifiers as names}

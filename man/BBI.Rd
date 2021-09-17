@@ -4,9 +4,16 @@
 \alias{BBI}
 \title{Biennial bearing index}
 \usage{
-BBI(dat, coln.prod = "prod", coln.geno = "geno", coln.rep = "tree",
-  coln.year = "year", coln.epsilon = NULL, type = "classic",
-  verbose = 0)
+BBI(
+  dat,
+  coln.prod = "prod",
+  coln.geno = "geno",
+  coln.rep = "tree",
+  coln.year = "year",
+  coln.epsilon = NULL,
+  type = "classic",
+  verbose = 0
+)
 }
 \arguments{
 \item{dat}{data frame}

@@ -4,8 +4,13 @@
 \alias{loadBlast}
 \title{BLAST}
 \usage{
-loadBlast(file.coords, reformat.strand = TRUE, apply.sort = TRUE,
-  asGRanges = TRUE, verbose = 1)
+loadBlast(
+  file.coords,
+  reformat.strand = TRUE,
+  apply.sort = TRUE,
+  asGRanges = TRUE,
+  verbose = 1
+)
 }
 \arguments{
 \item{file.coords}{path to the file with alignment coordinates obtained with \code{-outfmt "6 std qlen sstrand"}}
@@ -27,7 +32,7 @@ Load alignment coordinates from the \href{http://blast.ncbi.nlm.nih.gov/Blast.cg
 \examples{
 \dontrun{## BLAST should be run beforehand, for instance:
 ## zcat chroms.fa.gz | makeblastdb -dbtype nucl -in - -title chroms -out chroms -logfile makeblastdb_chroms.log
-## echo "zcat seqs.fa.gz | blastn -query - -task megablast -db chroms -out /dev/stdout -outfmt \\"6 std qlen sstrand\\" | gzip > megablast_chroms_seqs.txt.gz"  | qsub ...
+## echo "zcat seqs.fa.gz | blastn -query - -task megablast -db chroms -out /dev/stdout -outfmt \"6 std qlen sstrand\" | gzip > megablast_chroms_seqs.txt.gz"  | qsub ...
 coords <- loadBlast("megablast_chroms_seqs.txt.gz")
 }
 }

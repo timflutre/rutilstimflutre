@@ -4,8 +4,16 @@
 \alias{df2gr}
 \title{Convert data frame to GRanges}
 \usage{
-df2gr(x, seq = "chr", start = "start", end = "end", strand = NULL,
-  si = NULL, keep.all.seqlevels = FALSE, names2use = "row")
+df2gr(
+  x,
+  seq = "chr",
+  start = "start",
+  end = "end",
+  strand = NULL,
+  si = NULL,
+  keep.all.seqlevels = FALSE,
+  names2use = "row"
+)
 }
 \arguments{
 \item{x}{data frame of genomic coordinates}

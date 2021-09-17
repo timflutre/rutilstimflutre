@@ -4,9 +4,15 @@
 \alias{plotPhyVsGenDistances}
 \title{Plot physical versus genetic distances}
 \usage{
-plotPhyVsGenDistances(x, chrs = NULL, type = "b", las = 1,
-  xlab = "physical distance (in bp)", ylab = "genetic distance (in cM)",
-  ...)
+plotPhyVsGenDistances(
+  x,
+  chrs = NULL,
+  type = "b",
+  las = 1,
+  xlab = "physical distance (in bp)",
+  ylab = "genetic distance (in cM)",
+  ...
+)
 }
 \arguments{
 \item{x}{data frame with markers in rows and at least three columns named "chr", "physical.distance", "genetic.distance"}

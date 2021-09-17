@@ -4,8 +4,12 @@
 \alias{plotGridMissGenos}
 \title{Missing genotypes}
 \usage{
-plotGridMissGenos(X, main = "Missing marker genotypes", xlab = "Genotypes",
-  ylab = "markers")
+plotGridMissGenos(
+  X,
+  main = "Missing marker genotypes",
+  xlab = "Genotypes",
+  ylab = "markers"
+)
 }
 \arguments{
 \item{X}{matrix of marker genotypes, with genotypes in rows and markers in columns; missing values should be encoded as NA}

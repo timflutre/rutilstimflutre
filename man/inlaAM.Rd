@@ -4,8 +4,14 @@
 \alias{inlaAM}
 \title{Animal model}
 \usage{
-inlaAM(data, relmat, family = "gaussian", nb.threads = 1, verbose = 0,
-  silent = TRUE)
+inlaAM(
+  data,
+  relmat,
+  family = "gaussian",
+  nb.threads = 1,
+  verbose = 0,
+  silent = TRUE
+)
 }
 \arguments{
 \item{data}{data.frame containing the data corresponding to relmat; should have a column grep-able for "response" as well as a column "geno.add" used with matrix A; if a column "geno.dom" exists, it will be used with matrix D; any other column will be interpreted as corresponding to "fixed effects"}

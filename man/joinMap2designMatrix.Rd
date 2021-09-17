@@ -4,8 +4,15 @@
 \alias{joinMap2designMatrix}
 \title{Genotype coding}
 \usage{
-joinMap2designMatrix(jm, use.phase = FALSE, parameterization = "allele",
-  constraints = NULL, rm.col.zeros = TRUE, rm.dom = FALSE, verbose = 1)
+joinMap2designMatrix(
+  jm,
+  use.phase = FALSE,
+  parameterization = "allele",
+  constraints = NULL,
+  rm.col.zeros = TRUE,
+  rm.dom = FALSE,
+  verbose = 1
+)
 }
 \arguments{
 \item{jm}{data frame in the JoinMap format, for instance from \code{\link{genoClasses2JoinMap}}; the first three columns should be "locus", "seg" and "phase"; any "clas" column will be discarded; if \code{use.phase=FALSE}, "phase" will also be discarded; no missing data is allowed}

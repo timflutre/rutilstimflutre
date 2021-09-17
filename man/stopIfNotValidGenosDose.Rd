@@ -4,9 +4,14 @@
 \alias{stopIfNotValidGenosDose}
 \title{Genotypes}
 \usage{
-stopIfNotValidGenosDose(X, check.hasColNames = TRUE,
-  check.hasRowNames = TRUE, check.noNA = TRUE, check.isDose = TRUE,
-  check.notImputed = FALSE)
+stopIfNotValidGenosDose(
+  X,
+  check.hasColNames = TRUE,
+  check.hasRowNames = TRUE,
+  check.noNA = TRUE,
+  check.isDose = TRUE,
+  check.notImputed = FALSE
+)
 }
 \arguments{
 \item{X}{input matrix}

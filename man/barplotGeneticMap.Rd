@@ -4,10 +4,16 @@
 \alias{barplotGeneticMap}
 \title{Stacked barplot of markers}
 \usage{
-barplotGeneticMap(counts, las = 1, border = NA,
-  col = grDevices::rainbow(nrow(counts)), leg.txt = rownames(counts),
+barplotGeneticMap(
+  counts,
+  las = 1,
+  border = NA,
+  col = grDevices::rainbow(nrow(counts)),
+  leg.txt = rownames(counts),
   args.leg = list(x = "topright", bty = "n", border = NA, fill =
-  rev(grDevices::rainbow(nrow(counts)))), ...)
+    rev(grDevices::rainbow(nrow(counts)))),
+  ...
+)
 }
 \arguments{
 \item{counts}{matrix with the number of markers, with chromosomes in rows and linkage groups in columns, or vice-versa; should have row and column names}

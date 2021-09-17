@@ -2,10 +2,14 @@
 % Please edit documentation in R/quantgen.R
 \name{stanAMwriteModel}
 \alias{stanAMwriteModel}
-\title{Animal model}
+\title{Animal model (univariate)}
 \usage{
-stanAMwriteModel(stan.file = NULL, include.dom = FALSE,
-  errors.Student = FALSE, missing.phenos = FALSE)
+stanAMwriteModel(
+  stan.file = NULL,
+  include.dom = FALSE,
+  errors.Student = FALSE,
+  missing.phenos = FALSE
+)
 }
 \arguments{
 \item{stan.file}{path to a file; if NULL, a temporary one will be created}
@@ -20,7 +24,7 @@ stanAMwriteModel(stan.file = NULL, include.dom = FALSE,
 invisible path to stan.file
 }
 \description{
-Animal model
+Animal model (univariate)
 }
 \seealso{
 \code{\link{stanAM}}

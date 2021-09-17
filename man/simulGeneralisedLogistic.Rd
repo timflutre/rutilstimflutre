@@ -4,8 +4,16 @@
 \alias{simulGeneralisedLogistic}
 \title{Generalised logistic growth (Richards' curve)}
 \usage{
-simulGeneralisedLogistic(t = seq(-1.5, 3.5, 0.5), a = 0, k = 1, r = 3,
-  nu = 0.5, b = 0.5, c = 1, sigma2 = 0)
+simulGeneralisedLogistic(
+  t = seq(-1.5, 3.5, 0.5),
+  a = 0,
+  k = 1,
+  r = 3,
+  nu = 0.5,
+  b = 0.5,
+  c = 1,
+  sigma2 = 0
+)
 }
 \arguments{
 \item{t}{vector of time points}

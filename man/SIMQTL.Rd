@@ -4,10 +4,22 @@
 \alias{SIMQTL}
 \title{QTL detection by SIM}
 \usage{
-SIMQTL(cross, numeric.chr.format = TRUE, response.in.cross = TRUE,
-  pheno.col = "y", response = NULL, method = "em", geno.joinmap = NULL,
-  phase, threshold = NA, nperm = 100, alpha = c(0.05, NA), plot = FALSE,
-  QTL_position = NULL, verbose = 0)
+SIMQTL(
+  cross,
+  numeric.chr.format = TRUE,
+  response.in.cross = TRUE,
+  pheno.col = "y",
+  response = NULL,
+  method = "em",
+  geno.joinmap = NULL,
+  phase,
+  threshold = NA,
+  nperm = 100,
+  alpha = c(0.05, NA),
+  plot = FALSE,
+  QTL_position = NULL,
+  verbose = 0
+)
 }
 \arguments{
 \item{cross}{object}

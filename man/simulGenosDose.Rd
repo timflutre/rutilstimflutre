@@ -4,8 +4,7 @@
 \alias{simulGenosDose}
 \title{Genotypes}
 \usage{
-simulGenosDose(nb.genos, nb.snps, geno.ids = NULL, snp.ids = NULL,
-  mafs = NULL)
+simulGenosDose(nb.genos, nb.snps, geno.ids = NULL, snp.ids = NULL, mafs = NULL)
 }
 \arguments{
 \item{nb.genos}{number of genotypes (i.e. individuals)}

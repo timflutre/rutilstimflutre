@@ -4,8 +4,13 @@
 \alias{renameVcfSamples}
 \title{Rename VCF samples}
 \usage{
-renameVcfSamples(in.vcf.file, samples, out.vcf.file, skip.check = FALSE,
-  sort.variants = TRUE)
+renameVcfSamples(
+  in.vcf.file,
+  samples,
+  out.vcf.file,
+  skip.check = FALSE,
+  sort.variants = TRUE
+)
 }
 \arguments{
 \item{in.vcf.file}{path to the input VCF file (will be automatically indexed if necessary)}

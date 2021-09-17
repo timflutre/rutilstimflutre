@@ -4,9 +4,19 @@
 \alias{vcf2dosage}
 \title{Convert VCF to dose}
 \usage{
-vcf2dosage(vcf.file, genome = "", gdose.file, ca.file,
-  yieldSize = NA_integer_, dict.file = NULL, seq.id = NULL,
-  seq.start = NULL, seq.end = NULL, field = "GT", verbose = 1)
+vcf2dosage(
+  vcf.file,
+  genome = "",
+  gdose.file,
+  ca.file,
+  yieldSize = NA_integer_,
+  dict.file = NULL,
+  seq.id = NULL,
+  seq.start = NULL,
+  seq.end = NULL,
+  field = "GT",
+  verbose = 1
+)
 }
 \arguments{
 \item{vcf.file}{path to the VCF file (if the bgzip index doesn't exist in the same directory, it will be created)}

@@ -4,8 +4,13 @@
 \alias{estimH2means}
 \title{Broad-sense heritability}
 \usage{
-estimH2means(dat, colname.resp, colname.trial = "year", vc,
-  geno.var.blups = NULL)
+estimH2means(
+  dat,
+  colname.resp,
+  colname.trial = "year",
+  vc,
+  geno.var.blups = NULL
+)
 }
 \arguments{
 \item{dat}{data frame of input data after missing data have been excluded, with columns named \code{colname.resp}, "geno" and \code{colname.trial}}

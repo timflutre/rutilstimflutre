@@ -4,8 +4,12 @@
 \alias{estimSnpAf}
 \title{Allele frequencies}
 \usage{
-estimSnpAf(X, allow.updating = FALSE, prev.nb.genos = NULL,
-  prev.nb.refalls = NULL)
+estimSnpAf(
+  X,
+  allow.updating = FALSE,
+  prev.nb.genos = NULL,
+  prev.nb.refalls = NULL
+)
 }
 \arguments{
 \item{X}{matrix of bi-allelic SNP genotypes encoded in allele doses in [0,2], with genotypes in rows and SNPs in columns; missing values should be encoded as NA}

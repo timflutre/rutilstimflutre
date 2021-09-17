@@ -4,10 +4,25 @@
 \alias{simulBvsr}
 \title{BVSR}
 \usage{
-simulBvsr(Q = 3, mu = 50, mean.c = 5, sd.c = 2, X, m1 = TRUE,
-  ctr = TRUE, std = FALSE, pi = 1, pve = 0.7, sigma.a2 = 1,
-  sigma.d2 = 0, min.maf = 0, perc.NA = 0, err.df = Inf, seed = NULL,
-  verbose = 1)
+simulBvsr(
+  Q = 3,
+  mu = 50,
+  mean.c = 5,
+  sd.c = 2,
+  X,
+  m1 = TRUE,
+  ctr = TRUE,
+  std = FALSE,
+  pi = 1,
+  pve = 0.7,
+  sigma.a2 = 1,
+  sigma.d2 = 0,
+  min.maf = 0,
+  perc.NA = 0,
+  err.df = Inf,
+  seed = NULL,
+  verbose = 1
+)
 }
 \arguments{
 \item{Q}{number of fixed effects, i.e. the intercept plus the number of years during which genotypes are phenotyped (starting in 2010)}

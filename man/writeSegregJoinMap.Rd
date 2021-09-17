@@ -4,9 +4,19 @@
 \alias{writeSegregJoinMap}
 \title{Write genotypes for JoinMap/MapQTL}
 \usage{
-writeSegregJoinMap(pop.name, pop.type = "CP", locus, segregs, genos,
-  phases = NULL, classifs = NULL, file, save.ind.names = TRUE,
-  na.string = "--", verbose = 1)
+writeSegregJoinMap(
+  pop.name,
+  pop.type = "CP",
+  locus,
+  segregs,
+  genos,
+  phases = NULL,
+  classifs = NULL,
+  file,
+  save.ind.names = TRUE,
+  na.string = "--",
+  verbose = 1
+)
 }
 \arguments{
 \item{pop.name}{name of the population}

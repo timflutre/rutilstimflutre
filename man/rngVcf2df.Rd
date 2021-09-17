@@ -4,8 +4,13 @@
 \alias{rngVcf2df}
 \title{Convert ranges to data.frame}
 \usage{
-rngVcf2df(vcf, with.coords = TRUE, with.alleles = TRUE,
-  single.ref = FALSE, single.alt = FALSE)
+rngVcf2df(
+  vcf,
+  with.coords = TRUE,
+  with.alleles = TRUE,
+  single.ref = FALSE,
+  single.alt = FALSE
+)
 }
 \arguments{
 \item{vcf}{CollapsedVCF (see pkg \href{http://bioconductor.org/packages/VariantAnnotation/}{VariantAnnotation})}

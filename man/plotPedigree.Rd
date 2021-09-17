@@ -4,13 +4,30 @@
 \alias{plotPedigree}
 \title{Plot pedigree}
 \usage{
-plotPedigree(inds, mothers, fathers, generations, sexes = NULL,
-  plot.it = TRUE, verbose = 1, edge.col.mother = "black",
-  edge.col.father = "darkgrey", vertex.label.color = "darkblue",
-  vertex.color = "white", vertex.size = 20, vertex.shape = "none",
-  vertex.label.family = "Helvetica", mult.edge.curve = 0.25,
-  edge.arrow.width = 0.75, edge.arrow.size = 0.75, xmin = -1, xmax = 1,
-  ymin = -1, ymax = 1, ...)
+plotPedigree(
+  inds,
+  mothers,
+  fathers,
+  generations,
+  sexes = NULL,
+  plot.it = TRUE,
+  verbose = 1,
+  edge.col.mother = "black",
+  edge.col.father = "darkgrey",
+  vertex.label.color = "darkblue",
+  vertex.color = "white",
+  vertex.size = 20,
+  vertex.shape = "none",
+  vertex.label.family = "Helvetica",
+  mult.edge.curve = 0.25,
+  edge.arrow.width = 0.75,
+  edge.arrow.size = 0.75,
+  xmin = -1,
+  xmax = 1,
+  ymin = -1,
+  ymax = 1,
+  ...
+)
 }
 \arguments{
 \item{inds}{identifiers of the genotypes}

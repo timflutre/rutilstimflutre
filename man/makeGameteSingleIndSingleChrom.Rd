@@ -4,8 +4,7 @@
 \alias{makeGameteSingleIndSingleChrom}
 \title{Gamete}
 \usage{
-makeGameteSingleIndSingleChrom(haplos.par.chr, loc.crossovers,
-  start.haplo = 1)
+makeGameteSingleIndSingleChrom(haplos.par.chr, loc.crossovers, start.haplo = 1)
 }
 \arguments{
 \item{haplos.par.chr}{matrix containing both haplotypes of a parent for a given chromosome (must have dimnames, such as "ind37_h1" in rows and "snp00265" in columns)}

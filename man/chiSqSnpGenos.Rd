@@ -4,8 +4,14 @@
 \alias{chiSqSnpGenos}
 \title{Chi-squared for Hardy-Weinberg}
 \usage{
-chiSqSnpGenos(X, mafs = NULL, c = 0.5, thresh.c = 0.01,
-  calc.with.D = TRUE, calc.pval = TRUE)
+chiSqSnpGenos(
+  X,
+  mafs = NULL,
+  c = 0.5,
+  thresh.c = 0.01,
+  calc.with.D = TRUE,
+  calc.pval = TRUE
+)
 }
 \arguments{
 \item{X}{matrix of bi-allelic SNP genotypes encoded as allele doses in {0,1,2}, with genotypes in rows and SNPs in columns; missing values should be encoded as NA}

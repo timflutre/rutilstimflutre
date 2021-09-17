@@ -4,9 +4,18 @@
 \alias{plantTrialLmmFitCompSel}
 \title{Model fit, comparison and selection}
 \usage{
-plantTrialLmmFitCompSel(glob.form, dat, part.comp.sel = "fixed",
-  alpha.fixed = 0.05, alpha.random = 0.1, ctl = NULL, saved.file = NULL,
-  nb.cores = 1, cl = NULL, verbose = 1)
+plantTrialLmmFitCompSel(
+  glob.form,
+  dat,
+  part.comp.sel = "fixed",
+  alpha.fixed = 0.05,
+  alpha.random = 0.1,
+  ctl = NULL,
+  saved.file = NULL,
+  nb.cores = 1,
+  cl = NULL,
+  verbose = 1
+)
 }
 \arguments{
 \item{glob.form}{character containing the formula for the global model}

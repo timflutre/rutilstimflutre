@@ -4,10 +4,20 @@
 \alias{jagsAM}
 \title{Animal model}
 \usage{
-jagsAM(data, relmat, inits = NULL, priors = list(fix = list(dist = "c", par
-  = 5), vc = list(dist = "hc", par = 5)), nb.chains = 1, nb.adapt = 10^3,
-  burnin = 10^2, nb.iters = 10^3, thin = 10, progress.bar = NULL,
-  rm.jags.file = TRUE, verbose = 0)
+jagsAM(
+  data,
+  relmat,
+  inits = NULL,
+  priors = list(fix = list(dist = "c", par = 5), vc = list(dist = "hc", par = 5)),
+  nb.chains = 1,
+  nb.adapt = 10^3,
+  burnin = 10^2,
+  nb.iters = 10^3,
+  thin = 10,
+  progress.bar = NULL,
+  rm.jags.file = TRUE,
+  verbose = 0
+)
 }
 \arguments{
 \item{data}{data.frame containing the data corresponding to relmat; should have a column grep-able for "response" as well as a column "geno.add" used with matrix A; if a column "geno.dom" exists, it will be used with matrix D; any other column will be interpreted as corresponding to "fixed effects"}

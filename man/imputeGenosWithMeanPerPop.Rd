@@ -4,8 +4,14 @@
 \alias{imputeGenosWithMeanPerPop}
 \title{Genotype imputation}
 \usage{
-imputeGenosWithMeanPerPop(X, pops, min.maf.pop = 0.1, max.miss.pop = 0.3,
-  rm.still.miss = TRUE, verbose = 1)
+imputeGenosWithMeanPerPop(
+  X,
+  pops,
+  min.maf.pop = 0.1,
+  max.miss.pop = 0.3,
+  rm.still.miss = TRUE,
+  verbose = 1
+)
 }
 \arguments{
 \item{X}{matrix of bi-allelic SNP genotypes encoded in allele doses in {0,1,2}, with genotypes in rows and SNPs in columns; missing values should be encoded as NA}

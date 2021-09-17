@@ -4,9 +4,18 @@
 \alias{plotHistPval}
 \title{P values}
 \usage{
-plotHistPval(pvalues, breaks = seq(0, 1, 0.05), freq = FALSE, main = NULL,
-  col = "grey", border = "white", pi0 = NULL, ylim = NULL,
-  verbose = 1)
+plotHistPval(
+  pvalues,
+  breaks = seq(0, 1, 0.05),
+  freq = FALSE,
+  main = NULL,
+  col = "grey",
+  border = "white",
+  pi0 = NULL,
+  ylim = NULL,
+  legend.x = "topright",
+  verbose = 1
+)
 }
 \arguments{
 \item{pvalues}{vector of raw p values (missing values will be omitted)}
@@ -24,6 +33,8 @@ plotHistPval(pvalues, breaks = seq(0, 1, 0.05), freq = FALSE, main = NULL,
 \item{pi0}{estimate of the proportion of null hypotheses}
 
 \item{ylim}{optional limits for the y-axis (only if freq=TRUE)}
+
+\item{legend.x}{x coordinate to be used to position the legend; not shown if set to NULL}
 
 \item{verbose}{verbosity level (0/1)}
 }

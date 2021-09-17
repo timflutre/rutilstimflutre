@@ -4,8 +4,13 @@
 \alias{convertVcfToGenoDoseWithBcftools}
 \title{Convert VCF file to dosage file}
 \usage{
-convertVcfToGenoDoseWithBcftools(in.vcf.file, out.txt.file, tag = NULL,
-  save.timestamp = FALSE, nb.cores = 1)
+convertVcfToGenoDoseWithBcftools(
+  in.vcf.file,
+  out.txt.file,
+  tag = NULL,
+  save.timestamp = FALSE,
+  nb.cores = 1
+)
 }
 \arguments{
 \item{in.vcf.file}{path to the input VCF file (gzip-compressed)}

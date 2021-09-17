@@ -4,8 +4,7 @@
 \alias{reformatGenoClasses}
 \title{Convert genotypes}
 \usage{
-reformatGenoClasses(file = NULL, x = NULL, na.string = "--",
-  verbose = 1)
+reformatGenoClasses(file = NULL, x = NULL, na.string = "--", verbose = 1)
 }
 \arguments{
 \item{file}{the name of the file which the data are to be read from, with a header line, columns separated by a tabulation, and row names as the first column}

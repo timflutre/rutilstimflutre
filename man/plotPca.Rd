@@ -4,9 +4,17 @@
 \alias{plotPca}
 \title{Principal component analysis}
 \usage{
-plotPca(rotation, prop.vars, idx.x = 1, idx.y = 2, plot = "points",
-  main = "PCA", cols = rep("black", nrow(rotation)), pchs = rep(20,
-  nrow(rotation)), ...)
+plotPca(
+  rotation,
+  prop.vars,
+  idx.x = 1,
+  idx.y = 2,
+  plot = "points",
+  main = "PCA",
+  cols = rep("black", nrow(rotation)),
+  pchs = rep(20, nrow(rotation)),
+  ...
+)
 }
 \arguments{
 \item{rotation}{matrix of rotated data which columns corresponds to "principal components" (the first column will be plotted along the x-axis against the second column along the y-axis)}

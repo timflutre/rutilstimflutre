@@ -4,8 +4,7 @@
 \alias{prettyPrintBetterSummary}
 \title{Print better summary}
 \usage{
-prettyPrintBetterSummary(x = NULL, smy = NULL, spec = "\%.2f",
-  header = NULL)
+prettyPrintBetterSummary(x = NULL, smy = NULL, spec = "\%.2f", header = NULL)
 }
 \arguments{
 \item{x}{vector of numbers; if NULL, \code{smy} should be provided}

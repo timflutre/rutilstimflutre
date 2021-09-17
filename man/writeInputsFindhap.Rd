@@ -4,11 +4,30 @@
 \alias{writeInputsFindhap}
 \title{Write inputs for findhap}
 \usage{
-writeInputsFindhap(opt.file, X = NULL, genos.file, chips = NULL,
-  snp.coords = NULL, snp.info.file, vcf.file = NULL, yieldSize = 10000,
-  ped = NULL, ped.file = NULL, iters = 4, Xchrom = 0, maxlen = 1000,
-  minlen = 100, steps = 3, maxhap = 5000, hapout = 1, genout = 1,
-  damout = 1, listout = -1, errate = 0.003, verbose = 1)
+writeInputsFindhap(
+  opt.file,
+  X = NULL,
+  genos.file,
+  chips = NULL,
+  snp.coords = NULL,
+  snp.info.file,
+  vcf.file = NULL,
+  yieldSize = 10000,
+  ped = NULL,
+  ped.file = NULL,
+  iters = 4,
+  Xchrom = 0,
+  maxlen = 1000,
+  minlen = 100,
+  steps = 3,
+  maxhap = 5000,
+  hapout = 1,
+  genout = 1,
+  damout = 1,
+  listout = -1,
+  errate = 0.003,
+  verbose = 1
+)
 }
 \arguments{
 \item{opt.file}{path to the options file in which findhap's configuration will be saved}

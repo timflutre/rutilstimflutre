@@ -4,10 +4,20 @@
 \alias{runFindhap}
 \title{Genotype imputation via findhap}
 \usage{
-runFindhap(X = NULL, chips = NULL, snp.coords = NULL, vcf.file = NULL,
-  yieldSize = 10000, ped = NULL, work.dir = getwd(),
-  task.id = "findhap", params.findhap = NULL, nb.threads = 1,
-  clean = "none", verbose = 1)
+runFindhap(
+  X = NULL,
+  chips = NULL,
+  snp.coords = NULL,
+  vcf.file = NULL,
+  yieldSize = 10000,
+  ped = NULL,
+  work.dir = getwd(),
+  task.id = "findhap",
+  params.findhap = NULL,
+  nb.threads = 1,
+  clean = "none",
+  verbose = 1
+)
 }
 \arguments{
 \item{X}{matrix of bi-allelic SNP genotypes encoded in number of copies of the 2nd allele, i.e. as allele doses in {0,1,2}, with genotypes in rows and SNPs in columns; missing values should be encoded as NA; if not NULL, will be used in priority even if \code{vcf.file} is not NULL}

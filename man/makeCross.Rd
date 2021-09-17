@@ -4,9 +4,15 @@
 \alias{makeCross}
 \title{Cross}
 \usage{
-makeCross(haplos.par1, loc.crossovers.par1, haplos.par2 = NULL,
-  loc.crossovers.par2 = NULL, child.name = NULL, howto.start.haplo = 0,
-  verbose = 1)
+makeCross(
+  haplos.par1,
+  loc.crossovers.par1,
+  haplos.par2 = NULL,
+  loc.crossovers.par2 = NULL,
+  child.name = NULL,
+  howto.start.haplo = 0,
+  verbose = 1
+)
 }
 \arguments{
 \item{haplos.par1}{list of matrices (one per chromosome) for the first parent}

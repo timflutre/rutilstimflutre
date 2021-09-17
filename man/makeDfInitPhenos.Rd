@@ -4,8 +4,13 @@
 \alias{makeDfInitPhenos}
 \title{Simul breeding game}
 \usage{
-makeDfInitPhenos(nb.lines.per.year = 150, nb.years = 10,
-  nb.plots.per.line.per.year = 2, first.year = 2005, line.ids)
+makeDfInitPhenos(
+  nb.lines.per.year = 150,
+  nb.years = 10,
+  nb.plots.per.line.per.year = 2,
+  first.year = 2005,
+  line.ids
+)
 }
 \arguments{
 \item{nb.lines.per.year}{number of lines phenotyped each year}

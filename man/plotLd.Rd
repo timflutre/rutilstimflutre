@@ -4,11 +4,24 @@
 \alias{plotLd}
 \title{Pairwise linkage disequilibrium}
 \usage{
-plotLd(x, y, main = "", estim = "r2", use.density = TRUE,
-  xlab = "Physical distance (bp)", ylab = paste0("Linkage disequilibrium (",
-  estim, ")"), span = 1/10, degree = 1, evaluation = 50,
-  sample.size = NULL, add.ohta.kimura = FALSE, add.sved = FALSE,
-  Ne = NULL, c = NULL, xlim)
+plotLd(
+  x,
+  y,
+  main = "",
+  estim = "r2",
+  use.density = TRUE,
+  xlab = "Physical distance (bp)",
+  ylab = paste0("Linkage disequilibrium (", estim, ")"),
+  span = 1/10,
+  degree = 1,
+  evaluation = 50,
+  sample.size = NULL,
+  add.ohta.kimura = FALSE,
+  add.sved = FALSE,
+  Ne = NULL,
+  c = NULL,
+  xlim
+)
 }
 \arguments{
 \item{x}{vector of distances between SNPs (see \code{\link{distSnpPairs}})}

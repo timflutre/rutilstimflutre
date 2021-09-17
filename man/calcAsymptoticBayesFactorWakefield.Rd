@@ -4,8 +4,13 @@
 \alias{calcAsymptoticBayesFactorWakefield}
 \title{Asymptotic Bayes factor}
 \usage{
-calcAsymptoticBayesFactorWakefield(theta.hat, V, W = c(0.1, 0.2, 0.4, 0.8,
-  1.6), weights = NULL, log10 = TRUE)
+calcAsymptoticBayesFactorWakefield(
+  theta.hat,
+  V,
+  W = c(0.1, 0.2, 0.4, 0.8, 1.6),
+  weights = NULL,
+  log10 = TRUE
+)
 }
 \arguments{
 \item{theta.hat}{vector of MLE(s) of the additive genetic effect(s)}

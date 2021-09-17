@@ -4,8 +4,17 @@
 \alias{pca}
 \title{Principal component analysis}
 \usage{
-pca(X = NULL, S = NULL, ct = TRUE, sc = FALSE, plot = NULL,
-  main = "PCA", cols = NULL, pchs = NULL, ES10 = FALSE)
+pca(
+  X = NULL,
+  S = NULL,
+  ct = TRUE,
+  sc = FALSE,
+  plot = NULL,
+  main = "PCA",
+  cols = NULL,
+  pchs = NULL,
+  ES10 = FALSE
+)
 }
 \arguments{
 \item{X}{data matrix with N rows ("units") and P columns ("variables"); P can be equal to N but X shouldn't be symmetric; a data frame will be converted into a matrix; specify X or S, but not both}

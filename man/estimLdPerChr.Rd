@@ -4,8 +4,16 @@
 \alias{estimLdPerChr}
 \title{Pairwise linkage disequilibrium}
 \usage{
-estimLdPerChr(X, snp.coords, K = NULL, pops = NULL, only.pop = NULL,
-  use.ldcorsv = FALSE, nb.cores = 1, verbose = 1)
+estimLdPerChr(
+  X,
+  snp.coords,
+  K = NULL,
+  pops = NULL,
+  only.pop = NULL,
+  use.ldcorsv = FALSE,
+  nb.cores = 1,
+  verbose = 1
+)
 }
 \arguments{
 \item{X}{matrix of bi-allelic SNP genotypes encoded in allele doses in {0,1,2}, with genotypes in rows and SNPs in columns; missing values should be encoded as NA}

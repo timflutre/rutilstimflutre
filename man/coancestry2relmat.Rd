@@ -4,8 +4,13 @@
 \alias{coancestry2relmat}
 \title{Genetic relatedness}
 \usage{
-coancestry2relmat(x, estim.coancestry, estim.inbreeding = NULL,
-  rel.type = "coancestries", debug = FALSE)
+coancestry2relmat(
+  x,
+  estim.coancestry,
+  estim.inbreeding = NULL,
+  rel.type = "coancestries",
+  debug = FALSE
+)
 }
 \arguments{
 \item{x}{list returned by \code{related::coancestry}}

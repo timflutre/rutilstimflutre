@@ -4,8 +4,13 @@
 \alias{plotAligns}
 \title{Plot alignments}
 \usage{
-plotAligns(coords, main = "Alignments", xlab = "reference", xlim = NULL,
-  col = "black")
+plotAligns(
+  coords,
+  main = "Alignments",
+  xlab = "reference",
+  xlim = NULL,
+  col = "black"
+)
 }
 \arguments{
 \item{coords}{data.frame with at least three columns, "start", "end" and "names"}

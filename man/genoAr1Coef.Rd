@@ -4,9 +4,17 @@
 \alias{genoAr1Coef}
 \title{Genotypic values for fruit bearing}
 \usage{
-genoAr1Coef(dat, coln.epsilon = "residual", coln.geno = "geno",
-  coln.rep = "tree", coln.year = "year", method = "ML|CSS",
-  transform.pars = TRUE, optim.control = list(), verbose = 0)
+genoAr1Coef(
+  dat,
+  coln.epsilon = "residual",
+  coln.geno = "geno",
+  coln.rep = "tree",
+  coln.year = "year",
+  method = "ML|CSS",
+  transform.pars = TRUE,
+  optim.control = list(),
+  verbose = 0
+)
 }
 \arguments{
 \item{dat}{data frame}

@@ -29,7 +29,7 @@ idx <- sample.int(n=length(X), size=10^3)
 X[idx] <- NA
 
 miss.snp <- calcFreqMissSnpGenosPerSnp(X=X)
-hist(miss.snp, xlab="proportion of missing data at a given SNP,\\nmeasured across all individuals", ylab="number of SNPs")
+hist(miss.snp, xlab="proportion of missing data at a given SNP,\nmeasured across all individuals", ylab="number of SNPs")
 }
 }
 \author{

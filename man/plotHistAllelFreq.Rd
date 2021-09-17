@@ -4,9 +4,19 @@
 \alias{plotHistAllelFreq}
 \title{Allele frequencies}
 \usage{
-plotHistAllelFreq(X = NULL, afs = NULL, main = NULL, xlim = c(0, 1),
-  col = "grey", border = "white", las = 1, breaks = "FD",
-  add.ml.beta = FALSE, verbose = 1, ...)
+plotHistAllelFreq(
+  X = NULL,
+  afs = NULL,
+  main = NULL,
+  xlim = c(0, 1),
+  col = "grey",
+  border = "white",
+  las = 1,
+  breaks = "FD",
+  add.ml.beta = FALSE,
+  verbose = 1,
+  ...
+)
 }
 \arguments{
 \item{X}{matrix of bi-allelic SNP genotypes encoded, for each SNP, in number of copies of its minor allele, i.e. as allele doses in [0,2], with genotypes in rows and SNPs in columns; if X is not NULL, minor allele frequencies will be estimated via \code{\link{estimSnpAf}}}

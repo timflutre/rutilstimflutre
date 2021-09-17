@@ -4,8 +4,16 @@
 \alias{plotResidualsBtwYears}
 \title{Plot residuals between years}
 \usage{
-plotResidualsBtwYears(df, colname.res, years, cols.uniq.id, blocks = NULL,
-  las = 1, lgd.pos = "topright", ...)
+plotResidualsBtwYears(
+  df,
+  colname.res,
+  years,
+  cols.uniq.id,
+  blocks = NULL,
+  las = 1,
+  lgd.pos = "topright",
+  ...
+)
 }
 \arguments{
 \item{df}{data frame with a column given by \code{colname.res}, a column named "year", a column named "block" if \code{blocks} is specified, as well as any other column specified in \code{cols.uniq.id}}

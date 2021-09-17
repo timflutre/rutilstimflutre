@@ -4,8 +4,13 @@
 \alias{seqIdStartEnd2GRanges}
 \title{Make GRanges}
 \usage{
-seqIdStartEnd2GRanges(seq.id, seq.start = NULL, seq.end = NULL,
-  dict.file = NULL, subseq.name = NULL)
+seqIdStartEnd2GRanges(
+  seq.id,
+  seq.start = NULL,
+  seq.end = NULL,
+  dict.file = NULL,
+  subseq.name = NULL
+)
 }
 \arguments{
 \item{seq.id}{sequence identifier(s) to work on (e.g. \code{"chr2"} or \code{c("chr2","chr7")})}

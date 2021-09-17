@@ -4,9 +4,22 @@
 \alias{gibbsJanss2012}
 \title{Gibbs sampler from Janss et al (2012)}
 \usage{
-gibbsJanss2012(y, a = NULL, b = NULL, family = "gaussian", K, XF = NULL,
-  df0 = 0, S0 = 0, nIter = 110, burnIn = 10, thin = 10,
-  saveAt = NULL, weights = NULL, verbose = 0)
+gibbsJanss2012(
+  y,
+  a = NULL,
+  b = NULL,
+  family = "gaussian",
+  K,
+  XF = NULL,
+  df0 = 0,
+  S0 = 0,
+  nIter = 110,
+  burnIn = 10,
+  thin = 10,
+  saveAt = NULL,
+  weights = NULL,
+  verbose = 0
+)
 }
 \arguments{
 \item{y}{vector of responses of length n}

@@ -4,8 +4,14 @@
 \alias{loadMummer}
 \title{MUMmer}
 \usage{
-loadMummer(file.coords, algo = "nucmer", asGRanges = TRUE,
-  keep.nlong.qry = NULL, ref.lim = NULL, verbose = 1)
+loadMummer(
+  file.coords,
+  algo = "nucmer",
+  asGRanges = TRUE,
+  keep.nlong.qry = NULL,
+  ref.lim = NULL,
+  verbose = 1
+)
 }
 \arguments{
 \item{file.coords}{path to the file with alignment coordinates obtained via \code{show-coords} (see the example)}

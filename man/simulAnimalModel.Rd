@@ -4,12 +4,32 @@
 \alias{simulAnimalModel}
 \title{Animal model}
 \usage{
-simulAnimalModel(T = 1, Q = 3, mu = rep(50, T), mean.C = 5, sd.C = 2,
-  A, V.G.A = NULL, scale.hC.G.A = NULL, nu.G.A = T, D = NULL,
-  V.G.D = NULL, scale.hC.G.D = NULL, nu.G.D = T, V.E = NULL,
-  scale.hC.E = NULL, nu.E = T, err.df = Inf, perc.NA = 0, seed = NULL,
-  nb.rows = NULL, nb.cols = NULL, sigma2.ksi = NULL, rho.rows = NULL,
-  rho.cols = NULL)
+simulAnimalModel(
+  T = 1,
+  Q = 3,
+  mu = rep(50, T),
+  mean.C = 5,
+  sd.C = 2,
+  A,
+  V.G.A = NULL,
+  scale.hC.G.A = NULL,
+  nu.G.A = T,
+  D = NULL,
+  V.G.D = NULL,
+  scale.hC.G.D = NULL,
+  nu.G.D = T,
+  V.E = NULL,
+  scale.hC.E = NULL,
+  nu.E = T,
+  err.df = Inf,
+  perc.NA = 0,
+  seed = NULL,
+  nb.rows = NULL,
+  nb.cols = NULL,
+  sigma2.ksi = NULL,
+  rho.rows = NULL,
+  rho.cols = NULL
+)
 }
 \arguments{
 \item{T}{number of traits}

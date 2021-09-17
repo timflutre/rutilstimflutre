@@ -4,8 +4,15 @@
 \alias{simulAr1Ar1}
 \title{AR1xAR1 simulation}
 \usage{
-simulAr1Ar1(n = 1, R = 2, C = 2, rho.r = 0, rho.c = 0,
-  sigma.X.2 = 1, sigma.e.2 = 1)
+simulAr1Ar1(
+  n = 1,
+  R = 2,
+  C = 2,
+  rho.r = 0,
+  rho.c = 0,
+  sigma.X.2 = 1,
+  sigma.e.2 = 1
+)
 }
 \arguments{
 \item{n}{number of samples}

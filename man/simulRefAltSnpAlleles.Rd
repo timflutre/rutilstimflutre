@@ -4,8 +4,12 @@
 \alias{simulRefAltSnpAlleles}
 \title{SNP alleles}
 \usage{
-simulRefAltSnpAlleles(nb.snps = NULL, snp.ids = NULL, colnames = c("ref",
-  "alt"), verbose = 1)
+simulRefAltSnpAlleles(
+  nb.snps = NULL,
+  snp.ids = NULL,
+  colnames = c("ref", "alt"),
+  verbose = 1
+)
 }
 \arguments{
 \item{nb.snps}{number of SNPs}

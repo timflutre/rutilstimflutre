@@ -4,8 +4,13 @@
 \alias{infoGeneticMap}
 \title{Info about a given genetic map}
 \usage{
-infoGeneticMap(genmap, min.mrks.per.lg = 0, min.mrks.per.chr.in.lg = 0,
-  chrs.todrop = NULL, verbose = 1)
+infoGeneticMap(
+  genmap,
+  min.mrks.per.lg = 0,
+  min.mrks.per.chr.in.lg = 0,
+  chrs.todrop = NULL,
+  verbose = 1
+)
 }
 \arguments{
 \item{genmap}{data frame with at least three columns named "linkage.group", "locus" and "chr", and one row per locus}

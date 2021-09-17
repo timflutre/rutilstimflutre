@@ -4,8 +4,16 @@
 \alias{simulTrait3}
 \title{Simul breeding game}
 \usage{
-simulTrait3(dat, X, afs = NULL, subset.snps = NULL, qtn.id = NULL,
-  resist.genos = NULL, prob.resist.no.qtl = 0.02, verbose = 1)
+simulTrait3(
+  dat,
+  X,
+  afs = NULL,
+  subset.snps = NULL,
+  qtn.id = NULL,
+  resist.genos = NULL,
+  prob.resist.no.qtl = 0.02,
+  verbose = 1
+)
 }
 \arguments{
 \item{dat}{data.frame specifying the structure of the initial data set of phenotypes}

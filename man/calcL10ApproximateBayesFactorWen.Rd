@@ -4,8 +4,18 @@
 \alias{calcL10ApproximateBayesFactorWen}
 \title{Approximate Bayes factor}
 \usage{
-calcL10ApproximateBayesFactorWen(Y, Xg, Xc, Wg = NULL, phi = NULL,
-  oma = NULL, alpha = 0, H = 0, nu = 0, ES = TRUE)
+calcL10ApproximateBayesFactorWen(
+  Y,
+  Xg,
+  Xc,
+  Wg = NULL,
+  phi = NULL,
+  oma = NULL,
+  alpha = 0,
+  H = 0,
+  nu = 0,
+  ES = TRUE
+)
 }
 \arguments{
 \item{Y}{n x r phenotype matrix}

@@ -4,8 +4,15 @@
 \alias{summarizeLd}
 \title{Pairwise linkage disequilibrium}
 \usage{
-summarizeLd(ld, coln.var = "cor2", coln.dist = "dist.locs",
-  bin.width = 500, max.phy.len = 10^6, span = 0.75, nb.cores = 1)
+summarizeLd(
+  ld,
+  coln.var = "cor2",
+  coln.dist = "dist.locs",
+  bin.width = 500,
+  max.phy.len = 10^6,
+  span = 0.75,
+  nb.cores = 1
+)
 }
 \arguments{
 \item{ld}{data frame returned by \code{\link{estimLd}}}

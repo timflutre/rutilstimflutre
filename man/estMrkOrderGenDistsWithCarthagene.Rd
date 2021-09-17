@@ -4,10 +4,21 @@
 \alias{estMrkOrderGenDistsWithCarthagene}
 \title{Estimate marker order and genetic distances with CarthaGene}
 \usage{
-estMrkOrderGenDistsWithCarthagene(cg, linkgroups, lg.id, keep.thresh = 3,
-  add.thresh = 3, init.order = NULL, postprocessing = 1, flips.size = 4,
-  flips.lod.thresh = 3, flips.iter = 1, squeeze.thresh = 20,
-  mrk2phy = NULL, verbose = 1)
+estMrkOrderGenDistsWithCarthagene(
+  cg,
+  linkgroups,
+  lg.id,
+  keep.thresh = 3,
+  add.thresh = 3,
+  init.order = NULL,
+  postprocessing = 1,
+  flips.size = 4,
+  flips.lod.thresh = 3,
+  flips.iter = 1,
+  squeeze.thresh = 20,
+  mrk2phy = NULL,
+  verbose = 1
+)
 }
 \arguments{
 \item{cg}{list returned by \code{\link{openCarthagene}}}

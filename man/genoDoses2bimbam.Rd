@@ -4,8 +4,7 @@
 \alias{genoDoses2bimbam}
 \title{Convert genotypes}
 \usage{
-genoDoses2bimbam(X = NULL, tX = NULL, alleles, file = NULL,
-  format = "mean")
+genoDoses2bimbam(X = NULL, tX = NULL, alleles, file = NULL, format = "mean")
 }
 \arguments{
 \item{X}{matrix of bi-allelic SNP genotypes encoded in allele doses in {0,1,2}, with genotypes in rows and SNPs in columns; for each SNP, the allele which copy number is counted, should correspond to the second column of \code{alleles}, whether this column corresponds to minor or major alleles (for GEMMA, it should be the minor allele)}

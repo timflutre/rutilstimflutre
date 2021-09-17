@@ -6,10 +6,19 @@
 scale on the right side, and optionally using its dimension names for
 rows and columns}
 \usage{
-imageWithScale(z, main = NULL, idx.rownames = NULL, idx.colnames = NULL,
-  breaks = NULL, nb.breaks = 20, left.text.at = NULL, cex.txt = 1,
-  cex.sc = 1, col.pal = grDevices::colorRampPalette(c("black", "red",
-  "yellow"), space = "rgb"), custom.mar = NULL)
+imageWithScale(
+  z,
+  main = NULL,
+  idx.rownames = NULL,
+  idx.colnames = NULL,
+  breaks = NULL,
+  nb.breaks = 20,
+  left.text.at = NULL,
+  cex.txt = 1,
+  cex.sc = 1,
+  col.pal = grDevices::colorRampPalette(c("black", "red", "yellow"), space = "rgb"),
+  custom.mar = NULL
+)
 }
 \arguments{
 \item{z}{matrix to be plotted}

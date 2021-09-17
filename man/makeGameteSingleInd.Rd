@@ -4,8 +4,11 @@
 \alias{makeGameteSingleInd}
 \title{Gamete}
 \usage{
-makeGameteSingleInd(haplos.par, loc.crossovers, start.haplos = as.list(rep(1,
-  length(haplos.par))))
+makeGameteSingleInd(
+  haplos.par,
+  loc.crossovers,
+  start.haplos = as.list(rep(1, length(haplos.par)))
+)
 }
 \arguments{
 \item{haplos.par}{list of matrices containing both haplotypes of a parent for each chromosome}

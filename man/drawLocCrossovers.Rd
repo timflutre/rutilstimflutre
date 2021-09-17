@@ -4,8 +4,13 @@
 \alias{drawLocCrossovers}
 \title{Crossing-overs}
 \usage{
-drawLocCrossovers(crosses, nb.snps, lambda = 2, simplistic = FALSE,
-  verbose = 0)
+drawLocCrossovers(
+  crosses,
+  nb.snps,
+  lambda = 2,
+  simplistic = FALSE,
+  verbose = 0
+)
 }
 \arguments{
 \item{crosses}{data.frame with three columns, parent1, parent2, child; if parent 1 and 2 are the same, it will be an autofecondation; if parent2 is NA, it will be a haplodiploidization}

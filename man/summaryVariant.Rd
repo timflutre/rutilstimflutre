@@ -4,9 +4,17 @@
 \alias{summaryVariant}
 \title{Summary per variant}
 \usage{
-summaryVariant(vcf.file, genome = "", yieldSize = NA_integer_,
-  dict.file = NULL, seq.id = NULL, seq.start = NULL, seq.end = NULL,
-  fields = "GQ", verbose = 1)
+summaryVariant(
+  vcf.file,
+  genome = "",
+  yieldSize = NA_integer_,
+  dict.file = NULL,
+  seq.id = NULL,
+  seq.start = NULL,
+  seq.end = NULL,
+  fields = "GQ",
+  verbose = 1
+)
 }
 \arguments{
 \item{vcf.file}{path to the VCF file (if the bgzip index doesn't exist in the same directory, it will be created)}

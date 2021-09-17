@@ -4,8 +4,14 @@
 \alias{chromNames2integers}
 \title{Rename chromosomes}
 \usage{
-chromNames2integers(x, basic = FALSE, prefix = "chr",
-  toreplace2 = "_random", prefix2 = NULL, thresh.max.chr.int = +Inf)
+chromNames2integers(
+  x,
+  basic = FALSE,
+  prefix = "chr",
+  toreplace2 = "_random",
+  prefix2 = NULL,
+  thresh.max.chr.int = +Inf
+)
 }
 \arguments{
 \item{x}{vector of chromosome names (if factor, will be converted to character)}

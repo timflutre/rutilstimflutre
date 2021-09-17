@@ -4,9 +4,19 @@
 \alias{plotPhyDistVsLdSry}
 \title{Pairwise linkage disequilibrium}
 \usage{
-plotPhyDistVsLdSry(x, y, xlab, ylab, main = "", fitted.loess = NULL,
-  fitted.lm = NULL, fitted.loglm = NULL, fitted.asyreg = NULL,
-  fitted.biexp = NULL, ...)
+plotPhyDistVsLdSry(
+  x,
+  y,
+  xlab,
+  ylab,
+  main = "",
+  fitted.loess = NULL,
+  fitted.lm = NULL,
+  fitted.loglm = NULL,
+  fitted.asyreg = NULL,
+  fitted.biexp = NULL,
+  ...
+)
 }
 \arguments{
 \item{x}{vector of pysical coordinates of mid bins (see output of \code{\link{summarizeLd}})}

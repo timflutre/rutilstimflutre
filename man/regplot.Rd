@@ -4,9 +4,19 @@
 \alias{regplot}
 \title{Scatter plot with regression lines}
 \usage{
-regplot(x, y, reg = "lm", col = c(lm = "red"), show.crit = c("corP",
-  "corS"), ci.int = TRUE, pred.int = TRUE, legend.x = "right",
-  legend.y = NULL, las = 1, ...)
+regplot(
+  x,
+  y,
+  reg = "lm",
+  col = c(lm = "red"),
+  show.crit = c("corP", "corS"),
+  ci.int = TRUE,
+  pred.int = TRUE,
+  legend.x = "right",
+  legend.y = NULL,
+  las = 1,
+  ...
+)
 }
 \arguments{
 \item{x}{vector or 1-column matrix (missing data coded as NA will be automatically discarded)}

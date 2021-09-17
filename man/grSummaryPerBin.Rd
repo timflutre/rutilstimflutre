@@ -4,8 +4,14 @@
 \alias{grSummaryPerBin}
 \title{Genomic bins}
 \usage{
-grSummaryPerBin(gr, colname = NULL, binwidth = 200, which.summary = "sum",
-  plot.it = FALSE, ...)
+grSummaryPerBin(
+  gr,
+  colname = NULL,
+  binwidth = 200,
+  which.summary = "sum",
+  plot.it = FALSE,
+  ...
+)
 }
 \arguments{
 \item{gr}{\code{GRanges} object}

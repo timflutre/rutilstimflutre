@@ -4,10 +4,20 @@
 \alias{simulTraits12}
 \title{Simul breeding game}
 \usage{
-simulTraits12(dat, mu = c(trait1 = 100, trait2 = 15),
-  sigma.alpha2 = c(trait1 = 230, trait2 = 10), Alpha = NULL, X, afs, Beta,
-  h2 = NULL, sigma2 = c(trait1 = 330, trait2 = 0.6),
-  cor.E.inter.trait = 0, set.neg.to.zero = TRUE, verbose = 1)
+simulTraits12(
+  dat,
+  mu = c(trait1 = 100, trait2 = 15),
+  sigma.alpha2 = c(trait1 = 230, trait2 = 10),
+  Alpha = NULL,
+  X,
+  afs,
+  Beta,
+  h2 = NULL,
+  sigma2 = c(trait1 = 330, trait2 = 0.6),
+  cor.E.inter.trait = 0,
+  set.neg.to.zero = TRUE,
+  verbose = 1
+)
 }
 \arguments{
 \item{dat}{data.frame specifying the structure of the initial data set of phenotypes, with columns "ind", "year", etc}

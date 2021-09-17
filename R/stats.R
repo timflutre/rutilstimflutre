@@ -752,6 +752,7 @@ precMatAR1 <- function(n, rho, sigma2){
 ##' @param border the color of the border around the bars (see \code{\link[graphics]{hist}})
 ##' @param pi0 estimate of the proportion of null hypotheses
 ##' @param ylim optional limits for the y-axis (only if freq=TRUE)
+##' @param legend.x x coordinate to be used to position the legend; not shown if set to NULL
 ##' @param verbose verbosity level (0/1)
 ##' @return invisible output of \code{\link[graphics]{hist}}
 ##' @seealso \code{\link{qqplotPval}}
@@ -778,14 +779,13 @@ precMatAR1 <- function(n, rho, sigma2){
 ##' @export
 plotHistPval <- function(pvalues, breaks=seq(0, 1, 0.05), freq=FALSE,
                          main=NULL, col="grey", border="white", pi0=NULL,
-                         ylim=NULL, verbose=1){
+                         ylim=NULL, legend.x="topright", verbose=1){
   stopifnot(is.numeric(pvalues),
             is.vector(pvalues),
             is.vector(breaks))
   if(! is.null(ylim))
     stopifnot(is.vector(ylim),
-              length(ylim) == 2,
-              freq == TRUE)
+              length(ylim) == 2)
 
   isna <- is.na(pvalues)
   if(any(isna)){
@@ -831,7 +831,9 @@ plotHistPval <- function(pvalues, breaks=seq(0, 1, 0.05), freq=FALSE,
     lwds <- c(lwds, 1)
   }
 
-  graphics::legend("topright", legend=legs, col=cols, lty=ltys, lwd=lwds, bty="n")
+  if(! is.null(legend.x))
+    graphics::legend(legend.x, legend=legs, col=cols, lty=ltys, lwd=lwds,
+                     bty="n")
 
   invisible(out)
 }
@@ -847,7 +849,7 @@ plotHistPval <- function(pvalues, breaks=seq(0, 1, 0.05), freq=FALSE,
 ##' @param pvalues vector of raw p values (missing values will be omitted)
 ##' @param use.density if TRUE, uses \code{\link[graphics]{smoothScatter}}
 ##' @param nrpoints if \code{use.density=TRUE}, number of points to be superimposed on the density image
-##' @param pch point symbol used if \code{use.density=TRUE}
+##' @param pch point symbol
 ##' @param plot.conf.int show the confidence interval
 ##' @param xlab a title for the x axis (see default)
 ##' @param ylab a title for the x axis (see default)
@@ -861,7 +863,7 @@ plotHistPval <- function(pvalues, breaks=seq(0, 1, 0.05), freq=FALSE,
 ##' @param main an overall title for the plot (default: "Q-Q plot (<length(pvalues)> p values)")
 ##' @param col vector of plotting color(s) for the points (default is all points in black)
 ##' @param verbose verbosity level (0/1)
-##' @return invisible matrix with a column of p values (NA omitted) and the adjusted p values if any of \code{ctl.fwer.bonf} and \code{ctl.fdr.bh} is set
+##' @return invisible data.frame with a column of p values (NA omitted) and the adjusted p values if any of \code{ctl.fwer.bonf} and \code{ctl.fdr.bh} is set; look also at the attributes
 ##' @seealso \code{\link{plotHistPval}}, \code{\link{significantTests}}
 ##' @author Timothee Flutre (inspired by an anonymous comment at http://gettinggeneticsdone.blogspot.fr/2009/11/qq-plots-of-p-values-in-r-using-ggplot2.html)
 ##' @examples
@@ -956,6 +958,7 @@ qqplotPval <- function(pvalues, use.density=FALSE, nrpoints=1000, pch=1,
     graphics::plot(x=sort(expected), y=sort(observed),
                    xlim=c(0,MAX), ylim=c(0,MAX),
                    las=1, col=col[order(observed)],
+                   pch=pch[order(observed)],
                    xlab=xlab, ylab=ylab, main=main)
   graphics::abline(0, 1, col="red")
 
@@ -968,8 +971,8 @@ qqplotPval <- function(pvalues, use.density=FALSE, nrpoints=1000, pch=1,
                     "% (FWER, Bonf): ", sum(pv.bonf <= thresh))
       write(msg, stdout())
     }
+    lim.pv.bonf <- adjustThreshBonf(length(pvalues), thresh)
     if(plot.signif){
-      lim.pv.bonf <- adjustThreshBonf(length(pvalues), thresh)
       graphics::segments(x0=graphics::par("usr")[1], y0=-log10(lim.pv.bonf),
                          x1=-log10(lim.pv.bonf), y1=-log10(lim.pv.bonf),
                          lty=2)
@@ -985,8 +988,8 @@ qqplotPval <- function(pvalues, use.density=FALSE, nrpoints=1000, pch=1,
                     "% (FWER, Sidak): ", sum(pv.sidak <= thresh))
       write(msg, stdout())
     }
+    lim.pv.sidak <- adjustThreshSidak(length(pvalues), thresh)
     if(plot.signif){
-      lim.pv.sidak <- adjustThreshSidak(length(pvalues), thresh)
       graphics::segments(x0=graphics::par("usr")[1], y0=-log10(lim.pv.sidak),
                          x1=-log10(lim.pv.sidak), y1=-log10(lim.pv.sidak),
                          lty=2)
@@ -1002,8 +1005,8 @@ qqplotPval <- function(pvalues, use.density=FALSE, nrpoints=1000, pch=1,
                     "% (FDR, BH): ", sum(pv.bh <= thresh))
       write(msg, stdout())
     }
+    lim.pv.bh <- sort(pvalues[pv.bh <= thresh], decreasing=TRUE)[1]
     if(plot.signif){
-      lim.pv.bh <- sort(pvalues[pv.bh <= thresh], decreasing=TRUE)[1]
       graphics::segments(x0=graphics::par("usr")[1], y0=-log10(lim.pv.bh),
                          x1=-log10(lim.pv.bh), y1=-log10(lim.pv.bh),
                          lty=3)
@@ -1020,8 +1023,8 @@ qqplotPval <- function(pvalues, use.density=FALSE, nrpoints=1000, pch=1,
                     "% (FDR, Storey): ", sum(out.st$significant))
       write(msg, stdout())
     }
+    lim.pv.st <- sort(pvalues[out.st$qvalues <= thresh], decreasing=TRUE)[1]
     if(plot.signif){
-      lim.pv.st <- sort(pvalues[out.st$qvalues <= thresh], decreasing=TRUE)[1]
       graphics::segments(x0=graphics::par("usr")[1], y0=-log10(lim.pv.st),
                          x1=-log10(lim.pv.st), y1=-log10(lim.pv.st),
                          lty=4)
@@ -1057,14 +1060,22 @@ qqplotPval <- function(pvalues, use.density=FALSE, nrpoints=1000, pch=1,
   }
 
   output <- data.frame(pvalues=pvalues)
-  if(! is.null(pv.bonf))
+  if(! is.null(pv.bonf)){
     output$pv.bonf <- pv.bonf
-  if(! is.null(pv.sidak))
+    attr(output, "lim.pv.bonf") <- lim.pv.bonf
+  }
+  if(! is.null(pv.sidak)){
     output$pv.sidak <- pv.sidak
-  if(! is.null(pv.bh))
+    attr(output, "lim.pv.sidak") <- lim.pv.sidak
+  }
+  if(! is.null(pv.bh)){
     output$pv.bh <- pv.bh
-  if(! is.null(qv.st))
+    attr(output, "lim.pv.bh") <- lim.pv.bh
+  }
+  if(! is.null(qv.st)){
     output$qv.st <- qv.st
+    attr(output, "lim.qv.st") <- lim.qv.st
+  }
 
   invisible(output)
 }

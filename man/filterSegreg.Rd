@@ -4,8 +4,14 @@
 \alias{filterSegreg}
 \title{Filter for segregation}
 \usage{
-filterSegreg(x, thresh.pval = 0.05, return.counts = FALSE, is.F2 = FALSE,
-  nb.cores = 1, verbose = 1)
+filterSegreg(
+  x,
+  thresh.pval = 0.05,
+  return.counts = FALSE,
+  is.F2 = FALSE,
+  nb.cores = 1,
+  verbose = 1
+)
 }
 \arguments{
 \item{x}{data.frame similar to the output from \code{\link{genoClasses2JoinMap}}, with locus in rows and where the first columns corresponding to parents are discarded, i.e. the first column should be named "seg" and the following should correspond to offsprings}

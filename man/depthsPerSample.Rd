@@ -4,8 +4,14 @@
 \alias{depthsPerSample}
 \title{Depth per sample across regions}
 \usage{
-depthsPerSample(dat, min.reg.len = 30, max.reg.len = 500,
-  min.reg.dep = 10, max.reg.dep = 200, min.reg.frac = 0.25)
+depthsPerSample(
+  dat,
+  min.reg.len = 30,
+  max.reg.len = 500,
+  min.reg.dep = 10,
+  max.reg.dep = 200,
+  min.reg.frac = 0.25
+)
 }
 \arguments{
 \item{dat}{data.table (see freadBedtoolsCoverageHist)}

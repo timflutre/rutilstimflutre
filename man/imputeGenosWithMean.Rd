@@ -4,8 +4,7 @@
 \alias{imputeGenosWithMean}
 \title{Genotype imputation}
 \usage{
-imputeGenosWithMean(X, min.maf = 0.1, max.miss = 0.3,
-  rm.still.miss = TRUE)
+imputeGenosWithMean(X, min.maf = 0.1, max.miss = 0.3, rm.still.miss = TRUE)
 }
 \arguments{
 \item{X}{matrix of bi-allelic SNP genotypes encoded in allele doses in {0,1,2}, with genotypes in rows and SNPs in columns; missing values should be encoded as NA}

@@ -4,8 +4,17 @@
 \alias{qtlrelPerChr}
 \title{QTLRel per chromosome}
 \usage{
-qtlrelPerChr(y, X, snp.coords, thresh = 0.01, chr.ids = NULL, W = NULL,
-  Z = NULL, method.A = "vanraden1", verbose = 1)
+qtlrelPerChr(
+  y,
+  X,
+  snp.coords,
+  thresh = 0.01,
+  chr.ids = NULL,
+  W = NULL,
+  Z = NULL,
+  method.A = "vanraden1",
+  verbose = 1
+)
 }
 \arguments{
 \item{y}{vector or one-column matrix of phenotypes (the order is important and should be in agreement with the other arguments X, W and Z)}

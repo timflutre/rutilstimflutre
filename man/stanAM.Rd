@@ -2,13 +2,23 @@
 % Please edit documentation in R/quantgen.R
 \name{stanAM}
 \alias{stanAM}
-\title{Animal model}
+\title{Animal model (univariate)}
 \usage{
-stanAM(data, relmat, errors.Student = FALSE, nb.chains = 1,
-  nb.iters = 10^3, burnin = 10^2, thin = 10, out.dir = getwd(),
+stanAM(
+  data,
+  relmat,
+  errors.Student = FALSE,
+  nb.chains = 1,
+  nb.iters = 10^3,
+  burnin = 10^2,
+  thin = 10,
+  out.dir = getwd(),
   task.id = format(Sys.time(), "\%Y-\%m-\%d-\%H-\%M-\%S"),
-  compile.only = FALSE, rm.stan.file = FALSE, rm.sm.file = FALSE,
-  verbose = 0)
+  compile.only = FALSE,
+  rm.stan.file = FALSE,
+  rm.sm.file = FALSE,
+  verbose = 0
+)
 }
 \arguments{
 \item{data}{data.frame containing the data corresponding to relmat; should have a column grep-able for "response" as well as a column "geno.add" used with matrix A; if a column "geno.dom" exists, it will be used with matrix D; any other column will be interpreted as corresponding to "fixed effects"}

@@ -4,9 +4,18 @@
 \alias{setGt2Na}
 \title{Set GT to NA}
 \usage{
-setGt2Na(vcf.file, genome = "", out.file, yieldSize = NA_integer_,
-  dict.file = NULL, seq.id = NULL, seq.start = NULL, seq.end = NULL,
-  min.gq = 90, verbose = 1)
+setGt2Na(
+  vcf.file,
+  genome = "",
+  out.file,
+  yieldSize = NA_integer_,
+  dict.file = NULL,
+  seq.id = NULL,
+  seq.start = NULL,
+  seq.end = NULL,
+  min.gq = 90,
+  verbose = 1
+)
 }
 \arguments{
 \item{vcf.file}{path to the VCF file (if the bgzip index doesn't exist in the same directory, it will be created)}

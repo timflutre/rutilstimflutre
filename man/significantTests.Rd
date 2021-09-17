@@ -4,9 +4,14 @@
 \alias{significantTests}
 \title{Multiple tests correction}
 \usage{
-significantTests(pvalues, thresh.fwer.bonf = c(0.01, 0.05, 0.1),
-  thresh.fwer.sidak = c(0.01, 0.05, 0.1), thresh.fdr.bh = c(0.01, 0.05,
-  0.1), thresh.fdr.storey = NULL, pfdr = TRUE)
+significantTests(
+  pvalues,
+  thresh.fwer.bonf = c(0.01, 0.05, 0.1),
+  thresh.fwer.sidak = c(0.01, 0.05, 0.1),
+  thresh.fdr.bh = c(0.01, 0.05, 0.1),
+  thresh.fdr.storey = NULL,
+  pfdr = TRUE
+)
 }
 \arguments{
 \item{pvalues}{vector of p values (can contain NA's)}

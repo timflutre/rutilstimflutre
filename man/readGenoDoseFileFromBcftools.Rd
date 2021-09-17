@@ -4,8 +4,14 @@
 \alias{readGenoDoseFileFromBcftools}
 \title{Read SNP genotypes as dosage from bcftools}
 \usage{
-readGenoDoseFileFromBcftools(genos.file, get.coords = TRUE,
-  get.alleles = TRUE, use.fread = TRUE, rm.dup = FALSE, verbose = 0)
+readGenoDoseFileFromBcftools(
+  genos.file,
+  get.coords = TRUE,
+  get.alleles = TRUE,
+  use.fread = TRUE,
+  rm.dup = FALSE,
+  verbose = 0
+)
 }
 \arguments{
 \item{genos.file}{path to the input file containing the SNP genotype data}

@@ -4,10 +4,22 @@
 \alias{gemmaUlmmPerChr}
 \title{GEMMA uLMM per chromosome}
 \usage{
-gemmaUlmmPerChr(y, X, snp.coords, recode.genos = TRUE, alleles = NULL,
-  maf = 0.01, chr.ids = NULL, W, weights = NULL,
-  exe = Sys.which("gemma"), out.dir = getwd(), task.id = "gemma",
-  clean = "none", verbose = 1)
+gemmaUlmmPerChr(
+  y,
+  X,
+  snp.coords,
+  recode.genos = TRUE,
+  alleles = NULL,
+  maf = 0.01,
+  chr.ids = NULL,
+  W,
+  weights = NULL,
+  exe = Sys.which("gemma"),
+  out.dir = getwd(),
+  task.id = "gemma",
+  clean = "none",
+  verbose = 1
+)
 }
 \arguments{
 \item{y}{vector of phenotypes with genotype names}

@@ -4,11 +4,27 @@
 \alias{gemma}
 \title{GEMMA}
 \usage{
-gemma(model = "ulmm", y, X, snp.coords, recode.genos = TRUE,
-  alleles = NULL, maf = 0.01, K.c = NULL, W = NULL, weights = NULL,
-  exe = Sys.which("gemma"), out.dir = getwd(), task.id = "gemma",
-  verbose = 1, clean = "none", seed = 1859, burnin = 1000,
-  nb.iters = 7000, thin = 10)
+gemma(
+  model = "ulmm",
+  y,
+  X,
+  snp.coords,
+  recode.genos = TRUE,
+  alleles = NULL,
+  maf = 0.01,
+  K.c = NULL,
+  W = NULL,
+  weights = NULL,
+  exe = Sys.which("gemma"),
+  out.dir = getwd(),
+  task.id = "gemma",
+  verbose = 1,
+  clean = "none",
+  seed = 1859,
+  burnin = 1000,
+  nb.iters = 7000,
+  thin = 10
+)
 }
 \arguments{
 \item{model}{name of the model to fit (ulmm/bslmm)}

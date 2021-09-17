@@ -4,9 +4,20 @@
 \alias{lmerAM}
 \title{Animal model}
 \usage{
-lmerAM(formula, data, relmat, REML = TRUE, na.action = stats::na.exclude,
-  ci.meth = NULL, ci.lev = 0.95, nb.boots = 10^3, parallel = "no",
-  ncpus = 1, cl = NULL, verbose = 1)
+lmerAM(
+  formula,
+  data,
+  relmat,
+  REML = TRUE,
+  na.action = stats::na.exclude,
+  ci.meth = NULL,
+  ci.lev = 0.95,
+  nb.boots = 10^3,
+  parallel = "no",
+  ncpus = 1,
+  cl = NULL,
+  verbose = 1
+)
 }
 \arguments{
 \item{formula}{formula (see \code{\link[lme4]{lmer}})}

@@ -4,9 +4,17 @@
 \alias{em_solve}
 \title{EM algorithm}
 \usage{
-em_solve(data, params, em_Estep, em_Mstep, em_loglik, thresh.cvg = 10^(-3),
-  nb.iters = 10^3, logliks = rep(NA, 1 + nb.iters),
-  print_position = stdout())
+em_solve(
+  data,
+  params,
+  em_Estep,
+  em_Mstep,
+  em_loglik,
+  thresh.cvg = 10^(-3),
+  nb.iters = 10^3,
+  logliks = rep(NA, 1 + nb.iters),
+  print_position = stdout()
+)
 }
 \arguments{
 \item{data}{object containing the data}

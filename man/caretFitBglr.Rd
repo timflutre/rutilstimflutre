@@ -4,8 +4,23 @@
 \alias{caretFitBglr}
 \title{Fit with BGLR for caret}
 \usage{
-caretFitBglr(x, y, wts, param, lev, last, weights, classProbs, ETA, saveAt,
-  nIter, burnIn, thin, keep.samples = FALSE, ...)
+caretFitBglr(
+  x,
+  y,
+  wts,
+  param,
+  lev,
+  last,
+  weights,
+  classProbs,
+  ETA,
+  saveAt,
+  nIter,
+  burnIn,
+  thin,
+  keep.samples = FALSE,
+  ...
+)
 }
 \arguments{
 \item{x}{current predictors used to fit the model}

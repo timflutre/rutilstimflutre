@@ -4,11 +4,21 @@
 \alias{barplotReadCounts}
 \title{Stacked barplot of read counts}
 \usage{
-barplotReadCounts(counts, xlab = paste0("Individuals (", ncol(counts), ")"),
-  ylab = "Number of read pairs", main = "Read pairs per individual",
-  legend.text = rownames(counts), col = 1:nrow(counts), lines.h = c(10^5,
-  10^6, 5 * 10^6), mar = c(5, 4.5, 4, 0), xlab.line = 3, font.lab = 2,
-  cex.xtxt = 0.7, perc = FALSE, inset.x = -0.2)
+barplotReadCounts(
+  counts,
+  xlab = paste0("Individuals (", ncol(counts), ")"),
+  ylab = "Number of read pairs",
+  main = "Read pairs per individual",
+  legend.text = rownames(counts),
+  col = 1:nrow(counts),
+  lines.h = c(10^5, 10^6, 5 * 10^6),
+  mar = c(5, 4.5, 4, 0),
+  xlab.line = 3,
+  font.lab = 2,
+  cex.xtxt = 0.7,
+  perc = FALSE,
+  inset.x = -0.2
+)
 }
 \arguments{
 \item{counts}{matrix, with categories (e.g. lanes) in rows and individuals in columns; if colnames is not NULL, they will be used as labels of the x-axis}

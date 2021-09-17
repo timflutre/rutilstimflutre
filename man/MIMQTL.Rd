@@ -4,13 +4,29 @@
 \alias{MIMQTL}
 \title{QTL detection by MIM}
 \usage{
-MIMQTL(cross, numeric.chr.format = FALSE, response.in.cross = TRUE,
-  pheno.col = "y", response = NULL, method = "hk", geno.joinmap = NULL,
-  phase = NULL, threshold = NA, nperm = 100, alpha = c(0.05, NA),
-  plot = c(FALSE, FALSE), QTL_position = NULL,
-  range_nb_qtl_max = seq(1:5), nrun = 10, additive.only = TRUE,
-  p2d = "", scan2file = "", type.CI = "LOD-1",
-  nb.cores = parallel::detectCores() - 2, verbose = 0)
+MIMQTL(
+  cross,
+  numeric.chr.format = FALSE,
+  response.in.cross = TRUE,
+  pheno.col = "y",
+  response = NULL,
+  method = "hk",
+  geno.joinmap = NULL,
+  phase = NULL,
+  threshold = NA,
+  nperm = 100,
+  alpha = c(0.05, NA),
+  plot = c(FALSE, FALSE),
+  QTL_position = NULL,
+  range_nb_qtl_max = seq(1:5),
+  nrun = 10,
+  additive.only = TRUE,
+  p2d = "",
+  scan2file = "",
+  type.CI = "LOD-1",
+  nb.cores = parallel::detectCores() - 2,
+  verbose = 0
+)
 }
 \arguments{
 \item{cross}{object}

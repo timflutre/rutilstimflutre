@@ -4,13 +4,32 @@
 \alias{writeInputsFimpute}
 \title{Write inputs for FImpute}
 \usage{
-writeInputsFimpute(ctl.file, X = NULL, genos.file, chips = NULL,
-  snp.coords = NULL, snp.info.file, vcf.file = NULL, yieldSize = 10000,
-  ped = NULL, ped.file = NULL, title = "FImpute", out.dir,
-  hap.lib.file = NULL, add.ungen = NULL, parentage.test = NULL,
-  ped.depth = NULL, turn.off.fam = FALSE, turn.off.pop = FALSE,
-  save.partial = FALSE, save.genos = FALSE, save.hap.lib = FALSE,
-  random.fill = FALSE, nb.jobs = 1, verbose = 1)
+writeInputsFimpute(
+  ctl.file,
+  X = NULL,
+  genos.file,
+  chips = NULL,
+  snp.coords = NULL,
+  snp.info.file,
+  vcf.file = NULL,
+  yieldSize = 10000,
+  ped = NULL,
+  ped.file = NULL,
+  title = "FImpute",
+  out.dir,
+  hap.lib.file = NULL,
+  add.ungen = NULL,
+  parentage.test = NULL,
+  ped.depth = NULL,
+  turn.off.fam = FALSE,
+  turn.off.pop = FALSE,
+  save.partial = FALSE,
+  save.genos = FALSE,
+  save.hap.lib = FALSE,
+  random.fill = FALSE,
+  nb.jobs = 1,
+  verbose = 1
+)
 }
 \arguments{
 \item{ctl.file}{path to the control file in which FImpute's configuration will be saved}

@@ -4,13 +4,30 @@
 \alias{filterVariantCalls}
 \title{Filter variant calls}
 \usage{
-filterVariantCalls(vcf.file, genome = "", out.file, yieldSize = NA_integer_,
-  dict.file = NULL, seq.id = NULL, seq.start = NULL, seq.end = NULL,
-  variants.tokeep = NULL, is.snv = NULL, is.biall = NULL,
-  min.var.dp = NULL, max.var.dp = NULL, min.alt.af = NULL,
-  max.alt.af = NULL, min.spl.dp = NULL, min.perc.spl.dp = NULL,
-  min.spl.gq = NULL, min.perc.spl.gq = NULL, max.var.nb.gt.na = NULL,
-  max.var.perc.gt.na = NULL, verbose = 1)
+filterVariantCalls(
+  vcf.file,
+  genome = "",
+  out.file,
+  yieldSize = NA_integer_,
+  dict.file = NULL,
+  seq.id = NULL,
+  seq.start = NULL,
+  seq.end = NULL,
+  variants.tokeep = NULL,
+  is.snv = NULL,
+  is.biall = NULL,
+  min.var.dp = NULL,
+  max.var.dp = NULL,
+  min.alt.af = NULL,
+  max.alt.af = NULL,
+  min.spl.dp = NULL,
+  min.perc.spl.dp = NULL,
+  min.spl.gq = NULL,
+  min.perc.spl.gq = NULL,
+  max.var.nb.gt.na = NULL,
+  max.var.perc.gt.na = NULL,
+  verbose = 1
+)
 }
 \arguments{
 \item{vcf.file}{path to the VCF file (if the bgzip index doesn't exist in the same directory, it will be created)}

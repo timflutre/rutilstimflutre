@@ -4,8 +4,14 @@
 \alias{simulRefseqCompatibleWithVcf}
 \title{Fasta file}
 \usage{
-simulRefseqCompatibleWithVcf(vcf.file = NULL, vcf.rng.all = NULL,
-  chr.lengths = 10^5, fa.file = NULL, seed = NULL, verbose = 1)
+simulRefseqCompatibleWithVcf(
+  vcf.file = NULL,
+  vcf.rng.all = NULL,
+  chr.lengths = 10^5,
+  fa.file = NULL,
+  seed = NULL,
+  verbose = 1
+)
 }
 \arguments{
 \item{vcf.file}{path to the file in the VCF format (will be used only if \code{vcf.rng.all=NULL}}

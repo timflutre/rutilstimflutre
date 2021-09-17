@@ -4,8 +4,15 @@
 \alias{joinMap2backcross}
 \title{Genotype coding}
 \usage{
-joinMap2backcross(x, alias.hom = "A", alias.het = "H", alias.dup = "Z",
-  alias.miss = "-", parent.names = c("parent1", "parent2"), verbose = 1)
+joinMap2backcross(
+  x,
+  alias.hom = "A",
+  alias.het = "H",
+  alias.dup = "Z",
+  alias.miss = "-",
+  parent.names = c("parent1", "parent2"),
+  verbose = 1
+)
 }
 \arguments{
 \item{x}{data frame in the JoinMap format, for instance from \code{\link{genoClasses2JoinMap}}; any column named "phase" or "clas" will be discarded from the start; a column named "seg" should be present (markers with missing segregation will be discarded); a column named "locus" should be present unless row names are given; all other columns are supposed to correspond to genotypes}

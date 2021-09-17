@@ -4,8 +4,15 @@
 \alias{rearrangeInputsForAssoGenet}
 \title{Plant association genetics}
 \usage{
-rearrangeInputsForAssoGenet(ids, y, X, snp.coords, alleles,
-  rename.chr.prefix = NULL, verbose = 1)
+rearrangeInputsForAssoGenet(
+  ids,
+  y,
+  X,
+  snp.coords,
+  alleles,
+  rename.chr.prefix = NULL,
+  verbose = 1
+)
 }
 \arguments{
 \item{ids}{data.frame of identifiers, with (at least) column names \code{cultivar.code} and \code{accession.code}; the outputs will be sorted according to this option}
