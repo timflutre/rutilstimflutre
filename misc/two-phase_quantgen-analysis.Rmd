@@ -1,6 +1,6 @@
 ---
-title: "Two-phase analysis in quantitative genetics"
-author: "Timothée Flutre (INRA)"
+title: "Two-phase analysis in quantitative genetics: example in grapevine"
+author: "Timothée Flutre (INRAE)"
 date: "`r format(Sys.time(), '%d/%m/%Y %H:%M:%S')`"
 colorlinks: true
 output:
@@ -20,20 +20,18 @@ urlcolor: blue
 This R chunk is used to set up some options.
 -->
 ```{r setup, include=FALSE}
-##`
-R.v.maj <- as.numeric(R.version$major)
-R.v.min.1 <- as.numeric(strsplit(R.version$minor, "\\.")[[1]][1])
-if(R.v.maj < 2 || (R.v.maj == 2 && R.v.min.1 < 15))
-  stop("requires R >= 2.15", call.=FALSE)
-
 suppressPackageStartupMessages(library(knitr))
-opts_chunk$set(echo=TRUE, warning=TRUE, message=TRUE, cache=FALSE, fig.align="center")
+if(! "params" %in% ls())
+  params <- list(root.dir=NULL)
+opts_chunk$set(echo=TRUE, warning=TRUE, message=TRUE, cache=FALSE,
+               fig.align="center", root.dir=params$root.dir)
+opts_knit$set(progress=TRUE, verbose=TRUE)
 ```
 
 
 # Overview
 
-This document aims at exploring two-phase analysis in quantitative genetics as seen with perennial plant species, depending on the amount of missing data, that is when the data set is more or less unbalanced, and the discrepancy between the generative and statistical models.
+This document aims at exploring two-phase analysis in quantitative genetics as seen with perennial plant species, e.g., grapevine, depending on the amount of missing data, that is when the data set is more or less unbalanced, and the discrepancy between the generative and statistical models.
 
 This document requires external packages to be available:
 ```{r load_pkg}
@@ -54,13 +52,15 @@ stopifnot(compareVersion("3.0",
                          as.character(packageVersion("lmerTest")))
           != 1)
 suppressPackageStartupMessages(library(emmeans))
+suppressPackageStartupMessages(library(MM4LMM))
+suppressPackageStartupMessages(library(sommer))
 ## suppressPackageStartupMessages(library(mlmm.gwas))
 ## suppressPackageStartupMessages(library(varbvs))
 ## stopifnot(compareVersion("2.5.7",
 ##                          as.character(packageVersion("varbvs")))
 ##           != 1)
 suppressPackageStartupMessages(library(rutilstimflutre)) # on GitHub
-stopifnot(compareVersion("0.169.2",
+stopifnot(compareVersion("0.170.1",
                          as.character(packageVersion("rutilstimflutre")))
           != 1)
 ## stopifnot(file.exists(Sys.which("gemma"))) # https://github.com/genetics-statistics/GEMMA/
@@ -361,6 +361,7 @@ nb.controls.per.block <- 30
 (N <- I.block * J) # nb of phenotypic data per year
 uniq.geno.names <- sample(x=rownames(genomes$genos),
                           size=I, replace=FALSE)
+uniq.geno.names <- sort(uniq.geno.names)
 (control.name <- uniq.geno.names[1])
 uniq.geno.p.names <- uniq.geno.names[-1] # panel names, w/o the control
 uniq.block.names <- LETTERS[1:J]
@@ -372,10 +373,12 @@ dat.year <- data.frame(geno=rep(NA, N),
                        block=rep(uniq.block.names, each=I.block),
                        rank=NA,
                        location=NA,
-                       year=NA)
+                       year=NA,
+                       stringsAsFactors=TRUE)
 dat.year$geno <- do.call(c, lapply(1:J, function(j){
   sample(x=block.geno.names, size=I.block)
 }))
+dat.year$geno <- factor(dat.year$geno)
 dat.year$control[dat.year$geno == control.name] <- TRUE
 str(dat.year)
 ```
@@ -499,6 +502,8 @@ Plot the field layout:
 lay <- SpatialPointsDataFrame(coords=dat.year[, c("rank","location")],
                               data=dat.year[, c("geno","control","block")])
 summary(lay)
+## lay@data$control <- as.factor(lay@data$control)
+## lay@data$block <- as.factor(lay@data$block)
 spplot(obj=lay, zcol="block", scales=list(draw=TRUE),
        xlab="ranks", ylab="locations",
        main="Field layout",
@@ -518,7 +523,7 @@ Duplicate the data structure per year:
 dat <- dat.year
 first.year <- 2011
 dat$year <- first.year
-K <- 3 # nb of years
+K <- 2 # nb of years
 if(K > 1){
   uniq.year.names <- as.character(first.year:(first.year + K - 1))
   for(year in uniq.year.names[-1]){
@@ -584,7 +589,7 @@ To obtain realistic data:
 mu <- 100    # intercept
 y.min <- 20  # minimal phenotypic value
 CV.g <- 0.10 # genotypic coef of variation
-h2 <- 0.3    # narrow-sense heritability
+h2 <- 0.4    # narrow-sense heritability
 ```
 
 ### Deduce the variances
@@ -619,13 +624,29 @@ M <- genomes$genos[uniq.geno.names,]
 dim(M)
 P <- ncol(M)
 afs <- estimSnpAf(M) # afs.pop
+cor(afs, afs.pop); # plot(afs, afs.pop[names(afs)])
 M.a.c <- M - matrix(rep(1, I)) %*% (2 * afs)
 alpha <- setNames(rnorm(n=P, mean=0, sd=sqrt(sigma.alpha2)),
                   colnames(M.a.c))
 summary(alpha)
+hist(alpha)
 ```
 
-TODO: change the genetic architecture so that there are few large effects and many (very) small effects
+Update the genetic architecture so that there are few large effects ("major QTLs"):
+```{r}
+nbMajorQtls <- 3
+mafs <- estimSnpMaf(afs=afs)
+chrsWithMajorQtls <- sample(unique(genomes$snp.coords$chr), nbMajorQtls)
+majorQtls <- c()
+for(i in seq_along(chrsWithMajorQtls)){
+  mafsChr <- mafs[rownames(genomes$snp.coords[genomes$snp.coords$chr ==
+                                              chrsWithMajorQtls[i],])]
+  majorQtls <- c(majorQtls,
+                 sample(names(mafs)[mafs > 0.15], 1))
+}
+alpha[majorQtls] <- 10 * sign(alpha[majorQtls])
+hist(alpha)
+```
 
 #### Dominance SNP effects
 
@@ -640,10 +661,10 @@ for(i in 1:I){
   M.d.c[i, is.1[i,]] <- 2 * afs[is.1[i,]] * (1 - afs[is.1[i,]])
   M.d.c[i, is.2[i,]] <- - 2 * (1 - afs[is.2[i,]])^2
 }
-## delta <- setNames(rnorm(n=P, mean=0, sd=sqrt(sigma.delta2)),
-##                   colnames(M.d.c))
 delta <- setNames(rep(0, P),
                   colnames(M.d.c))
+## delta <- setNames(rnorm(n=P, mean=0, sd=sqrt(sigma.delta2)),
+##                   colnames(M.d.c))
 summary(delta)
 ```
 
@@ -653,8 +674,18 @@ summary(delta)
 a <- M.a.c %*% alpha
 d <- M.d.c %*% delta
 g <- as.vector(a) + as.vector(d) # ignoring epistasis
+names(g) <- rownames(M)
 summary(g)
 var(g)
+hist(g)
+```
+
+```{r}
+for(i in seq_along(majorQtls)){
+  print(alpha[majorQtls[i]])
+  boxplotCandidateQtl(y=M.a.c %*% alpha, X=M, snp=majorQtls[i], main=majorQtls[i],
+                      show.points=TRUE)
+}
 ```
 
 ### Genotype-year interactions
@@ -668,8 +699,8 @@ TODO
 Draw several fields with spatial heterogeneity:
 ```{r simul_phenos_spatial-het_rand-var}
 ## rho.rank <- rho.loc <- 0
-rho.rank <- 0.9
-rho.loc <- 0.9
+rho.rank <- 0.8
+rho.loc <- 0.8
 many.etas <- simulAr1Ar1(n=100, R=nb.locs, C=nb.ranks,
                          rho.r=rho.loc, rho.c=rho.rank,
                          sigma.X.2=0,
@@ -780,10 +811,14 @@ var(epsilon)
 ### Phenotypic values
 
 ```{r}
+stopifnot(all(colnames(X) == colnames(beta)))
 y <- X %*% beta
+stopifnot(all(colnames(Z) == colnames(g)))
 y <- y + Z %*% g
-if(any(rho.rank != 0, rho.loc != 0))
+if(any(rho.rank != 0, rho.loc != 0)){
+  stopifnot(all(colnames(Z.S) == colnames(eta)))
   y <- y + Z.S %*% eta
+}
 y <- y + epsilon
 y <- as.vector(y)
 summary(y)
@@ -791,13 +826,18 @@ var(y)
 dat$trait1.init <- y
 ```
 
+```{r}
+avg_y <- tapply(dat$trait1.init, dat$geno, mean, na.rm=TRUE)
+regplot(g, avg_y[names(g)], pred.int=FALSE)
+```
+
 ## Missing data
 
 Create missing data depending on the year:
 ```{r miss_dat}
 dat$trait1 <- dat$trait1.init
-max.prop.na <- 0
-## max.prop.na <- 0.1
+## max.prop.na <- 0
+max.prop.na <- 0.1
 (prop.na <- setNames(runif(n=K, min=0, max=max.prop.na),
                      uniq.year.names))
 for(year in names(prop.na)){
@@ -828,8 +868,8 @@ if(any(is.neg)){
 Create upper outliers:
 ```{r outliers}
 idx.notNA <- which(! is.na(dat$trait1))
-prop.out <- 0
-## prop.out <- 0.002
+## prop.out <- 0
+prop.out <- 0.002
 idx.out <- sample(x=idx.notNA, size=floor(prop.out * length(idx.notNA)))
 dat$true.outlier <- FALSE
 dat$true.outlier[idx.out] <- TRUE
@@ -894,7 +934,7 @@ dat[[x]][is.outlier] <- TRUE
 ```{r explo_plot, fig.width=15}
 par(mar=c(7, 4, 4, 2) + 0.1)
 beanplot(trait1 ~ fact1 + block + year,
-         data=dat,
+         data=dat, log="",
          xlab="", xaxt="n",
          ylab="phenotypes",
          main="Sources of variation",
@@ -1060,10 +1100,9 @@ bestmod.reml <- out$bestmod.reml
 
 Re-fit, modeling genotypic values as fixed effects to get their BLUEs:
 ```{r bestmod_refit_BLUEs}
-all.preds.as.fix <- gsub("\\(1 \\| |\\)", "", out$all.preds)
-## all.preds.as.fix <- all.preds.as.fix[-grep("geno:year", all.preds.as.fix)]
 best.form.as.fix <- paste0(response, " ~ 1 + ",
-                           paste(all.preds.as.fix, collapse=" + "))
+                           paste(out$best.preds.fix, collapse=" + "),
+                           " + ", paste(out$best.preds.rnd, collapse=" + "))
 bestmod.lm <- lm(formula=best.form.as.fix,
                  data=dat.noNA,
                  na.action=na.fail)
@@ -1285,7 +1324,6 @@ lattice::dotplot(geno ~ scl.cond.res | year, groups=block,
 ### Summary
 
 ```{r bestmod_infer}
-## summary(bestmod.ml)
 (vc.ml <- as.data.frame(VarCorr(bestmod.ml)))
 summary(bestmod.reml)
 (vc.reml <- as.data.frame(VarCorr(bestmod.reml)))
@@ -1315,8 +1353,8 @@ mySumm <- tmp$sryStat
 
 #### Profiling
 
-```{r bestmod_confint_prof, eval=FALSE}
-if(TRUE){
+```{r bestmod_confint_prof, eval=TRUE}
+if(FALSE){
   st <- system.time(
       prof <- profile(bestmod.ml, signames=FALSE,
                       parallel="multicore", ncpus=nb.cores))
@@ -1336,14 +1374,14 @@ if(TRUE){
 ```{r bestmod_confint_boot, eval=TRUE}
 mySumm(bestmod.reml)
 mySumm(bestmod.ml)
-if(TRUE){
+if(FALSE){
   st <- system.time(
       fit.boot <- bootMer(x=bestmod.ml, FUN=mySumm,
                           nsim=1*10^3, seed=1859,
                           use.u=FALSE, type="parametric",
                           parallel="multicore", ncpus=nb.cores))
   print(st)
-  fit.boot
+  print(fit.boot)
   for(i in seq_along(fit.boot$t0)){
     message(names(fit.boot$t0)[i])
     plot(fit.boot, index=i,
@@ -1407,22 +1445,111 @@ lattice::xyplot(response ~ fitted | year, groups=block,
                 })
 ```
 
+## Comparison with true values
+
+```{r}
+regplot(x=geno.blups, y=g[names(geno.blups)],
+        xlab="eBLUPs of genotypic values",
+        ylab="true genotypic values",
+        main="Simulated data")
+```
+
+
 
 # Second phase of the analysis
 
-## BLUPs and unweighted
+## Reformatting
 
-### SNPs separately (GEMMA)
+```{r}
+matSnps <- M[names(geno.blups),]
+afs <- estimSnpAf(matSnps) # afs.pop
+cor(afs, afs.pop); # plot(afs, afs.pop[names(afs)])
+matAdd <- estimGenRel(X=matSnps, afs=afs, method="vanraden1")
+matSnps_ok <- matSnps[, estimSnpMaf(afs=afs) > 0.05]
+ncol(matSnps_ok)
+snp.coords_ok <- genomes$snp.coords[colnames(matSnps_ok),]
+afs.ok <- afs[colnames(matSnps_ok)]
+matSnps_ok_ctr <- matSnps_ok - matrix(rep(1,nrow(matSnps_ok))) %*% (2 * afs.ok)
+head(matSnps_ok_ctr[,majorQtls])
+head(M.a.c[rownames(matSnps_ok_ctr),majorQtls])
+```
 
-### SNPs jointly (MLMMGWAS)
+## univariate, SNP-by-SNP (MM4LMM)
 
-### SNPs jointly (varbvs)
+### Fit
 
-## BLUPs and weighted
+```{r}
+p2f <- "two-phase_quantgen_MM4LMM.rds"
+if(! file.exists(p2f)){
+  st <- system.time(
+      ## out_mm4lmm_1 <- MMEst(Y=g[names(geno.blups)], X=matSnps_ok_ctr,
+      out_mm4lmm_1 <- MMEst(Y=geno.blups, X=matSnps_ok,
+                            VarList=list(Additive=matAdd,
+                                         Error=diag(length(geno.blups)))))
+  print(st)
+  saveRDS(out_mm4lmm_1, p2f)
+  print(tools::md5sum(path.expand(p2f)))
+} else{
+  print(tools::md5sum(path.expand(p2f)))
+  load(p2f)
+}
+out_mm4lmm_2 <- AnovaTest(out_mm4lmm_1, Type="TypeI")
+```
 
-## BLUEs and unweighted
+### Reformat
 
-## BLUEs and weighted
+```{r}
+out_mm4lmm_2[[1]]
+(snpError <- which(sapply(out_mm4lmm_2, function(x){
+  if(! "Xeffect" %in% rownames(x)) TRUE else FALSE
+})))
+pvals_mm4lmm <- sapply(out_mm4lmm_2, function(x){
+  if("Xeffect" %in% rownames(x))  x["Xeffect","pval"] else NA
+})
+pvals <- cbind(snp.coords_ok[names(pvals_mm4lmm),], pvals_mm4lmm)
+colnames(pvals) <- c("Chrom", "Position", "p.val")
+pvals$p.val <- -log10(pvals$p.val)
+```
+
+### Plot
+
+```{r}
+mat <- matrix(c(1,1,2,3), nrow=2, ncol=2, byrow=T)
+layout(mat, widths = c(4,4), heights = c(3,3))
+
+sommer::manhattan(pvals, pch=20, cex=1)
+
+plotHistPval(10^-pvals$p.val, main="", ylim=c(0,1.5), legend.x=NULL)
+
+col <- setNames(rep("black", nrow(pvals)), rownames(pvals))
+col[majorQtls] <- "red"
+pch <- setNames(rep(1, nrow(pvals)), rownames(pvals))
+pch[majorQtls] <- 20
+tmp <- qqplotPval(10^-pvals$p.val, main="", col=col, pch=pch,
+                  ctl.fdr.bh=TRUE, verbose=0)
+lim.pv.bh <- attr(tmp, "lim.pv.bh")
+segments(x0=par("usr")[1], y0=-log10(lim.pv.bh),
+         x1=-log10(lim.pv.bh), y1=-log10(lim.pv.bh),
+         lty=3)
+
+10^-pvals[majorQtls,"p.val"]
+```
+
+### univariate, SNPs jointly (MLMMGWAS)
+
+TODO
+
+### uniavriate, SNPs jointly (varbvs)
+
+TODO
+
+### multivariate, SNP-by-SNP
+
+TODO
+
+### multivariate, SNPs jointly
+
+TODO
 
 
 # Appendix
