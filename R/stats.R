@@ -849,7 +849,7 @@ plotHistPval <- function(pvalues, breaks=seq(0, 1, 0.05), freq=FALSE,
 ##' @param pvalues vector of raw p values (missing values will be omitted)
 ##' @param use.density if TRUE, uses \code{\link[graphics]{smoothScatter}}
 ##' @param nrpoints if \code{use.density=TRUE}, number of points to be superimposed on the density image
-##' @param pch point symbol
+##' @param pch vector of point symbol(s) (default is 1 for all points)
 ##' @param plot.conf.int show the confidence interval
 ##' @param xlab a title for the x axis (see default)
 ##' @param ylab a title for the x axis (see default)
@@ -903,6 +903,10 @@ qqplotPval <- function(pvalues, use.density=FALSE, nrpoints=1000, pch=1,
   if(! is.null(col))
     stopifnot(is.vector(col),
               length(col) == length(pvalues))
+  if(length(pch) == 1){
+    pch <- rep(pch, length(pvalues))
+  } else
+    stopifnot(length(pch) == lentgh(pvalues))
   if(! is.null(thresh))
     stopifnot(is.numeric(thresh),
               length(thresh) == 1,
@@ -1074,7 +1078,7 @@ qqplotPval <- function(pvalues, use.density=FALSE, nrpoints=1000, pch=1,
   }
   if(! is.null(qv.st)){
     output$qv.st <- qv.st
-    attr(output, "lim.qv.st") <- lim.qv.st
+    attr(output, "lim.pv.st") <- lim.pv.st
   }
 
   invisible(output)
