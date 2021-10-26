@@ -906,7 +906,7 @@ qqplotPval <- function(pvalues, use.density=FALSE, nrpoints=1000, pch=1,
   if(length(pch) == 1){
     pch <- rep(pch, length(pvalues))
   } else
-    stopifnot(length(pch) == lentgh(pvalues))
+    stopifnot(length(pch) == length(pvalues))
   if(! is.null(thresh))
     stopifnot(is.numeric(thresh),
               length(thresh) == 1,
