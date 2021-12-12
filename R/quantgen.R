@@ -4595,7 +4595,8 @@ drawLocCrossovers <- function(crosses, nb.snps, lambda=2, simplistic=FALSE,
 
   ## draw the location of each crossing-over
   drawLocCrossoversOneChr <- function(nb.snps, nb.crossovers){
-    sort(sample.int(n=nb.snps, size=nb.crossovers))
+    sort(sample.int(n=nb.snps, size=nb.crossovers, replace=FALSE, prob=NULL,
+                    useHash=FALSE))
   }
   nb.crosses <- nrow(crosses)
   chrom.names <- names(nb.snps)
@@ -4605,9 +4606,9 @@ drawLocCrossovers <- function(crosses, nb.snps, lambda=2, simplistic=FALSE,
     cross.idx <- cross.idx + 1
     child <- list()
     gam.idx <- gam.idx + 1
-    gam.par1 <- lapply(1:nb.chroms, function(c){
-      drawLocCrossoversOneChr(nb.snps[c] - 1,
-                              nb.crossovers[(gam.idx-1)*nb.chroms + c])
+    gam.par1 <- lapply(1:nb.chroms, function(ci){
+      drawLocCrossoversOneChr(nb.snps[ci] - 1,
+                              nb.crossovers[(gam.idx-1)*nb.chroms + ci])
     })
     names(gam.par1) <- chrom.names
     child[[crosses$parent1[cross.idx]]] <- gam.par1
@@ -5245,6 +5246,10 @@ estimLd <- function(X, snp.coords, K=NULL, pops=NULL,
       }
     }
   }
+  if(! is.factor(ld$loc1))
+    ld$loc1 <- as.factor(ld$loc1)
+  if(! is.factor(ld$loc2))
+    ld$loc2 <- as.factor(ld$loc2)
 
   return(ld)
 }
@@ -9274,6 +9279,93 @@ gibbsJanss2012 <- function(y, a=NULL, b=NULL, family="gaussian", K, XF=NULL,
     out$K[[k]]$tolD <- K[[k]]$tolD
   }
   return(out)
+}
+
+##' Falconer's parameterization
+##'
+##' Plot Falconer's parameterization for a bi-allelic locus with allele A1 and A2.
+##' @param a additive effect (gene action) of allele A2
+##' @param d dominance effect
+##' @param f frequency of allele A2
+##' @return invisible list
+##' @author Timothee Flutre
+##' @export
+plotFalconer <- function(a=1, d=0.75, f=0.25){
+  ## statistical/populational effects (substitution and deviation)
+  (alpha <- a + (1 - 2*f) * d)
+  (alpha1 <- -f * alpha)
+  stopifnot(all.equal(-f * a - f * (1 - 2*f) * d,
+                      alpha1))
+  (alpha2 <- (1 - f) * alpha)
+  stopifnot(all.equal((1 - f) * a + (1 - f) * (1 - 2*f) * d,
+                      alpha2))
+  EGij <- (2*f - 1) * a + 2*f*(1 - f) * d
+  (mu <- EGij + 2 * alpha1)
+  GijA <- stats::setNames(c((0 - 2*f) * alpha,
+                          (1 - 2*f) * alpha,
+                          (2 - 2*f) * alpha),
+                          c("A1A1","A1A2","A2A2"))
+  GijD <- stats::setNames(c(-2*f^2*d,
+                            2*f*(1-f)*d,
+                            -2*(1-f)^2*d),
+                          c("A1A1","A1A2","A2A2"))
+  (Gij <- data.frame(x=c(0, 1, 2),
+                     y=c(EGij + GijA["A1A1"] + GijD["A1A1"],
+                         EGij + GijA["A1A2"] + GijD["A1A2"],
+                         EGij + GijA["A2A2"] + GijD["A2A2"]),
+                     row.names=c("A1A1","A1A2","A2A2")))
+  stopifnot(all.equal(Gij["A1A1","y"], -a),
+            all.equal(Gij["A1A2","y"], d),
+            all.equal(Gij["A2A2","y"], a))
+  stopifnot(all.equal(EGij + GijA["A1A1"] + GijD["A1A1"],
+                      mu + alpha * 0 + -2*f^2*d, check.attributes=FALSE),
+            all.equal(EGij + GijA["A1A2"] + GijD["A1A2"],
+                      mu + alpha * 1 + 2*f*(1-f)*d, check.attributes=FALSE),
+            all.equal(EGij + GijA["A2A2"] + GijD["A2A2"],
+                      mu + alpha * 2 + -2*(1-f)^2*d, check.attributes=FALSE))
+
+  ## plot
+  graphics::par(mar=c(4, 2, 3, 4) + 0.1)
+  graphics::plot(x=Gij$x, y=Gij$y, las=1, pch=19, cex=1.8,
+                 xlim=c(-0.2, 2.2), ylim=c(-1.2*a, 1.4*a),
+                 xaxt="n", yaxt="n", xlab="", ylab="",
+                 main=paste0("a=", a, ", d=", d, ", f=", f))
+  graphics::axis(side=1, at=Gij$x)
+  graphics::axis(side=2, at=c(-a, 0, d, a), las=1, labels=c("-a", "0", "d", "+a"))
+  graphics::mtext(expression("A"[1]*"A"[1]), side=1, line=2, outer=FALSE, at=0)
+  graphics::mtext(expression((1-f)^2), side=1, line=3, outer=FALSE, at=0)
+  graphics::mtext(expression("A"[1]*"A"[2]), side=1, line=2, outer=FALSE, at=1)
+  graphics::mtext(expression(2*f(1-f)), side=1, line=3, outer=FALSE, at=1)
+  graphics::mtext(expression("A"[2]*"A"[2]), side=1, line=2, outer=FALSE, at=2)
+  graphics::mtext(expression(f^2), side=1, line=3, outer=FALSE, at=2)
+  graphics::text(x=Gij$x, y=Gij$y, pos=c(1, 3, 1), offset=1,
+                 labels=c(expression("G"[11]), expression("G"[12]),
+                          expression("G"[22])))
+  ## add breeding values:
+  fit <- stats::lm(y ~ x, data=Gij)
+  graphics::abline(fit, col="red")
+  (BVs <- stats::fitted(fit))
+  graphics::axis(side=4, at=c(BVs, 0), las=1,
+                 labels=c(expression("(0-2f)"*alpha),
+                          expression("(1-2f)"*alpha),
+                          expression("(2-2f)"*alpha), "0"))
+  graphics::points(x=Gij$x, y=BVs, pch=21, bg="white", cex=1.8)
+  graphics::text(x=Gij$x, y=BVs, pos=c(2, 4, 2), offset=1,
+                 labels=c(expression("G"[11*",A"]), expression("G"[12*",A"]),
+                          expression("G"[22*",A"])))
+  graphics::segments(x0=c(0, 1, 2), y0=Gij$y,
+                     x1=c(0, 1, 2), y1=BVs, lty=3)
+  graphics::points(x=-stats::coef(fit)["(Intercept)"] / stats::coef(fit)["x"],
+                   y=0, pch=3, cex=2)
+  ## add slope = alpha:
+  graphics::segments(x0=0, y0=BVs["A1A1"], x1=1, y1=BVs["A1A1"], lty=2)
+  graphics::arrows(x0=1, y0=BVs["A1A1"], x1=1, y1=BVs["A1A2"], code=3)
+  graphics::text(x=1+0.1, y=BVs["A1A1"]+(BVs["A1A2"]-BVs["A1A1"])/2,
+                 labels=expression(alpha), cex=1.2)
+
+  invisible(list(a=a, d=d,
+                 alpha=alpha, alpha1=alpha1, alpha2=alpha2,
+                 GijA=GijA, GijD=GijD, Gij=Gij))
 }
 
 ##' Genotype frequencies

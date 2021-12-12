@@ -240,7 +240,8 @@ extractFasta <- function(in.fa, sub.info, out.fa, split.names=" ", verbose=1){
     write(msg, stdout())
     utils::flush.console()
   }
-  if(unlist(getRversion())[2] < 5){ # assume major R version is 3
+  if(unlist(getRversion())[1] < 3 &
+     unlist(getRversion())[2] < 5){
     sub.info.rl <- IRanges::RangesList()
   } else
     sub.info.rl <- IRanges::IRangesList()

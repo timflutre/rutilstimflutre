@@ -1810,12 +1810,18 @@ test_that("drawLocCrossovers", {
   nb.snps <- setNames(c(1437,1502), c("chr1", "chr2"))
 
   ## nb.crossovers <- c(1, 1, 2, 4, 1, 4)
-  expected <- list(ind3=list(ind2=list(chr1=c(1357),
-                                       chr2=c(992)),
-                             ind1=list(chr1=c(89, 904),
-                                       chr2=c(265, 310, 576, 1030))),
-                   "ind1-hd"=list(ind1=list(chr1=c(1106),
-                                            chr2=c(570, 748, 1077, 1487))))
+  ## expected <- list(ind3=list(ind2=list(chr1=c(1357),
+  ##                                      chr2=c(992)),
+  ##                            ind1=list(chr1=c(89, 904),
+  ##                                      chr2=c(265, 310, 576, 1030))),
+  ##                  "ind1-hd"=list(ind1=list(chr1=c(1106),
+  ##                                           chr2=c(570, 748, 1077, 1487))))
+  expected <- list(ind3=list(ind2=list(chr1=c(471),
+                                       chr2=c(299)),
+                             ind1=list(chr1=c(270, 1211),
+                                       chr2=c(330, 597, 1301, 1331))),
+                   "ind1-hd"=list(ind1=list(chr1=c(37),
+                                            chr2=c(485, 729, 878, 1129))))
 
   observed <- drawLocCrossovers(crosses, nb.snps)
 

@@ -31,7 +31,7 @@ qqplotPval(
 
 \item{nrpoints}{if \code{use.density=TRUE}, number of points to be superimposed on the density image}
 
-\item{pch}{point symbol}
+\item{pch}{vector of point symbol(s) (default is 1 for all points)}
 
 \item{plot.conf.int}{show the confidence interval}
 
