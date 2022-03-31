@@ -1,6 +1,6 @@
 ---
 title: "Tutorial on contrasts in R"
-author: "Timothée Flutre (INRA)"
+author: "Timothée Flutre (INRAE)"
 date: "`r format(Sys.time(), '%d/%m/%Y %H:%M:%S')`"
 colorlinks: true
 output:
@@ -37,7 +37,7 @@ Finally, two different contrasts will be described in details.
 For one of them, the "sum" contrast, everything can be computed "by hand".
 But it is also shown how to obtain the required information (incidence matrix, contrast estimates, standard errors, test statistics and p values) using an external package, [`emmeans`](https://cran.r-project.org/package=emmeans):
 ```{r}
-library(emmeans)
+suppressPackageStartupMessages(library(emmeans))
 ```
 
 
