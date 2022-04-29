@@ -12,6 +12,7 @@ output:
     toc: true
     toc_depth: 4
     number_sections: TRUE
+abstract: "This document introduces the first-order auto-regressive process in one as well as two dimensions."
 vignette: >
   %\VignetteIndexEntry{Intro AR1}
   %\VignetteEngine{knitr::rmarkdown}
@@ -33,36 +34,18 @@ render("intro-AR1.Rmd", "html_document")
 
 License: [CC BY-SA 4.0](http://creativecommons.org/licenses/by-sa/4.0/)
 
-Acknowledgments: Marie Denis (CIRAD)
-
-References:
-
-* [Box, Jenkins & Reinsel (2008)](http://eu.wiley.com/WileyCDA/WileyTitle/productCd-0470272848.html): "Time Series Analysis: Forecasting and Control" (4th edition)
-
-* [Rue & Held (2005)](https://www.crcpress.com/p/book/9781584884323): "Gaussian Markov Random Fields: Theory and Applications", chapter 1
-
-* [Congdon (2010)](https://www.crcpress.com/p/book/9781584887201): "Applied Bayesian Hierarchical Methods", section 4.2.2 Low order autoregressive models
-
-* [Martin (1996)](http://linkinghub.elsevier.com/retrieve/pii/0378375895000666): "Some results on unilateral ARMA lattice processes"
-
-* [Cullis & Gleeson (1991)](http://dx.doi.org/10.2307/2532398): "Spatial analysis of field experiments: an extension to two dimensions"
-
-* [Scaccia & Martin (2002)](http://link.springer.com/chapter/10.1007/978-3-642-57489-4_90): "Testing for simplification in spatial models"
-
-* [Stein (1999)](http://link.springer.com/10.1007/978-1-4612-1494-6): "Interpolation of spatial data"
-
 External packages:
 
 ```{r load_pkg}
 options(digits=5)
-library(rutilstimflutre)
+suppressPackageStartupMessages(library(rutilstimflutre))
 ## library(MASS)
-library(Matrix)
-library(sparseMVN)
-library(nlme)
-library(INLA)
-library(sp)
-library(gstat)
+suppressPackageStartupMessages(library(Matrix))
+suppressPackageStartupMessages(library(sparseMVN))
+suppressPackageStartupMessages(library(nlme))
+suppressPackageStartupMessages(library(INLA))
+suppressPackageStartupMessages(library(sp))
+suppressPackageStartupMessages(library(gstat))
 ```
 
 This R chunk is used to assess how much time it takes to execute the R code in this document until the end:
@@ -470,8 +453,8 @@ N <- 1*10^2   # number of independent spatial series
 R <- 3*10^1   # number of rows of each time series
 C <- 7*10^1   # number of columns of each time series
 R * C         # total number of cells
-rho.r <- 0.7  # correlation between two successive rows
-rho.c <- 0.3  # correlation between two successive columns
+rho.r <- 0.9  # correlation between two successive rows
+rho.c <- 0.9  # correlation between two successive columns
 sigma2 <- 5   # variance of the errors
 1 / sigma2    # precision of the errors
 ```
@@ -485,7 +468,7 @@ ar1xar1.sim.cond <- simulAr1Ar1 # inside package
 
 Check the code by simulating with only column correlation:
 ```{r ar1xar1.sim.cond.onlyC}
-X1 <- ar1xar1.sim.cond(N, R=2, C=500, sigma2, rho.r=0, rho.c)
+X1 <- ar1xar1.sim.cond(n=N, R=2, C=500, sigma.e.2=sigma2, rho.r=0, rho.c=rho.c)
 prettyPrintBetterSummary(apply(X1, 3, function(Xi){
   acf(Xi[1,], lag.max=1, type="correlation", plot=FALSE)$acf[2]
 }))
@@ -493,7 +476,7 @@ prettyPrintBetterSummary(apply(X1, 3, function(Xi){
 
 Idem, with only row correlation:
 ```{r ar1xar1.sim.cond.onlyR}
-X1 <- ar1xar1.sim.cond(N, R=500, C=2, sigma2, rho.r, rho.c=0.0)
+X1 <- ar1xar1.sim.cond(n=N, R=500, C=2, sigma.e.2=sigma2, rho.r=rho.r, rho.c=0.0)
 prettyPrintBetterSummary(apply(X1, 3, function(Xi){
   acf(Xi[,1], lag.max=1, type="correlation", plot=FALSE)$acf[2]
 }))
@@ -501,7 +484,7 @@ prettyPrintBetterSummary(apply(X1, 3, function(Xi){
 
 Now with both row and column correlations:
 ```{r ar1xar1.sim.cond.bothRC}
-X1 <- ar1xar1.sim.cond(N, R, C, sigma2, rho.r, rho.c)
+X1 <- ar1xar1.sim.cond(n=N, R=R, C=C, sigma.e.2=sigma2, rho.r=rho.r, rho.c=rho.c)
 prettyPrintBetterSummary(apply(X1, 3, function(Xi){
   acf(Xi[1,], lag.max=1, type="correlation", plot=FALSE)$acf[2]
 }))
@@ -522,7 +505,7 @@ ar1xar1.sim.mv <- function(N, R, C, sigma2, rho.r, rho.c){
 
 Check the code by simulating with only column correlation:
 ```{r ar1xar1.sim.mv.onlyC, eval=FALSE}
-X2 <- ar1xar1.sim.mv(N, R=2, C=500, rho.r=0, rho.c, sigma2)
+X2 <- ar1xar1.sim.mv(N, R=2, C=500, sigma2, rho.r=0, rho.c)
 prettyPrintBetterSummary(apply(X2, 3, function(Xi){
   acf(Xi[1,], lag.max=1, type="correlation", plot=FALSE)$acf[2]
 }))
@@ -530,7 +513,7 @@ prettyPrintBetterSummary(apply(X2, 3, function(Xi){
 
 Idem, with only row correlation:
 ```{r ar1xar1.sim.mv.onlyR, eval=FALSE}
-X2 <- ar1xar1.sim.mv(N, R=500, C=2, rho.r, rho.c=0.0, sigma2)
+X2 <- ar1xar1.sim.mv(N, R=500, C=2, sigma2, rho.r, rho.c=0.0)
 prettyPrintBetterSummary(apply(X2, 3, function(Xi){
   acf(Xi[,1], lag.max=1, type="correlation", plot=FALSE)$acf[2]
 }))
@@ -538,7 +521,7 @@ prettyPrintBetterSummary(apply(X2, 3, function(Xi){
 
 Now with both row and column correlations:
 ```{r ar1xar1.sim.mv.bothRC, eval=FALSE}
-X2 <- ar1xar1.sim.mv(N, R, C, rho.r, rho.c, sigma2)
+X2 <- ar1xar1.sim.mv(N, R, C, sigma2, rho.r, rho.c)
 prettyPrintBetterSummary(apply(X2, 3, function(Xi){
   acf(Xi[1,], lag.max=1, type="correlation", plot=FALSE)$acf[2]
 }))
@@ -611,11 +594,45 @@ plot(vg.1, vg.1.fit, main="", col="blue",
 ```
 
 
-
 ### Via `inla`
 
 TODO
 
+
+### Via `lm`
+
+```{r}
+head(as.data.frame(X.sp))
+fit_x_y <- lm(var1 ~ x + y, data=as.data.frame(X.sp))
+fit_x_y_xy <- lm(var1 ~ x + y + x:y, data=as.data.frame(X.sp))
+anova(fit_x_y, fit_x_y_xy)
+fit_x_y_x2_y2 <- lm(var1 ~ x + y + I(x^2) + I(y^2), data=as.data.frame(X.sp))
+anova(fit_x_y, fit_x_y_xy, fit_x_y_x2_y2)
+fit_x_y_x2_y2_x2y2<- lm(var1 ~ x + y + I(x^2) + I(y^2) + I(x^2):I(y^2), data=as.data.frame(X.sp))
+anova(fit_x_y, fit_x_y_xy, fit_x_y_x2_y2, fit_x_y_x2_y2_x2y2)
+```
+
+
+# Acknowledgments
+
+Marie Denis (CIRAD)
+
+
+# References
+
+* [Box, Jenkins & Reinsel (2008)](http://eu.wiley.com/WileyCDA/WileyTitle/productCd-0470272848.html): "Time Series Analysis: Forecasting and Control" (4th edition)
+
+* [Rue & Held (2005)](https://www.crcpress.com/p/book/9781584884323): "Gaussian Markov Random Fields: Theory and Applications", chapter 1
+
+* [Congdon (2010)](https://www.crcpress.com/p/book/9781584887201): "Applied Bayesian Hierarchical Methods", section 4.2.2 Low order autoregressive models
+
+* [Martin (1996)](http://linkinghub.elsevier.com/retrieve/pii/0378375895000666): "Some results on unilateral ARMA lattice processes"
+
+* [Cullis & Gleeson (1991)](http://dx.doi.org/10.2307/2532398): "Spatial analysis of field experiments: an extension to two dimensions"
+
+* [Scaccia & Martin (2002)](http://link.springer.com/chapter/10.1007/978-3-642-57489-4_90): "Testing for simplification in spatial models"
+
+* [Stein (1999)](http://link.springer.com/10.1007/978-1-4612-1494-6): "Interpolation of spatial data"
 
 
 # Appendix
