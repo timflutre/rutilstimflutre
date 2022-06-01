@@ -1,6 +1,6 @@
 ---
 title: "Introduction to the EM algorithm"
-author: "Timothée Flutre (Inra)"
+author: "Timothée Flutre"
 date: "`r format(Sys.time(), '%d/%m/%Y %H:%M:%S')`"
 output:
   rmarkdown::html_vignette:
@@ -20,31 +20,12 @@ vignette: >
   %\VignetteEncoding{UTF-8}
 ---
 
-<!--
-setwd("~/src/rutilstimflutre/vignettes/")
-
-library(devtools)
-build_vignettes()
-
-library(rmarkdown)
-render("intro-EM-algo.Rmd", "html_document")
--->
 
 # Preamble
 
 License: [CC BY-SA 4.0](http://creativecommons.org/licenses/by-sa/4.0/)
 
-References:
-
-* [Stephens (2000)](http://www.stat.washington.edu/stephens/papers/tabstract.html), chapter 1 from his PhD thesis
-
-* [Beal (2003)](http://www.cse.buffalo.edu/faculty/mbeal/thesis/), chapter 2 from his PhD thesis
-
-* [Shalizi](http://www.stat.cmu.edu/~cshalizi/uADA/12/), lecture "Mixture Models, Latent Variables and the EM Algorithm"
-
-* [Ghahramani (2012)](http://videolectures.net/mlss2012_ghahramani_graphical_models/), talk "Graphical Models"
-
-* Robert and Casella (2009), book "Introducing Monte Carlo Methods with R"
+<!-- https://openwetware.org/wiki/User:Timothee_Flutre/Notebook/Postdoc/2011/12/14 -->
 
 
 # Motivation
@@ -53,6 +34,8 @@ A large part of any scientific activity is about measuring things, in other word
 It seems therefore natural to say that the samples come from a mixture of clusters.
 The aim is thus to recover from the data, i.e. to infer, (i) how many clusters there are, (ii) what are the features of these clusters, and (iii) from which cluster each statistical unit comes from.
 In this document, we focus on points (ii) and (iii).
+
+(Caution, this is my own quick-and-dirty tutorial, see the references at the end for presentations by professional statisticians.)
 
 
 # Data
@@ -96,31 +79,190 @@ The constraints are: $\forall k, w_k \ge 0$ and $\sum_{k=1}^K w_k = 1$.
 
 # Maximum likelihood
 
-...
+Naturally, we can start by maximizing the likelihood in order to estimate the parameters:
+
+$L(\theta) = P(X|\theta) = \prod_{i=1}^N f(x_i|\theta) = \prod_{i=1}^N \sum_{k=1}^K w_k \phi(x_i;\theta_k)$
+
+Note that, to simply calculate this likelihood, we need to calculate $K^N$ terms, which is quickly too costly.
+
+As usual, it's easier to deal with the log-likelihood:
+
+$l(\theta) = \sum_{i=1}^N ln \left( \sum_{k=1}^K w_k \phi(x_i; \theta_k) \right)$
+
+Let's take the derivative with respect to one parameter, eg. $\theta_l$:
+
+$\frac{\partial l}{\partial \theta_l} = \sum_{i=1}^N \frac{1}{\sum_{k=1}^K w_k \phi(x_i; \theta_k)} w_l \frac{\partial \phi(x_i; \theta_l)}{\partial \theta_l}$
+
+$\frac{\partial l}{\partial \theta_l} = \sum_{i=1}^N \frac{w_l \phi(x_i; \theta_l)}{\sum_{k=1}^K w_k \phi(x_i; \theta_k)} \frac{1}{\phi(x_i; \theta_l)} \frac{\partial \phi(x_i; \theta_l)}{\partial \theta_l}$
+
+$\frac{\partial l}{\partial \theta_l} = \sum_{i=1}^N \frac{w_l \phi(x_i; \theta_l)}{\sum_{k=1}^K w_k \phi(x_i; \theta_k)} \frac{\partial ln ( \phi(x_i; \theta_l) )}{\partial \theta_l}$
+
+This shows that maximizing the likelihood of a mixture model is like doing a weighted likelihood maximization. However, these weights depend on the parameters we want to estimate! That's why we now switch to the missing-data formulation of the mixture model.
 
 
 # Missing data
 
-...
+We introduce the following N [http://en.wikipedia.org/wiki/Latent_variable latent variables] $Z_1,...,Z_i,...,Z_N$ (also called hidden or allocation variables), one for each observation, such that $Z_i=k$ means that observation $x_i$ belongs to cluster $k$. Thanks to this, we can reinterpret the mixture weights: $\forall i, P(Z_i=k|\theta)=w_k$. In fact, it is much easier to do the maths when defining each $Z_i$ as a vector of length $K$, with $Z_{ik}=1$ if observation $x_i$ belongs to cluster $k$, and $Z_{ik}=0$ otherwise ([http://en.wikipedia.org/wiki/Dummy_variable_%28statistics%29 indicator variables]). Moreover, we can now define the membership probabilities, one for each observation:
+
+$p(k|i) = P(Z_{ik}=1|x_i,\theta) = \frac{P(Z_{ik}=1 | \theta) p(x_i | Z_{ik}=1,\theta)}{p(x_i | \theta)} = \frac{w_k \phi(x_i|\mu_k,\sigma_k)}{\sum_{l=1}^K w_l \phi(x_i|\mu_l,\sigma_l)}$
+
+The observed-data likelihood (also called sometimes "incomplete" or "marginal", even though these appellations are misnomers) is still written the same way:
+
+$L_{obs}(\theta) = P(X|\theta) = \prod_{i=1}^N f(x_i|\theta)$
+
+But now we can also write the augmented-data likelihood (also called sometimes "complete"), assuming all observations are independent conditionally on their membership:
+
+$L_{aug}(\theta) = P(X,Z|\theta) = \prod_{i=1}^N P(x_i|Z_i,\theta) P(Z_i|\theta) = \prod_{i=1}^N \left( \prod_{k=1}^K \phi(x_i|\mu_k,\sigma_k)^{Z_{ik}} w_k^{Z_{ik}} \right)$.
+
+Note how easy it is to write it thanks to the fact that we chose to use $Z_{ik} \in \{0,1\}$ compare to $Z_i=k$.
+
+And here is the augmented-data log-likelihood (useful in the M step of the EM algorithm, see below):
+
+$l_{aug}(\theta) = \sum_{i=1}^N \left( \sum_{k=1}^K Z_{ik} ln(\phi(x_i|\mu_k,\sigma_k)) + \sum_{k=1}^K Z_{ik} ln(w_k) \right)$
+
+Using the [http://en.wikipedia.org/wiki/Plate_notation plate notation], the Gaussian mixture model described here can be represented like [http://en.wikipedia.org/wiki/File:Nonbayesian-gaussian-mixture.svg this].
 
 
 # EM algorithm
 
 ## Definition
 
-...
+We first define an objective function, $Q$, which happens to be the conditional expectation of the augmented-data log-likelihood function, $l_{aug}$, over the latent variables, $Z$, given the observed data, $X$, and the parameter estimates, $\theta$. The idea is to iterate two steps, starting from randomly-initialized parameters. In the E-step, one does an expectation, that is one computes this objective function to determine the membership probabilities. And in the M-step, one maximizes this objective function to determine the next iterate of the parameter estimates. In equations, it can be written like this:
+** E step: $Q(\theta|X,\theta^{(t)}) = \mathbb{E}_{Z|X,\theta^{(t)}} \left[ ln(P(X,Z|\theta))|X,\theta^{(t)} \right] = \int q(Z|X,\theta^{(t)}) \; l_{aug} \; dZ$
+** M-step: $\theta^{(t+1)} = argmax_{\theta} Q(\theta|X,\theta^{(t)})$ so that $\forall \theta \in \Theta, Q(\theta^{(t+1)}|X,\theta^{(t)}) \ge Q(\theta|X,\theta^{(t)})$
 
 ## Theory
 
-...
+Stated like this above doesn't necessarily allow oneself to understand it immediately, at least in my case. Hopefully, Matthew Beal presents it in a great and simple way in his PhD thesis (see references at the bottom of the page).
+
+Here is the observed-data log-likelihood:
+
+$l_{obs}(\theta) = \sum_{i=1}^N ln \left( f(x_i|\theta) \right)$
+
+First we introduce the hidden variables by integrating them out:
+
+$l_{obs}(\theta) = \sum_{i=1}^N ln \left( \int p(x_i,z_i|\theta) dz_i \right)$
+
+Then, we use any probability distribution $q$ on these hidden variables (in fact, we use a distinct distribution $q_{z_i}$ for each observation):
+
+$l_{obs}(\theta) = \sum_{i=1}^N ln \left( \int q_{z_i}(z_i) \frac{p(x_i,z_i|\theta)}{q_{z_i}(z_i)} dz_i \right)$
+
+And here is the great trick, as explained by Beal: "any probability distribution over the hidden variables gives rise to a lower bound on $l_{obs}$". This is due to to the [http://en.wikipedia.org/wiki/Jensen%27s_inequality Jensen inequality] (the logarithm is concave):
+
+$l_{obs}(\theta) \ge \sum_{i=1}^N \int q_{z_i}(z_i) ln \left( \frac{p(x_i,z_i|\theta)}{q_{z_i}(z_i)} \right) dz_i = \mathcal{F}(q_{z_1}(z_1), ..., q_{z_N}(z_N), \theta)$
+
+At each iteration, the E step maximizes the lower bound ($\mathcal{F}$) with respect to the $q_{z_i}(z_i)$:
+* E step: $q^{(t+1)}_{z_i} \leftarrow argmax_{q_{z_i}} \mathcal{F}(q_z(z), \theta^{(t)}) \forall i$
+* M step: $\theta^{(t+1)} \leftarrow argmax_\theta \mathcal{F}(q^{(t+1)}_z(z), \theta)$
+
+The E-step amounts to inferring the posterior distribution of the hidden variables $q^{(t+1)}_{z_i}$ given the current parameter $\theta^{(t)}$:
+
+$q^{(t+1)}_{z_i}(z_i) = p(z_i | x_i, \theta^{(t)})$
+
+Indeed, the $q^{(t+1)}_{z_i}(z_i)$ make the bound tight (the inequality becomes an equality):
+
+$\mathcal{F}(q^{(t+1)}_z(z), \theta^{(t)}) = \sum_{i=1}^N \int q^{(t+1)}_{z_i}(z_i) ln \left( \frac{p(x_i,z_i|\theta^{(t)})}{q^{(t+1)}_{z_i}(z_i)} \right) dz_i$
+
+$\mathcal{F}(q^{(t+1)}_z(z), \theta^{(t)}) = \sum_{i=1}^N \int p(z_i | x_i, \theta^{(t)}) ln \left( \frac{p(x_i,z_i|\theta^{(t)})}{p(z_i | x_i, \theta^{(t)})} \right) dz_i$
+
+$\mathcal{F}(q^{(t+1)}_z(z), \theta^{(t)}) = \sum_{i=1}^N \int p(z_i | x_i, \theta^{(t)}) ln \left( \frac{p(x_i|\theta^{(t)}) p(z_i|x_i,\theta^{(t)})}{p(z_i | x_i, \theta^{(t)})} \right) dz_i$
+
+$\mathcal{F}(q^{(t+1)}_z(z), \theta^{(t)}) = \sum_{i=1}^N \int p(z_i | x_i, \theta^{(t)}) ln \left( p(x_i|\theta^{(t)}) \right) dz_i$
+
+$\mathcal{F}(q^{(t+1)}_z(z), \theta^{(t)}) = \sum_{i=1}^N ln \left( p(x_i|\theta^{(t)}) \right)$
+
+$\mathcal{F}(q^{(t+1)}_z(z), \theta^{(t)}) = l_{obs}(\theta^{(t)})$
+
+Then, at the M step, we use these statistics to maximize the new lower bound $\mathcal{F}$ with respect to $\theta$, and therefore find $\theta^{(t+1)}$.
 
 ## Variational approximation
 
-...
+If the posterior distributions $p(z_i|x_i,\theta)$ are intractable, we can use a variational approach to constrain them to be of a particular, tractable form. In the E step, maximizing $\mathcal{F}$ with respect to $q_{z_i}$ is equivalent to minimizing the [http://en.wikipedia.org/wiki/Kullback%E2%80%93Leibler_divergence Kullback-Leibler divergence] between the variational distribution $q(z_i)$ and the exact hidden variable posterior $p(z_i|x_i,\theta)$:
+
+$KL[q_{z_i}(z_i) || p(z_i|x_i,\theta)] = \int q_{z_i}(z_i) ln \left( \frac{q_{z_i}(z_i)}{p(z_i|x_i,\theta)} \right)$
+
+As a result, the E step may not always lead to a tight bound.
 
 ## Formulas for both steps
 
-...
+In both steps we need to use $Q$, whether to evaluate it or maximize it.
+
+$Q(\theta|X,\theta^{(t)}) = \mathbb{E}_{Z|X,\theta^{(t)}} \left[ ln(P(X,Z|\theta))|X,\theta^{(t)} \right]$
+
+$Q(\theta|X,\theta^{(t)}) = \mathbb{E}_{Z|X,\theta^{(t)}} \left[ l_{aug}(\theta)|X,\theta^{(t)} \right]$
+
+$Q(\theta|X,\theta^{(t)}) = \sum_{i=1}^N \left( \sum_{k=1}^K \mathbb{E}_{Z|X,\theta^{(t)}}[Z_{ik}|x_i,\theta_k^{(t)}] \; ln(\phi(x_i|\mu_k,\sigma_k)) + \sum_{k=1}^K \mathbb{E}_{Z|X,\theta^{(t)}}[Z_{ik}|x_i,\theta_k^{(t)}] \; ln(w_k) \right)$
+
+
+### Formulas of the E step
+
+As indicated above, the E step consists in evaluating $Q$, i.e. simply evaluating the conditional expectation over the latent variables of the augmented-data log-likelihood given the observed data and the current estimates of the parameters.
+
+$\mathbb{E}_{Z|X,\theta^{(t)}}[Z_{ik}|x_i,\theta_k^{(t)}] = 1 \times P(Z_{ik}=1|x_i,\theta_k^{(t)}) + 0 \times P(Z_{ik}=0|x_i,\theta_k^{(t)}) = P(Z_{ik}=1|x_i,\theta_k^{(t)}) = \frac{w_k^{(t)} \phi(x_i|\mu_k^{(t)},\sigma_k^{(t)})}{\sum_{l=1}^K w_l^{(t)} \phi(x_i|\mu_l^{(t)},\sigma_l^{(t)})} = p(k|i)$
+
+Note how the conditional expectation over $Z_{ik}$ simply happens to be the posterior of $Z_{ik}=1$, which of course corresponds to the membership probability.
+
+### Formulas of the M step
+
+n this step, we need to maximize $Q$ (also written $\mathcal{F}$ above), w.r.t. each $\theta_k$. A few important rules are required to write down the analytical formulas of the MLEs, but only from a high-school level (see [http://en.wikipedia.org/wiki/Differentiation_%28mathematics%29#Rules_for_finding_the_derivative here]).
+
+
+* '''M step - weights''': let's start by finding the maximum-likelihood estimates of the weights $w_k$. But remember the constraint $\sum_{k=1}^K w_k = 1$. To enforce it, we can use a [http://en.wikipedia.org/wiki/Lagrange_multiplier Lagrange multiplier], $\lambda$. This means that we now need to maximize the following equation where $\Lambda$ is a Lagrange function (only the part of Q being a function of the weights is kept):
+
+$\Lambda(w_k,\lambda) = \sum_{i=1}^N \left( \sum_{k=1}^K p(k|i) ln(w_k) \right) + \lambda (1 - \sum_{k=1}^K w_k)$
+
+As usual, to find the maximum, we derive and equal to zero:
+
+$\frac{\partial \Lambda}{\partial w_k}(w_k) = \sum_{i=1}^N \left( p(k|i) \frac{1}{w_k} \right) - \lambda$
+
+$\frac{\partial \Lambda}{\partial w_k}(\hat{w}_k^{(t+1)}) = 0$
+
+$\hat{w}_k^{(t+1)} = \frac{1}{\lambda} \sum_{i=1}^N p(k|i)$
+
+Now, to find the multiplier, we go back to the constraint:
+
+$\sum_{k=1}^K \hat{w}_k^{(t+1)} = 1 \rightarrow \lambda = \sum_{i=1}^N \sum_{k=1}^K p(k|i) = N$
+
+Finally:
+
+$\hat{w}_k^{(t+1)} = \frac{1}{N} \sum_{i=1}^N p(k|i)$
+
+
+* '''M step - means''':
+
+$\frac{\partial Q}{\partial \mu_k} = \sum_{i=1}^N p(k|i) \frac{\partial ln(\phi(x_i|\mu_k,\sigma_k))}{\partial \mu_k}$
+
+$\frac{\partial Q}{\partial \mu_k} = \sum_{i=1}^N p(k|i) \frac{1}{\phi(x_i|\mu_k,\sigma_k)} \frac{\partial \phi(x_i|\mu_k,\sigma_k)}{\partial \mu_k}$
+
+$\frac{\partial Q}{\partial \mu_k} = 0 = \sum_{i=1}^N p(k|i) (x_i - \hat{\mu}_k^{(t+1)})$
+
+Finally:
+
+$\hat{\mu}_k^{(t+1)} = \frac{\sum_{i=1}^N p(k/i) x_i}{\sum_{i=1}^N p(k/i)}$
+
+
+* '''M step - variances''': same kind of algebra
+
+$\frac{\partial Q}{\partial \sigma_k} = \sum_{i=1}^N p(k/i) (\frac{-1}{\sigma_k} + \frac{(x_i - \mu_k)^2}{\sigma_k^3})$
+
+$\hat{\sigma}_k^{(t+1)} = \sqrt{\frac{\sum_{i=1}^N p(k/i) (x_i - \hat{\mu}_k^{(t+1)})^2}{\sum_{i=1}^N p(k/i)}}$
+
+
+* '''M step - weights (2)''': we can write them in terms of unconstrained variables $\gamma_k$ ([http://en.wikipedia.org/wiki/Softmax_activation_function softmax function]):
+
+$w_k = \frac{e^{\gamma_k}}{\sum_{k=1}^K e^{\gamma_k}}$
+
+$\frac{\partial w_k}{\partial \gamma_j} =
+\begin{cases} 
+w_k - w_k^2  & \mbox{if }j = k \\
+-w_kw_j & \mbox{otherwise}
+\end{cases}$
+
+$\frac{\partial l(\theta)}{\partial w_k} = \sum_{i=1}^N (p(k/i) - w_k)$
+
+Finally:
+
+$\hat{w}_k = \frac{1}{N} \sum_{i=1}^N p(k/i)$
 
 
 # Simulation
@@ -327,6 +469,19 @@ lines(rx, f, col="red", lwd=2)
 * there are issues, such as the fact that the EM can get stuck in a local maximum, or that the likelihood is invariant under permutations of the components' labels
 
 * the parameters of each mixture component can depend on some known predictors, giving rise to mixture-of-experts models
+
+
+# References
+
+* [Stephens (2000)](http://www.stat.washington.edu/stephens/papers/tabstract.html), chapter 1 from his PhD thesis
+
+* [Beal (2003)](http://www.cse.buffalo.edu/faculty/mbeal/thesis/), chapter 2 from his PhD thesis
+
+* [Shalizi](http://www.stat.cmu.edu/~cshalizi/uADA/12/), lecture "Mixture Models, Latent Variables and the EM Algorithm"
+
+* [Ghahramani (2012)](http://videolectures.net/mlss2012_ghahramani_graphical_models/), talk "Graphical Models"
+
+* Robert and Casella (2009), book "Introducing Monte Carlo Methods with R"
 
 
 # Appendix
