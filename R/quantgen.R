@@ -1475,7 +1475,7 @@ writeSegregJoinMap <- function(pop.name, pop.type="CP",
                                phases=NULL, classifs=NULL,
                                file, save.ind.names=TRUE, na.string="--",
                                verbose=1){
-  requireNamespace("tools")
+  requireNamespace("tools", quietly=TRUE)
   stopifnot(is.character(pop.name),
             is.character(pop.type),
             pop.type %in% c("BC1", "F2", "RIx", "DH", "DH1", "DH2", "HAP",
@@ -2913,7 +2913,7 @@ genoDoses2Vcf <- function(X, snp.coords, alleles,
             all(colnames(X) %in% rownames(alleles)),
             is.character(file.date))
   if(! is.null(si)){
-    requireNamespace("GenomeInfoDb")
+    requireNamespace("GenomeInfoDb", quietly=TRUE)
     stopifnot(methods::is(si, "Seqinfo"))
   }
 
@@ -4055,7 +4055,7 @@ simulCoalescent <- function(nb.inds=500,
                             get.alleles=FALSE,
                             permute.alleles=TRUE,
                             verbose=1){
-  requireNamespace("scrm")
+  requireNamespace("scrm", quietly=TRUE)
   stopifnot(nb.inds > nb.pops,
             is.logical(permute.alleles))
   if(! is.null(other))
@@ -5087,6 +5087,9 @@ estimGenRel <- function(X, afs=NULL, thresh=NULL, relationships="additive",
 ##' @param only.chr identifier of a given chromosome
 ##' @param only.pop identifier of a given population
 ##' @param use.ldcorsv required if K and/or pops are not NULL; otherwise use the square of \code{\link{cor}}
+##' @param use.snpStats if TRUE, the \code{ld} function of the snpStats package is used (see \href{https://dx.doi.org/10.1159/000101422}{Clayton and Leung, 2007})
+##' @param as.cor if TRUE, the square root of the LD estimates is returned
+##' @param as.symmat if TRUE, LD values are returned as a symmetric matrix (not with \code{use.ldcorsv} set to TRUE)
 ##' @param verbose verbosity level (0/1)
 ##' @return data frame with at least three columns, "loc1", "loc2" and the LD values
 ##' @author Timothee Flutre
@@ -5149,10 +5152,12 @@ estimGenRel <- function(X, afs=NULL, thresh=NULL, relationships="additive",
 ##' @export
 estimLd <- function(X, snp.coords, K=NULL, pops=NULL,
                     only.chr=NULL, only.pop=NULL,
-                    use.ldcorsv=FALSE, verbose=1){
-  if(use.ldcorsv & ! requireNamespace("LDcorSV", quietly=TRUE))
-    stop("Pkg 'LDcorSV' needed for this function to work.",
-         call.=FALSE)
+                    use.ldcorsv=FALSE, use.snpStats=FALSE,
+                    as.cor=FALSE, as.symmat=FALSE, verbose=1){
+  if(use.ldcorsv)
+    stopifnot(requireNamespace("LDcorSV", quietly=TRUE))
+  if(use.snpStats)
+    stopifnot(requireNamespace("snpStats", quietly=TRUE))
   stopIfNotValidGenosDose(X)
   stopifnot(.isValidSnpCoords(snp.coords))
   if(! is.null(K))
@@ -5162,7 +5167,8 @@ estimLd <- function(X, snp.coords, K=NULL, pops=NULL,
               nrow(K) == nrow(X),
               ! is.null(dimnames(K)),
               all(rownames(K) == colnames(K)),
-              all(rownames(K) == rownames(X)))
+              all(rownames(K) == rownames(X)),
+              ! as.symmat)
   W.s <- NA
   if(! is.null(pops)){
     stopifnot(use.ldcorsv,
@@ -5195,6 +5201,13 @@ estimLd <- function(X, snp.coords, K=NULL, pops=NULL,
   if(! is.null(K))
     K <- K[subset.inds, subset.inds]
 
+  ## internal function to convert a symmetric matrix into a data frame
+  symmat2longdf <- function(m){
+    data.frame(t(utils::combn(colnames(m), 2)),
+               m[lower.tri(m)],
+               stringsAsFactors=TRUE)
+  }
+
   if(verbose > 0)
     write("estimate pairwise LD...", stdout())
   if(is.null(K)){
@@ -5204,14 +5217,35 @@ estimLd <- function(X, snp.coords, K=NULL, pops=NULL,
                                    V=NA,
                                    S=NA,
                                    data="G", supinfo=FALSE, na.presence=FALSE)
+      } else if(use.snpStats){
+        X <- methods::as(X, "SnpMatrix")
+        LDmat <- snpStats::ld(X, depth=ncol(X) - 1,
+                              stats=ifelse(as.cor, "R", "R2"))
+        LDmat <- as.matrix(LDmat)
+        LDmat[lower.tri(LDmat)] <- t(LDmat)[lower.tri(LDmat)]
+        diag(LDmat) <- 1
+        isSup1 <- (LDmat > 1)
+        if(any(isSup1)){
+          LDmat[which(isSup1)] <- 1
+        }
+        if(as.symmat){
+          ld <- LDmat
+        } else{
+          ld <- symmat2longdf(LDmat)
+          colnames(ld) <- c("loc1", "loc2", ifelse(as.cor, "cor", "cor2"))
+        }
       } else{
-        tmp <- stats::cor(X)^2
-        tmp[upper.tri(tmp)] <- NA
-        diag(tmp) <- NA
-        ld <- data.frame(t(utils::combn(colnames(X), 2)),
-                         tmp[lower.tri(tmp)],
-                         stringsAsFactors=TRUE)
-        colnames(ld) <- c("loc1", "loc2", "cor2")
+        if(as.cor){
+          LDmat <- stats::cor(X)
+        } else{
+          LDmat <- stats::cor(X)^2
+        }
+        if(as.symmat){
+          ld <- LDmat
+        } else{
+          ld <- symmat2longdf(LDmat)
+          colnames(ld) <- c("loc1", "loc2", ifelse(as.cor, "cor", "cor2"))
+        }
       }
     } else{ # if(is.null(K) & ! is.null(pops))
       if(! is.null(only.pop)){
@@ -5246,10 +5280,19 @@ estimLd <- function(X, snp.coords, K=NULL, pops=NULL,
       }
     }
   }
-  if(! is.factor(ld$loc1))
-    ld$loc1 <- as.factor(ld$loc1)
-  if(! is.factor(ld$loc2))
-    ld$loc2 <- as.factor(ld$loc2)
+  if(! as.symmat){
+    if(! is.factor(ld$loc1))
+      ld$loc1 <- as.factor(ld$loc1)
+    if(! is.factor(ld$loc2))
+      ld$loc2 <- as.factor(ld$loc2)
+    if(use.ldcorsv & as.cor){
+      idx <- grep("^r2", colnames(ld))
+      for(i in idx){
+        ld[,i] <- sqrt(ld[,i])
+        colnames(ld)[i] <- sub("2", "", colnames(ld)[i])
+      }
+    }
+  }
 
   return(ld)
 }
@@ -5265,18 +5308,22 @@ estimLd <- function(X, snp.coords, K=NULL, pops=NULL,
 ##' @param pops vector of characters indicating the population of each genotype
 ##' @param only.pop identifier of a given population
 ##' @param use.ldcorsv required if K and/or pops are not NULL; otherwise use the square of \code{\link{cor}}
+##' @param use.snpStats if TRUE, the \code{ld} function of the snpStats package is used (see \href{https://dx.doi.org/10.1159/000101422}{Clayton and Leung, 2007})
+##' @param as.cor if TRUE, the square root of the LD estimates is returned
+##' @param as.symmat if TRUE, LD values are returned as a symmetric matrix (not with \code{use.ldcorsv} set to TRUE)
 ##' @param nb.cores number of cores to estimate LD for each chromosome in parallel
 ##' @param verbose verbosity level (0/1)
 ##' @return data frame with at least three columns, "loc1", "loc2" and the LD values
 ##' @author Timothee Flutre
 ##' @seealso \code{\link{estimLd}}, \code{\link{plotLd}}
 ##' @export
-estimLdPerChr <- function(X, snp.coords, K=NULL, pops=NULL,
-                          only.pop=NULL, use.ldcorsv=FALSE,
+estimLdPerChr <- function(X, snp.coords, K=NULL, pops=NULL, only.pop=NULL,
+                          use.ldcorsv=FALSE, use.snpStats=FALSE,
+                          as.cor=FALSE, as.symmat=FALSE,
                           nb.cores=1, verbose=1){
   stopifnot(.isValidSnpCoords(snp.coords))
 
-  chrs <- sort(unique(snp.coords$chr))
+  chrs <- sort(unique(as.character(snp.coords$chr)))
 
   out <- parallel::mclapply(seq_along(chrs), function(i){
     chr <- chrs[i]
@@ -5284,12 +5331,17 @@ estimLdPerChr <- function(X, snp.coords, K=NULL, pops=NULL,
       write(chr, stdout())
     estimLd(X=X, snp.coords=snp.coords, K=K, pops=pops,
             only.chr=chr, only.pop=only.pop,
-            use.ldcorsv=use.ldcorsv,
+            use.ldcorsv=use.ldcorsv, use.snpStats=use.snpStats,
+            as.cor=as.cor, as.symmat=as.symmat,
             verbose=ifelse(all(verbose > 0, nb.cores <= 1), verbose, 0))
   }, mc.cores=nb.cores)
 
-  out <- do.call(rbind, out)
-  rownames(out) <- NULL
+  if(as.symmat){
+    names(out) <- chrs
+  } else{
+    out <- do.call(rbind, out)
+    rownames(out) <- NULL
+  }
 
   return(out)
 }
@@ -5725,7 +5777,7 @@ plotPhyDistVsLdSry <- function(x, y, xlab, ylab, main="",
 ##' }
 ##' @export
 distConsecutiveSnps <- function(snp.coords, only.chr=NULL, nb.cores=1){
-  requireNamespaces("parallel")
+  requireNamespace("parallel", quietly=TRUE)
   stopifnot(.isValidSnpCoords(snp.coords))
   if(! "coord" %in% colnames(snp.coords))
     colnames(snp.coords)[colnames(snp.coords) == "pos"] <- "coord"
@@ -5770,7 +5822,7 @@ distConsecutiveSnps <- function(snp.coords, only.chr=NULL, nb.cores=1){
 ##' @seealso \code{\link{pruneSnpsLd}}
 ##' @export
 thinSnps <- function(method, threshold, snp.coords, only.chr=NULL){
-  requireNamespaces("GenomicRanges")
+  requireNamespace("GenomicRanges", quietly=TRUE)
   stopifnot(method %in% c("index", "coord"))
   stopifnot(! is.null(snp.coords),
             .isValidSnpCoords(snp.coords),
@@ -5831,7 +5883,7 @@ pruneSnpsLd <- function(X=NULL, snp.coords=NULL, gds=NULL,
                         method=c("composite", "r", "dprime", "corr"),
                         slide.max.bp=500000, slide.max.n=NA,
                         seed=NULL, nb.cores=1, verbose=1){
-  requireNamespace("SNPRelate")
+  requireNamespace("SNPRelate", quietly=TRUE)
   stopifnot(xor(is.null(X), is.null(gds)))
   if(is.null(gds)){
     if(any(! X %in% c(0,1,2)))
@@ -6278,7 +6330,7 @@ simulAnimalModel <- function(T=1,
                              err.df=Inf, perc.NA=0, seed=NULL,
                              nb.rows=NULL, nb.cols=NULL,
                              sigma2.ksi=NULL, rho.rows=NULL, rho.cols=NULL){
-  requireNamespace("MASS")
+  requireNamespace("MASS", quietly=TRUE)
   stopifnot(length(mu) == T,
             is.matrix(A),
             nrow(A) == ncol(A),
@@ -6769,13 +6821,13 @@ plantTrialLmmFitFixed <- function(glob.form, dat.noNA, ctl=NULL,
                                   saved.file=NULL,
                                   cl=NULL, nb.cores=1,
                                   verbose=0){
-  requireNamespace("MuMIn")
-  requireNamespace("parallel")
+  requireNamespace("MuMIn", quietly=TRUE)
+  requireNamespace("parallel", quietly=TRUE)
   stopifnot(is.character(glob.form))
   glob.preds <- trimws(strsplit(glob.form, "\\~|\\+")[[1]])[-1]
   any.rand.var <- any(grepl("\\(*\\)", glob.preds))
   if(any.rand.var)
-    requireNamespace("lme4")
+    requireNamespace("lme4", quietly=TRUE)
 
   ## determine whether to fit or to load already-computed results
   need.to.fit <- is.null(saved.file)
@@ -6880,18 +6932,18 @@ plantTrialLmmFitCompSel <- function(glob.form, dat, part.comp.sel="fixed",
   glob.preds <- trimws(strsplit(glob.form, "\\~|\\+")[[1]])[-1]
   any.rand.var <- any(grepl("\\(*\\)", glob.preds))
   if(any.rand.var){
-    requireNamespace("lme4")
+    requireNamespace("lme4", quietly=TRUE)
   } else if("random" %in% part.comp.sel){
     part.comp.sel <- part.comp.sel[-grep("random", part.comp.sel)]
     stopifnot(length(part.comp.sel) > 0)
   }
   if("random" %in% part.comp.sel){
-    requireNamespace("lmerTest")
+    requireNamespace("lmerTest", quietly=TRUE)
   } else{
-    requireNamespace("MuMIn")
-    requireNamespace("tools")
+    requireNamespace("MuMIn", quietly=TRUE)
+    requireNamespace("tools", quietly=TRUE)
     if(nb.cores > 1)
-      requireNamespace("parallel")
+      requireNamespace("parallel", quietly=TRUE)
   }
   if(! is.null(cl))
     stopifnot(methods::is(cl, "cluster"))
@@ -7111,7 +7163,7 @@ plotResidualsBtwYears <- function(df, colname.res, years, cols.uniq.id,
 ##' @export
 estimH2means <- function(dat, colname.resp, colname.trial="year", vc,
                          geno.var.blups=NULL){
-  requireNamespace("lme4")
+  requireNamespace("lme4", quietly=TRUE)
   stopifnot(is.data.frame(dat),
             all(! is.na(dat)),
             all(c(colname.resp,"geno",colname.trial) %in% colnames(dat)),
@@ -7290,8 +7342,8 @@ lmerAM <- function(formula, data, relmat, REML=TRUE, na.action=stats::na.exclude
   if(! is.null(ci.meth)){
     stopifnot(ci.meth %in% c("profile", "boot"))
     if(ci.meth == "boot"){
-      requireNamespace("boot")
-      requireNamespace("MASS")
+      requireNamespace("boot", quietly=TRUE)
+      requireNamespace("MASS", quietly=TRUE)
     }
   }
   if(! is.null(parallel))
@@ -7516,7 +7568,7 @@ lmerAM <- function(formula, data, relmat, REML=TRUE, na.action=stats::na.exclude
 ##' @export
 inlaAM <- function(data, relmat, family="gaussian",
                    nb.threads=1, verbose=0, silent=TRUE){
-  requireNamespace("INLA")
+  requireNamespace("INLA", quietly=TRUE)
   stopifnot(is.data.frame(data),
             sum(grepl("response", colnames(data))) == 1,
             "geno.add" %in% colnames(data),
@@ -7616,7 +7668,7 @@ jagsAM <- function(data, relmat, inits=NULL,
                    nb.chains=1, nb.adapt=10^3, burnin=10^2,
                    nb.iters=10^3, thin=10,
                    progress.bar=NULL, rm.jags.file=TRUE, verbose=0){
-  requireNamespaces("rjags")
+  requireNamespace("rjags", quietly=TRUE)
   stopifnot(is.data.frame(data),
             sum(grepl("response", colnames(data))) == 1,
             "geno.add" %in% colnames(data),
@@ -7990,7 +8042,7 @@ stanAM <- function(data, relmat, errors.Student=FALSE,
                    task.id=format(Sys.time(), "%Y-%m-%d-%H-%M-%S"),
                    compile.only=FALSE, rm.stan.file=FALSE, rm.sm.file=FALSE,
                    verbose=0){
-  requireNamespaces("rstan")
+  requireNamespace("rstan", quietly=TRUE)
   stopifnot(is.data.frame(data),
             sum(grepl("response", colnames(data))) == 1,
             "geno.add" %in% colnames(data),
@@ -8395,7 +8447,7 @@ simulBslmm <- function(Q=3, mu=50, mean.a=5, sd.a=2,
                        X, pi=NULL, h=NULL, rho=NULL, tau=1,
                        enforce.zhou=TRUE, perc.NA=0, err.df=Inf,
                        seed=NULL){
-  requireNamespaces("MASS")
+  requireNamespace("MASS", quietly=TRUE)
   stopIfNotValidGenosDose(X)
   if(! is.null(seed))
     set.seed(seed)
@@ -8655,7 +8707,7 @@ rearrangeInputsForAssoGenet <- function(ids, y, X, snp.coords, alleles,
 ##' @export
 qtlrelPerChr <- function(y, X, snp.coords, thresh=0.01, chr.ids=NULL, W=NULL, Z=NULL,
                          method.A="vanraden1", verbose=1){
-  requireNamespaces("QTLRel")
+  requireNamespace("QTLRel", quietly=TRUE)
   if(is.matrix(y))
     stopifnot(ncol(y) == 1)
   y <- as.vector(y)
@@ -10082,7 +10134,7 @@ plotPedigree <- function(inds, mothers, fathers, generations, sexes=NULL,
                          edge.arrow.width=0.75, edge.arrow.size=0.75,
                          xmin=-1, xmax=1, ymin=-1, ymax=1,
                          ...){
-  requireNamespace("igraph")
+  requireNamespace("igraph", quietly=TRUE)
   if(is.factor(inds))
     inds <- as.vector(inds)
   if(is.factor(mothers))

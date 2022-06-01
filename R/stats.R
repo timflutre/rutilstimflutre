@@ -1311,7 +1311,7 @@ effNbIndepTests <- function(evCorX, corX, X, method="galwey", pkg="base", k){
     if(pkg == "base"){
       evCorX <- eigen(corX)$values
     } else if(pkg == "RSpectra"){
-      stopifnot(requireNamespace("RSpectra"))
+      stopifnot(requireNamespace("RSpectra", quietly=TRUE))
       tmp <- RSpectra::eigs_sym(corX, k, which="LM", opts=list(retvec=FALSE))
       evCorX <- tmp$values
     }
@@ -1330,38 +1330,24 @@ effNbIndepTests <- function(evCorX, corX, X, method="galwey", pkg="base", k){
 ##' Multiple testing
 ##'
 ##' Return the effective number of independent tests according to the method of \href{https://dx.doi.org/10.1002/gepi.20408}{Galwey (2009)} for a given chromosome after estimating the LD along it.
-##' @param X SNP genotypes in allele dose (i.e., 0, 1, 2) with individuals in rows and SNPs in columns (optional if \code{corX} is supplied)
-##' @param snp.coords data frame of SNP coordinates with at least two columns, "chr" and "coord" (or "pos")
-##' @param chr name of the chromosome to analyze
+##' @param lcorX list of correlation matrices between SNP genotypes, one per chromosome (see \code{estimLdPerChr})
 ##' @param method for now, only "galwey" is implemented
 ##' @param pkg package to compute the eigenvalues of \code{corX} if \code{evCorX} is not supplied (base/RSpectra)
 ##' @param k number of eigenvalues requested (used by the RSpectra package)
+##' @param nb.cores number of cores to to run each chromosome in parallel
 ##' @return numeric
 ##' @seealso \code{\link{effNbIndepTests}}, \code{\link{adjustThreshGalwey}}
 ##' @author Maxence Remerand, Timothee Flutre
 ##' @export
-effNbIndepTestsPerChr <- function(X, snp.coords, chr, method="galwey", pkg="base", k){
-  stopifnot(is.matrix(X),
-            ncol(X) == nrow(snp.coords),
-            .isValidSnpCoords(snp.coords),
-            chr %in% snp.coords$chr,
+effNbIndepTestsPerChr <- function(lcorX, method="galwey", pkg="base", k,
+                                  nb.cores=1){
+  stopifnot(is.list(lcorX),
+            all(sapply(lcorX, is.matrix)),
             method %in% c("galwey"))
 
-  out <- NA
-
-  ## subset SNPs
-  if("pos" %in% colnames(snp.coords))
-    colnames(snp.coords)[colnames(snp.coords) == "pos"] <- "coord"
-  sub.snp.coords <- droplevels(snp.coords[snp.coords$chr == chr,])
-  sub.X <- X[, rownames(sub.snp.coords)]
-
-  ## compute LD
-  LDmat <- stats::cor(sub.X)
-  ## TODO: use estimLd to allow to use kinship
-  ## LDmat <- estimLd(X=sub.X, snp.coords=sub.snp.coords, verbose=0)
-  ## reformat into a matrix
-
-  out <- effNbIndepTests(corX=LDmat, method=method, pkg=pkg, k=k)
+  out <- parallel::mclapply(lcorX, function(corX){
+    effNbIndepTests(corX=corX, method=method, pkg=pkg, k=k)
+  })
 
   return(out)
 }

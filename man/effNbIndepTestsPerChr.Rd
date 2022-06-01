@@ -4,20 +4,18 @@
 \alias{effNbIndepTestsPerChr}
 \title{Multiple testing}
 \usage{
-effNbIndepTestsPerChr(X, snp.coords, chr, method = "galwey", pkg = "base", k)
+effNbIndepTestsPerChr(lcorX, method = "galwey", pkg = "base", k, nb.cores = 1)
 }
 \arguments{
-\item{X}{SNP genotypes in allele dose (i.e., 0, 1, 2) with individuals in rows and SNPs in columns (optional if \code{corX} is supplied)}
-
-\item{snp.coords}{data frame of SNP coordinates with at least two columns, "chr" and "coord" (or "pos")}
-
-\item{chr}{name of the chromosome to analyze}
+\item{lcorX}{list of correlation matrices between SNP genotypes, one per chromosome (see \code{estimLdPerChr})}
 
 \item{method}{for now, only "galwey" is implemented}
 
 \item{pkg}{package to compute the eigenvalues of \code{corX} if \code{evCorX} is not supplied (base/RSpectra)}
 
 \item{k}{number of eigenvalues requested (used by the RSpectra package)}
+
+\item{nb.cores}{number of cores to to run each chromosome in parallel}
 }
 \value{
 numeric

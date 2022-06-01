@@ -12,6 +12,9 @@ estimLd(
   only.chr = NULL,
   only.pop = NULL,
   use.ldcorsv = FALSE,
+  use.snpStats = FALSE,
+  as.cor = FALSE,
+  as.symmat = FALSE,
   verbose = 1
 )
 }
@@ -29,6 +32,12 @@ estimLd(
 \item{only.pop}{identifier of a given population}
 
 \item{use.ldcorsv}{required if K and/or pops are not NULL; otherwise use the square of \code{\link{cor}}}
+
+\item{use.snpStats}{if TRUE, the \code{ld} function of the snpStats package is used (see \href{https://dx.doi.org/10.1159/000101422}{Clayton and Leung, 2007})}
+
+\item{as.cor}{if TRUE, the square root of the LD estimates is returned}
+
+\item{as.symmat}{if TRUE, LD values are returned as a symmetric matrix (not with \code{use.ldcorsv} set to TRUE)}
 
 \item{verbose}{verbosity level (0/1)}
 }
