@@ -4,16 +4,20 @@
 \alias{effNbIndepTests}
 \title{Multiple testing}
 \usage{
-effNbIndepTests(evCorX, corX, X, method = "galwey")
+effNbIndepTests(evCorX, corX, X, method = "galwey", pkg = "base", k)
 }
 \arguments{
 \item{evCorX}{eigenvalues of the correlation matrix between SNP genotypes}
 
-\item{corX}{correlation matrix between SNP genotypes}
+\item{corX}{correlation matrix between SNP genotypes (optional if \code{evCorX} is supplied)}
 
-\item{X}{SNP genotypes in allele dose (i.e., 0, 1, 2) with individuals in rows and SNPs in columns}
+\item{X}{SNP genotypes in allele dose (i.e., 0, 1, 2) with individuals in rows and SNPs in columns (optional if \code{corX} is supplied)}
 
 \item{method}{for now, only "galwey" is implemented}
+
+\item{pkg}{package to compute the eigenvalues of \code{corX} if \code{evCorX} is not supplied (base/RSpectra)}
+
+\item{k}{number of eigenvalues requested (used by the RSpectra package)}
 }
 \value{
 numeric

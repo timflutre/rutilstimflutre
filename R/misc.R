@@ -3,6 +3,9 @@
 ##' @import Matrix
 ##' @import Rcpp
 
+## https://stackoverflow.com/questions/66816638
+utils::globalVariables(".")
+
 .onAttach <- function(libname, pkgname) {
   msg <- paste0("package '", pkgname,
                 "' (version ", utils::packageVersion(pkgname), ")",

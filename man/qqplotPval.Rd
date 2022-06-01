@@ -18,6 +18,9 @@ qqplotPval(
   ctl.fdr.bh = FALSE,
   ctl.fdr.storey = FALSE,
   pfdr = TRUE,
+  lim.custom,
+  lty.custom,
+  lgd.custom,
   plot.signif = FALSE,
   main = NULL,
   col = NULL,
@@ -51,7 +54,13 @@ qqplotPval(
 
 \item{pfdr}{logical passed to \code{qvalue()}}
 
-\item{plot.signif}{show line(s) corresponding to the significance threshold}
+\item{lim.custom}{custom limit on p values (optional)}
+
+\item{lty.custom}{line style for the custom limit (compulsory if \code{lim.custom} is supplied)}
+
+\item{lgd.custom}{legend for the custom limit (compulsory if \code{lim.custom} is supplied)}
+
+\item{plot.signif}{show line(s) corresponding to the significance threshold (compulsory if \code{lim.custom} is supplied)}
 
 \item{main}{an overall title for the plot (default: "Q-Q plot (<length(pvalues)> p values)")}
 

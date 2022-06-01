@@ -859,7 +859,10 @@ plotHistPval <- function(pvalues, breaks=seq(0, 1, 0.05), freq=FALSE,
 ##' @param ctl.fdr.bh control the false discovery rate with the Benjamini-Hochberg procedure
 ##' @param ctl.fdr.storey control the false discovery rate with Storey's procedure in the \href{http://bioconductor.org/packages/release/bioc/html/qvalue.html}{qvalue} package
 ##' @param pfdr logical passed to \code{qvalue()}
-##' @param plot.signif show line(s) corresponding to the significance threshold
+##' @param lim.custom custom limit on p values (optional)
+##' @param lty.custom line style for the custom limit (compulsory if \code{lim.custom} is supplied)
+##' @param lgd.custom legend for the custom limit (compulsory if \code{lim.custom} is supplied)
+##' @param plot.signif show line(s) corresponding to the significance threshold (compulsory if \code{lim.custom} is supplied)
 ##' @param main an overall title for the plot (default: "Q-Q plot (<length(pvalues)> p values)")
 ##' @param col vector of plotting color(s) for the points (default is all points in black)
 ##' @param verbose verbosity level (0/1)
@@ -889,7 +892,8 @@ qqplotPval <- function(pvalues, use.density=FALSE, nrpoints=1000, pch=1,
                        ylab=expression(Observed~~-log[10](italic(p)~values)),
                        thresh=0.05, ctl.fwer.bonf=FALSE, ctl.fwer.sidak=FALSE,
                        ctl.fdr.bh=FALSE, ctl.fdr.storey=FALSE, pfdr=TRUE,
-                       plot.signif=FALSE, main=NULL, col=NULL, verbose=1){
+                       lim.custom, lty.custom, lgd.custom, plot.signif=FALSE,
+                       main=NULL, col=NULL, verbose=1){
   stopifnot(is.numeric(pvalues),
             is.vector(pvalues),
             is.logical(plot.conf.int),
@@ -1035,6 +1039,13 @@ qqplotPval <- function(pvalues, use.density=FALSE, nrpoints=1000, pch=1,
     }
   }
 
+  ## multiple testing correction: plot custom limit
+  if(plot.signif & ! missing(lim.custom)){
+    graphics::segments(x0=graphics::par("usr")[1], y0=-log10(lim.custom),
+                       x1=-log10(lim.custom), y1=-log10(lim.custom),
+                       lty=lty.custom)
+  }
+
   ## plot threshold lines on p value scale
   if(plot.signif){
     lgd <- c()
@@ -1058,6 +1069,11 @@ qqplotPval <- function(pvalues, use.density=FALSE, nrpoints=1000, pch=1,
       lgd <- c(lgd,
                expression(largest~significant~italic(p)~"value (FDR-Storey)"))
       lty <- c(lty, 4)
+    }
+    if(! missing(lim.custom)){
+      lgd <- c(lgd,
+               lgd.custom)
+      lty <- c(lty, lty.custom)
     }
     graphics::legend("bottomright", legend=lgd,
                      lty=lty, bty="n", y.intersp=2)
@@ -1097,7 +1113,8 @@ qqplotPval <- function(pvalues, use.density=FALSE, nrpoints=1000, pch=1,
 ##' @author Timothee Flutre
 ##' @seealso \code{\link{qqplotPval}}, \code{\link{binaryClassif}}, \code{\link{adjustPvaluesSidak}}
 ##' @export
-significantTests <- function(pvalues, thresh.fwer.bonf=c(0.01, 0.05, 0.1),
+significantTests <- function(pvalues,
+                             thresh.fwer.bonf=c(0.01, 0.05, 0.1),
                              thresh.fwer.sidak=c(0.01, 0.05, 0.1),
                              thresh.fdr.bh=c(0.01, 0.05, 0.1),
                              thresh.fdr.storey=NULL, pfdr=TRUE){
@@ -1155,9 +1172,10 @@ significantTests <- function(pvalues, thresh.fwer.bonf=c(0.01, 0.05, 0.1),
   if(! is.null(thresh.fdr.storey)){
     tmp <- qvalue::qvalue(p=pvalues, pfdr=pfdr)
     output[["fdr.storey"]][["qv"]] <- tmp$qvalues
-    for(thresh in thresh.fdr.bh)
+    for(thresh in thresh.fdr.storey)
       output[["fdr.storey"]][[as.character(thresh)]] <-
         output[["fdr.storey"]][["qv"]] <= thresh
+    attr(output[["fdr.storey"]], "pi0") <- tmp$pi0
   }
 
   return(output)
@@ -1266,15 +1284,18 @@ adjustPvaluesSidak <- function(pvalues){
 ##'
 ##' Return the effective number of independent tests according to the method of \href{https://dx.doi.org/10.1002/gepi.20408}{Galwey (2009)}.
 ##' @param evCorX eigenvalues of the correlation matrix between SNP genotypes
-##' @param corX correlation matrix between SNP genotypes
-##' @param X SNP genotypes in allele dose (i.e., 0, 1, 2) with individuals in rows and SNPs in columns
+##' @param corX correlation matrix between SNP genotypes (optional if \code{evCorX} is supplied)
+##' @param X SNP genotypes in allele dose (i.e., 0, 1, 2) with individuals in rows and SNPs in columns (optional if \code{corX} is supplied)
 ##' @param method for now, only "galwey" is implemented
+##' @param pkg package to compute the eigenvalues of \code{corX} if \code{evCorX} is not supplied (base/RSpectra)
+##' @param k number of eigenvalues requested (used by the RSpectra package)
 ##' @return numeric
 ##' @seealso \code{\link{adjustThreshGalwey}}
 ##' @author Timothee Flutre
 ##' @export
-effNbIndepTests <- function(evCorX, corX, X, method="galwey"){
-  stopifnot(method %in% c("galwey"))
+effNbIndepTests <- function(evCorX, corX, X, method="galwey", pkg="base", k){
+  stopifnot(method %in% c("galwey"),
+            pkg %in% c("base", "RSpectra"))
 
   out <- NA
 
@@ -1285,13 +1306,62 @@ effNbIndepTests <- function(evCorX, corX, X, method="galwey"){
       }
       corX <- stats::cor(X)
     }
-    evCorX <- eigen(corX)$values
+    stopifnot(isSymmetric(corX))
+    ## corX <- as.matrix(Matrix::nearPD(corX)$mat)
+    if(pkg == "base"){
+      evCorX <- eigen(corX)$values
+    } else if(pkg == "RSpectra"){
+      stopifnot(requireNamespace("RSpectra"))
+      tmp <- RSpectra::eigs_sym(corX, k, which="LM", opts=list(retvec=FALSE))
+      evCorX <- tmp$values
+    }
   }
 
   if(method == "galwey"){
     evCorX[evCorX < 0] <- 0
     out <- sum(sqrt(evCorX))^2 / sum(evCorX)
   }
+
+  out <- floor(out)
+
+  return(out)
+}
+
+##' Multiple testing
+##'
+##' Return the effective number of independent tests according to the method of \href{https://dx.doi.org/10.1002/gepi.20408}{Galwey (2009)} for a given chromosome after estimating the LD along it.
+##' @param X SNP genotypes in allele dose (i.e., 0, 1, 2) with individuals in rows and SNPs in columns (optional if \code{corX} is supplied)
+##' @param snp.coords data frame of SNP coordinates with at least two columns, "chr" and "coord" (or "pos")
+##' @param chr name of the chromosome to analyze
+##' @param method for now, only "galwey" is implemented
+##' @param pkg package to compute the eigenvalues of \code{corX} if \code{evCorX} is not supplied (base/RSpectra)
+##' @param k number of eigenvalues requested (used by the RSpectra package)
+##' @return numeric
+##' @seealso \code{\link{effNbIndepTests}}, \code{\link{adjustThreshGalwey}}
+##' @author Maxence Remerand, Timothee Flutre
+##' @export
+effNbIndepTestsPerChr <- function(X, snp.coords, chr, method="galwey", pkg="base", k){
+  stopifnot(is.matrix(X),
+            ncol(X) == nrow(snp.coords),
+            .isValidSnpCoords(snp.coords),
+            chr %in% snp.coords$chr,
+            method %in% c("galwey"))
+
+  out <- NA
+
+  ## subset SNPs
+  if("pos" %in% colnames(snp.coords))
+    colnames(snp.coords)[colnames(snp.coords) == "pos"] <- "coord"
+  sub.snp.coords <- droplevels(snp.coords[snp.coords$chr == chr,])
+  sub.X <- X[, rownames(sub.snp.coords)]
+
+  ## compute LD
+  LDmat <- stats::cor(sub.X)
+  ## TODO: use estimLd to allow to use kinship
+  ## LDmat <- estimLd(X=sub.X, snp.coords=sub.snp.coords, verbose=0)
+  ## reformat into a matrix
+
+  out <- effNbIndepTests(corX=LDmat, method=method, pkg=pkg, k=k)
 
   return(out)
 }
