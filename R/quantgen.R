@@ -4908,7 +4908,7 @@ recodeIntoDominant <- function(X, simplify.imputed=FALSE){
 ##' }
 ##' @param theta smoothing parameter for "gauss"
 ##' @param verbose verbosity level (0/1)
-##' @return matrix
+##' @return symmetric matrix
 ##' @author Timothee Flutre
 ##' @examples
 ##' \dontrun{set.seed(1859)
@@ -5071,6 +5071,9 @@ estimGenRel <- function(X, afs=NULL, thresh=NULL, relationships="additive",
     gen.dist <- as.matrix(stats::dist(x=M, method="euclidean")) / (2 * sqrt(P))
     gen.rel <- exp(-(gen.dist / theta)^2)
   }
+
+  ## force to be perfectly symmetric (beyond machine precision)
+  gen.rel[lower.tri(gen.rel)] <- t(gen.rel)[lower.tri(t(gen.rel))]
 
   return(gen.rel)
 }
