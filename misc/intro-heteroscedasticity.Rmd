@@ -160,11 +160,11 @@ abline(h=mean(dat$y), lty=2)
 <!--
 For some fitting functions, before using them, we need to reorder the data according to block variances:
 ```{r reorder}
-(new.order <- rownames(tmp)[order(tmp[,"sd"])])
-idx <- do.call(c, lapply(new.order, function(b){
-  which(dat$block == b)
-}))
-dat2 <- dat[idx,]
+## (new.order <- rownames(tmp)[order(tmp[,"sd"])])
+## idx <- do.call(c, lapply(new.order, function(b){
+##   which(dat$block == b)
+## }))
+## dat2 <- dat[idx,]
 ```
 -->
 
@@ -234,6 +234,10 @@ summary(u[true.best.genos])
 
 The `gls` function from the `nlme` package performs inference via generalized least squares, but can't handle random variables.
 
+```{r}
+fit.gls0 <- gls(model=y ~ 1 + block, data=dat)
+```
+
 ```{r gls_fit}
 fit.gls <- gls(model=y ~ 1 + block, data=dat,
                weights=varIdent(form=~1|block))
@@ -246,8 +250,12 @@ tmp <- cbind(dat, scaled.residuals, y.hat)
 
 #### Model comparison and selection
 
+Clearly, the model assuming an error variance per block, i.e., heteroscedasticity, fits better than the model assuming homoscedasticity:
 ```{r gls_AIC}
+AIC(fit.gls0)
 AIC(fit.gls)
+AIC(fit.gls0, fit.gls)
+anova(fit.gls0, fit.gls)
 ```
 
 ```{r gls_cv, eval=FALSE}
@@ -286,7 +294,11 @@ diagnose("gls", tmp)
 summary(fit.gls)
 cbind(beta, beta.hat, confint(fit.gls))
 cbind(sigma.b, sigma.b.hat)
+(tav <- anova(fit.gls))
 ```
+
+Unfortunately, `anova` applied to a `gls` object does not return the mean sums of squares.
+In the code of `nlme:::anova.gls`, one can see how the F statistics are computed (`Fval <- sum(c0^2)/nDF`).
 
 
 ### `lmer`
