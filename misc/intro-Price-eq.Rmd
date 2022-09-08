@@ -1,0 +1,173 @@
+---
+title: "Introduction to the Price's equation"
+author: "Timothée Flutre (INRAE)"
+date: "`r format(Sys.time(), '%d/%m/%Y %H:%M:%S')`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    toc_depth: 4
+    number_sections: TRUE
+  pdf_document:
+    toc: true
+    toc_depth: 4
+    number_sections: TRUE
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+# Motivation
+
+The main goal of Price was to understand *selection* in an abstract way.
+This consisted in answering the following question, "how does some property change between two sets", by distinguishing the part of total change due to selection.
+
+- To evolutionary biologists, it helps (i) to rephrase the question as "how does some phenotype evolve between two populations", and (ii) to name the two sets "ancestral" and "descendant".
+
+Yet, Price equation is fully general, e.g., differences between sets can occur through space rather than time; *what matters is the mapping between both sets*.
+Most importantly, what is meant by the "part of total change due to selection" corresponds to *change in frequency* that arises directly from *differential contributions by ancestors*.
+
+
+# Definitions and notations
+
+In the ancestral set:
+
+- each entity has a *type*, indexed by $i$, and a *property*, noted $z_i$
+
+- $q_i$ is the frequency of the $i$th type, where $\forall i, 0 < q_i \le 1$ and $\sum_i q_i = 1$
+
+- population average: $\bar{z} = \sum_i q_i \, z_i$
+
+In the descendant set:
+
+- $q'_i$: fraction *derived* from entities of the ancestral set that have the type $i$
+
+  - $q'_i = w_i \, q_i$, where $\forall i, 0 \le q'_i \le 1$ and $\sum_i q'_i = 1$
+
+- $z'_i$: average property among the descendants derived from ancestors of type $i$
+
+  - $z'_i = z_i + \Delta z_i$ where $\Delta z_i$ indicates by how much descendants can differ from their ancestor
+
+- population average: $\bar{z}' = \sum_i q'_i \, z'_i$
+
+Fitness $w_i = q'_i  /q_i$: contribution from type $i$ to the descendant set
+
+  - assuming fitnesses are standardized and average fitness $\bar{w} = \sum_i q_i \, w_i = 1$
+
+
+# Derivation of Price's equation
+
+Goal: express the total change in average property in terms of frequency change (*selection*) and property change
+
+Here is the first, straitght-forward way of deriving Price's equation:
+\begin{align}
+\Delta \bar{z} &= \bar{z}' - \bar{z} \\
+ &= \sum_i q'_i \, z'_i \; - \; \sum_i q_i \, z_i \\
+ &= \sum_i (q'_i - q_i) \, z_i \; + \; \sum_i q'_i \, z'_i \; - \; \sum_i q'_i \, z_i \\
+ &= \sum_i (\Delta q_i) \, z_i \; + \; \sum_i q'_i \, (\Delta z_i)
+\end{align}
+
+But it is more commonly expressed with probabilistic notions.
+Reminders in which $X$ and $Y$ are random variables:
+
+- $\text{E}(X) = \sum_i p_i X_i$ (if discrete)
+
+- $\text{E}(X Y) = \text{E}(X) \text{E}(Y) + Cov(X, Y)$.
+
+Let us reformulate the first term:
+
+$\sum_i (\Delta q_i) \, z_i = \sum_i q_i \, (w_i - 1) \, z_i$
+
+Considering the $w_i$'s (respectively the $z_i$'s) as outcomes of a random variable $w$ (resp., $z$) and recognizing that $\text{E}(w - 1) = 0$ leads to $\sum_i (\Delta q_i) \, z_i = Cov(w, z)$.
+
+Similarly: $\sum_i q'_i \, (\Delta z_i) = \sum_i q_i (w_i - 1) \, (\Delta z_i) = \text{E}(w \, \Delta z)$
+
+Here is the probabilistic way of writing down Price's equation, often found in articles and textbooks:
+
+\begin{align}
+\Delta \bar{z} = Cov(w, z) \, + \, \text{E}(w \, \Delta z)
+\end{align}
+
+
+# Derivation of Robertson's second theorem
+
+Let us assume that the ancestral set consists in potential parents and the descendant set consists in their offsprings.
+In quantitative genetics since Fisher, the parental phenotype is classically decomposed into a transmissible part and a non-transmissible one, $z = g + \epsilon$ with $\text{E}(\epsilon) = 0$, so that $z' = g$.
+As a result, Price's equation applied to this mapping expresses the response to selection, $R$:
+
+\begin{align}
+R &= \bar{z}_{\text{offsprings}} - \bar{z}_{\text{potential parents}} \\
+ &= Cov(w, g + \epsilon) - \text{E}(w \epsilon) \\
+ &= Cov(w, g) + Cov(w, \epsilon) - Cov(w, \epsilon) \\
+ &= Cov(w, g)
+\end{align}
+
+It is also known as Robertson's secondary theorem.
+
+
+# Derivation of the breeder's equation
+
+What defines a breeder is the possibility to apply selection, typically by truncation, on a population of $N$ individuals.
+In the framework of Price's mapping, let us define two sets, before and after selection, both made of the exact same $N$ individuals:
+
+- before selection, each individual of the parental population is a potential parent, hence $q_i = 1/N$;
+
+- however, after selection, only a subset of the $N$ individuals will become parents according to the potential breeding contribution $q'_i = q_i w_i$.
+
+Importantly, because individuals are the same between both sets, their phenotype remains the same: $\Delta z = 0$.
+
+As a result, Price's equation applied to this mapping expresses the selection differential:
+
+\begin{align}
+S &= \bar{z}_{\text{selected parents}} - \bar{z}_{\text{potential parents}} \\
+ &= Cov(w, z)
+\end{align}
+
+A breeder is typically interested in predicting the response to selection $R$ he/she would obtain based on the selection differential $S$ he/she could apply.
+In this goal, let us assume that fitness $w$ is linearly dependent on $z$ so that $w = \beta_{wz} z + \delta$ where $\beta_{wz}$ denotes the linear regression coefficient and $\text{E}(\delta) = 0$.
+Replacing $z$ by its own decomposition (above) gives: $w = \beta_{wz} (g + \epsilon) + \delta_{wg} = \beta_{wg} g + \gamma$ where $\beta_{wg} := \beta_{wz}$ and $\gamma := \beta_{wz} \epsilon + \delta$.
+Importantly, let us also assume that $Cov(g, \gamma) = 0$, which usually is reasonable for artificial selection but much less so for natural selection.
+As a result:
+
+\begin{align}
+R &= Cov(w, g) \\
+ &= \beta_{wg} Var(g) \\
+ &= \beta_{wz} Var(g) \frac{Var(z)}{Var(z)} \\
+ &= \frac{Var(g)}{Var(z)} \, Cov(w, z) \\
+ &= h^2 \, S
+\end{align}
+
+This is also known as the breeder's equation where $h^2$ is called the (narrow-sense) heritability.
+
+
+# Beyond
+
+Kin selection, group selection, etc: see the references.
+
+
+# References
+
+- Price G. 1970. Selection and covariance. Nature. 227(5257):520–521. doi:10.1038/227520a0.
+
+- Price G. 1972. Extension of covariance selection mathematics. Annals of Human Genetics. 35(4):485–490. doi:10.1111/j.1469-1809.1957.tb01874.x.
+
+- Price G. 1995. The nature of selection. Journal of Theoretical Biology. 175(3):389–396. doi:10.1006/jtbi.1995.0149.
+
+- Fisher R. 1918. The correlation between relatives on the supposition of Mendelian inheritance. Transactions of the Royal Society Edinburgh. 52(2):399–433. doi:10.1017/S0080456800012163.
+
+- Lush JL. 1937. Animal breeding plans. Ames: Iowa State University Press.
+
+- Robertson A. 1966. A mathematical model of the culling process in dairy cattle. Animal Science. 8(1):95–108. doi:10.1017/S0003356100037752.
+
+- Frank S. 1995. George Price’s contributions to evolutionary genetics. Journal of Theoretical Biology. 175(3):373–388. doi:10.1006/jtbi.1995.0148.
+
+- Frank SA. 1997. The Price Equation, Fisher’s Fundamental Theorem, Kin Selection, and Causal Analysis. Evolution. 51(6):1712–1729. doi:10.2307/2410995.
+
+- Frank SA. 2012. Natural selection. IV. The Price equation. Journal of Evolutionary Biology. 25(6):1002–1019. doi:10.1111/j.1420-9101.2012.02498.x.
+
+- Queller DC. 2017. Fundamental Theorems of Evolution. The American Naturalist. 189(4). doi:10.1086/690937.
+
+- Bijma P. 2020. The Price equation as a bridge between animal breeding and evolutionary biology. Phil Trans R Soc B. 375(1797):20190360. doi:10.1098/rstb.2019.0360.
+
+- Gardner A. 2020. Price’s equation made clear. Phil Trans R Soc B. 375(1797):20190361. doi:10.1098/rstb.2019.0361.
