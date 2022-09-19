@@ -81,7 +81,7 @@ $\sum_i (\Delta q_i) \, z_i = \sum_i q_i \, (w_i - 1) \, z_i$
 
 Considering the $w_i$'s (respectively the $z_i$'s) as outcomes of a random variable $w$ (resp., $z$) and recognizing that $\text{E}(w - 1) = 0$ leads to $\sum_i (\Delta q_i) \, z_i = Cov(w, z)$.
 
-Similarly: $\sum_i q'_i \, (\Delta z_i) = \sum_i q_i (w_i - 1) \, (\Delta z_i) = \text{E}(w \, \Delta z)$
+Similarly: $\sum_i q'_i \, (\Delta z_i) = \sum_i q_i w_i \, (\Delta z_i) = \text{E}(w \, \Delta z)$
 
 Here is the probabilistic way of writing down Price's equation, often found in articles and textbooks:
 
@@ -126,7 +126,7 @@ S &= \bar{z}_{\text{selected parents}} - \bar{z}_{\text{potential parents}} \\
 
 A breeder is typically interested in predicting the response to selection $R$ he/she would obtain based on the selection differential $S$ he/she could apply.
 In this goal, let us assume that fitness $w$ is linearly dependent on $z$ so that $w = \beta_{wz} z + \delta$ where $\beta_{wz}$ denotes the linear regression coefficient and $\text{E}(\delta) = 0$.
-Replacing $z$ by its own decomposition (above) gives: $w = \beta_{wz} (g + \epsilon) + \delta_{wg} = \beta_{wg} g + \gamma$ where $\beta_{wg} := \beta_{wz}$ and $\gamma := \beta_{wz} \epsilon + \delta$.
+Replacing $z$ by its own decomposition (above) gives: $w = \beta_{wz} (g + \epsilon) + \delta = \beta_{wg} g + \gamma$ where $\beta_{wg} := \beta_{wz}$ and $\gamma := \beta_{wz} \epsilon + \delta$.
 Importantly, let us also assume that $Cov(g, \gamma) = 0$, which usually is reasonable for artificial selection but much less so for natural selection.
 As a result:
 
