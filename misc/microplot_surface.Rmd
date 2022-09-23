@@ -1,0 +1,96 @@
+---
+title: "Surface semée et récoltée d'une micro-parcelle"
+output: html_document
+runtime: shiny
+---
+
+
+# Référence
+
+Le calcul de la surface semée et la surface récoltée d'une micro-parcelle d'essai au champ pour du blé tendre est défini par le GEVES dans l'annexe IV du protocole d'expérimentation pour les essais VATE :
+
+https://cat.geves.fr/CAT_WEB/Data/PROTOCOLEVATEBLETENDRETNT2022.pdf
+
+<!--
+## Saclay : 7 rangs ; largeur semoir = 106 cm ; voie du tracteur = 150 cm
+## donc interRows = 106 / (7-1) = 17.7
+## et interPlot = 150 - 106 = 44
+-->
+
+
+# Surface semée
+
+```{r, echo=TRUE}
+## all in cm
+calcSowingSurface <- function(nbRows, interRow, lengthSowing){
+  out <- NA
+
+  widthTot <- ((nbRows - 1) * interRow) + ((interRow/2) * 2)
+  lengthTot <- lengthSowing
+  out <- widthTot * lengthTot
+
+  out <- out / 10000 # switch to m2
+
+  return(out)
+}
+```
+
+```{r, echo=FALSE}
+numericInput("nbRows_s", "Nombre de rangs de semis :", 7, step=1)
+
+numericInput("interRow_s", "Ecart entre deux rangs de semis (en cm) :", 17.7, step=0.1)
+
+numericInput("lengthSowing", "Longueur semée (en m) :", 7, step=0.02)
+
+renderText({
+  sowingSurface <- calcSowingSurface(input$nbRows_s, input$interRow_s, input$lengthSowing * 100)
+  paste0("Surface semée (en m2) : ", round(sowingSurface, 2))
+})
+```
+
+
+# Surface récoltée
+
+```{r, echo=TRUE}
+## all in cm
+calcHarvestSurface <- function(nbRows, interRow, interPlot, lengthHarvest,
+                               alley=NULL){
+  out <- NA
+
+  if(! is.null(alley)){
+    if(alley > 80)
+      alley <- 80
+  }
+
+  widthTot <- ((nbRows - 1) * interRow) +
+    ((interPlot / 2) * 2)
+  if(is.null(alley)){
+    lengthTot <- lengthHarvest
+  } else{
+    lengthTot <- lengthHarvest + (alley / 2) * 2
+  }
+
+  out <- widthTot * lengthTot
+
+  out <- out / 10000 # switch to m2
+
+  return(out)
+}
+```
+
+```{r, echo=FALSE}
+numericInput("nbRows_h", "Nombre de rangs de semis :", 7, step=1)
+
+numericInput("interRow_h", "Ecart entre deux rangs de semis (en cm) :", 17.7, step=0.1)
+
+numericInput("interPlot", "Ecart entre les rangs extérieurs de 2 parcelles adjacentes (en cm) :", 44, step=0.1)
+
+numericInput("lengthHarvested", "Longueur récoltée (en m) :", 5, step=0.02)
+
+numericInput("alley", "Largeur de l'allée (en cm) :", 0, step=0.02)
+
+renderText({
+  harvestSurface <- calcHarvestSurface(input$nbRows_h, input$interRow_h, input$interPlot, input$lengthHarvested * 100, input$alley)
+  paste0("Surface récoltée (en m2) : ", round(harvestSurface, 2))
+})
+```
