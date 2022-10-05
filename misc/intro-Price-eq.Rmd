@@ -68,12 +68,11 @@ Here is the first, straitght-forward way of deriving Price's equation:
  &= \sum_i (\Delta q_i) \, z_i \; + \; \sum_i q'_i \, (\Delta z_i)
 \end{align}
 
-But it is more commonly expressed with probabilistic notions.
-Reminders in which $X$ and $Y$ are random variables:
+But it is more commonly expressed with probabilistic notions:
 
-- $\text{E}(X) = \sum_i p_i X_i$ (if discrete)
+- expectation of a random variable: $\text{E}(X) = \sum_i p_i X_i$ (if $X$ is discrete and $p_i = \text{Pr}[X = X_i]$)
 
-- $\text{E}(X Y) = \text{E}(X) \text{E}(Y) + Cov(X, Y)$.
+- expectation of a product of two random variables: $\text{E}(X Y) = \text{E}(X) \text{E}(Y) + Cov(X, Y)$.
 
 Let us reformulate the first term:
 
