@@ -31,7 +31,7 @@ Most importantly, what is meant by the "part of total change due to selection" c
 
 # Definitions and notations
 
-In the ancestral set:
+**In the ancestral set:** (before selection)
 
 - each entity has a *type*, indexed by $i$, and a *property*, noted $z_i$
 
@@ -39,28 +39,112 @@ In the ancestral set:
 
 - population average: $\bar{z} = \sum_i q_i \, z_i$
 
-In the descendant set:
+**Fitness $w_i$:** contribution to the descendant set from type $i$ in the ancestral set
 
-- $q'_i$: fraction *derived* from entities of the ancestral set that have the type $i$ (it is not necessarily equal to the fraction of the descendant set that have the type $i$)
+  - relative fitness: $w_i \, / \, \bar{w}$
+
+  - average fitness: $\bar{w} = \sum_i q_i \, w_i$
+
+  - let us assume that average fitness $\bar{w} = \sum_i q_i \, w_i$ is equal to one so that all fitnesses are normalized, hence $q'_i = w_i \, q_i$
+
+**In the descendant set:** (after selection)
+
+- a type-$i$ entity of the descendant set is an entity that is mapped to one, and only one, entity of type $i$ in the ancestral set, each entity of the descendant set hence has the type of the entity of the ancestral set with which it is mapped
+
+- $q'_i$: frequency of type-$i$ entities in the descendant set, i.e., entities of the descendant set that are mapped to type-$i$ entities in the ancestral set
 
   - $q'_i = (w_i/\bar{w}) \, q_i$, where $\forall i, 0 \le q'_i \le 1$ and $\sum_i q'_i = 1$
 
-- $z'_i$: average property among the descendants derived from ancestors of type $i$
+- $z'_i$: average property among the type-$i$ entities of the descendant set
 
   - $z'_i = z_i + \Delta z_i$ where $\Delta z_i$ indicates by how much descendants can differ from their ancestor
 
 - population average: $\bar{z}' = \sum_i q'_i \, z'_i$
 
-Fitness $w_i$: contribution to the descendant set from type $i$ in the ancestral set
 
-  - let us assume that average fitness $\bar{w} = \sum_i q_i \, w_i$ is equal to one so that all fitnesses are normalized, hence $q'_i = w_i \, q_i$
+# Illustration
+
+```{r, echo=FALSE}
+illustratePriceEq <- function(step=3){
+  if(requireNamespace("plotrix", quietly=TRUE)){
+    suppressPackageStartupMessages(library(plotrix))
+    par(mar=c(0,0,0,0))
+    plot(x=-10:10, y=-10:10, ylim=c(-3.5,4.5),
+         type="n", xlab="", ylab="", axes=FALSE)
+
+    ## first set:
+    draw.ellipse(x=-5, y=0, a=4.7, b=3)
+    text(x=-5, y=3.5, labels="first set", cex=2)
+
+    draw.circle(x=-7, y=1.8, radius=0.8)
+    text(x=-7, y=1.8, labels="1", cex=2, font=2)
+
+    draw.circle(x=-3.5, y=1.8, radius=0.8, col="royalblue4")
+    text(x=-3.5, y=1.8, labels="2", cex=2, font=2, col="white")
+
+    draw.circle(x=-5, y=0, radius=0.8, col="royalblue2")
+    text(x=-5, y=0, labels="3", cex=2, font=2, col="white")
+
+    draw.circle(x=-7, y=-1.8, radius=0.8, col="skyblue1")
+    text(x=-7, y=-1.8, labels="4", cex=2, font=2)
+
+    draw.circle(x=-3.5, y=-1.8, radius=0.8, col="navy")
+    text(x=-3.5, y=-1.8, labels="5", cex=2, font=2, col="white")
+
+    ## second set:
+    if(step >= 2){
+      draw.ellipse(x=5, y=0, a=4.7, b=3)
+      text(x=5, y=3.5, labels="second set", cex=2)
+
+      draw.circle(x=3.5, y=2, radius=0.8, col="royalblue4")
+      if(step >= 3){
+        text(x=3.5, y=2, labels="2", cex=2, font=2, col="white")
+        arrows(x0=-3.5+0.8, y0=1.8, x1=3.5-0.8, y1=2, lwd=3, col="red")
+      }
+
+      draw.circle(x=7, y=1.2, radius=0.8, col="royalblue3")
+      if(step >= 3){
+        text(x=7, y=1.2, labels="2", cex=2, font=2, col="white")
+        arrows(x0=-3.5+0.8, y0=1.8, x1=7-0.8, y1=1.2, lwd=3, col="red")
+      }
+
+      draw.circle(x=5, y=0, radius=0.8, col="royalblue1")
+      if(step >= 3){
+        text(x=5, y=0, labels="3", cex=2, font=2, col="white")
+        arrows(x0=-5+0.8, y0=0, x1=5-0.8, y1=0, lwd=3, col="red")
+      }
+
+      draw.circle(x=3.5, y=-1.2, radius=0.8, col="skyblue3")
+      if(step >= 3){
+        text(x=3.5, y=-1.2, labels="3", cex=2, font=2, col="white")
+        arrows(x0=-5+0.8, y0=0, x1=3.5-0.8, y1=-1.2, lwd=3, col="red")
+      }
+
+      draw.circle(x=6, y=-2.1, radius=0.8, col="navy")
+      if(step >= 3){
+        text(x=6, y=-2.1, labels="5", cex=2, font=2, col="white")
+        arrows(x0=-3.5+0.8, y0=-1.8, x1=6-0.8, y1=-2.1, lwd=3, col="red")
+      }
+    }
+  }
+}
+```
+```{r, echo=FALSE, fig.width=9, fig.height=4}
+illustratePriceEq(1)
+```
+```{r, echo=FALSE, fig.width=9, fig.height=4}
+illustratePriceEq(2)
+```
+```{r, echo=FALSE, fig.width=9, fig.height=4}
+illustratePriceEq(3)
+```
 
 
 # Derivation of Price's equation
 
 Goal: express the total change in average property in terms of frequency change (*selection*) and property change
 
-Here is the first, straitght-forward way of deriving Price's equation:
+Here is the first, straight-forward way of deriving Price's equation:
 \begin{align}
 \Delta \bar{z} &= \bar{z}' - \bar{z} \\
  &= \sum_i q'_i \, z'_i \; - \; \sum_i q_i \, z_i \\
