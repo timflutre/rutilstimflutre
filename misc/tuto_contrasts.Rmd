@@ -34,7 +34,7 @@ In an example, `yield` as the response variable is regressed on an unordered fac
 A small data set will be simulated, then a first version of the statistical model will be described, then a second, leading to the motivation behind the usage of contrasts.
 Finally, two different contrasts will be described in details.
 
-For one of them, the "sum" contrast, everything can be computed "by hand".
+Computations are made using R base functions as well as "by hand".
 But it is also shown how to obtain the required information (incidence matrix, contrast estimates, standard errors, test statistics and p values) using an external package, [`emmeans`](https://cran.r-project.org/package=emmeans):
 ```{r}
 suppressPackageStartupMessages(library(emmeans))
@@ -79,6 +79,7 @@ epsilons <- rnorm(n=N, mean=0, sd=sd.error)
 dat$yield <- dat$yield + epsilons
 dat$geno <- as.factor(dat$geno)
 dat$rep <- as.factor(dat$rep)
+dat
 ```
 
 # Explore the data
@@ -109,7 +110,7 @@ legend("topleft", legend="grand mean", lty=2, bty="n")
 
 # Build the models
 
-The goal of the statistical models here will be to estimate the means of the explanatory factor as well as combinations of them.
+The goal of the statistical models here will be to explain the mean of the response variable using the explanatory factor.
 
 ## Version 1
 
@@ -127,7 +128,7 @@ As a first model, one can choose to explain the mean of the responses directly b
 
 - $y_{gr}$: yield for replicate $r$ of genotype $g$
 
-- $m_g$: mean of genotype $g$
+- $m_g$: mean yield of genotype $g$
 
 - $\epsilon_{gr}$: error for replicate $r$ of genotype $g$
 
@@ -170,7 +171,7 @@ which is equivalent to:
 \boldsymbol{y} \, | \, X_1, \boldsymbol{m}, \sigma^2 \; \sim \; \mathcal{N}_N(X_1 \boldsymbol{m}, \sigma^2 \text{I}_N)
 \]
 
-Note that this model has $G$ parameters for the expectation, called regression coefficients.
+Note that this model has $G$ parameters for the expectation of $\boldsymbol{y}$.
 
 ### Inference
 
@@ -179,16 +180,16 @@ Note that this model has $G$ parameters for the expectation, called regression c
 Under our assumptions, by minimizing the squared errors or by maximizing the likelihood, one ends up with the same estimator of $\boldsymbol{m}$, noted $\hat{\boldsymbol{m}}$ (see the [Gauss-Markov theorem](https://en.wikipedia.org/wiki/Gauss%E2%80%93Markov_theorem)):
 
 \[
-X^T \, X \; \hat{\boldsymbol{m}} \; = \, X^T \, \boldsymbol{y}
+X_1^T \, X_1 \; \hat{\boldsymbol{m}} \; = \, X_1^T \, \boldsymbol{y}
 \]
 
-Without going into too many mathematical details, this system of equations can be easily resolved (by inverting $X^T X$) if the columns of $X$ are independent from each other:
+Without going into too many mathematical details, this system of equations can be easily resolved (by inverting $X_1^T X_1$) if the columns of $X_1$ are independent from each other:
 
 \[
-\hat{\boldsymbol{m}} \; = \, (X^T X)^{-1} \,  X^T \, \boldsymbol{y}
+\hat{\boldsymbol{m}} \; = \, (X_1^T X_1)^{-1} \,  X_1^T \, \boldsymbol{y}
 \]
 
-Importantly, to obtain the estimates of the regression coefficients, one first needs to specify a *coding scheme* for $X$.
+Importantly, to obtain the estimates of the parameters for the expectation, one first needs to specify a *coding scheme* for $X_1$.
 At this stage, it helps writing down the insides of the model vectors/matrices.
 Here it is using $R=2$:
 
@@ -263,7 +264,7 @@ Obtaining an estimate of the parameters is important, but quantifying our uncert
 Here is the variance of the estimator $\hat{\boldsymbol{m}}$:
 
 \[
-\mathbb{V}(\hat{\boldsymbol{m}}) = (X^T X)^{-1} \sigma^2
+\mathbb{V}(\hat{\boldsymbol{m}}) = (X_1^T X_1)^{-1} \sigma^2
 \]
 
 To compute it, one hence needs to estimate the error variance.
@@ -273,7 +274,7 @@ The estimate of $\sigma^2$ will be noted $S^2$:
 \mathbb{E}(S^2) = \frac{RSS}{N - r}
 \]
 
-where $RSS$ is the residual sum of squares ($\sum_i (y_i - \hat{y_i})^2$) and $r$ is the number of independent columns of $X$ (called the rank of $X$).
+where $RSS$ is the residual sum of squares ($\sum_i (y_i - \hat{y_i})^2$) and $r$ is the number of independent columns of $X_1$ (called the rank of $X_1$).
 
 #### Hypothesis testing
 
@@ -289,9 +290,7 @@ where $t$ is the [Student's distribution](https://en.wikipedia.org/wiki/Student%
 
 ## Version 2
 
-The "cell-mean" model (v1 above) is intuitive, but one may want the regression coefficients to have a different interpretation than exactly the means of the explanatory factor.
-In some cases, one may even be forced to do that, notably when the incidence matrix $X$ has non-independent columns (more below).
-In such cases, one introduces a new parameter, the intercept.
+The "cell-mean" model (v1 above) is intuitive, but it can be re-parametrize into another, equivalent model with an intercept.
 
 ### Likelihood
 
@@ -318,7 +317,7 @@ A few other notations:
 \boldsymbol{y} = X_2 \boldsymbol{\theta} + \boldsymbol{\epsilon} \text{ where } \boldsymbol{\epsilon} \sim \mathcal{N}_N(\boldsymbol{0}, \sigma^2 \text{I}_N)
 \]
 
-Note that this model has $G+1$ parameters for the expectation.
+Note that this model has $G+1$ parameters for the expectation of $\boldsymbol{y}$.
 
 ### Inference
 
@@ -371,8 +370,7 @@ Again as above, using the rule of matrix multiplication, one can easily retrieve
 
 - ...
 
-However, note that the first column of $X_2$ (corresponding to the intercept $\mu$) is equal to the sum of all its other columns.
-This lack of independence between the columns of $X_2$ (such a matrix is said to be *singular*) means that one needs to add constraints (only one in here) if one aims at estimating the intercept as well as the effects.
+However, note that the first column of $X_2$ (corresponding to $\mu$) is equal to the sum of all its other columns.
 
 Here is an example in R:
 ```{r}
@@ -390,23 +388,28 @@ tXX_2 <- t(X_2) %*% X_2
 eigen(tXX_2)$values # the matrix is singular if at least one eigenvalue is zero
 try(inv_tXX_2 <- solve(tXX_2))
 ```
+This lack of independence between the columns of $X_2$ (such a matrix is said to be *singular*) means that one needs to add constraints (only one in here) to estimate the parameters for the expectation of $y$.
 
 ## Contrasts
 
 Still a few other notations:
 
-- $\boldsymbol{\alpha}$: $G$-vector of regression coefficient, where $\alpha_0$ corresponds to the intercept
+- $\boldsymbol{\alpha}$: $G$-vector of regression coefficients
 
-- $\{c_0,\ldots,c_G\}$: set of real numbers
+    - the first element corresponds to the intercept: $\alpha_0 := \mu$
+    
+    - the others correspond to a $(G-1)$-vector noted $\boldsymbol{\alpha}_\star$
+
+- $\{c_0,\ldots,c_{G-1}\}$: set of $G$ real numbers
 
 As said above, to deal with the non-independence between columns of the incidence matrix $X$, one needs to add constraint(s).
 Typically, a constraint takes the form of a [linear combination](https://en.wikipedia.org/wiki/Linear_combination) of the regression coefficients:
 
 \begin{equation} \label{eq:contrast_lin_comb}
-\sum_{j=0}^G c_j \, \boldsymbol{\alpha}_j \; = \; c_0 \times \alpha_0 + c_1 \times \alpha_1 + \ldots + c_G \times \alpha_G
+\sum_{j=0}^{G-1} c_j \, \boldsymbol{\alpha}_j \; = \; c_0 \times \alpha_0 + c_1 \times \alpha_1 + \ldots + c_{G-1} \times \alpha_{G-1}
 \end{equation}
 
-But it has a specificity, the sum of the coefficients of this linear combination equals zero: $\sum_{j=0}^G c_j = 0$.
+But it has a specificity, the sum of the coefficients of this linear combination equals zero: $\sum_{j=0}^{G-1} c_j = 0$.
 Such a linear combination is called a **contrast**, and this is what will be estimated.
 
 Obviously, one want to be able to go from $\boldsymbol{m}$ to $\boldsymbol{\alpha}$, et reciprocally.
@@ -425,15 +428,14 @@ $\Rightarrow$ The $B_\star$ matrix is $G \times (G-1)$ and is called a **coding 
 This leads to:
 
 \[
-X_1 \boldsymbol{m} = X_1 B \boldsymbol{\alpha} = \boldsymbol{1}_N \mu + B_\star \boldsymbol{\alpha}_\star
+\boldsymbol{m} = B \boldsymbol{\alpha} = [ \boldsymbol{1}_G \; B_\star ] [\alpha_0 \ldots \alpha_{G-1}]^T = \boldsymbol{1}_G \mu + B_\star \boldsymbol{\alpha}_\star
 \]
 
 Similarly, $C$ will be partitioned by separating the first row: $C = \begin{bmatrix} \boldsymbol{c}_0^T \\ C_\star^T \end{bmatrix}$.
 
+$\Rightarrow$ The $C_\star$ matrix is $(G-1) \times G$ and is called a **contrast matrix**.
 
-$\Rightarrow$ The $C_\star$ matrix is $G \times (G-1)$ and is called a **contrast matrix**.
-
-Its rows are the *contrasts* we want to estimate.
+Its rows are the *contrasts* we want to estimate: they sum to zero.
 
 <br>
 
@@ -477,19 +479,27 @@ contrasts(dat$geno)
 (Bstar.ct <- contr.treatment(levels(dat$geno)))
 ```
 
-As explained above, the columns of `Bstar` are clearly not contrasts as they don't sum to zero.
-But obtaining the contrast matrix is easy: one only has to add a column of 1's to obtain the full $B$ matrix and to inverse it:
+As explained above, the columns of `Bstar` ($B_\star$) are clearly not contrasts as they don't sum to zero.
+But obtaining the contrast matrix is easy:
+
+1. add a column of 1's to obtain the $B$ matrix,
+
+2. then inverse it to obtain the $C$ matrix,
+
+3. and remove the first row to obtain the $C_\star$ matrix.
+
 ```{r}
 (B.ct <- cbind(intercept=1, Bstar.ct))
 (C.ct <- solve(B.ct))
+(Cstar.ct <- C.ct[-1,])
 ```
 
-As explained above, the rows of `C` (except the first one corresponding to the intercept) are contrasts and they sum to zero:
+As explained above, the rows of `Cstar` ($C_\star$) are contrasts and they sum to zero:
 ```{r}
-apply(C.ct[-1,], 1, sum)
+apply(Cstar.ct, 1, sum)
 ```
 
-They show how to interpret the regression coefficients (the $\alpha$'s) in terms of the factor level means (the $m$'s):
+Given that $\boldsymbol{\alpha} = C \boldsymbol{m}$, these rows show how to interpret the regression coefficients (the $\alpha$'s) in terms of the factor level means (the $m$'s):
 
 - $\alpha_0 = 1 \times m_1 + 0 \times m_2 + 0 \times m_3 = m_1$
 
@@ -590,19 +600,27 @@ contrasts(dat$geno)
 (Bstar.cs <- contr.sum(levels(dat$geno)))
 ```
 
-As explained above, the columns of `Bstar` are clearly not contrasts as they don't sum to zero.
-But obtaining the contrast matrix is easy: one only has to add a column of 1's to obtain the full $B$ matrix and to inverse it:
+As explained above, the columns of `Bstar` ($B_\star$) are not contrasts (even though here they sum to zero!).
+But obtaining the contrast matrix is easy:
+
+1. add a column of 1's to obtain the $B$ matrix,
+
+2. then inverse it to obtain the $C$ matrix,
+
+3. and remove the first row to obtain the $C_\star$ matrix.
+
 ```{r}
 (B.cs <- cbind(intercept=1, Bstar.cs))
 (C.cs <- solve(B.cs))
+(Cstar.cs <- C.cs[-1,])
 ```
 
-As explained above, the rows of `C` (except the first one corresponding to the intercept) are contrasts and they sum to zero:
+As explained above, the rows of `Cstar` ($C_\star$) are contrasts and they sum to zero:
 ```{r}
-apply(C.cs[-1,], 1, sum)
+apply(Cstar.cs, 1, sum)
 ```
 
-They show how to interpret the regression coefficients (the $\alpha$'s) in terms of the factor level means (the $m$'s):
+Given that $\boldsymbol{\alpha} = C \boldsymbol{m}$, these rows show how to interpret the regression coefficients (the $\alpha$'s) in terms of the factor level means (the $m$'s):
 
 - $\alpha_0 = \mu = \frac{1}{G} \sum_{g=1}^G m_g$
 
@@ -613,7 +631,7 @@ They show how to interpret the regression coefficients (the $\alpha$'s) in terms
 The intercept is the mean of all the factor level means.
 It usually makes sense to choose this coding when no level is a natural reference for the others.
 
-Even though it is not returned by the `lm` function, the contrast of the last factor level is of interest and can be deduced from the others:
+Even though it is not returned by the `lm` function below, the contrast of the last factor level is of interest and can be deduced from the others:
 
 - $\alpha_3 = m_3 - \mu$
 
@@ -690,13 +708,6 @@ abline(h=alpha.cs.hat[1], lty=2)
 legend("topleft", legend="intercept", lty=2, bty="n")
 ```
 
-### Variances and p values
-
-```{r}
-## var.m.hat <- t(X)
-## C.cs %*% 
-```
-
 ## Retrieve the data means from the contrast estimates
 
 As a matrix multiplication:
@@ -720,10 +731,12 @@ print(X.cs)
 
 But we can also compute it as $X_1 B$:
 ```{r}
-X.1 <- matrix(data=0, nrow=nrow(dat), ncol=nlevels(dat$geno))
-colnames(X.1) <- levels(dat$geno)
-for(j in 1:ncol(X.1))
-  X.1[,j] <- as.numeric(dat$geno == colnames(X.1)[j])
+X.1 <- model.matrix(yield ~ 0 + geno, data=dat,
+                    contrasts.arg=list(geno="contr.sum"))
+## X.1 <- matrix(data=0, nrow=nrow(dat), ncol=nlevels(dat$geno))
+## colnames(X.1) <- levels(dat$geno)
+## for(j in 1:ncol(X.1))
+##   X.1[,j] <- as.numeric(dat$geno == colnames(X.1)[j])
 X.1
 B.cs
 (X.cs <- X.1 %*% B.cs)
