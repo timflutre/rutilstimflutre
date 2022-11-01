@@ -1,5 +1,5 @@
 ---
-title: "Introduction to the Price's equation"
+title: "Introduction to the Price's equation for breeders"
 author: "Timothée Flutre (INRAE)"
 date: "`r format(Sys.time(), '%d/%m/%Y %H:%M:%S')`"
 output:
@@ -176,7 +176,7 @@ Here is the probabilistic way of writing down Price's equation, often found in a
 # Derivation of Robertson's second theorem
 
 Let us assume that the ancestral set consists in potential parents and the descendant set consists in their offsprings.
-In quantitative genetics since Fisher, the parental phenotype is classically decomposed into a transmissible part and a non-transmissible one, $z = g + \epsilon$ with $\text{E}(\epsilon) = 0$, so that $z' = g$.
+In quantitative genetics since Fisher, the parental phenotype $z$ is classically decomposed into a transmissible part, $g$, and a non-transmissible part, $\epsilon$ with $z = g + \epsilon$ and $\text{E}(\epsilon) = 0$, so that $z' = g$.
 As a result, Price's equation applied to this mapping expresses the response to selection, $R$:
 
 \begin{align}
@@ -196,7 +196,7 @@ In the framework of Price's mapping, let us define two sets, before and after se
 
 - before selection, each individual of the parental population is a potential parent, hence $q_i = 1/N$;
 
-- however, after selection, only a subset of the $N$ individuals will become parents according to the potential breeding contribution $q'_i = q_i w_i$.
+- however, after selection, only a subset of the $N$ individuals will actually become parents according to the potential breeding contribution $q'_i = q_i w_i$.
 
 Importantly, because individuals are the same between both sets, their phenotype remains the same: $\Delta z = 0$.
 
@@ -209,8 +209,19 @@ S &= \bar{z}_{\text{selected parents}} - \bar{z}_{\text{potential parents}} \\
 
 A breeder is typically interested in predicting the response to selection $R$ he/she would obtain based on the selection differential $S$ he/she could apply.
 In this goal, let us assume that fitness $w$ is linearly dependent on $z$ so that $w = \beta_{wz} z + \delta$ where $\beta_{wz}$ denotes the linear regression coefficient and $\text{E}(\delta) = 0$.
-Replacing $z$ by its own decomposition (above) gives: $w = \beta_{wz} (g + \epsilon) + \delta = \beta_{wg} g + \gamma$ where $\beta_{wg} := \beta_{wz}$ and $\gamma := \beta_{wz} \epsilon + \delta$.
+Replacing $z$ by its own decomposition (above) gives the following:
+
+\begin{align}
+w &= \beta_{wz} (g + \epsilon) + \delta \\
+ &= \beta_{wg} g + \gamma
+ \end{align}
+
+where $\beta_{wg} := \beta_{wz}$ and $\gamma := \beta_{wz} \epsilon + \delta$.
+
 Importantly, let us also assume that $Cov(g, \gamma) = 0$, which usually is reasonable for artificial selection but much less so for natural selection.
+
+Reminder: in the simple linear regression $y_i = \mu + \beta x_i + \epsilon_i$ with $\epsilon_i \sim \mathcal{N}(0, \sigma^2)$, the maximum-likelihood estimator of $\beta$ is $B = \frac{Cov(y, x)}{Var(x)}$.
+
 As a result:
 
 \begin{align}
@@ -222,11 +233,6 @@ R &= Cov(w, g) \\
 \end{align}
 
 This is also known as the breeder's equation where $h^2$ is called the (narrow-sense) heritability.
-
-
-# Beyond
-
-Kin selection, group selection, etc: see the references.
 
 
 # References
