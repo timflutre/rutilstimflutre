@@ -3,8 +3,6 @@ title: "Introduction to the EM algorithm"
 author: "Timothée Flutre"
 date: "`r format(Sys.time(), '%d/%m/%Y %H:%M:%S')`"
 output:
-  rmarkdown::html_vignette:
-    toc: true
   html_document:
     toc: true
     toc_depth: 3
@@ -14,10 +12,6 @@ output:
     toc: true
     toc_depth: 3
     number_sections: TRUE
-vignette: >
-  %\VignetteIndexEntry{Intro to EM algorithm}
-  %\VignetteEngine{knitr::rmarkdown}
-  %\VignetteEncoding{UTF-8}
 ---
 
 
@@ -102,7 +96,7 @@ This shows that maximizing the likelihood of a mixture model is like doing a wei
 
 # Missing data
 
-We introduce the following N [http://en.wikipedia.org/wiki/Latent_variable latent variables] $Z_1,...,Z_i,...,Z_N$ (also called hidden or allocation variables), one for each observation, such that $Z_i=k$ means that observation $x_i$ belongs to cluster $k$. Thanks to this, we can reinterpret the mixture weights: $\forall i, P(Z_i=k|\theta)=w_k$. In fact, it is much easier to do the maths when defining each $Z_i$ as a vector of length $K$, with $Z_{ik}=1$ if observation $x_i$ belongs to cluster $k$, and $Z_{ik}=0$ otherwise ([http://en.wikipedia.org/wiki/Dummy_variable_%28statistics%29 indicator variables]). Moreover, we can now define the membership probabilities, one for each observation:
+We introduce the following N [latent variables](http://en.wikipedia.org/wiki/Latent_variable) $Z_1,...,Z_i,...,Z_N$ (also called hidden or allocation variables), one for each observation, such that $Z_i=k$ means that observation $x_i$ belongs to cluster $k$. Thanks to this, we can reinterpret the mixture weights: $\forall i, P(Z_i=k|\theta)=w_k$. In fact, it is much easier to do the maths when defining each $Z_i$ as a vector of length $K$, with $Z_{ik}=1$ if observation $x_i$ belongs to cluster $k$, and $Z_{ik}=0$ otherwise ([indicator variables](http://en.wikipedia.org/wiki/Dummy_variable_%28statistics%29)). Moreover, we can now define the membership probabilities, one for each observation:
 
 $p(k|i) = P(Z_{ik}=1|x_i,\theta) = \frac{P(Z_{ik}=1 | \theta) p(x_i | Z_{ik}=1,\theta)}{p(x_i | \theta)} = \frac{w_k \phi(x_i|\mu_k,\sigma_k)}{\sum_{l=1}^K w_l \phi(x_i|\mu_l,\sigma_l)}$
 
@@ -120,7 +114,7 @@ And here is the augmented-data log-likelihood (useful in the M step of the EM al
 
 $l_{aug}(\theta) = \sum_{i=1}^N \left( \sum_{k=1}^K Z_{ik} ln(\phi(x_i|\mu_k,\sigma_k)) + \sum_{k=1}^K Z_{ik} ln(w_k) \right)$
 
-Using the [http://en.wikipedia.org/wiki/Plate_notation plate notation], the Gaussian mixture model described here can be represented like [http://en.wikipedia.org/wiki/File:Nonbayesian-gaussian-mixture.svg this].
+Using the [plate notation](http://en.wikipedia.org/wiki/Plate_notation), the Gaussian mixture model described here can be represented like [this](http://en.wikipedia.org/wiki/File:Nonbayesian-gaussian-mixture.svg).
 
 
 # EM algorithm
@@ -147,7 +141,7 @@ Then, we use any probability distribution $q$ on these hidden variables (in fact
 
 $l_{obs}(\theta) = \sum_{i=1}^N ln \left( \int q_{z_i}(z_i) \frac{p(x_i,z_i|\theta)}{q_{z_i}(z_i)} dz_i \right)$
 
-And here is the great trick, as explained by Beal: "any probability distribution over the hidden variables gives rise to a lower bound on $l_{obs}$". This is due to to the [http://en.wikipedia.org/wiki/Jensen%27s_inequality Jensen inequality] (the logarithm is concave):
+And here is the great trick, as explained by Beal: "any probability distribution over the hidden variables gives rise to a lower bound on $l_{obs}$". This is due to to the [Jensen inequality](http://en.wikipedia.org/wiki/Jensen%27s_inequality) (the logarithm is concave):
 
 $l_{obs}(\theta) \ge \sum_{i=1}^N \int q_{z_i}(z_i) ln \left( \frac{p(x_i,z_i|\theta)}{q_{z_i}(z_i)} \right) dz_i = \mathcal{F}(q_{z_1}(z_1), ..., q_{z_N}(z_N), \theta)$
 
@@ -177,7 +171,7 @@ Then, at the M step, we use these statistics to maximize the new lower bound $\m
 
 ## Variational approximation
 
-If the posterior distributions $p(z_i|x_i,\theta)$ are intractable, we can use a variational approach to constrain them to be of a particular, tractable form. In the E step, maximizing $\mathcal{F}$ with respect to $q_{z_i}$ is equivalent to minimizing the [http://en.wikipedia.org/wiki/Kullback%E2%80%93Leibler_divergence Kullback-Leibler divergence] between the variational distribution $q(z_i)$ and the exact hidden variable posterior $p(z_i|x_i,\theta)$:
+If the posterior distributions $p(z_i|x_i,\theta)$ are intractable, we can use a variational approach to constrain them to be of a particular, tractable form. In the E step, maximizing $\mathcal{F}$ with respect to $q_{z_i}$ is equivalent to minimizing the [Kullback-Leibler divergence](http://en.wikipedia.org/wiki/Kullback%E2%80%93Leibler_divergence) between the variational distribution $q(z_i)$ and the exact hidden variable posterior $p(z_i|x_i,\theta)$:
 
 $KL[q_{z_i}(z_i) || p(z_i|x_i,\theta)] = \int q_{z_i}(z_i) ln \left( \frac{q_{z_i}(z_i)}{p(z_i|x_i,\theta)} \right)$
 
@@ -204,10 +198,10 @@ Note how the conditional expectation over $Z_{ik}$ simply happens to be the post
 
 ### Formulas of the M step
 
-n this step, we need to maximize $Q$ (also written $\mathcal{F}$ above), w.r.t. each $\theta_k$. A few important rules are required to write down the analytical formulas of the MLEs, but only from a high-school level (see [http://en.wikipedia.org/wiki/Differentiation_%28mathematics%29#Rules_for_finding_the_derivative here]).
+n this step, we need to maximize $Q$ (also written $\mathcal{F}$ above), w.r.t. each $\theta_k$. A few important rules are required to write down the analytical formulas of the MLEs, but only from a high-school level (see [here](http://en.wikipedia.org/wiki/Differentiation_%28mathematics%29#Rules_for_finding_the_derivative)).
 
 
-* '''M step - weights''': let's start by finding the maximum-likelihood estimates of the weights $w_k$. But remember the constraint $\sum_{k=1}^K w_k = 1$. To enforce it, we can use a [http://en.wikipedia.org/wiki/Lagrange_multiplier Lagrange multiplier], $\lambda$. This means that we now need to maximize the following equation where $\Lambda$ is a Lagrange function (only the part of Q being a function of the weights is kept):
+* '''M step - weights''': let's start by finding the maximum-likelihood estimates of the weights $w_k$. But remember the constraint $\sum_{k=1}^K w_k = 1$. To enforce it, we can use a [Lagrange multiplier](http://en.wikipedia.org/wiki/Lagrange_multiplier), $\lambda$. This means that we now need to maximize the following equation where $\Lambda$ is a Lagrange function (only the part of Q being a function of the weights is kept):
 
 $\Lambda(w_k,\lambda) = \sum_{i=1}^N \left( \sum_{k=1}^K p(k|i) ln(w_k) \right) + \lambda (1 - \sum_{k=1}^K w_k)$
 
@@ -248,7 +242,7 @@ $\frac{\partial Q}{\partial \sigma_k} = \sum_{i=1}^N p(k/i) (\frac{-1}{\sigma_k}
 $\hat{\sigma}_k^{(t+1)} = \sqrt{\frac{\sum_{i=1}^N p(k/i) (x_i - \hat{\mu}_k^{(t+1)})^2}{\sum_{i=1}^N p(k/i)}}$
 
 
-* '''M step - weights (2)''': we can write them in terms of unconstrained variables $\gamma_k$ ([http://en.wikipedia.org/wiki/Softmax_activation_function softmax function]):
+* '''M step - weights (2)''': we can write them in terms of unconstrained variables $\gamma_k$ ([softmax function](http://en.wikipedia.org/wiki/Softmax_activation_function)):
 
 $w_k = \frac{e^{\gamma_k}}{\sum_{k=1}^K e^{\gamma_k}}$
 
