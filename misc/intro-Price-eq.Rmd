@@ -92,9 +92,9 @@ illustratePriceEq <- function(step=3){
     text(x=-3.5, y=-1.8, labels="5", cex=2, font=2, col="white")
 
     ## second set:
+    draw.ellipse(x=5, y=0, a=4.7, b=3)
+    text(x=5, y=3.5, labels="second set", cex=2)
     if(step >= 2){
-      draw.ellipse(x=5, y=0, a=4.7, b=3)
-      text(x=5, y=3.5, labels="second set", cex=2)
 
       draw.circle(x=3.5, y=2, radius=0.8, col="royalblue4")
       if(step >= 3){
@@ -129,12 +129,15 @@ illustratePriceEq <- function(step=3){
   }
 }
 ```
+
 ```{r, echo=FALSE, fig.width=9, fig.height=4}
 illustratePriceEq(1)
 ```
+
 ```{r, echo=FALSE, fig.width=9, fig.height=4}
-illustratePriceEq(2)
+## illustratePriceEq(2)
 ```
+
 ```{r, echo=FALSE, fig.width=9, fig.height=4}
 illustratePriceEq(3)
 ```
@@ -176,14 +179,14 @@ Here is the probabilistic way of writing down Price's equation, often found in a
 # Derivation of Robertson's second theorem
 
 Let us assume that the ancestral set consists in potential parents and the descendant set consists in their offsprings.
-In quantitative genetics since Fisher, the parental phenotype $z$ is classically decomposed into a transmissible part, $g$, and a non-transmissible part, $\epsilon$ with $z = g + \epsilon$ and $\text{E}(\epsilon) = 0$, so that $z' = g$.
+In quantitative genetics since Fisher, the parental phenotype $z$ is classically decomposed into a transmissible part, $a$, and a non-transmissible part, $\epsilon$ with $z = a + \epsilon$ and $\text{E}(\epsilon) = 0$, so that $z' = a$.
 As a result, Price's equation applied to this mapping expresses the response to selection, $R$:
 
 \begin{align}
 R &= \bar{z}_{\text{offsprings}} - \bar{z}_{\text{potential parents}} \\
- &= Cov(w, g + \epsilon) - \text{E}(w \epsilon) \\
- &= Cov(w, g) + Cov(w, \epsilon) - Cov(w, \epsilon) \\
- &= Cov(w, g)
+ &= Cov(w, a + \epsilon) - \text{E}(w \epsilon) \\
+ &= Cov(w, a) + Cov(w, \epsilon) - Cov(w, \epsilon) \\
+ &= Cov(w, a)
 \end{align}
 
 It is also known as Robertson's secondary theorem.
@@ -212,23 +215,23 @@ In this goal, let us assume that fitness $w$ is linearly dependent on $z$ so tha
 Replacing $z$ by its own decomposition (above) gives the following:
 
 \begin{align}
-w &= \beta_{wz} (g + \epsilon) + \delta \\
- &= \beta_{wg} g + \gamma
+w &= \beta_{wz} (a + \epsilon) + \delta \\
+ &= \beta_{wa} a + \gamma
  \end{align}
 
-where $\beta_{wg} := \beta_{wz}$ and $\gamma := \beta_{wz} \epsilon + \delta$.
+where $\beta_{wa} := \beta_{wz}$ and $\gamma := \beta_{wz} \epsilon + \delta$.
 
-Importantly, let us also assume that $Cov(g, \gamma) = 0$, which usually is reasonable for artificial selection but much less so for natural selection.
+Importantly, let us also assume that $Cov(a, \gamma) = 0$, which usually is reasonable for artificial selection but much less so for natural selection.
 
 Reminder: in the simple linear regression $y_i = \mu + \beta x_i + \epsilon_i$ with $\epsilon_i \sim \mathcal{N}(0, \sigma^2)$, the maximum-likelihood estimator of $\beta$ is $B = \frac{Cov(y, x)}{Var(x)}$.
 
 As a result:
 
 \begin{align}
-R &= Cov(w, g) \\
- &= \beta_{wg} Var(g) \\
- &= \beta_{wz} Var(g) \frac{Var(z)}{Var(z)} \\
- &= \frac{Var(g)}{Var(z)} \, Cov(w, z) \\
+R &= Cov(w, a) \\
+ &= \beta_{wg} Var(a) \\
+ &= \beta_{wz} Var(a) \frac{Var(z)}{Var(z)} \\
+ &= \frac{Var(a)}{Var(z)} \, Cov(w, z) \\
  &= h^2 \, S
 \end{align}
 
