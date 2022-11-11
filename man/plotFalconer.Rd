@@ -4,7 +4,7 @@
 \alias{plotFalconer}
 \title{Falconer's parameterization}
 \usage{
-plotFalconer(a = 1, d = 0.75, f = 0.25)
+plotFalconer(a = 1, d = 0.75, f = 0.25, version = 2)
 }
 \arguments{
 \item{a}{additive effect (gene action) of allele A2}
@@ -12,12 +12,20 @@ plotFalconer(a = 1, d = 0.75, f = 0.25)
 \item{d}{dominance effect}
 
 \item{f}{frequency of allele A2}
+
+\item{version}{higher version means more details; it is pedagogically relevant to show the first plot and then the others}
 }
 \value{
 invisible list
 }
 \description{
 Plot Falconer's parameterization for a bi-allelic locus with allele A1 and A2.
+}
+\examples{
+\dontrun{
+plotFalconer(a=1, d=0.75, f=0.25, version=1)
+plotFalconer(a=1, d=0.75, f=0.25, version=2)
+}
 }
 \author{
 Timothee Flutre

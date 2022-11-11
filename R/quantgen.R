@@ -9342,10 +9342,18 @@ gibbsJanss2012 <- function(y, a=NULL, b=NULL, family="gaussian", K, XF=NULL,
 ##' @param a additive effect (gene action) of allele A2
 ##' @param d dominance effect
 ##' @param f frequency of allele A2
+##' @param version higher version means more details; it is pedagogically relevant to show the first plot and then the others
 ##' @return invisible list
 ##' @author Timothee Flutre
+##' @examples
+##' \dontrun{
+##' plotFalconer(a=1, d=0.75, f=0.25, version=1)
+##' plotFalconer(a=1, d=0.75, f=0.25, version=2)
+##' }
 ##' @export
-plotFalconer <- function(a=1, d=0.75, f=0.25){
+plotFalconer <- function(a=1, d=0.75, f=0.25, version=2){
+  stopifnot(version %in% c(1, 2))
+
   ## statistical/populational effects (substitution and deviation)
   (alpha <- a + (1 - 2*f) * d)
   (alpha1 <- -f * alpha)
@@ -9364,7 +9372,7 @@ plotFalconer <- function(a=1, d=0.75, f=0.25){
                             2*f*(1-f)*d,
                             -2*(1-f)^2*d),
                           c("A1A1","A1A2","A2A2"))
-  (Gij <- data.frame(x=c(0, 1, 2),
+  (Gij <- data.frame(N2=c(0, 1, 2),
                      y=c(EGij + GijA["A1A1"] + GijD["A1A1"],
                          EGij + GijA["A1A2"] + GijD["A1A2"],
                          EGij + GijA["A2A2"] + GijD["A2A2"]),
@@ -9378,14 +9386,19 @@ plotFalconer <- function(a=1, d=0.75, f=0.25){
                       mu + alpha * 1 + 2*f*(1-f)*d, check.attributes=FALSE),
             all.equal(EGij + GijA["A2A2"] + GijD["A2A2"],
                       mu + alpha * 2 + -2*(1-f)^2*d, check.attributes=FALSE))
+  fit <- stats::lm(y ~ N2, data=Gij)
+  (BVs <- stats::fitted(fit))
 
   ## plot
   graphics::par(mar=c(4, 2, 3, 4) + 0.1)
-  graphics::plot(x=Gij$x, y=Gij$y, las=1, pch=19, cex=1.8,
+  graphics::plot(x=Gij$N2, y=Gij$y, las=1, pch=19, cex=1.8,
                  xlim=c(-0.2, 2.2), ylim=c(-1.2*a, 1.4*a),
                  xaxt="n", yaxt="n", xlab="", ylab="",
                  main=paste0("a=", a, ", d=", d, ", f=", f))
-  graphics::axis(side=1, at=Gij$x)
+  graphics::axis(side=1, at=Gij$N2,
+                 labels=c(expression("N"[2]=="0"),
+                          expression("N"[2]=="1"),
+                          expression("N"[2]=="2")))
   graphics::axis(side=2, at=c(-a, 0, d, a), las=1, labels=c("-a", "0", "d", "+a"))
   graphics::mtext(expression("A"[1]*"A"[1]), side=1, line=2, outer=FALSE, at=0)
   graphics::mtext(expression((1-f)^2), side=1, line=3, outer=FALSE, at=0)
@@ -9393,34 +9406,65 @@ plotFalconer <- function(a=1, d=0.75, f=0.25){
   graphics::mtext(expression(2*f(1-f)), side=1, line=3, outer=FALSE, at=1)
   graphics::mtext(expression("A"[2]*"A"[2]), side=1, line=2, outer=FALSE, at=2)
   graphics::mtext(expression(f^2), side=1, line=3, outer=FALSE, at=2)
-  graphics::text(x=Gij$x, y=Gij$y, pos=c(1, 3, 1), offset=1,
+  graphics::text(x=Gij$N2, y=Gij$y, pos=c(1, 3, 1), offset=1,
                  labels=c(expression("G"[11]), expression("G"[12]),
                           expression("G"[22])))
-  ## add breeding values:
-  fit <- stats::lm(y ~ x, data=Gij)
-  graphics::abline(fit, col="red")
-  (BVs <- stats::fitted(fit))
-  graphics::axis(side=4, at=c(BVs, 0), las=1,
-                 labels=c(expression("(0-2f)"*alpha),
-                          expression("(1-2f)"*alpha),
-                          expression("(2-2f)"*alpha), "0"))
-  graphics::points(x=Gij$x, y=BVs, pch=21, bg="white", cex=1.8)
-  graphics::text(x=Gij$x, y=BVs, pos=c(2, 4, 2), offset=1,
-                 labels=c(expression("G"[11*",A"]), expression("G"[12*",A"]),
-                          expression("G"[22*",A"])))
-  graphics::segments(x0=c(0, 1, 2), y0=Gij$y,
-                     x1=c(0, 1, 2), y1=BVs, lty=3)
-  graphics::points(x=-stats::coef(fit)["(Intercept)"] / stats::coef(fit)["x"],
-                   y=0, pch=3, cex=2)
-  ## add slope = alpha:
-  graphics::segments(x0=0, y0=BVs["A1A1"], x1=1, y1=BVs["A1A1"], lty=2)
-  graphics::arrows(x0=1, y0=BVs["A1A1"], x1=1, y1=BVs["A1A2"], code=3)
-  graphics::text(x=1+0.1, y=BVs["A1A1"]+(BVs["A1A2"]-BVs["A1A1"])/2,
-                 labels=expression(alpha), cex=1.2)
+  if(version == 1){
+    graphics::abline(h=0, lty=1)
+    graphics::segments(x0=-3, y0=Gij["A1A1","y"],
+                       x1=Gij["A1A1","N2"], y1=Gij["A1A1","y"],
+                       lty=3)
+    graphics::segments(x0=-3, y0=Gij["A1A2","y"],
+                       x1=Gij["A1A2","N2"], y1=Gij["A1A2","y"],
+                       lty=3)
+    graphics::segments(x0=-3, y0=Gij["A2A2","y"],
+                       x1=Gij["A2A2","N2"], y1=Gij["A2A2","y"],
+                       lty=3)
+    ## E[G_ij]:
+    graphics::abline(h=EGij, lty=2)
+    graphics::axis(side=4, at=EGij, las=1,
+                   labels=expression(E*"["*G[ij]*"]"))
+  }
+  if(version >= 2){
+    graphics::abline(fit, col="red")
+    ## add breeding values:
+    graphics::points(x=Gij$N2, y=BVs, pch=21, bg="white", cex=1.8)
+    graphics::text(x=Gij$N2, y=BVs, pos=c(2, 4, 2), offset=1,
+                   labels=c(expression("G"[11*",A"]),
+                            expression("G"[12*",A"]),
+                            expression("G"[22*",A"])))
+    graphics::axis(side=4, at=c(BVs, 0), las=1,
+                   labels=c(expression("(0-2f)"*alpha),
+                            expression("(1-2f)"*alpha),
+                            expression("(2-2f)"*alpha),
+                            "pop.\nmean"))
+    ## dominance deviations:
+    graphics::segments(x0=c(0, 1, 2), y0=Gij$y,
+                       x1=c(0, 1, 2), y1=BVs, lty=3)
+    graphics::text(x=Gij$N2, y=BVs + (residuals(fit) / 2),
+                   pos=c(4, 2, 4), offset=0.2,
+                   labels=c(expression(delta[11]),
+                            expression(delta[12]),
+                            expression(delta[22])))
+    ## population mean:
+    x_popmean <- -stats::coef(fit)["(Intercept)"] / stats::coef(fit)["N2"]
+    graphics::points(x=x_popmean,
+                     y=0, pch=3, cex=2)
+    graphics::segments(x0=x_popmean, y0=0,
+                       x1=3, y1=0,
+                       lty=4)
+    ## add slope = alpha:
+    graphics::segments(x0=0, y0=BVs["A1A1"], x1=1, y1=BVs["A1A1"], lty=2)
+    graphics::arrows(x0=1, y0=BVs["A1A1"], x1=1, y1=BVs["A1A2"], code=3)
+    graphics::text(x=1+0.1, y=BVs["A1A1"]+(BVs["A1A2"]-BVs["A1A1"])/2,
+                   labels=expression(alpha), cex=1.2)
+  }
 
   invisible(list(a=a, d=d,
                  alpha=alpha, alpha1=alpha1, alpha2=alpha2,
-                 GijA=GijA, GijD=GijD, Gij=Gij))
+                 EGij=EGij, mu=mu,
+                 GijA=GijA, GijD=GijD, Gij=Gij,
+                 fit=fit, BVs=BVs))
 }
 
 ##' Genotype frequencies
