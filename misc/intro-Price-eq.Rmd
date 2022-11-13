@@ -179,14 +179,14 @@ Here is the probabilistic way of writing down Price's equation, often found in a
 # Derivation of Robertson's second theorem
 
 Let us assume that the ancestral set consists in potential parents and the descendant set consists in their offsprings.
-In quantitative genetics since Fisher, the parental phenotype $z$ is classically decomposed into a transmissible part, $a$, and a non-transmissible part, $\epsilon$ with $z = a + \epsilon$ and $\text{E}(\epsilon) = 0$, so that $z' = a$.
+In quantitative genetics since Fisher, the parental phenotype $z$ is classically decomposed into a transmissible part noted $g_a$ (also kown as the additive genotypic value, or *breeding* value) and a non-transmissible part noted $\epsilon$, with $z = g_a + \epsilon$ and $\text{E}(\epsilon) = 0$ so that $z' = g_a$.
 As a result, Price's equation applied to this mapping expresses the response to selection, $R$:
 
 \begin{align}
 R &= \bar{z}_{\text{offsprings}} - \bar{z}_{\text{potential parents}} \\
- &= Cov(w, a + \epsilon) - \text{E}(w \epsilon) \\
- &= Cov(w, a) + Cov(w, \epsilon) - Cov(w, \epsilon) \\
- &= Cov(w, a)
+ &= Cov(w, g_a + \epsilon) - \text{E}(w \epsilon) \\
+ &= Cov(w, g_a) + Cov(w, \epsilon) - Cov(w, \epsilon) \\
+ &= Cov(w, g_a)
 \end{align}
 
 It is also known as Robertson's secondary theorem.
@@ -215,27 +215,50 @@ In this goal, let us assume that fitness $w$ is linearly dependent on $z$ so tha
 Replacing $z$ by its own decomposition (above) gives the following:
 
 \begin{align}
-w &= \beta_{wz} (a + \epsilon) + \delta \\
- &= \beta_{wa} a + \gamma
+w &= \beta_{wz} (g_a + \epsilon) + \delta \\
+ &= \beta_{w g_a} g_a + \gamma
  \end{align}
 
-where $\beta_{wa} := \beta_{wz}$ and $\gamma := \beta_{wz} \epsilon + \delta$.
+where $\beta_{w g_a} := \beta_{wz}$ and $\gamma := \beta_{wz} \epsilon + \delta$.
 
-Importantly, let us also assume that $Cov(a, \gamma) = 0$, which usually is reasonable for artificial selection but much less so for natural selection.
+Importantly, let us also assume that $Cov(g_a, \gamma) = 0$, which usually is reasonable for artificial selection but much less so for natural selection.
 
 Reminder: in the simple linear regression $y_i = \mu + \beta x_i + \epsilon_i$ with $\epsilon_i \sim \mathcal{N}(0, \sigma^2)$, the maximum-likelihood estimator of $\beta$ is $B = \frac{Cov(y, x)}{Var(x)}$.
 
 As a result:
 
 \begin{align}
-R &= Cov(w, a) \\
- &= \beta_{wg} Var(a) \\
- &= \beta_{wz} Var(a) \frac{Var(z)}{Var(z)} \\
- &= \frac{Var(a)}{Var(z)} \, Cov(w, z) \\
+R &= Cov(w, g_a) \\
+ &= \beta_{wg} Var(g_a) \\
+ &= \beta_{wz} Var(g_a) \frac{Var(z)}{Var(z)} \\
+ &= \frac{Var(g_a)}{Var(z)} \, Cov(w, z) \\
  &= h^2 \, S
 \end{align}
 
 This is also known as the breeder's equation where $h^2$ is called the (narrow-sense) heritability.
+
+The breeder's equation is then often written differently to ease the comparison of selection responses between traits and to highlight the factors determining the magnitude of selection response.
+Because $S$ is in the same unit of the phenotype $z$, it is often standardized by the phenotypic standard deviation, leading to the *intensity of selection*: $i = \frac{S}{\sigma_z}$.
+Moreover, $h^2$ corresponds to the slope of the regression of the breeding value on the phenotype: $h^2 = \frac{Cov(g_a, z)}{Var(z)} = \frac{Cov(g_a, g_a + \epsilon)}{Var(z)} = \frac{Var(g_a)}{Var(z)}$.
+This means that the square root of $h^2$ corresponds to the correlation between breeding value and phenotype: $h = \frac{\sigma_{g_a}}{\sigma_z} = \frac{Var(g_a)}{\sigma_{g_a} \sigma_z} = \frac{Cov(g_a, z)}{\sigma_{g_a} \sigma_z} = Cor(g_a,z)$.
+
+As a result:
+
+\begin{align}
+R &= i \, h^2 \, \sigma_z \\
+ &= i \, h \, \sigma_{g_a} \\
+ &= i \, Cor(g_a,z) \, \sigma_{g_a}
+\end{align}
+
+This formula corresponds to the case where a breeder performs phenotypic selection, i.e., the selection is made using phenotypic observations, hence what counts is the accuracy with which phenotypic observations ($z$) inform about breeding values ($g_a$).
+More generally, a breeder applies its selection on estimated breeding values (EBVs):
+
+\[
+R = i \, \rho \, \sigma_{g_a}
+\]
+
+where $\rho$ is the correlation between the estimated and the true breeding values.
+
 
 
 # References
