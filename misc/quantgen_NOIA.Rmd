@@ -859,6 +859,71 @@ renderPlot(
 ```
 
 
+
+# Two locus with two alleles each
+
+Let $A$ and $B$ be two locus:
+
+\[
+\boldsymbol{g}_{AB} = (S_B \otimes S_A) \; \boldsymbol{e}_{AB}
+\]
+
+In detailed form:
+\[
+\begin{bmatrix}
+G_{B_{11}} \\
+G_{B_{12}} \\
+G_{B_{22}} \\
+\end{bmatrix}
+\otimes
+\begin{bmatrix}
+G_{A_{11}} \\
+G_{A_{12}} \\
+G_{A_{22}} \\
+\end{bmatrix}
+=
+\begin{bmatrix}
+G_{B_{11}} G_{A_{11}} \\
+G_{B_{11}} G_{A_{12}} \\
+G_{B_{11}} G_{A_{22}} \\
+G_{B_{12}} G_{A_{11}} \\
+G_{B_{12}} G_{A_{12}} \\
+G_{B_{12}} G_{A_{22}} \\
+G_{B_{22}} G_{A_{11}} \\
+G_{B_{22}} G_{A_{12}} \\
+G_{B_{22}} G_{A_{22}} \\
+\end{bmatrix}
+\]
+
+and (for the functional parametrization):
+
+\[
+\begin{bmatrix}
+1 \\
+a_{B} \\
+d_{B} \\
+\end{bmatrix}
+\otimes
+\begin{bmatrix}
+1 \\
+a_{A} \\
+d_{A} \\
+\end{bmatrix}
+=
+\begin{bmatrix}
+1 \\
+a_A \\
+d_A \\
+a_B \\
+a_B \; a_A \\
+a_B \; d_A \\
+d_B \\
+d_B \; a_A \\
+d_B \; d_A \\
+\end{bmatrix}
+\]
+
+
 <!--
 # One locus with more than two alleles
 
