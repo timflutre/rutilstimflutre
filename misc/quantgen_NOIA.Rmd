@@ -1,6 +1,6 @@
 ---
-title: "Quantitative genetics of a single locus"
-author: "Timothée Flutre (INRA)"
+title: "Quantitative genetics under the NOIA model"
+author: "T. Flutre"
 date: "`r format(Sys.time(), '%d/%m/%Y %H:%M:%S')`"
 runtime: shiny
 output:
@@ -12,13 +12,7 @@ output:
 ---
 
 <!--
-## to run the code:
-## (1) download this Rmd file
-## (2) open an R session
-## (3) load the "rmarkdown" package
-library(rmarkdown)
-## (4) execute the following command
-run("quantgen_one-locus.Rmd")
+This Rmd file should be executed using RStudio as the runtime engine is shiny (see above).
 -->
 
 <!-- =========================================================================
@@ -237,7 +231,7 @@ isOrthogonal <- function(gen.freq){
 
 This document simply is a pedagogical effort built upon original work from the references listed in the end.
 
-# Two alleles
+# One locus with two alleles
 
 ## Notations
 
@@ -320,9 +314,10 @@ To estimate the allelic effects, we can introduce the $I \times 3$ design matrix
 \boldsymbol{y} = X \boldsymbol{\beta} + Z \, Z_g \, S_r \, \boldsymbol{e}_r + \boldsymbol{\epsilon}
 \]
 
-As the number of allelic effects is small ($\boldsymbol{e}_r$ is of length 3), we should modeling them as fixed effects.
+As the number of allelic effects is small ($\boldsymbol{e}_r$ is of length 3), we should model them as fixed effects.
 To simplify, let us also assume that there is no experimental factor to be controlled and that phenotypic observations have been centered, that is $Q=0$.
 We also introduce $Z_{g,r} = Z \, Z_g \, S_r$.
+Consequently: $\boldsymbol{y} = Z_{g,r} \, \boldsymbol{e}_r + \boldsymbol{\epsilon}$.
 
 **Estimates** of the allelic effects can then be readily obtained, for instance by **ordinary least-squares** (OLS):
 
@@ -358,11 +353,11 @@ d
 \end{bmatrix}
 \]
 
-where $a$ is the **additive** allelic effect, here based on the number of copies of the alternative allele, and $d$ the **dominance** allelic effect.
-Moreover, an often-used scaled measure of dominance is: $k = \frac{d}{a}$.
+where $a$ is the **additive allelic effect**, here based on the number of copies of the alternative allele, and $d$ the **dominance allelic effect**.
+An often-used scaled measure of dominance is: $k = \frac{d}{a}$.
 
 The first column of $S_{G_{11}}$ indicates that all genotypic values are interpreted as deviations from $G_{11}$.
-The other columns allows to interpret the allelic effects as the effects of substituting allele(s) with respect to the reference genotype, $A_1A_1$.
+The other columns allow to interpret the allelic effects as the effects of substituting allele(s) with respect to the reference genotype, $A_1A_1$.
 
 But we may want to choose any genotype $G_{uv}$ as the reference, even the fictitious "mean genotype" $\bar{G}$.
 This is made possible thanks to the **general scaling matrix for the functional parameterization**:
@@ -393,7 +388,11 @@ Similarly when choosing $G_{12}$ or $G_{22}$ as the reference point.
 Keeping $r = \bar{G}$, if we are dealing with an $F_2$ experimental population, we can replace the generic entries of $S_F$ using the expected genotypic values: $p_{11} = p_{22} = \frac{1}{4}$ and $p_{12} = \frac{1}{2}$.
 Still keeping $r = \bar{G}$, if we are now dealing with a population at the Hardy-Weinberg equilibrium and we know the value of the allele frequency $f$, we can use it to replace the generic entries of $S_F$.
 
-Transforming allelic effects from one reference ($r$) to another ($r'$) is straightforward: $\boldsymbol{e}_{r'} = S_{r'}^{-1} \, S_r \, \boldsymbol{e}_r$.
+Transforming allelic effects from one reference ($r$) to another ($r'$) is straightforward:
+
+\[
+\boldsymbol{e}_{r'} = S_{r'}^{-1} \, S_r \, \boldsymbol{e}_r
+\]
 
 More importantly, we can also deduce the formulas of the functional allelic effects:
 
@@ -402,7 +401,7 @@ More importantly, we can also deduce the formulas of the functional allelic effe
 * $d = G_{12} - \frac{G_{11} + G_{22}}{2}$
 
 Note that the resulting allelic effects, $a$ and $d$, are always defined the same way, regardless of the reference point and scaling matrix.
-These allelic effects $a$ and $d$ hence are known as **functional allelic effects** (also as "mechanistic", "physiological" or "biological").
+These allelic effects $a$ and $d$ hence are known as **functional allelic effects** (also called "mechanistic", "physiological" or "biological").
 
 ## Orthogonality
 
@@ -463,84 +462,103 @@ The reference point in $S_S$ also is $\bar{G}$, as in $S_F$.
 But more importantly, the additive effect $\alpha$ now depends on the genotypic frequencies.
 It still is the effect of substituting one allele for another, but now averaged over the population.
 
-Once properly estimated, the statistical allelic effects can be transformed into their functional counterparts: $\boldsymbol{e}_F = S_F^{-1} \, S_S \, \boldsymbol{e}_S$.
+Once estimated, the statistical allelic effects can be transformed into their functional counterparts:
+
+\[
+\boldsymbol{e}_F = S_F^{-1} \, S_S \, \boldsymbol{e}_S
+\]
+
 Moreover, if the conditions above for orthogonality hold, $S_S$ reduces to $S_F$.
 
 ## Interactive plot of the NOIA model
 
 NOIA stands for "natural and orthogonal interactions".
 The NOIA model hence corresponds to the unified model described above, allowing to transform allelic effects from the functional to the statistical parameterization, and inversely.
+See below an interactive version allowing to reproduce figures 2 and 3 from Alvarez-Castro and Carlborg (2007).
 
-```{r, echo=FALSE}
+```{r, fig.align="center", echo=FALSE}
+inputTest <- list("G11"=-1.4, "G12"=1.4, "G22"=0.6,
+                  "p11"=0.09, "p12"=0.42, "f"=0.7)
+
+## pop=F2 as in fig of 2 Alvarez-Castro and Carlborg (2007): functional = statistical; R=mu=1.25
+inputFig2 <- list("G11"=-1.4, "G12"=2.5, "G22"=1.4,
+                  "p11"=1/4, "p12"=1/2, f=0.7)
+
+## pop=HWE as in fig of 3 Alvarez-Castro and Carlborg (2007): functional != statistical; R=mu=1.33
+inputFig3 <- list("G11"=-1.4, "G12"=1.85, "G22"=1.4,
+                  "p11"=0.09, "p12"=0.42, "f"=0.7)
 if(FALSE){
-  input <- list("G11"=-1.4, "G12"=1.4, "G22"=0.6,
-                "p11"=0.09, "p12"=0.42, "f"=0.7) # HWE
-                ## "p11"=1/4, "p12"=1/2, f=0.7) # F2
+#  input <- inputTest
+#  input <- inputFig2
+  input <- inputFig3
   gen.val <- c("11"=input$G11, "12"=input$G12, "22"=input$G22)
+  (func.all.eff <- genValToFuncAllEff(gen.val))
   gen.freq <- c("11"=input$p11, "12"=input$p12,
                 "22"=1 - input$p11 - input$p12)
-  S.F <- funcScalMat(gen.freq)
-  S.S <- statScalMat(gen.freq)
-  (e.F <- solve(S.F) %*% gen.val)
-  (func.all.eff <- genValToFuncAllEff(gen.val))
+  (ref.pt <- meanGenVal(gen.val, gen.freq))
+  (S.F <- funcScalMat(gen.freq))
+  (e.F <- solve(S.F) %*% gen.val) # same as func.all.eff above
+  (S.S <- statScalMat(gen.freq))
   (e.S <- solve(S.S) %*% S.F %*% e.F)
-  (stat.all.eff <- solve(S.S) %*% gen.val)
+  (stat.all.eff <- solve(S.S) %*% gen.val) # same as e.S above
 }
+
+inputDefault <- inputFig3
 inputPanel(
   sliderInput("G11",
               label=HTML("genotypic value G<sub>11</sub>:"),
               min=-5,
               max=5,
-              value=-1.4,
-              step=0.2,
+              value=inputDefault$G11,
+              step=0.1,
               round=FALSE),
   sliderInput("G12",
               label=HTML("genotypic value G<sub>12</sub>:"),
               min=-5,
               max=5,
-              value=0.6,
-              step=0.2,
+              value=inputDefault$G12,
+              step=0.05,
               round=FALSE),
   sliderInput("G22",
               label=HTML("genotypic value G<sub>22</sub>:"),
               min=-5,
               max=5,
-              value=1.4,
-              step=0.2,
+              value=inputDefault$G22,
+              step=0.1,
               round=FALSE),
   sliderInput("p11",
               label=HTML("genotypic frequency p<sub>11</sub>:"),
               min=0,
               max=1,
-              value=0.09,
+              value=inputDefault$p11,
               step=0.01,
               round=FALSE),
   sliderInput("p12",
               label=HTML("genotypic frequency p<sub>12</sub>:"),
               min=0,
               max=1,
-              value=0.42,
+              value=inputDefault$p12,
               step=0.01,
               round=FALSE),
   sliderInput("f",
               label=HTML("allelic frequency f:"),
               min=0,
               max=1,
-              value=0.7,
+              value=inputDefault$f,
               step=0.1,
               round=FALSE),
   sliderInput("I",
               label=HTML("#genotypes I:"),
               min=10^2,
-              max=10^3,
-              value=500,
+              max=2*10^3,
+              value=1*10^3,
               step=100,
               round=FALSE),
   sliderInput("J",
               label=HTML("#data per genotype J:"),
               min=2,
-              max=10,
-              value=4,
+              max=40,
+              value=20,
               step=2,
               round=FALSE)
 )
@@ -596,41 +614,76 @@ plotNoia <- function(gen.val, gen.freq, f, I, J){
   is.ortho <- isOrthogonal(gen.freq)
   simul <- runSimul(gen.val, gen.freq, I, J, sigma=1)
 
-  par(mar=c(5, 4, 4, 1))
-  plot(x=0, y=0, xlim=c(0, 2.7),
+  par(mar=c(5, 5, 4, 1))
+  plot(x=0, y=0, xlim=c(0, 2.2),
        ylim=c(ifelse(min(gen.val) >= 0, 0.9, 1.1) * min(gen.val),
-              1.1 * max(gen.val)),
+              1.3 * max(gen.val)),
        xlab=expression("count of the alternative allele ("*N[2]*")"),
        ylab=expression("genotypic value ("*G[uv]*")"),
-       main=paste0("a=", round(a, digits=2),
-                   " d=", round(d, digits=2),
-                   " HWE=", ifelse(is.hwe, "yes", "no"),
-                   " orthogonal=", ifelse(is.ortho, "yes", "no")),
+       main="",
        xaxt="n", #yaxt="n",
        type="n", las=1)
-  axis(side=1, at=c(0,1,2), labels=c("0","1","2"))
-  tmp <- c(gen.val, r=ref.pt)
-  names(tmp) <- c(names(gen.val), "r")
-  tmp <- sort(tmp)
-  segments(x0=0, y0=gen.val["11"], x1=2, y1=gen.val["22"], lty=2)
-  func.linreg <- lm(formula=g ~ N2,
-                    data=data.frame(g=c(gen.val["11"], gen.val["22"]),
-                                    N2=c(0, 2)))
-  ## abline(func.linreg, lwd=2, col="black")
+  main_title <- paste0("a=", round(a, digits=2),
+                       " d=", round(d, digits=2),
+                       " HWE=", ifelse(is.hwe, "yes", "no"),
+                       " orthogonal=", ifelse(is.ortho, "yes", "no"))
+  mtext(main_title, side=3, line=2, font=2)
+  sub_title <- paste0("R=mu=", round(ref.pt, 2))
+  mtext(sub_title, side=3, line=0.5)
+  # axis(side=1, at=c(0,1,2), labels=c("0","1","2"))
+
+  segments(x0=0, y0=gen.val["11"],
+           x1=2, y1=gen.val["22"],
+           lty=2)
+
   stat.linreg <- lm(formula=pheno ~ N2, data=simul$dat)
-  abline(stat.linreg, lwd=2, col="grey")
-  ## N2.ref.pt <- predict(object=lin.reg, newdata=data.frame(N2=))
-  ## points(x=N2.ref.pt, y=ref.pt, pch=17, col="black")
+  stat.linreg.ends <- predict(stat.linreg, newdata=data.frame(N2=c(0, 2)))
+  segments(x0=0, y0=stat.linreg.ends[1],
+           x1=2, y1=stat.linreg.ends[2],
+           lty=1, lwd=2, col="grey")
+  
+  invstat.lin.reg <- lm(formula=N2 ~ pheno, data=simul$dat)
+  N2.ref.pt <- predict(object=invstat.lin.reg, newdata=data.frame(pheno=ref.pt))
+  points(x=N2.ref.pt, y=ref.pt, pch=17, col="black", cex=2)
+
+  if(N2.ref.pt >= 1){
+    axis(side=1, at=c(0, 1, N2.ref.pt, 2), labels=c("0","1",as.character(round(N2.ref.pt, 1)),"2"))
+  } else{
+    axis(side=1, at=c(0, N2.ref.pt, 1, 2), labels=c("0",as.character(round(N2.ref.pt, 1)),"1","2"))
+  }
+
+  # the functional regression:
+  # (1) passes through the reference point
+  # (2) has the same slope as the line passing through G11 and G22
+  func.slope <- (gen.val["22"] - gen.val["11"]) / (2 - 0)
+  # hence, to draw a line corresponding to the functional regression, one has
+  # to make it pass through the ref point and a 2nd point
+  # incr <- ifelse(N2.ref.pt <= 1, 1, -1)
+  # tmpx <- N2.ref.pt + incr
+  # tmpy <- ref.pt + func.slope * (tmpx - N2.ref.pt)
+  # segments(x0=N2.ref.pt, y0=ref.pt,
+  #          x1=tmpx, y1=tmpy,
+  #          lty=1, lwd=2, col="black")
+  tmpy0 <- ref.pt + func.slope * (0 - N2.ref.pt)
+  tmpy1 <- ref.pt + func.slope * (2 - N2.ref.pt)
+  segments(x0=0, y0=tmpy0,
+           x1=2, y1=tmpy1,
+           lty=1, lwd=2, col="black")
+  
+
   symbols(x=c(0, 1, 2), y=gen.val, circles=gen.freq,
           inches=1/3, fg=NULL, bg="black", add=TRUE)
-  legend("topright",
+
+  legend("bottomright",
          legend=c("functional regression","statistical regression"),
          lwd=c(2,2), col=c("black","grey"), bty="n")
 }
+
 renderPlot(
   plotNoia(c("11"=input$G11, "12"=input$G12, "22"=input$G22),
            c("11"=input$p11, "12"=input$p12, "22"=1 - input$p11 - input$p12),
-           input$f, input$I, input$J)
+           input$f, input$I, input$J),
+  width=600, height=600 # in pixels
 )
 ```
 
@@ -806,7 +859,8 @@ renderPlot(
 ```
 
 
-# More than two alleles
+<!--
+# One locus with more than two alleles
 
 ## Functional parameterization
 
@@ -902,15 +956,99 @@ d_{34}
 As for the two-allele case: $\forall u,v \in \{1,\ldots,R\}, \; G_{uv} = \text{E}[G_{duv}] + \alpha_u + \alpha_v + \delta_{uv}$.
 
 
+
+# Two loci with two alleles each
+
+For multiple loci, the NOIA model also works by multiplying the design matrices.
+For instance, for two loci, A and B, the functional parametrization of the NOIA model corresponds to:
+\[
+\boldsymbol{g}_{F,AB} = (S_{F,B} \otimes S_{F,A}) \; \boldsymbol{e}_{F,AB}
+\]
+
+where $\boldsymbol{g}_{F,AB} = \boldsymbol{g}_{F,B} \otimes \boldsymbol{g}_{F,A}$ and $\boldsymbol{e}_{F,AB} = \boldsymbol{e}_{F,B} \otimes \boldsymbol{e}_{F,A}$.
+
+In detailed form:
+\[
+\begin{bmatrix}
+g_{B_{11}} \\
+g_{B_{12}} \\
+g_{B_{22}}
+\end{bmatrix}
+\otimes
+\begin{bmatrix}
+g_{A_{11}} \\
+g_{A_{12}} \\
+g_{A_{22}}
+\end{bmatrix}
+\; \; \Rightarrow \; \;
+\boldsymbol{g}_{AB}
+=
+\begin{bmatrix}
+G_{1111} \\
+G_{1211} \\
+G_{2211} \\
+G_{1112} \\
+G_{1212} \\
+G_{2212} \\
+G_{1122} \\
+G_{1222} \\
+G_{2222} \\
+\end{bmatrix}
+\]
+
+and:
+\[
+\begin{bmatrix}
+1 \\
+a_{B} \\
+d_{B}
+\end{bmatrix}
+\otimes
+\begin{bmatrix}
+1 \\
+a_{A} \\
+d_{A}
+\end{bmatrix}
+=
+\begin{bmatrix}
+1 \\
+a_A \\
+d_A \\
+a_B \\
+a_B \; a_A \\
+a_B \; d_A \\
+d_B \\
+d_B \; a_A \\
+d_B \; d_A \\
+\end{bmatrix}
+\; \; \Rightarrow \; \;
+\boldsymbol{e}_{F,AB}
+=
+\begin{bmatrix}
+R \\
+a_A \\
+d_A \\
+a_B \\
+a \; a \\
+d \; a \\
+d_B \\
+a \; d \\
+d \; d \\
+\end{bmatrix}
+\]
+
+-->
+
+
 # References
 
+* [Alvarez-Castro and Carlborg (2007)](http://doi.org/10.1534/genetics.106.067348)
+
+* [Yang and Alvarez-Castro (2008)](https://sites.ualberta.ca/~rongcai/GNT%2037.pdf)
+
+* [Alvarez-Castro and Yang (2011)](http://doi.org/10.1007/s10709-011-9614-9)
+
 * Lynch and Walsh (1998)
-
-* Alvarez-Castro and Carlborg (2007)
-
-* Yang and Alvarez-Castro (2008)
-
-* Alvarez-Castro and Yang (2011)
 
 * Vitezica et al (2013)
 
