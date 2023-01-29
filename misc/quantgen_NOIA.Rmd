@@ -406,8 +406,9 @@ These allelic effects $a$ and $d$ hence are known as **functional allelic effect
 ## Orthogonality
 
 At this stage, we can think of replacing $S_r$ in the OLS estimator above by $S_F$ .
-However, for statistical reasons, among all possible parameterizations, we should use one allowing to obtain estimates of allelic effects that are independent from each other (this is even more important with more than one locus in the presence of epistasis).
+However, for statistical reasons, among all possible parameterizations, we should use one allowing to obtain estimates of allelic effects that are independent from each other
 Such a parameterization, qualified as **orthogonal**, also provides estimates of effects which remain consistent when comparing nested models.
+This is even more important with more than one locus in the presence of epistasis (see the "Two loci" section below).
 
 Unfortunately, for the $S_F$ matrix above to correspond to an orthogonal parameterization, the following conditions must be fulfilled: $p_{11} = p_{22}$ or $p_{12} = 0$.
 More details are in Alvarez-Castro and Carlborg (2007).
@@ -863,13 +864,16 @@ renderPlot(
 # Two locus with two alleles each
 
 Let $A$ and $B$ be two locus:
-
 \[
-\boldsymbol{g}_{AB} = (S_B \otimes S_A) \; \boldsymbol{e}_{AB}
+\boldsymbol{g}_{AB} = S_{AB} \; \boldsymbol{e}_{AB}
 \]
 
-In detailed form:
+The vector of genotypic values in detailed form:
 \[
+\boldsymbol{g}_{AB}
+=
+\boldsymbol{g}_B \otimes \boldsymbol{g}_A
+=
 \begin{bmatrix}
 G_{B_{11}} \\
 G_{B_{12}} \\
@@ -893,11 +897,26 @@ G_{B_{22}} G_{A_{11}} \\
 G_{B_{22}} G_{A_{12}} \\
 G_{B_{22}} G_{A_{22}} \\
 \end{bmatrix}
+=
+\begin{bmatrix}
+G_{1111} \\
+G_{1211} \\
+G_{2211} \\
+G_{1112} \\
+G_{1212} \\
+G_{2212} \\
+G_{1122} \\
+G_{1222} \\
+G_{2222} \\
+\end{bmatrix}
 \]
 
-and (for the functional parametrization):
-
+The vector of genetic effects in detailed form (for the functional parametrization):
 \[
+\boldsymbol{e}_{AB}
+=
+\boldsymbol{e}_B \otimes \boldsymbol{e}_A
+=
 \begin{bmatrix}
 1 \\
 a_{B} \\
@@ -921,7 +940,47 @@ d_B \\
 d_B \; a_A \\
 d_B \; d_A \\
 \end{bmatrix}
+=
+\begin{bmatrix}
+r \\
+a_A \\
+d_A \\
+a_B \\
+a \; a \\
+d \; a \\
+d_B \\
+a \; d \\
+d \; d \\
+\end{bmatrix}
 \]
+
+The genetic-effect design matrix:
+\[
+S_{AB}
+=
+S_B \otimes S_A
+\]
+
+Let us use the $G_{1112}$ genotype as the reference point, i.e., $G_{11}$ at the $A$ locus and $G_{12}$ at the $B$ locus:
+\[
+S_{AB}
+=
+S_{B,G_{12}} \otimes S_{A,G_{11}}
+=
+\begin{bmatrix}
+1 & -1 & -1 \\
+1 & 0 & 0 \\
+1 & 1 & -1 \\
+\end{bmatrix}
+\otimes
+\begin{bmatrix}
+1 & 0 & 0 \\
+1 & 1 & 1 \\
+1 & 2 & 0 \\
+\end{bmatrix}
+\]
+
+Using an orthogonal parametrization is particularly important in the case of multiple loci as the estimate of one genetic effect, e.g., $a_A$, will not be affected by the presence of absence of another genetic effect in the model, e.g., the epistatic effect $a_A a_B$.
 
 
 <!--
@@ -1115,6 +1174,6 @@ d \; d \\
 
 * Lynch and Walsh (1998)
 
-* Vitezica et al (2013)
+* [Vitezica et al (2013)](http://doi.org/10.1534/genetics.113.155176)
 
-* Vitezica et al (2017)
+* [Vitezica et al (2017)](http://doi.org/10.1534/genetics.116.199406)
