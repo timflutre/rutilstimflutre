@@ -54,12 +54,13 @@ descPlate <- function(plate, plate.name, verbose=1){
 ##' Load plate(s)
 ##'
 ##' Read each file into a matrix and gather them into a list.
-##' @param files vector of paths to file(s), one per plate, in csv (sep=",") or other format (sep="<tab>")
+##' @param files vector of paths to file(s), one per plate
+##' @param sep separator of columns; if NULL, read.csv will be used
 ##' @param verbose verbosity level (0/default=1)
 ##' @return list of matrices, one per plate, in the "wide" format
 ##' @author Timothee Flutre
 ##' @export
-loadPlates <- function(files, verbose=1){
+loadPlates <- function(files, sep=NULL, verbose=1){
   plates <- list()
 
   for(i in seq_along(files)){
@@ -68,15 +69,15 @@ loadPlates <- function(files, verbose=1){
     file.ext <- rev(strsplit(x=basename(files[i]), split="\\.")[[1]])[1]
     if(verbose > 0)
       write(paste0("load '", plate.name, "'"), stdout())
-    if(file.ext == "csv"){
+    if(is.null(sep)){
       plate <- utils::read.csv(file=files[i], stringsAsFactors=FALSE,
                         row.names=1)
       if(ncol(plate) == 0)
         plate <- utils::read.csv2(file=files[i], stringsAsFactors=FALSE,
                            row.names=1)
     } else
-      plate <- utils::read.table(file=files[i], header=TRUE, sep="\t",
-                          row.names=1, stringsAsFactors=FALSE)
+      plate <- utils::read.table(file=files[i], header=TRUE, sep=sep,
+                                 row.names=1, stringsAsFactors=FALSE)
     if(ncol(plate) == 0)
       stop(paste0("no column detected for '", plate.name, "'",
                   "\nif 'csv', column separator should be ',' or ';'",

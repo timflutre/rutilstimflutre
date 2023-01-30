@@ -4,10 +4,12 @@
 \alias{loadPlates}
 \title{Load plate(s)}
 \usage{
-loadPlates(files, verbose = 1)
+loadPlates(files, sep = NULL, verbose = 1)
 }
 \arguments{
-\item{files}{vector of paths to file(s), one per plate, in csv (sep=",") or other format (sep="<tab>")}
+\item{files}{vector of paths to file(s), one per plate}
+
+\item{sep}{separator of columns; if NULL, read.csv will be used}
 
 \item{verbose}{verbosity level (0/default=1)}
 }
