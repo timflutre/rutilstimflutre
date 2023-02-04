@@ -7,9 +7,8 @@ runtime: shiny
 
 # Référence
 
-Le calcul de la surface semée et la surface récoltée d'une micro-parcelle d'essai au champ pour du blé tendre est défini par le GEVES dans l'annexe IV du protocole d'expérimentation pour les essais VATE :
-
-https://cat.geves.fr/CAT_WEB/Data/PROTOCOLEVATEBLETENDRETNT2022.pdf
+Le calcul de la surface semée et la surface récoltée d'une micro-parcelle d'essai au champ pour du blé tendre d'hiver est défini par le [GEVES](https://www.geves.fr/) dans les annexes du protocole d'expérimentation pour les essais [VATE](https://www.geves.fr/qui-sommes-nous/sev/etudes-dhs-vate/).
+Ci-dessous seul le cas d'une récolte de l'ensemble des rangs est implémenté, mais il existe aussi des formules pour la récolte des rangs centraux.
 
 <!--
 ## Saclay : 7 rangs ; largeur semoir = 106 cm ; voie du tracteur = 150 cm
