@@ -54,7 +54,7 @@ renderText({
 ```{r, echo=TRUE}
 ## all in cm
 calcHarvestSurface <- function(nbRows, interRow, interPlot, lengthHarvest,
-                               alley=NULL){
+                               alley=NULL, verbose=FALSE){
   out <- NA
 
   if(! is.null(alley)){
@@ -69,6 +69,16 @@ calcHarvestSurface <- function(nbRows, interRow, interPlot, lengthHarvest,
   } else{
     lengthTot <- lengthHarvest + (alley / 2) * 2
   }
+  
+  if(verbose)
+    message(paste0("nbRows = ", nbRows,
+                   "\ninterRow = ", interRow,
+                   "\ninterPlot = ", interPlot,
+                   "\nlengthHarvest = ", lengthHarvest,
+                   paste0("\nalley = ",
+                          ifelse(is.null(alley), NA, alley)),
+                   "\nwidth = ", widthTot, " cm",
+                   "\nlength = ", lengthTot, " cm"))
 
   out <- widthTot * lengthTot
 
@@ -90,7 +100,9 @@ numericInput("lengthHarvested", "Longueur récoltée (en m) :", 5, step=0.02)
 numericInput("alley", "Largeur de l'allée (en cm) :", 0, step=0.02)
 
 renderText({
-  harvestSurface <- calcHarvestSurface(input$nbRows_h, input$interRow_h, input$interPlot, input$lengthHarvested * 100, input$alley)
+  harvestSurface <- calcHarvestSurface(input$nbRows_h, input$interRow_h,
+                                       input$interPlot, input$lengthHarvested * 100,
+                                       input$alley, TRUE)
   paste0("Surface récoltée (en m2) : ", round(harvestSurface, 2))
 })
 ```
