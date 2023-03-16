@@ -1,25 +1,41 @@
 ---
 title: "Surface semée et récoltée d'une micro-parcelle"
-output: html_document
+author: "T. Flutre et J. Enjalbert (INRAE)"
+output:
+  html_document:
+    toc: true
+    toc_depth: 5
+    toc_float: true
+    number_sections: TRUE
+    code_folding: show
 runtime: shiny
 ---
 
+\
+\
 
 # Référence
 
-Le calcul de la surface semée et la surface récoltée d'une micro-parcelle d'essai au champ pour du blé tendre d'hiver est défini par le [GEVES](https://www.geves.fr/) dans les annexes du protocole d'expérimentation pour les essais [VATE](https://www.geves.fr/qui-sommes-nous/sev/etudes-dhs-vate/).
-Ci-dessous seul le cas d'une récolte de l'ensemble des rangs est implémenté, mais il existe aussi des formules pour la récolte des rangs centraux.
+Le calcul des surfaces semée et récoltée d'une micro-parcelle d'essai au champ pour du blé tendre d'hiver est défini par le [GEVES](https://www.geves.fr/) dans les annexes du protocole d'expérimentation pour les essais [VATE](https://www.geves.fr/qui-sommes-nous/sev/etudes-dhs-vate/).
+Ci-dessous seul le cas d'une récolte de l'ensemble des rangs est implémenté, mais il existe aussi des formules pour la récolte des rangs centraux uniquement.
+\
 
+Les valeurs par défaut ci-dessous correspondent à un semoir à 7 rangs, large de 106 cm, attelé derrière un tracteur dont la [voie](https://www.iso.org/obp/ui/#iso:std:iso:4004:ed-1:v1:fr) est de 150 cm, soit une distance inter-rang de 17,7 cm (106/(7-1)) et une distance inter-parcelle de 44 cm (150-106).
 <!--
 ## Saclay : 7 rangs ; largeur semoir = 106 cm ; voie du tracteur = 150 cm
 ## donc interRows = 106 / (7-1) = 17.7
 ## et interPlot = 150 - 106 = 44
 -->
+\
+\
+\
 
 
 # Surface semée
 
-```{r, echo=TRUE}
+Nécessaire pour calculer la quantité de semence d'une parcelle d'essai.
+
+```{r, echo=TRUE, class.source="fold-hide"}
 ## all in cm
 calcSowingSurface <- function(nbRows, interRow, lengthSowing){
   out <- NA
@@ -35,22 +51,28 @@ calcSowingSurface <- function(nbRows, interRow, lengthSowing){
 ```
 
 ```{r, echo=FALSE}
-numericInput("nbRows_s", "Nombre de rangs de semis :", 7, step=1)
+numericInput("nbRows_s", "Entrez votre nombre de rangs de semis :", 7, step=1)
 
-numericInput("interRow_s", "Ecart entre deux rangs de semis (en cm) :", 17.7, step=0.1)
+numericInput("interRow_s", "Entrez votre écart entre deux rangs de semis (en cm) :", 17.7, step=0.1)
 
-numericInput("lengthSowing", "Longueur semée (en m) :", 7, step=0.02)
+numericInput("lengthSowing", "Entrez votre longueur semée (en m) :", 7, step=0.02)
 
 renderText({
-  sowingSurface <- calcSowingSurface(input$nbRows_s, input$interRow_s, input$lengthSowing * 100)
-  paste0("Surface semée (en m2) : ", round(sowingSurface, 2))
+  sowingSurface <- calcSowingSurface(input$nbRows_s,
+                                     input$interRow_s,
+                                     input$lengthSowing * 100)
+  paste0("Voici la surface semée à utiliser : ",
+         round(sowingSurface, 2), " m2")
 })
 ```
+\
 
 
 # Surface récoltée
 
-```{r, echo=TRUE}
+Nécessaire pour calculer le rendement d'une parcelle d'essai.
+
+```{r, echo=TRUE, class.source="fold-hide"}
 ## all in cm
 calcHarvestSurface <- function(nbRows, interRow, interPlot, lengthHarvest,
                                alley=NULL, verbose=FALSE){
@@ -88,20 +110,42 @@ calcHarvestSurface <- function(nbRows, interRow, interPlot, lengthHarvest,
 ```
 
 ```{r, echo=FALSE}
-numericInput("nbRows_h", "Nombre de rangs de semis :", 7, step=1)
+numericInput("nbRows_h", "Entrez votre nombre de rangs de semis :", 7, step=1)
 
-numericInput("interRow_h", "Ecart entre deux rangs de semis (en cm) :", 17.7, step=0.1)
+numericInput("interRow_h", "Entrez votre écart entre deux rangs de semis (en cm) :", 17.7, step=0.1)
 
-numericInput("interPlot", "Ecart entre les rangs extérieurs de 2 parcelles adjacentes (en cm) :", 44, step=0.1)
+numericInput("interPlot", "Entrez votre écart entre les rangs extérieurs de 2 parcelles adjacentes (en cm) :", 44, step=0.1)
 
-numericInput("lengthHarvested", "Longueur récoltée (en m) :", 5, step=0.02)
+numericInput("lengthHarvested", "Entrez votre longueur récoltée (en m) :", 5, step=0.02)
 
-numericInput("alley", "Largeur de l'allée (en cm) :", 0, step=0.02)
+numericInput("alley", "Entrez votre largeur d'allée (en cm) :", 0, step=0.02)
 
 renderText({
-  harvestSurface <- calcHarvestSurface(input$nbRows_h, input$interRow_h,
-                                       input$interPlot, input$lengthHarvested * 100,
-                                       input$alley, TRUE)
-  paste0("Surface récoltée (en m2) : ", round(harvestSurface, 2))
+  widthHarvested <- ((input$nbRows_h - 1) * input$interRow_h) / 100 # in m
+  harvSurf <- input$lengthHarvested * widthHarvested
+  paste0("Surface récoltée avant correction : ",
+         round(harvSurf, 2), " m2")
+})
+
+renderText({
+  widthHarvested <- ((input$nbRows_h - 1) * input$interRow_h) / 100 # in m
+  harvSurf <- input$lengthHarvested * widthHarvested
+  harvSurfCorr <- calcHarvestSurface(input$nbRows_h,
+                                     input$interRow_h,
+                                     input$interPlot,
+                                     input$lengthHarvested * 100,
+                                     input$alley, TRUE)
+  inc <- 100 * (harvSurfCorr / harvSurf - 1)
+  paste0("Surface récoltée après correction : ",
+         round(harvSurfCorr, 2), " m2",
+         " (+", round(inc, 2), "%)")
 })
 ```
+\
+\
+\
+\
+\
+\
+\
+ 
