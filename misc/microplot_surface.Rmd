@@ -128,7 +128,7 @@ renderText({
 })
 
 renderText({
-  widthHarvested <- ((input$nbRows_h - 1) * input$interRow_h) / 100 # in m
+  widthHarvested <- (input$nbRows_h * input$interRow_h) / 100 # in m
   harvSurf <- input$lengthHarvested * widthHarvested
   harvSurfCorr <- calcHarvestSurface(input$nbRows_h,
                                      input$interRow_h,
