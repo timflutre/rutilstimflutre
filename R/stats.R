@@ -737,6 +737,135 @@ precMatAR1 <- function(n, rho, sigma2){
   return(Q)
 }
 
+##' GWAS power analysis
+##'
+##' Computes the effective population size.
+##' Useful for the power analysis of a GWAS from \href{http://www.nature.com/articles/s41437-019-0205-3}{Wang and Xu (2019)}.
+##' Code from \href{https://onlinelibrary.wiley.com/doi/10.1002/csc2.20692}{White et al (2020)}.
+##' @param lambda lambda
+##' @param eigvalues eigenvalues of the kinship matrix
+##' @return numeric
+##' @author Jon White
+##' @export
+n0WX2019 <- function(lambda=1, eigvalues){
+  return((lambda+1) * sum(1 / (eigvalues*lambda+1)))
+}
+
+##' GWAS power analysis
+##'
+##' Computes the effective correlation coefficient from the sample.
+##' Useful for the power analysis of a GWAS from \href{http://www.nature.com/articles/s41437-019-0205-3}{Wang and Xu (2019)}.
+##' Code from \href{https://onlinelibrary.wiley.com/doi/10.1002/csc2.20692}{White et al (2020)}.
+##' @param n actual population size
+##' @param lambda lambda
+##' @param n0 effective population size
+##' @return numeric
+##' @author Jon White
+##' @export
+rhoWX2019 <- function(n=500,lambda=1,n0=500){
+  y <- n0
+  fn <- function(x,y){
+    f <- (lambda+1) * ( (n-1)/((1-x)*lambda+1) + 1/( (1+n*x-x)*lambda + 1)) - y
+    return(f)
+  }
+  myrho <- uniroot(f=fn, y=y, lower=0, upper=1)
+  return(myrho$root)
+}
+
+##' GWAS power analysis
+##'
+##' Useful for the power analysis of a GWAS from \href{http://www.nature.com/articles/s41437-019-0205-3}{Wang and Xu (2019)}.
+##' Code from \href{https://onlinelibrary.wiley.com/doi/10.1002/csc2.20692}{White et al (2020)}.
+##' @param n actual population size
+##' @param h2 heritability
+##' @param lambda lambda
+##' @param rho effective correlation coefficient
+##' @param m number of markers
+##' @param alpha alpha
+##' @return numeric
+##' @author Jon White
+##' @export
+powerWX2019 <- function(n=500, h2=0.05, lambda=1, rho=0.5, m=1e5, alpha=0.05){
+  alpha <- alpha/m
+  x <- qchisq(1-alpha,1)
+  n0 <- (n-1)/((1-rho)*lambda+1) + 1/((1+n*rho-rho)*lambda+1)
+  delta <- h2/(1-h2)*(lambda+1)*n0
+  beta <- pchisq(x,1,delta)
+  power <- 1-beta
+  return(power)
+}
+
+##' GWAS power analysis
+##'
+##' Computes a QTL using heritability effective population size.
+##' Useful for the power analysis of a GWAS from \href{http://www.nature.com/articles/s41437-019-0205-3}{Wang and Xu (2019)}.
+##' Code from \href{https://onlinelibrary.wiley.com/doi/10.1002/csc2.20692}{White et al (2020)}.
+##' @param lambda lambda
+##' @param n0 effective population size
+##' @param power power
+##' @param m number of markers
+##' @param alpha alpha
+##' @return numeric
+##' @author Jon White
+##' @export
+h2v1WX2019 <- function(lambda=1,n0=2000,power=0.85,m=1e5,alpha=0.05){
+   alpha <- alpha/m
+   x <- qchisq(1-alpha,1)
+   delta <- (qnorm(1-alpha/2)+qnorm(power))^2
+   h2 <- delta/(n0+delta)
+   return(h2)
+}
+
+##' GWAS power analysis
+##'
+##' Computes a QTL heritability using effective correlation.
+##' Useful for the power analysis of a GWAS from \href{http://www.nature.com/articles/s41437-019-0205-3}{Wang and Xu (2019)}.
+##' Code from \href{https://onlinelibrary.wiley.com/doi/10.1002/csc2.20692}{White et al (2020)}.
+##' @param n actual sample size
+##' @param lambda lambda
+##' @param rho effective correlation coefficient from the sample
+##' @param power power
+##' @param m number of markers
+##' @param alpha alpha
+##' @return numeric
+##' @author Jon White
+##' @export
+h2v2WX2019 <- function(n=2000,lambda=1,rho=0.5,power=0.85,m=1e5,alpha=0.05){
+   alpha <- alpha/m
+   x <- qchisq(1-alpha,1)
+   delta <- (qnorm(1-alpha/2)+qnorm(power))^2
+   n0 <- (lambda+1)*((n-1)/((1-rho)*lambda+1) + 1/((1+n*rho-rho)*lambda+1))
+   h2 <- delta/(n0+delta)
+   return(h2)
+}
+
+##' GWAS power analysis
+##'
+##' Computes the minimum sample for the desired QTL heritability.
+##' Useful for the power analysis of a GWAS from \href{http://www.nature.com/articles/s41437-019-0205-3}{Wang and Xu (2019)}.
+##' Code from \href{https://onlinelibrary.wiley.com/doi/10.1002/csc2.20692}{White et al (2020)}.
+##' @param h2 QTL heritability
+##' @param lambda lambda
+##' @param rho effective correlation coefficient
+##' @param power power
+##' @param m number of markers
+##' @param alpha alpha
+##' @return numeric
+##' @author Jon White
+##' @export
+sampleWX2019 <- function(h2=0.05,lambda=1,rho=0.5,power=0.85,m=1e5,alpha=0.05){
+   alpha <- alpha/m
+   y <- (qnorm(1-alpha/2)+qnorm(power))^2
+   fn <- function(x,y){
+      n0 <- (x-1)/((1-rho)*lambda+1) + 1/((1+x*rho-rho)*lambda+1)
+      f <- h2*(lambda+1)/(1-h2)*n0-y
+      return(f)
+   }
+   myh2 <- uniroot(f=fn,y=y,lower=0,upper=1e8)
+   return(myh2$root)
+}
+
+
 ##' P values
 ##'
 ##' Plot the histogram of p values with freq=FALSE to imitate figure 1 of Storey & Tibshirani (2003).

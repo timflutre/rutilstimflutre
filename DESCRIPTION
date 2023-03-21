@@ -13,7 +13,8 @@ Authors@R: c(
     person("Agnes", "Doligez", role="ctb", comment="help on joinMap2backcross() and MIMQTL()"),
     person("Gota", "Morota", email="morota@unl.edu", role="ctb", comment="variance components estimation"),
     person("Julien", "Diot", email="juliendiot42@gmail.com", role="ctb", comment="subset a pedigree"),
-    person("Charlotte", "Brault", email="charlotte.brault@inrae.fr", role="ctb", comment="JoinMap segregation types, SIMQTL(), MIMQTL()")
+    person("Charlotte", "Brault", email="charlotte.brault@inrae.fr", role="ctb", comment="JoinMap segregation types, SIMQTL(), MIMQTL()"),
+    person("Jon", "White", email="jon.white@niab.com", role="ctb", comment="power analysis for GWAS")
     )
 Description: Timothee Flutre's personal R package (+ parts from other contributors).
 Depends:
@@ -21,7 +22,8 @@ Depends:
     data.table,
     lme4,
     Matrix,
-    Rcpp
+    Rcpp,
+    stats
 License: GPL-3 | AGPL-3
 Copyright: INRAE
 LazyData: true
@@ -75,7 +77,6 @@ Suggests:
     snpStats,
     sp,
     sparseMVN,
-    stats,
     SummarizedExperiment,
     testthat,
     utils,

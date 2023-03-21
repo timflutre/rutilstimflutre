@@ -1,0 +1,185 @@
+---
+title: "Power analysis for GWAS"
+author: "T. Flutre"
+date: "`r format(Sys.time(), '%d/%m/%Y %H:%M:%S')`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    toc_depth: 6
+    number_sections: TRUE
+  pdf_document:
+    toc: true
+    toc_depth: 3
+    number_sections: TRUE
+---
+
+```{r knitr_setup, echo=FALSE}
+library(knitr)
+knitr::opts_chunk$set(fig.width=6, fig.height=5, fig.align="center",
+                      global.par=TRUE)
+```
+
+
+# Preamble
+
+Dependencies:
+```{r load_pkg}
+suppressPackageStartupMessages(library(rutilstimflutre))
+```
+
+Execution time (see the appendix):
+```{r time_0}
+t0 <- proc.time()
+```
+
+
+# Simulate a kinship matrix
+
+## Parameters
+
+```{r}
+nb_pops <- 10            # number of subpopulations
+level_mig_rate <- "med"  # "low" / "med" / "high"
+P <- 5000                # number of SNPs kept for the simulation
+```
+
+## Coalescent with recombination
+
+```{r}
+set.seed(1234)
+N <- 300          # total nb of genotypes in the population
+Ne <- 10^4        # effective population size
+chrom.len <- 10^5 # chromosome length
+mut <- 10^(-8)    # mutation rate
+c.rec <- 10^(-8)  # recombination rate
+mig_rates <- c("high"=10^2, "med"=10, "low"=0.5) # migration rates
+genomes <- simulCoalescent(nb.inds=N,
+                           nb.reps=10,
+                           pop.mut.rate=4 * Ne * mut * chrom.len,
+                           pop.recomb.rate=4 * Ne * c.rec * chrom.len,
+                           chrom.len=chrom.len,
+                           nb.pops=nb_pops,
+                           mig.rate=mig_rates[level_mig_rate],
+                           verbose=1)
+dim(genomes$genos)
+X <- genomes$genos
+X[1:4,1:6]
+```
+
+## SNP sub-sampling
+
+```{r}
+set.seed(1234)
+stopifnot(ncol(X) >= P)
+snps_to_keep <- sample(colnames(X), P)
+X <- X[, snps_to_keep]
+dim(X)
+X[1:4, 1:6]
+```
+
+## Population structure
+
+```{r}
+out_pca <- pca(X)
+out_pca$prop.vars[1:4]
+barplot(out_pca$prop.vars[1:10],
+        main=paste0("Proportion of variance explained by each PC",
+                    " (migration=", level_mig_rate, ")"),
+        las=1)
+plotPca(rotation=out_pca$rot.dat,
+        prop.vars=out_pca$prop.vars,
+        main=paste0("PCA (migration=", level_mig_rate, ")"))
+```
+
+## Allelic frequencies
+
+```{r}
+afs <- colMeans(X) / 2
+plotHistAllelFreq(afs=afs,
+                  main=paste0("Allele frequencies (migration=",
+                              level_mig_rate, ")"))
+```
+
+```{r}
+mafs <- apply(rbind(afs, 1 - afs), 2, min)
+plotHistMinAllelFreq(mafs=mafs,
+                     main=paste0("Minor allele frequencies (migration=",
+                                 level_mig_rate, ")"))
+```
+
+### Additive genetic relationships
+
+Estimator from VanRaden (2008):
+```{r}
+A_vanraden <- estimGenRel(X=X, afs=afs, relationships="additive",
+                          method="vanraden1", verbose=0)
+hist(diag(A_vanraden), # 1 expected under HWE
+     breaks="FD",
+     main=paste0("Inbreeding coefficients (migration=",
+                 level_mig_rate, ")"))
+hist(A_vanraden[upper.tri(A_vanraden)], # 0 expected under HWE
+     main=paste0("Additive genetic relationships (migration=",
+                 level_mig_rate, ")"))
+imageWithScale(A_vanraden,
+               main=paste0("Additive genetic relationships (migration=",
+                           level_mig_rate, ")"))
+if(require("seriation", quietly=TRUE)){
+  A_vanraden_ord <- seriate(A_vanraden)
+  pimage(A_vanraden, A_vanraden_ord,
+         main=paste0("Additive genetic relationships (migration=",
+                     level_mig_rate, ")"))
+}
+```
+
+
+
+# Power analysis
+
+## Statistics
+
+See [Wang and Xu (2019)](http://www.nature.com/articles/s41437-019-0205-3).
+
+# Implementation
+
+See [White et al (2022)](https://onlinelibrary.wiley.com/doi/10.1002/csc2.20692).
+
+```{r}
+kinship <- A_vanraden
+qq<-eigen(kinship,symmetric=T)
+d<-qq$values
+u<-qq$vectors
+```
+
+```{r}
+(n0 <- n0WX2019(lambda=1, eigvalues=d))
+```
+
+```{r}
+(rho <- rhoWX2019(n=nrow(kinship), lambda=1, n0=n0))
+```
+
+```{r}
+powerWX2019(n=nrow(kinship), h2=0.1, lambda=1, rho=rho, m=ncol(X), alpha=0.001)
+```
+
+```{r}
+h2v1WX2019(n0=n0, m=ncol(X), lambda=1, power=0.85, alpha=0.001)
+```
+
+```{r}
+h2v2WX2019(n=nrow(kinship), rho=rho, m=ncol(X), lambda=1, power=0.85, alpha=0.001)
+```
+
+```{r}
+sampleWX2019(h2=0.3,rho=rho, m=ncol(X), lambda=1, power=0.85, alpha=0.001)
+```
+
+
+# Appendix
+
+```{r info}
+t1 <- proc.time()
+t1 - t0
+print(sessionInfo(), locale=FALSE)
+```

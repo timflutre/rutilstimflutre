@@ -2,6 +2,7 @@
 ##' @import lme4
 ##' @import Matrix
 ##' @import Rcpp
+##' @import stats
 
 ## https://stackoverflow.com/questions/66816638
 utils::globalVariables(".")
