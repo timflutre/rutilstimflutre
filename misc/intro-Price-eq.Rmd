@@ -323,6 +323,8 @@ where $\rho$ is the correlation between the estimated and the true breeding valu
 
 - Frank SA. 1997. The Price Equation, Fisher’s Fundamental Theorem, Kin Selection, and Causal Analysis. Evolution. 51(6):1712–1729. doi:10.2307/2410995.
 
+- Bijma P. 2010. Fisher’s fundamental theorem of inclusive fitness and the change in fitness due to natural selection when conspecifics interact. Journal of Evolutionary Biology. 23(1):194–206. doi:10.1111/j.1420-9101.2009.01895.x.
+
 - Frank SA. 2012. Natural selection. IV. The Price equation. Journal of Evolutionary Biology. 25(6):1002–1019. doi:10.1111/j.1420-9101.2012.02498.x.
 
 - Queller DC. 2017. Fundamental Theorems of Evolution. The American Naturalist. 189(4). doi:10.1086/690937.
