@@ -6,12 +6,14 @@
 ##' @param file the name of the file which the data are to be read from, with a header line, columns separated by a tabulation, and row names as the first column
 ##' @param x if \code{file=NULL}, data.frame of bi-allelic SNP genotypes encoded in genotypic classes, i.e. in {AA,AB or BA,BB}, with SNPs in rows and genotypes in columns; if it is a matrix, it will be silently transformed into a data frame
 ##' @param na.string a character to be interpreted as NA values
+##' @param sep separator of alleles within each SNP genotype to be removed
 ##' @param verbose verbosity level (0/1)
 ##' @return matrix with SNPs in rows and genotypes in columns
 ##' @author Eric Duchene [aut], Timothee Flutre [ctb]
 ##' @seealso \code{\link{genoClasses2genoDoses}}, \code{\link{genoClasses2JoinMap}}
 ##' @export
-reformatGenoClasses <- function(file=NULL, x=NULL, na.string="--", verbose=1){
+reformatGenoClasses <- function(file=NULL, x=NULL, na.string="--", sep="",
+                                verbose=1){
   stopifnot(xor(! is.null(file), ! is.null(x)))
   if(! is.null(file)){
     stopifnot(is.character(file),
@@ -32,6 +34,11 @@ reformatGenoClasses <- function(file=NULL, x=NULL, na.string="--", verbose=1){
     msg <- paste0("reformat ", nb.snps, " SNPs for ",
                   nb.genos, " genotypes...")
     write(msg, stdout())
+  }
+
+  ## remove the allele separator
+  if(sep != ""){
+    x <- apply(x, 2, gsub, pattern=sep, replacement="")
   }
 
   ## insure that each genotypic class is sorted by alleles
@@ -79,19 +86,28 @@ reformatGenoClasses <- function(file=NULL, x=NULL, na.string="--", verbose=1){
 ##'
 ##' Convert SNP genotypes from "genotypic classes" into "allele doses" by counting the number of minor alleles.
 ##' The code is not particularly efficient, but at least it exists.
-##' @param x matrix or data.frame with bi-allelic SNPs in rows and genotypes in columns, the SNP identifiers being in the first column
+##' @param x matrix or data.frame with bi-allelic SNPs in rows and genotypes in columns
 ##' @param na.string a character to be interpreted as NA values
+##' @param snpIDs1stCol indicates if the SNP identifiers are in the first column; otherwise they should be in the row names
+##' @param errorIfNotBi raises an error if a SNP is not bi-allelic; otherwise, raises a warning and set the SNP genotypes to missing
 ##' @param verbose verbosity level (0/1)
 ##' @return list of a matrix of allele doses with SNPs in columns and genotypes in rows, and a matrix with major and minor alleles
 ##' @author Timothee Flutre
 ##' @export
-genoClasses2genoDoses <- function(x, na.string="--", verbose=1){
+genoClasses2genoDoses <- function(x, na.string="--", snpIDs1stCol=TRUE,
+                                  errorIfNotBi=TRUE, verbose=1){
   stopifnot(is.matrix(x) || is.data.frame(x),
             ! is.null(colnames(x)))
+  if(! snpIDs1stCol)
+    stopifnot(! is.null(rownames(x)))
 
-  snp.names <- x[,1]
+  if(snpIDs1stCol){
+    rownames(x) <- x[,1]
+    x[,1] <- NULL
+  }
+  snp.names <- rownames(x)
   P <- length(snp.names)
-  ind.names <- colnames(x)[-1]
+  ind.names <- colnames(x)
   N <- length(ind.names)
   if(verbose > 0){
     msg <- paste0("convert to doses ", P, " SNPs and ", N, " genotypes...")
@@ -104,7 +120,7 @@ genoClasses2genoDoses <- function(x, na.string="--", verbose=1){
                     dimnames=list(snp.names, c("major", "minor")))
 
   for(p in 1:P){ # for each SNP
-    raw.genos <- as.character(unlist(x[p, -1]))
+    raw.genos <- as.character(unlist(x[p,]))
     raw.genos[raw.genos == na.string] <- NA
     if(all(is.na(raw.genos))){
       next
@@ -113,15 +129,20 @@ genoClasses2genoDoses <- function(x, na.string="--", verbose=1){
     distinct.alleles <- sort(unique(tmp))
     allele.counts <- sort(table(tmp))
     if(length(distinct.alleles) > 2){ # SNP with more than 2 alleles
-      msg <- paste0("SNP ", x[p,1], " has more than 2 alleles")
-      stop(msg)
+      msg <- paste0("SNP ", rownames(x)[p], " has more than 2 alleles")
+      if(errorIfNotBi)
+        stop(msg)
+      else{
+        warning(msg, immediate.=TRUE)
+        raw.genos <- rep(NA, length(raw.genos))
+      }
     } else if(length(distinct.alleles) == 2){ # SNP with exactly 2 alleles
       alleles[p, "minor"] <- names(allele.counts)[1]
       alleles[p, "major"] <- names(allele.counts)[2]
       raw.genos <- gsub(pattern=paste0(alleles[p, "minor"], alleles[p, "minor"]),
                         replacement="2", x=raw.genos)
       raw.genos <- gsub(pattern=paste(paste0(alleles[p, "minor"], alleles[p, "major"]),
-                            paste0(alleles[p, "major"], alleles[p, "minor"]), sep="|"),
+                                      paste0(alleles[p, "major"], alleles[p, "minor"]), sep="|"),
                         replacement="1", x=raw.genos)
       raw.genos <- gsub(pattern=paste0(alleles[p, "major"], alleles[p, "major"]),
                         replacement="0", x=raw.genos)
@@ -6754,7 +6775,7 @@ emreml <- function(Ainv, y, X, Z, initE, initU, verbose=0){
 ##' \item Tsuruta, S. 2006. Estimation of Variance Components in Animal Breeding. The University of Georgia.
 ##' \item Mrode, R.A. 2005. Linear Models for the Prediction of Animal Breeding Values. CAB International, Oxon, UK.
 ##' }
-##' @param A dditive relationship matrix
+##' @param A additive relationship matrix
 ##' @param y vector of responses
 ##' @param X incidence matrix for fixed effects
 ##' @param Z incidence matrix for random effects
@@ -6784,8 +6805,9 @@ aireml <- function(A, y, X, Z, initE, initU, verbose=0){
     V <- Z %*% G %*% t(Z) + R
     Vinv <- solve(V)
     P <- Vinv - Vinv %*% X %*% solve(t(X) %*% Vinv %*% X) %*% t(X) %*% Vinv
-    ## TODO -> compute log-likelihood: l propto -(1/2)[log|V| + log|X' V^-1 X| + y' P y]
-    ## see Mrode (2005) page 240
+    ## TODO -> compute log-likelihood:
+    ## eq 3 in Johnson & Thompson: l propto -(1/2)[log|V| + log|X' V^-1 X| + y' P y]
+    ## see also Mrode (2005) page 240
 
     AI[1,1] <- sum(diag((t(y) %*% P %*% Z %*% t(Z) %*%
                          P %*% Z %*% t(Z) %*% P %*% y)))

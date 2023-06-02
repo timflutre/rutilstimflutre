@@ -1,7 +1,7 @@
 library(rutilstimflutre)
 context("Quantgen")
 
-test_that("reformatGenoClasses", {
+test_that("reformatGenoClasses_simple", {
   N <- 3 # individuals
   P <- 4 # SNPs
   genoClasses <- data.frame(ind1=c("AA", "GC", "AA", "GC"),
@@ -16,7 +16,29 @@ test_that("reformatGenoClasses", {
                      ncol=N,
                      dimnames=dimnames(genoClasses))
 
-  observed <- reformatGenoClasses(x=genoClasses, na.string="??", verbose=0)
+  observed <- reformatGenoClasses(x=genoClasses, na.string="??",
+                                  sep="", verbose=0)
+
+  expect_equal(observed, expected)
+})
+
+test_that("reformatGenoClasses_rmvSep", {
+  N <- 3 # individuals
+  P <- 4 # SNPs
+  genoClasses <- data.frame(ind1=c("A/A", "G/C", "A/A", "GC/"),
+                            ind2=c("A/A", "G/C", "A/T", "?/?"),
+                            ind3=c("T/A", "U/U", "A/A", "C/G"),
+                            row.names=paste0("snp", 1:P))
+
+  expected <- matrix(c("AA", "CG", "AA", "CG",
+                       "AA", "CG", "AT", NA,
+                       "AT", NA, "AA", "CG"),
+                     nrow=P,
+                     ncol=N,
+                     dimnames=dimnames(genoClasses))
+
+  observed <- reformatGenoClasses(x=genoClasses, na.string="??", sep="/",
+                                  verbose=0)
 
   expect_equal(observed, expected)
 })
@@ -56,8 +78,23 @@ test_that("genoClasses2genoDoses_error-3alleles", {
                             ind3=c("TT", "GG", "AA", "CC", "AG"),
                             stringsAsFactors=FALSE)
 
-  expect_error(genoClasses2genoDoses(x=genoClasses, na.string="??", verbose=0),
+  expect_error(genoClasses2genoDoses(x=genoClasses, na.string="??",
+                                     errorIfNotBi=TRUE, verbose=0),
                "SNP snp5 has more than 2 alleles")
+})
+
+test_that("genoClasses2genoDoses_warning-3alleles", {
+  N <- 3 # individuals
+  P <- 5 # SNPs
+  genoClasses <- data.frame(snp=paste0("snp", 1:P),
+                            ind1=c("AA", "GC", "AA", "GC", "AA"),
+                            ind2=c("AA", "GC", "AT", "??", "AT"),
+                            ind3=c("TT", "GG", "AA", "CC", "AG"),
+                            stringsAsFactors=FALSE)
+
+  expect_warning(genoClasses2genoDoses(x=genoClasses, na.string="??",
+                                       errorIfNotBi=FALSE, verbose=0),
+                 "SNP snp5 has more than 2 alleles")
 })
 
 test_that("updateJoinMap", {

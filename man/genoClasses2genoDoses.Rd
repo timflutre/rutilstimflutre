@@ -4,12 +4,22 @@
 \alias{genoClasses2genoDoses}
 \title{Convert genotypes}
 \usage{
-genoClasses2genoDoses(x, na.string = "--", verbose = 1)
+genoClasses2genoDoses(
+  x,
+  na.string = "--",
+  snpIDs1stCol = TRUE,
+  errorIfNotBi = TRUE,
+  verbose = 1
+)
 }
 \arguments{
-\item{x}{matrix or data.frame with bi-allelic SNPs in rows and genotypes in columns, the SNP identifiers being in the first column}
+\item{x}{matrix or data.frame with bi-allelic SNPs in rows and genotypes in columns}
 
 \item{na.string}{a character to be interpreted as NA values}
+
+\item{snpIDs1stCol}{indicates if the SNP identifiers are in the first column; otherwise they should be in the row names}
+
+\item{errorIfNotBi}{raises an error if a SNP is not bi-allelic; otherwise, raises a warning and set the SNP genotypes to missing}
 
 \item{verbose}{verbosity level (0/1)}
 }
