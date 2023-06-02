@@ -4924,8 +4924,8 @@ recodeIntoDominant <- function(X, simplify.imputed=FALSE){
 ##' @param thresh threshold on minor allele frequencies below which SNPs are ignored (e.g. 0.01; NULL to skip this step)
 ##' @param relationships relationship to estimate (additive/dominant/gaussian) where "gaussian" corresponds to the Gaussian kernel from \href{http://dx.doi.org/10.3835/plantgenome2011.08.0024}{Endelman (2011)}
 ##' @param method \itemize{
-##' \item if additive relationships, can be "vanraden1" (first method in \href{http://dx.doi.org/10.3168/jds.2007-0980}{VanRaden, 2008}), "toro2011_eq10" (equation 10 using molecular covariance from \href{http://dx.doi.org/10.1186/1297-9686-43-27}{Toro et al, 2011}), "habier" (similar to "vanraden1" but without centering; from \href{http://dx.doi.org/10.1534/genetics.107.081190}{Habier et al, 2007}), "astle-balding" (two times equation 2.2 in \href{http://dx.doi.org/10.1214/09-sts307}{Astle & Balding, 2009}), "yang" (similar to 'astle-balding' but without ignoring sampling error per SNP; from \href{http://dx.doi.org/10.1038/ng.608}{Yang et al, 2010}), "zhou" (centering the genotypes with \code{\link{scale}} and not assuming that rare variants have larger effects; from \href{http://dx.doi.org/10.1371/journal.pgen.1003264}{Zhou et al, 2013}) or "center-std";
-##' \item if dominant relationships, can be "vitezica" (classical/statistical parametrization from \href{http://dx.doi.org/10.1534/genetics.113.155176}{Vitezica et al, 2013}) or "su" (from \href{http://dx.doi.org/10.1371/journal.pone.0045293}{Su et al, 2012})
+##' \item if additive relationships, can be "noia" (see \href{https://doi.org/10.1534/genetics.116.199406}{Vitezica et al, 2017}), "vanraden1" (first method in \href{http://dx.doi.org/10.3168/jds.2007-0980}{VanRaden, 2008}), "toro2011_eq10" (equation 10 using molecular covariance from \href{http://dx.doi.org/10.1186/1297-9686-43-27}{Toro et al, 2011}), "habier" (similar to "vanraden1" but without centering; from \href{http://dx.doi.org/10.1534/genetics.107.081190}{Habier et al, 2007}), "astle-balding" (two times equation 2.2 in \href{http://dx.doi.org/10.1214/09-sts307}{Astle & Balding, 2009}), "yang" (similar to 'astle-balding' but without ignoring sampling error per SNP; from \href{http://dx.doi.org/10.1038/ng.608}{Yang et al, 2010}), "zhou" (centering the genotypes with \code{\link{scale}} and not assuming that rare variants have larger effects; from \href{http://dx.doi.org/10.1371/journal.pgen.1003264}{Zhou et al, 2013}) or "center-std";
+##' \item if dominant relationships, can be "noia" (see \href{https://doi.org/10.1534/genetics.116.199406}{Vitezica et al, 2017}), "vitezica" (classical/statistical parametrization from \href{http://dx.doi.org/10.1534/genetics.113.155176}{Vitezica et al, 2013}) or "su" (from \href{http://dx.doi.org/10.1371/journal.pone.0045293}{Su et al, 2012})
 ##' }
 ##' @param theta smoothing parameter for "gauss"
 ##' @param verbose verbosity level (0/1)
@@ -4958,11 +4958,11 @@ estimGenRel <- function(X, afs=NULL, thresh=NULL, relationships="additive",
   stopIfNotValidGenosDose(X, check.noNA=FALSE)
   stopifnot(relationships %in% c("additive", "dominant", "gaussian"))
   if(relationships == "additive")
-    stopifnot(method %in% c("vanraden1", "toro2011_eq10", "habier",
+    stopifnot(method %in% c("noia", "vanraden1", "toro2011_eq10", "habier",
                             "astle-balding", "yang",
                             "zhou", "center-std"))
   if(relationships == "dominant")
-    stopifnot(method %in% c("vitezica", "su"))
+    stopifnot(method %in% c("noia", "vitezica", "su"))
   if(! is.null(thresh))
     stopifnot(thresh >= 0, thresh <= 0.5)
   if(relationships == "gauss"){
@@ -5041,16 +5041,42 @@ estimGenRel <- function(X, afs=NULL, thresh=NULL, relationships="additive",
       Z <- X - tmp
 
       gen.rel <- tcrossprod(Z, Z) / (2 * sum(afs * (1 - afs)))
+
+    } else if(method == "noia"){
+      ## compute genotype frequencies at each SNP
+      freqG <- t(apply(X, 2, function(x){
+        c("A1A1"=sum(x == 0), "A1A2"=sum(x == 1), "A2A2"=sum(x == 2)) / length(x)
+      }))
+
+      boundaries <- seq(from=0, to=2, length.out=4)
+      is.0 <- (X <= boundaries[2]) # homozygotes for the first allele
+      is.1 <- (X > boundaries[2] & X <= boundaries[3]) # heterozygotes
+      is.2 <- (X > boundaries[3]) # homozygotes for the second allele
+
+      ## eq 1 of Vitezica et al (2017)
+      Z <- matrix(NA, nrow=N, ncol=P, dimnames=dimnames(X))
+      for(i in 1:N){
+        Z[i, is.0[i,]] <- -(-freqG[is.0[i,],"A1A2"] - 2 * freqG[is.0[i,],"A2A2"])
+        Z[i, is.1[i,]] <- -(1 - freqG[is.1[i,],"A1A2"] - 2 * freqG[is.1[i,],"A2A2"])
+        Z[i, is.2[i,]] <- -(2 - freqG[is.2[i,],"A1A2"] - 2 * freqG[is.2[i,],"A2A2"])
+      }
+
+      ZZt <- tcrossprod(Z, Z)
+      gen.rel <- ZZt / (sum(diag(ZZt)) / N)
+
     } else if(method == "toro2011_eq10"){
       var.afs <- stats::var(afs)
       gen.rel <- 2 * (stats::cov(t(X) / 2) - var.afs) /
         (mean(afs) * mean(1 - afs) - var.afs)
+
     } else if(method == "habier"){
       gen.rel <- tcrossprod(X, X) / (2 * sum(afs * (1 - afs)))
+
     } else if(method == "astle-balding"){
       tmp1 <- sweep(x=X, MARGIN=2, STATS=2*afs, FUN="-")
       tmp2 <- sweep(x=tmp1, MARGIN=2, STATS=2*afs*(1-afs), FUN="/")
       gen.rel <- (1/P) * tcrossprod(tmp1, tmp2)
+
     } else if(method == "yang"){
       tmp1 <- sweep(x=X, MARGIN=2, STATS=2*afs, FUN="-")
       tmp2 <- sweep(x=tmp1, MARGIN=2, STATS=2*afs*(1-afs), FUN="/")
@@ -5059,13 +5085,16 @@ estimGenRel <- function(X, afs=NULL, thresh=NULL, relationships="additive",
       tmp4 <- sweep(x=tmp3, MARGIN=2, STATS=2*afs^2, FUN="+")
       tmp5 <- sweep(x=tmp4, MARGIN=2, STATS=2*afs*(1-afs), FUN="/")
       diag(gen.rel) <- 1 + (1/P) * rowSums(tmp5)
+
     } else if(method == "zhou"){
       tmp <- scale(x=X, center=TRUE, scale=FALSE)
       gen.rel <- tcrossprod(tmp, tmp) / P
+
     } else if(method == "center-std"){
       tmp <- scale(x=X, center=TRUE, scale=TRUE)
       gen.rel <- tcrossprod(tmp, tmp) / P
     }
+
   } else if(relationships == "dominant"){
     if(method == "vitezica"){
       ## caution, compared to Vitezica et al (2013), the X matrix encodes
@@ -5081,12 +5110,39 @@ estimGenRel <- function(X, afs=NULL, thresh=NULL, relationships="additive",
         W[i, is.2[i,]] <- - 2 * (1 - afs[is.2[i,]])^2
       }
       gen.rel <- tcrossprod(W, W) / sum((2 * afs * (1 - afs))^2)
+
+    } else if(method == "noia"){
+      stop("dominance noia not yet implemented")
+
+      ## compute genotype frequencies at each SNP
+      freqG <- t(apply(X, 2, function(x){
+        c("A1A1"=sum(x == 0), "A1A2"=sum(x == 1), "A2A2"=sum(x == 2)) / length(x)
+      }))
+
+      boundaries <- seq(from=0, to=2, length.out=4)
+      is.0 <- (X <= boundaries[2]) # homozygotes for the first allele
+      is.1 <- (X > boundaries[2] & X <= boundaries[3]) # heterozygotes
+      is.2 <- (X > boundaries[3]) # homozygotes for the second allele
+
+      ## eq 2 of Vitezica et al (2017)
+      ## TODO
+      W <- matrix(NA, nrow=N, ncol=P, dimnames=dimnames(X))
+      for(i in 1:N){
+        W[i, is.0[i,]] <- NA
+        W[i, is.1[i,]] <- NA
+        W[i, is.2[i,]] <- NA
+      }
+
+      WWt <- tcrossprod(W, W)
+      gen.rel <- WWt / (sum(diag(WWt)) / N)
+
     } else if(method == "su"){
       H <- recodeIntoDominant(X=X)
       H <- sweep(x=H, MARGIN=2, STATS=2*afs*(1-afs), FUN="-")
       gen.rel <- tcrossprod(H, H) /
         (2 * sum(afs * (1 - afs) * (1 - 2 * afs * (1 - afs))))
     }
+
   } else if(relationships == "gaussian"){
     M <- X - 1 # recode genotypes as {-1,0,1}
     gen.dist <- as.matrix(stats::dist(x=M, method="euclidean")) / (2 * sqrt(P))
