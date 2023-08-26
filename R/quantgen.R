@@ -4985,6 +4985,7 @@ estimGenRel <- function(X, afs=NULL, thresh=NULL, relationships="additive",
 
   N <- nrow(X) # nb of genotypes
   P <- ncol(X) # nb of SNPs
+  P_init <- P
 
   if(any(is.na(X))){
     X <- discardMarkersMissGenos(X=X, verbose=verbose)
@@ -5026,7 +5027,9 @@ estimGenRel <- function(X, afs=NULL, thresh=NULL, relationships="additive",
   }
 
   if(verbose > 0){
-    msg <- paste0("estimate relationships with ", ncol(X), " SNPs ...")
+    msg <- paste0("estimate relationships with ", P, " SNPs",
+                  ifelse(P < P_init, paste0(" out of ", P_init), ""),
+                  " ...")
     write(msg, stdout())
   }
   if(relationships == "additive"){
