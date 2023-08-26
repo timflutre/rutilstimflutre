@@ -33,7 +33,7 @@ estimGenRel(
 \item{verbose}{verbosity level (0/1)}
 }
 \value{
-symmetric matrix
+symmetric matrix with the number of SNPs used as an attribute
 }
 \description{
 Estimate genetic relationships between genotypes from their SNP genotypes.

@@ -1377,6 +1377,7 @@ test_that("estimGenRel_vanraden1", {
     denom <- denom + afs[p] * (1 - afs[p])
   denom <- 2 * denom
   expected <- (Z %*% t(Z)) / denom
+  attr(expected, "nbSnps") <- P
 
   ## as in Toro et al (2011), equation 14
   if(FALSE){ # for debugging purposes
@@ -1420,6 +1421,7 @@ test_that("estimGenRel_vanraden1_wNA", {
     denom <- denom + afs2[p] * (1 - afs2[p])
   denom <- 2 * denom
   expected <- (Z %*% t(Z)) / denom
+  attr(expected, "nbSnps") <- P2
 
   observed <- estimGenRel(X=X, afs=afs, thresh=0, relationships="additive",
                           method="vanraden1", verbose=0)
@@ -1439,14 +1441,15 @@ test_that("estimGenRel_vanraden1_wMAF", {
   mafs <- estimSnpMaf(afs=afs)
   afs2 <- afs[afs >= thresh]
   X2 <- X[, names(afs2)]
-  P <- ncol(X2)
-  tmp <- matrix(rep(2*(afs2-0.5), N), nrow=N, ncol=P, byrow=TRUE)
+  P2 <- ncol(X2)
+  tmp <- matrix(rep(2*(afs2-0.5), N), nrow=N, ncol=P2, byrow=TRUE)
   Z <- X2 - 1 - tmp
   denom <- 0
-  for(p in 1:P)
+  for(p in 1:P2)
     denom <- denom + afs2[p] * (1 - afs2[p])
   denom <- 2 * denom
   expected <- (Z %*% t(Z)) / denom
+  attr(expected, "nbSnps") <- P2
 
   observed <- estimGenRel(X=X, afs=afs, thresh=thresh, relationships="additive",
                           method="vanraden1", verbose=0)
@@ -1482,6 +1485,7 @@ test_that("estimGenRel_toro2011_eq10", {
     }
   }
   expected[lower.tri(expected)] <- expected[upper.tri(expected)]
+  attr(expected, "nbSnps") <- P
 
   observed <- estimGenRel(X=X, afs=afs, relationships="additive",
                           method="toro2011_eq10", verbose=0)
@@ -1504,6 +1508,7 @@ test_that("estimGenRel_astle-balding", {
       (matrix(X[,p] - 2 * afs[p]) %*% t(X[,p] - 2 * afs[p])) /
       (4 * afs[p] * (1 - afs[p]))
   expected <- 2 * (1/P) * expected
+  attr(expected, "nbSnps") <- P
 
   observed <- estimGenRel(X=X, afs=afs, thresh=0, relationships="additive",
                           method="astle-balding", verbose=0)
@@ -1534,6 +1539,7 @@ test_that("estimGenRel_yang", {
       (2 * afs[p] * (1 - afs[p]))
   expected[1,2] <- (1/P) * sum(summands)
   expected[2,1] <- expected[1,2]
+  attr(expected, "nbSnps") <- P
 
   observed <- estimGenRel(X=X, afs=afs, thresh=0, relationships="additive",
                           method="yang", verbose=0)
@@ -1567,6 +1573,7 @@ test_that("estimGenRel_su", {
     denom <- denom + 2 * afs[p] * (1 - afs[p]) *
       (1 - 2 * afs[p] * (1 - afs[p]))
   expected <- (H %*% t(H)) / denom
+  attr(expected, "nbSnps") <- P
 
   observed <- estimGenRel(X=X, afs=afs, thresh=0, relationships="dominant",
                           method="su", verbose=0)
@@ -1603,6 +1610,7 @@ test_that("estimGenRel_vitezica", {
   for(p in 1:P)
     denom <- denom + (2 * afs[p] * (1 - afs[p]))^2
   expected <- (W %*% t(W)) / denom
+  attr(expected, "nbSnps") <- P
 
   observed <- estimGenRel(X=X, afs=afs, thresh=0, relationships="dominant",
                           method="vitezica", verbose=0)

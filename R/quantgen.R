@@ -4929,7 +4929,7 @@ recodeIntoDominant <- function(X, simplify.imputed=FALSE){
 ##' }
 ##' @param theta smoothing parameter for "gauss"
 ##' @param verbose verbosity level (0/1)
-##' @return symmetric matrix
+##' @return symmetric matrix with the number of SNPs used as an attribute
 ##' @author Timothee Flutre
 ##' @examples
 ##' \dontrun{set.seed(1859)
@@ -5151,6 +5151,9 @@ estimGenRel <- function(X, afs=NULL, thresh=NULL, relationships="additive",
 
   ## force to be perfectly symmetric (beyond machine precision)
   gen.rel[lower.tri(gen.rel)] <- t(gen.rel)[lower.tri(t(gen.rel))]
+
+  ## keep the nb of SNPs used in an attribute
+  attr(gen.rel, "nbSnps") <- P
 
   return(gen.rel)
 }
