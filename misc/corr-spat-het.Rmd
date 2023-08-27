@@ -1,0 +1,637 @@
+---
+title: "Correction of spatial heterogeneity"
+author: "T. Flutre"
+date: "`r format(Sys.time(), '%d/%m/%Y %H:%M:%S')`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    toc_depth: 4
+    number_sections: TRUE
+  pdf_document:
+    toc: true
+    toc_depth: 4
+    number_sections: TRUE
+abstract: "This document shows with a simulated example how to correct for spatial heterogeneity in a field trial."
+---
+
+
+# Preamble
+
+License: [CC BY-SA 4.0](http://creativecommons.org/licenses/by-sa/4.0/)
+
+Dependencies:
+```{r}
+options(digits=5)
+suppressPackageStartupMessages(library(ggplot2))
+suppressPackageStartupMessages(library(tidyr))
+suppressPackageStartupMessages(library(MASS))
+## suppressPackageStartupMessages(library(Matrix))
+## suppressPackageStartupMessages(library(sparseMVN))
+suppressPackageStartupMessages(library(emmeans))
+suppressPackageStartupMessages(library(SpATS))
+suppressPackageStartupMessages(library(rutilstimflutre))
+```
+
+Execution time (see the appendix):
+```{r time_0}
+t0 <- proc.time()
+```
+
+
+# Overview
+
+Let us assume a whole field containing a platform of thousands of micro-plots, with several cereal trials, hundreds of micro-plots each, separated by borders.
+We will then analyze the data with two different approaches.
+
+* step 1: simulate yield data for each micro-plot, with spatial heterogeneity at the scale of the whole field;
+
+* step 2: compute an index of data quality per trial, i.e., by fitting a simple model for each trial separately, accounting for blocks;
+
+* step 3: fit a more complex model for all trials jointly, accounting for spatial heterogeneity via splines, remove the spatial component from the yield data, and re-compute the quality index per trial, expecting the index values to be better than those from step 2.
+
+
+# Simulate data
+
+```{r}
+set.seed(12345)
+```
+
+## Dimensions
+
+```{r}
+platformDims <- c("X"=160, "Y"=15)
+(totNbMicroPlots <- as.numeric(platformDims["X"] * platformDims["Y"]))
+
+levSeries <- c("A1","A2","A3", "B1","B2","B3", "C")
+nbSeries <- 7
+nbGenosPerSerie <- 40
+(nbGenosInTrial <- nbSeries * nbGenosPerSerie)
+
+nbBlocksPerTrial <- 2
+(nbMicroPlotsPerTrial <- nbGenosPerSerie * nbBlocksPerTrial)
+```
+
+## Map
+
+```{r}
+## whole platform
+## coords: columns are along the x-axis and rows along the y-axis
+## coords <- expand.grid(row=paste0("y", 1:platformDims["Y"]),
+##                       col=paste0("x", 1:platformDims["X"]))
+map <- data.frame(x=rep(1:platformDims["X"], each=platformDims["Y"]),
+                  y=1:platformDims["Y"])
+map$xy <- factor(paste0(map$x, "_", map$y))
+
+## major borders
+map$border <- FALSE
+map$border[map$y == 11] <- TRUE # separation N+ vs N-
+map$border[map$x %in% c(1,2, 159:160)] <- TRUE
+map$border[map$x %in% c(73,74) & map$y < 11] <- TRUE # separation T vs NT
+```
+
+```{r}
+## add managements
+## nitrogen fertilization
+map$ferti <- "N+"
+map$ferti[map$y > 11] <- "N-"
+## fungicide treatments
+map$fungi <- "T"
+map$fungi[map$x > 72 & map$y < 11] <- "NT"
+map$mngt <- factor(paste(map$ferti, map$fungi),
+                   levels=c("N+ T", "N+ NT", "N- T"))
+map$ferti <- factor(map$ferti, levels=c("N+","N-"))
+map$fungi <- factor(map$fungi, levels=c("T","NT"))
+```
+
+```{r}
+## 7 series: A1, A2, A3, B1, B2, B3, C
+## 40 genos per serie
+## 2 blocks per serie x mngt
+map$serie <- NA
+## trials in the lower half: ferti=N+
+## fungi=T
+map$serie[map$x %in% 3:10 & map$y < 11] <- "A1"
+map$border[map$x %in% c(11,12) & map$y < 11] <- TRUE
+map$serie[map$x %in% 13:20 & map$y < 11] <- "A2"
+map$border[map$x %in% c(21,22) & map$y < 11] <- TRUE
+map$serie[map$x %in% 23:30 & map$y < 11] <- "A3"
+map$border[map$x %in% c(31,32) & map$y < 11] <- TRUE
+map$serie[map$x %in% 33:40 & map$y < 11] <- "B1"
+map$border[map$x %in% c(41,42) & map$y < 11] <- TRUE
+map$serie[map$x %in% 43:50 & map$y < 11] <- "B2"
+map$border[map$x %in% c(51,52) & map$y < 11] <- TRUE
+map$serie[map$x %in% 53:60 & map$y < 11] <- "B3"
+map$border[map$x %in% c(61,62) & map$y < 11] <- TRUE
+map$serie[map$x %in% 63:70 & map$y < 11] <- "C"
+map$border[map$x %in% c(71,72) & map$y < 11] <- TRUE
+## fungi=NT
+map$serie[map$x %in% 75:82 & map$y < 11] <- "A1"
+map$border[map$x %in% c(83,84) & map$y < 11] <- TRUE
+map$serie[map$x %in% 85:92 & map$y < 11] <- "A2"
+map$border[map$x %in% c(93,94) & map$y < 11] <- TRUE
+map$serie[map$x %in% 95:102 & map$y < 11] <- "A3"
+map$border[map$x %in% c(103,104) & map$y < 11] <- TRUE
+map$serie[map$x %in% 105:112 & map$y < 11] <- "B1"
+map$border[map$x %in% c(113,114) & map$y < 11] <- TRUE
+map$serie[map$x %in% 115:122 & map$y < 11] <- "B2"
+map$border[map$x %in% c(123,124) & map$y < 11] <- TRUE
+map$serie[map$x %in% 125:132 & map$y < 11] <- "B3"
+map$border[map$x %in% c(133,134) & map$y < 11] <- TRUE
+map$serie[map$x %in% 135:142 & map$y < 11] <- "C"
+map$border[map$x %in% c(143,144) & map$y < 11] <- TRUE
+
+## trials in the upper half: ferti=N-
+## fungi=T
+map$serie[map$x %in% 3:22 & map$y > 11] <- "A1"
+map$border[map$x %in% c(23,24) & map$y > 11] <- TRUE
+map$serie[map$x %in% 25:44 & map$y > 11] <- "A2"
+map$border[map$x %in% c(45,46) & map$y > 11] <- TRUE
+map$serie[map$x %in% 47:66 & map$y > 11] <- "A3"
+map$border[map$x %in% c(67,68) & map$y > 11] <- TRUE
+map$serie[map$x %in% 69:88 & map$y > 11] <- "B1"
+map$border[map$x %in% c(89,90) & map$y > 11] <- TRUE
+map$serie[map$x %in% 91:110 & map$y > 11] <- "B2"
+map$border[map$x %in% c(111,112) & map$y > 11] <- TRUE
+map$serie[map$x %in% 113:132 & map$y > 11] <- "B3"
+map$border[map$x %in% c(133,134) & map$y > 11] <- TRUE
+map$serie[map$x %in% 135:154 & map$y > 11] <- "C"
+map$border[map$x %in% c(155,156) & map$y > 11] <- TRUE
+
+map$trial <- paste(map$serie,
+                   as.character(map$ferti),
+                   as.character(map$fungi),
+                   sep="_")
+map$trial[is.na(map$serie)] <- "border"
+map$serie <- factor(map$serie)
+map$trial <- factor(map$trial,
+                    levels=c(sort(unique(map$trial[! is.na(map$serie)])),
+                             "border"))
+map$border[map$trial == "border"] <- TRUE
+str(map)
+```
+
+```{r}
+## blocks
+## per trial in the lower half
+map$block <- NA
+trials <- unique(sort(as.character(map$trial[! map$border & map$y < 11])))
+for(trial in trials){
+  stopifnot(sum(map$trial == trial, na.rm=TRUE) == nbMicroPlotsPerTrial)
+  map$block[which(map$trial == trial & map$y <= 5)] <- "A"
+  map$block[which(map$trial == trial & map$y > 5)] <- "B"
+}
+trials <- unique(sort(as.character(map$trial[! map$border & map$y > 11])))
+for(trial in trials){
+  stopifnot(sum(map$trial == trial, na.rm=TRUE) == nbMicroPlotsPerTrial)
+  rangeX <- range(map$x[map$trial == trial])
+  midX <- rangeX[1] + ((rangeX[2] - rangeX[1] + 1) / 2) - 1
+  map$block[which(map$trial == trial & map$x <= midX)] <- "A"
+  map$block[which(map$trial == trial & map$x > midX)] <- "B"
+}
+map$block[map$border] <- "C"
+map$block <- factor(map$block)
+```
+
+```{r, fig.width=12}
+pMap <- ggplot(map, aes(x=x, y=y)) +
+  theme_bw() +
+  theme(panel.grid.major=element_blank(),
+        panel.grid.minor=element_blank()) +
+  scale_x_continuous(breaks=sort(unique(map$x))) +
+  scale_y_continuous(breaks=sort(unique(map$y))) +
+  guides(x=guide_axis(angle=90))
+
+pMap +
+  labs(title="Map of the whole platform: managements") +
+  geom_rect(aes(xmin=x-0.5, xmax=x+0.5,
+                ymin=y-0.5, ymax=y+0.5, fill=mngt),
+            color="grey", size=0.2)
+
+pMap +
+  labs(title="Map of the whole platform: trials",
+       fill="Trials") +
+  geom_rect(aes(xmin=x-0.5, xmax=x+0.5,
+                ymin=y-0.5, ymax=y+0.5, fill=trial),
+            color="grey", size=0.2)
+## TODO: set border color to grey
+```
+
+## Genotypes
+
+```{r}
+## genotype IDs
+genoBorder <- "g000"
+levGenos <- c(sprintf(fmt=paste0("g%0", floor(log10(nbGenosInTrial))+1, "i"),
+                      1:nbGenosInTrial),
+              genoBorder)
+length(levGenos)
+```
+
+```{r}
+genosPerSerie <- list()
+for(s in 1:nlevels(map$serie)){
+  serie <- levels(map$serie)[s]
+  idx <- (1+40*(s-1)):(1+40*(s-1)+40-1)
+  genosPerSerie[[serie]] <- levGenos[idx]
+}
+sapply(genosPerSerie, length)
+```
+
+```{r}
+map$geno <- NA
+trials <- unique(sort(as.character(map$trial[! map$border])))
+for(trial in trials){
+  serie <- strsplit(trial, "_")[[1]][1]
+  for(block in c("A","B")){
+    idx <- which(map$trial == trial & map$block == block)
+    stopifnot(length(idx) == nbGenosPerSerie)
+    map$geno[idx] <- sample(genosPerSerie[[serie]], size=nbGenosPerSerie)
+  }
+}
+map$geno[map$border] <- genoBorder
+map$geno <- factor(map$geno, levels=levGenos)
+```
+
+## Design matrices
+
+```{r}
+## design matrices
+X <- model.matrix(~ 1 + ferti + fungi, data=map
+                , contrats.arg=list(ferti="contr.treatment", fungi="contr.treatment"))
+## X <- model.matrix(~ 1 + ferti + fungi + trial/block, data=map)#, contrats.arg=list(ferti="contr.sum", fungi="contr.sum"))
+dim(X)
+colnames(X)
+
+Z_g <- model.matrix(~ -1 + geno, data=map)
+dim(Z_g)
+colnames(Z_g) <- gsub("^geno", "", colnames(Z_g))
+
+Z_spat <- model.matrix(~ -1 + xy, data=map)
+dim(Z_spat)
+```
+
+## Effects
+
+### Fixed
+
+```{r}
+mu <- 70 # intercept -> mean yield under ferti=N+ and fungi=T
+betaFerti <- c("fertiN-"=-20)
+betaFungi <- c("fungiNT"=-15)
+(beta <- c("(Intercept)"=mu, betaFerti, betaFungi))
+stopifnot(all(names(beta) == colnames(X)))
+```
+
+### Random
+
+#### Genetic
+
+1. Draw many genetic effects
+
+2. Assume that A1 genotyeps are better on average than A2's, etc
+
+```{r}
+allGenoEffs <- rnorm(n=5*nbGenosInTrial, mean=0, sd=4)
+summary(allGenoEffs)
+allGenoEffs <- sort(allGenoEffs, decreasing=TRUE)
+```
+
+```{r}
+lCumProbs <- list()
+shapes <- data.frame(alpha=c(1, 1.3, 1.5, 2, 2.5, 3.5, 5),
+                     beta=c( 3, 2.7, 2.4, 2, 1.7, 1.4, 1),
+                     row.names=c("A1","A2","A3","B1","B2","B3","C"))#levSeries[1])
+for(s in 1:nrow(shapes)){
+  serie <- rownames(shapes)[s]
+  tmp <- pbeta(seq(0,1,length.out=length(allGenoEffs)+1),
+               shape1=shapes[serie,"alpha"],
+               shape2=shapes[serie,"beta"])
+  lCumProbs[[serie]] <- tmp
+}
+cumProbs <- as.data.frame(t(do.call(rbind, lCumProbs)))
+cumProbs <- pivot_longer(cumProbs, cols=colnames(cumProbs), names_to="serie",
+                      values_to="prob")
+cumProbs <- as.data.frame(cumProbs)
+cumProbs$serie <- factor(cumProbs$serie)
+cumProbs$idx <- rep(1:(length(allGenoEffs)+1), each=nlevels(cumProbs$serie))
+ggplot(cumProbs, aes(x=idx, y=prob, color=serie)) +
+  labs(x="genetic effects sorted in decreasing order",
+       y="cumulative probability to be sampled") +
+  geom_line(size=1)
+
+lProbs <- lapply(lCumProbs, diff)
+probs <- as.data.frame(t(do.call(rbind, lProbs)))
+probs <- pivot_longer(probs, cols=colnames(probs), names_to="serie",
+                      values_to="prob")
+probs <- as.data.frame(probs)
+probs$serie <- factor(probs$serie)
+probs$idx <- rep(1:length(allGenoEffs), each=nlevels(probs$serie))
+ggplot(probs, aes(x=idx, y=prob, color=serie)) +
+  labs(x="genetic effects sorted in decreasing order",
+       y="probability to be sampled") +
+  geom_line(size=1)
+```
+
+```{r}
+lSerie2EffIdxs <- list()
+idxToSampleFrom <- 1:length(allGenoEffs)
+for(serie in levSeries){
+  idx <- sample(x=idxToSampleFrom,
+                size=nbGenosPerSerie,
+                replace=FALSE,
+                prob=lProbs[[serie]])
+  lSerie2EffIdxs[[serie]] <- sort(idx)
+  ## idxToSampleFrom <- idxToSampleFrom[! idxToSampleFrom %in% idx]
+}
+
+tmp <- sort(table(do.call(c, lSerie2EffIdxs)), decreasing=TRUE)
+length(tmp)
+table(tmp) # some genotypes were sampled multiple times
+stopifnot(sum(table(tmp)) <= nbGenosInTrial)
+
+lSerie2Effs <- lapply(lSerie2EffIdxs, function(idx){
+  allGenoEffs[idx]
+})
+lSerie2Effs <- lapply(levSeries, function(serie){
+  setNames(lSerie2Effs[[serie]], genosPerSerie[[serie]])
+})
+do.call(rbind, lapply(lSerie2Effs, summary))
+names(lSerie2Effs) <- levSeries
+```
+
+```{r}
+g <- c(do.call(c, lSerie2Effs), "g000"=0)
+names(g) <- gsub("^.+\\.", "", names(g))
+g <- scale(g, scale=F)[,1]
+summary(g)
+var(g)
+sd(g)
+stopifnot(all(names(g) == colnames(Z_g)))
+```
+
+#### Spatial
+
+```{r}
+rhoX <- 0.8
+rhoY <- 0.5
+corrMat_spat <- corrMatAR1(platformDims["X"], rhoX) %x% 
+  corrMatAR1(platformDims["Y"], rhoY)
+dim(corrMat_spat)
+sigma2_ksi <- 50 # nugget
+system.time(
+    e_spat <- MASS::mvrnorm(n=1, mu=rep(0, ncol(Z_spat)),
+                            Sigma=sigma2_ksi * corrMat_spat))
+if(FALSE){
+  st <- system.time(
+      e_spat <- sparseMVN::rmvn.sparse(n=1, mu=rep(0, ncol(Z_spat)),
+                                       CH=..., prec=TRUE))
+  print(st)
+}
+summary(e_spat)
+length(e_spat)
+map$e_spat <- e_spat
+```
+
+```{r, fig.width=12}
+pMap +
+  labs(title="Map of the whole platform: spatial heterogeneity + errors") +
+  geom_rect(aes(xmin=x-0.5, xmax=x+0.5,
+                ymin=y-0.5, ymax=y+0.5, fill=e_spat),
+            color="grey", size=0.2)
+
+tmp <- list(col=min(map$x):max(map$x),
+            row=min(map$y):max(map$y))
+tmp$e_spat <- matrix(map$e_spat, byrow=FALSE,
+                     nrow=length(tmp$row),
+                     ncol=length(tmp$col),
+                     dimnames=list(as.character(tmp$row), as.character(tmp$col)))
+fields::image.plot(tmp$col, tmp$row, t(tmp$e_spat), col=topo.colors(100),
+                   main="Map of the whole platform: spatial heterogeneity + errors",
+                   xlab="x", ylab="y", las=1)
+```
+
+## Yield
+
+```{r}
+y <- X %*% beta + Z_g %*% g + Z_spat %*% e_spat
+dat <- map
+dat$yield <- y
+```
+
+
+# EDA
+
+```{r, fig.width=10}
+tmp <- tapply(dat$yield, dat$mngt, mean, na.rm=TRUE)
+tmp <- data.frame(mngt=names(tmp),
+                  mean=tmp)
+tmp$mngt <- factor(tmp$mngt, levels=levels(dat$mngt))
+tmp
+ggplot(dat, aes(x=yield)) +
+  labs(title="Yield", x="yield (in qt/ha)") +
+  geom_histogram(bins=30) +
+  geom_vline(aes(xintercept=mean, color=mngt), tmp, size=1.5)
+```
+
+```{r, fig.width=10}
+ggplot(dat, aes(x=mngt, y=yield, group=mngt, color=mngt, fill=mngt)) +
+  labs(title="Yield", x="", y="yield (in qt/ha)") +
+  geom_violin(show.legend=FALSE)
+```
+
+```{r, fig.width=14}
+ggplot(dat, aes(x=serie, y=yield, group=serie, color=serie, fill=serie)) +
+  labs(title="Yield", x="", y="yield (in qt/ha)") +
+  geom_violin(show.legend=FALSE) +
+  facet_wrap(~ mngt)
+```
+
+
+# Per-trial analysis
+
+```{r}
+fitsSep <- lapply(trials, function(trial){
+  subDat <- droplevels(dat[dat$trial == trial,])
+  fit <- lm(yield ~ 1 + block + geno, data=subDat)
+  if(FALSE){
+    op <- par(mfrow=c(2,2))
+    suppressWarnings(plot(fit, main=trial))
+    par(op)
+  }
+  tav <- anova(fit)
+  CV <- round((sqrt(tav["Residuals","Mean Sq"]) / mean(dat$yield,na.rm=T)) * 100,
+              dig=1)
+  ETR <- round(sqrt(tav["Residuals","Mean Sq"]), dig=1)
+  blockEffs <- emmeans(fit, ~ block)
+  genoEffs <- emmeans(fit, ~ geno)
+  list(fit=fit, tav=tav, CV=CV, ETR=ETR, blockEffs=blockEffs, genoEffs=genoEffs)
+})
+names(fitsSep) <- trials
+```
+
+```{r}
+(tmp <- do.call(rbind,
+                lapply(fitsSep, function(out){
+                  c("CV"=out$CV, "ETR"=out$ETR)
+                })
+                ))
+summary(tmp)
+```
+
+
+# Joint analysis
+
+## Fit
+
+```{r, fig.width=12, fig.height=10}
+subDatSpats <- droplevels(dat[! dat$border,])
+outF <- "corr-spat-het_SpATS.rds"
+if(! file.exists(outF)){
+  st <- system.time(
+      fit <- SpATS(response="yield",
+                   genotype="geno", genotype.as.random=TRUE,
+                   spatial= ~ SAP(x, y, nseg=c(150, 15), pord=c(2,2), degree=c(3,3)),
+                   fixed= ~ ferti + fungi + serie,
+                   data=subDatSpats,
+                   control=list(monitoring=0)))
+  print(st)
+  message("save file")
+  saveRDS(fit, outF)
+  print(tools::md5sum(outF))
+} else{
+  message("read file")
+  print(tools::md5sum(outF))
+  fit <- readRDS(outF)
+}
+sry <- summary(fit, which="variances")
+(ETR <- sqrt(as.numeric(sry$p.table.vc["Residual", "Variance"])))
+(H2 <- getHeritability(fit))
+main <- paste0("Fit with SpATS:",
+               " ETR=", round(ETR, 2), " H2=", H2)
+plot(fit, main=main)
+```
+
+```{r}
+pred_g <- predict(fit, which="geno")
+g_blup <- setNames(pred_g$predicted.values, pred_g$geno)
+g_blup <- g_blup[names(g)]
+cor(g_blup, g, use="complete.obs")
+plot(g_blup[names(g)], g, las=1)
+fitg <- lm(g ~ g_blup[names(g)])
+summary(fitg)$r.squared
+abline(fitg, col="red")
+```
+
+## Extract spatial trend
+
+```{r}
+(minX <- min(map$x[! map$border]))
+(maxX <- max(map$x[! map$border]))
+spatTrend <- obtain.spatialtrend(fit, grid=c(maxX - minX + 1, platformDims["Y"]))
+str(spatTrend$col.p)
+range(spatTrend$col.p)
+str(spatTrend$row.p)
+range(spatTrend$row.p)
+str(spatTrend$fit)
+colnames(spatTrend$fit) <- as.character(spatTrend$col.p)
+rownames(spatTrend$fit) <- as.character(spatTrend$row.p)
+fields::image.plot(spatTrend$col.p, spatTrend$row.p, t(spatTrend$fit),
+                   col=topo.colors(100), xlab="x", ylab="y", las=1)
+
+if(FALSE){
+  ## TODO: look inside plot.SpATS
+  x.coord <- x$data[, xlab]
+  y.coord <- x$data[, ylab]
+  columns <- seq(min(x.coord), max(x.coord), by = min(diff(sort(unique(x.coord)))))
+  rows <- seq(min(y.coord), max(y.coord), by = min(diff(sort(unique(y.coord)))))
+  setNumericRounding(2)
+  xy.coord <- data.table(expand.grid(columns = columns, rows = rows))
+  setkeyv(xy.coord, c("rows", "columns"))
+  ONE <- rep(1, length(x.coord))
+  df <- data.table(columns = x.coord, rows = y.coord, response = response, 
+                   fitted = fitted, residuals = residuals, geno.pred = geno.pred, 
+                   weights = x$data$weights, ONE = ONE)
+  setkeyv(df, c("rows", "columns"))
+  df <- df[xy.coord]
+  df <- df[order(df$columns, df$rows), ]
+  p1 <- if (length(columns) > 100) 
+          1
+        else 100%/%length(columns) + 1
+  p2 <- if (length(rows) > 100) 
+          1
+        else 100%/%length(rows) + 1
+  fit.spatial.trend <- obtain.spatialtrend(x, grid = c(length(columns) * 
+                                                       p1, length(rows) * p2))
+  spatial.trend <- fit.spatial.trend$fit
+  Mf <- kronecker(matrix(df$ONE, ncol = length(columns), nrow = length(rows)), 
+                  matrix(1, p2, p1))
+  colors <- topo.colors(100)
+  fields::image.plot(fit.spatial.trend$col.p, fit.spatial.trend$row.p, 
+                     t(spatial.trend * Mf), main = main.legends[4], col = colors, 
+                     xlab = xlab, ylab = ylab, graphics.reset = TRUE, 
+                     zlim = if (!is.null(dots$zlim)) 
+                              dots$zlim
+                            else range(spatial.trend))
+}
+
+tmp <- data.frame(x=rep(colnames(spatTrend$fit), each=nrow(spatTrend$fit)),
+                  y=rownames(spatTrend$fit),
+                  e_spat_pred=c(spatTrend$fit))
+tmp$xy <- factor(paste0(tmp$x, "_", tmp$y))
+tmp$e_spat <- map$e_spat[match(as.character(tmp$xy), as.character(map$xy))]
+head(tmp)
+plot(tmp$e_spat_pred, tmp$e_spat)
+subDatSpats$residuals <- residuals(fit)
+tmp$residuals <- subDatSpats$residuals[match(as.character(tmp$xy), as.character(subDatSpats$xy))]
+plot(tmp$e_spat_pred, tmp$e_spat - tmp$residuals)
+
+dat2 <- dat
+dat2$e_spat_pred <- tmp$e_spat_pred[match(as.character(dat2$xy), as.character(tmp$xy))]
+```
+
+## Re-fit per trial
+
+```{r}
+fitsSep2 <- lapply(trials, function(trial){
+  subDat <- droplevels(dat2[dat2$trial == trial,])
+  fit <- lm(yield ~ 1 + block + geno, data=subDat)
+  if(FALSE){
+    op <- par(mfrow=c(2,2))
+    suppressWarnings(plot(fit, main=trial))
+    par(op)
+  }
+  tav <- anova(fit)
+  CV <- round((sqrt(tav["Residuals","Mean Sq"]) / mean(dat2$yield,na.rm=T)) * 100,
+              dig=1)
+  ETR <- round(sqrt(tav["Residuals","Mean Sq"]), dig=1)
+  blockEffs <- emmeans(fit, ~ block)
+  genoEffs <- emmeans(fit, ~ geno)
+  list(fit=fit, tav=tav, CV=CV, ETR=ETR, blockEffs=blockEffs, genoEffs=genoEffs)
+})
+names(fitsSep2) <- trials
+```
+
+```{r}
+(tmp <- do.call(rbind,
+                lapply(fitsSep2, function(out){
+                  c("CV"=out$CV, "ETR"=out$ETR)
+                })
+                ))
+summary(tmp)
+```
+
+
+# References
+
+* Rodríguez-Álvarez MX, Boer MP, van Eeuwijk FA, Eilers PHC. 2018. Correcting for spatial heterogeneity in plant breeding experiments with P-splines. Spatial Statistics. 23:52–71. doi:10.1016/j.spasta.2017.10.003.
+
+
+
+# Appendix
+
+```{r info}
+t1 <- proc.time()
+t1 - t0
+print(sessionInfo(), locale=FALSE)
+```
