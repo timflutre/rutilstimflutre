@@ -273,7 +273,7 @@ As a result:
 
 \begin{align}
 R &= Cov(w, g_a) \\
- &= \beta_{wg} Var(g_a) \\
+ &= \beta_{w g_a} Var(g_a) \\
  &= \beta_{wz} Var(g_a) \frac{Var(z)}{Var(z)} \\
  &= \frac{Var(g_a)}{Var(z)} \, Cov(w, z) \\
  &= h^2 \, S
