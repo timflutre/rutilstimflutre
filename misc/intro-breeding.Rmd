@@ -1,12 +1,18 @@
 ---
-title: "Introduction to selection"
-author: "Timothée Flutre (INRAE)"
+title: "Introduction to the breeder's equation"
+author: "T. Flutre (INRAE)"
 date: "`r format(Sys.time(), '%d/%m/%Y %H:%M:%S')`"
 output: html_document
 runtime: shiny
 colorlinks: true
 urlcolor: blue
 ---
+
+\
+
+This application is based on the regression of offspring phenotype on midparent phenotype, as explained on pages 48-50 of chapter 3 from Lynch & Walsh (1998).
+
+\
 
 ```{r, echo=FALSE}
 suppressPackageStartupMessages(library(shiny))
@@ -85,18 +91,24 @@ plotRegMidparentsOffsprings <- function(mu.0, sigma.02, h2, y, y.e,
                                         mu.1, R){
   CV.g <- sqrt(sigma.02) / mu.0
   xylim <- range(c(y, y.e))
-  xylim <- c(0.95*min(c(y, y.e)), 1.1*max(c(y, y.e)))
+  xylim <- c(0.9*min(c(y, y.e)), 1.1*max(c(y, y.e)))
   plot(x=y, y=y.e, las=1, type="n",
        xlim=xylim, ylim=xylim,
-       xlab="Average phenotypes of each parental pair",
-       ylab="Phenotypes of each offspring")
-  title(main=bquote(bold(Linear~regression~of~offsprings~on~average~parents)~(h^2==.(h2)*","~mu^(s)==.(format(mu.s, digits=2))*","~CV[g]==.(format(CV.g, digits=2))*","~alpha==.(format(100*alpha, digits=2))*"%"*","~i==.(format(i, digits=3)))))
-
+       xlab="Average phenotype of each parental pair",
+       ylab="Phenotype of each offspring")
+  title(main=bquote(bold(Linear~regression~of~offsprings~on~average~parents)~
+                      (h^2==.(h2)*
+                         ","~CV[g]==.(format(CV.g, digits=2))*
+                         ","~i==.(format(i, digits=3))*
+                         ","~alpha==.(format(100*alpha, digits=2))*"%"*
+                         ","~mu^(s)==.(format(mu.s, digits=2)))))
+  
   ## without selection
   points(x=y[! is.sel], y=y.e[! is.sel], pch=1)
-  points(x=y[is.sel], y=y.e[is.sel], pch=20)
+  points(x=y[is.sel], y=y.e[is.sel], pch=19)
   abline(a=0, b=1, lty=2)
   abline(lm(y.e ~ y), col="red")
+
   legend("topleft",
          legend=c("identity line",
                   "regression line",
@@ -107,7 +119,7 @@ plotRegMidparentsOffsprings <- function(mu.0, sigma.02, h2, y, y.e,
                   "selected parents"),
          lty=c(2,1,2,1,3,0,0),
          lwd=c(1,1,2,2,2,1,0),
-         pch=c(-1,-1,-1,-1,-1,1,20),
+         pch=c(-1,-1,-1,-1,-1,1,19),
          col=c("black","red","black","black","black","black","black"),
          bty="n")
   abline(v=mu.0, lty=2, lwd=2)
@@ -115,29 +127,139 @@ plotRegMidparentsOffsprings <- function(mu.0, sigma.02, h2, y, y.e,
 
   ## with selection
   abline(v=y.t, lty=1, lwd=2)
+
   abline(v=mu.s, lty=3, lwd=2)
   arrows(x0=mu.0,
-         y0=mu.0 - 3 * sqrt(sigma.02),
+         y0=mu.0 - 4.0 * sqrt(sigma.02),
          x1=mu.s,
-         y1=mu.0 - 3 * sqrt(sigma.02),
+         y1=mu.0 - 4.0 * sqrt(sigma.02),
          lwd=2, code=3)
   text(x=mu.0 + (S/2),
-       y=mu.0 - 2.7 * sqrt(sigma.02),
-       labels=paste0("S = ", format(S, digits=2)), cex=1.5)
+       y=mu.0 - 3.7 * sqrt(sigma.02),
+       labels=paste0("S = ", format(round(S, 3), digits=3)), cex=1.5)
+
   abline(h=mu.1, lty=3, lwd=2)
-  arrows(x0=mu.0 - 3 * sqrt(sigma.02),
+  arrows(x0=mu.0 - 4.0 * sqrt(sigma.02),
          y0=mu.0,
-         x1=mu.0 - 3 * sqrt(sigma.02),
+         x1=mu.0 - 4.0 * sqrt(sigma.02),
          y1=mu.1, lwd=2, code=3)
-  text(x=mu.0 - 2.3 * sqrt(sigma.02),
+  text(x=mu.0 - 3.5 * sqrt(sigma.02),
        y=mu.0+(R/2),
-       labels=paste0("R = ", format(R, digits=2),
-                     " (+", format(100*R/mu.0, digits=3), "%)"),
+       labels=paste0("R = ", format(round(R, 3), digits=3),
+                     " (+", format(100*round(R,3)/mu.0, digits=3), "%)"),
        cex=1.5)
 }
 ```
 
-# Notations
+
+# Inputs
+
+```{r slider_inputs, echo=FALSE}
+fluidRow(
+  column(width = 4,
+         sliderInput("mu.0", "Phenotypic mean without selection (\\(\\mu_0\\)):",
+                     min=10,
+                     max=150,
+                     value=50,
+                     step=5, round=TRUE)
+  ),
+  column(width = 4,
+         sliderInput("y.t", "Phenotypic threshold (\\(y_t\\)):",
+                     min=0,
+                     max=150,
+                     value=70,
+                     step=1, round=TRUE)
+  ),
+  column(width = 4,
+         sliderInput("N", "Population size (\\(N\\)):",
+                     min=10,
+                     max=10^5,
+                     value=10^4,
+                     step=10, round=TRUE)
+  )
+)
+fluidRow(
+  column(width = 4,
+         sliderInput("h2", "Narrow-sense heritability (\\(h^2\\)):",
+                     min=0,
+                     max=1,
+                     value=0.7,
+                     step=0.05)
+  ),
+  column(width = 4,
+         sliderInput("CV.g", "Genetic coefficient of variation (\\(CV_g\\)):",
+                     min=0,
+                     max=1,
+                     value=0.2,
+                     step=0.01, round=TRUE)
+  )
+)
+# mu.0 <- 100
+# y.min <- 20
+# sigma.p2 <- ((mu.0 - y.min) / 3)^2
+# sliderInput("sigma.0", "Phenotypic standard deviation without selection (\\(\\sigma_0\\)):",
+#             min=0,
+#             max=round(1.2 * sqrt(sigma.p2)),
+#             value=sqrt(sigma.p2),
+#             step=2, round=TRUE)
+```
+
+\
+
+# Output
+
+```{r reactive_dat, echo=FALSE}
+getDatSel <- reactive({
+  sigma.0 <- input$mu.0 * input$CV.g
+  dat <- simulDat(mu.0=input$mu.0,
+                  sigma2=(1 - input$h2) * sigma.0^2,
+                  h2=input$h2,
+                  I=input$N,
+                  seed=1859)
+  sel <- applySelection(mu.0=dat$mu.0, y=dat$y, y.e=dat$y.e,
+                        y.t=input$y.t, sigma.02=dat$sigma.a2 + dat$sigma2)
+  return(append(dat, sel))
+})
+```
+
+```{r render_plot, echo=FALSE}
+output$regParsOffs <- renderPlot({
+  all <- getDatSel()
+  plotRegMidparentsOffsprings(mu.0=all$mu.0,
+                              sigma.02=all$sigma.a2 + all$sigma2,
+                              h2=all$h2,
+                              y=all$y, y.e=all$y.e,
+                              y.t=all$y.t, is.sel=all$is.sel,
+                              mu.s=all$mu.s, S=all$S, i=all$i, alpha=all$alpha,
+                              mu.1=all$mu.1, R=all$R)
+})
+plotOutput("regParsOffs", height="600")
+```
+
+\
+
+```{r, echo=FALSE}
+renderText({
+  all <- getDatSel()
+  paste0("Breeder's equation (R = h² S): ",
+         format(round(all$h2, 3), digits=3),
+         " x ", format(round(all$S, 3), digits=3),
+         " = ", format(round(all$h2 * all$S, 3), digits=3))
+})
+```
+
+\
+\
+\
+\
+
+
+<!--
+
+# Theory
+
+
+## Notations
 
 * Variances:
 
@@ -167,69 +289,5 @@ plotRegMidparentsOffsprings <- function(mu.0, sigma.02, h2, y, y.e,
 
   * $R = h^2 \, S = i \, h \, \sigma_a \; \Rightarrow \; \frac{R}{\mu_0} = i \, h^2 \, CV_g$
 
+-->
 
-# Inputs
-
-```{r slider_inputs, echo=FALSE}
-sliderInput("N", "Population size (\\(N\\)):",
-            min=10,
-            max=10^5,
-            value=10^5,
-            step=10, round=TRUE)
-sliderInput("h2", "Narrow-sense heritability (\\(h^2\\)):",
-            min=0,
-            max=1,
-            value=0.1,
-            step=0.05)
-sliderInput("mu.0", "Phenotypic mean without selection (\\(\\mu_0\\)):",
-            min=10,
-            max=150,
-            value=50,
-            step=5, round=TRUE)
-sliderInput("CV.g", "Genetic coefficient of variation (\\(CV_g\\)):",
-            min=0,
-            max=1,
-            value=0.2,
-            step=0.01, round=TRUE)
-# mu.0 <- 100
-# y.min <- 20
-# sigma.p2 <- ((mu.0 - y.min) / 3)^2
-# sliderInput("sigma.0", "Phenotypic standard deviation without selection (\\(\\sigma_0\\)):",
-#             min=0,
-#             max=round(1.2 * sqrt(sigma.p2)),
-#             value=sqrt(sigma.p2),
-#             step=2, round=TRUE)
-sliderInput("y.t", "Phenotypic threshold (\\(y_t\\)):",
-            min=0,
-            max=150,
-            value=81,
-            step=1, round=TRUE)
-```
-
-```{r reactive_dat, echo=FALSE}
-getDatSel <- reactive({
-  sigma.0 <- input$mu.0 * input$CV.g
-  dat <- simulDat(mu.0=input$mu.0,
-                  sigma2=(1 - input$h2) * sigma.0^2,
-                  h2=input$h2,
-                  I=input$N,
-                  seed=1859)
-  sel <- applySelection(mu.0=dat$mu.0, y=dat$y, y.e=dat$y.e,
-                        y.t=input$y.t, sigma.02=dat$sigma.a2 + dat$sigma2)
-  return(append(dat, sel))
-})
-```
-
-```{r render_plot, echo=FALSE}
-output$regParsOffs <- renderPlot({
-  all <- getDatSel()
-  plotRegMidparentsOffsprings(mu.0=all$mu.0,
-                              sigma.02=all$sigma.a2 + all$sigma2,
-                              h2=all$h2,
-                              y=all$y, y.e=all$y.e,
-                              y.t=all$y.t, is.sel=all$is.sel,
-                              mu.s=all$mu.s, S=all$S, i=all$i, alpha=all$alpha,
-                              mu.1=all$mu.1, R=all$R)
-})
-plotOutput("regParsOffs", height="600")
-```
