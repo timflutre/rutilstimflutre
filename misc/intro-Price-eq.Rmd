@@ -22,13 +22,13 @@ knitr::opts_chunk$set(echo = FALSE)
 
 ## Motivation
 
-The main goal of Price was to understand *selection* in an abstract way.
+The main goal of Price was to understand **selection** in an abstract way.
 This consisted in answering the following question, "how does some property change between two sets", by distinguishing the part of total change due to selection.
 
 - To evolutionary biologists, it helps (i) to rephrase the question as "how does some phenotype evolve between two populations", and (ii) to name the two sets "ancestral" and "descendant".
 
 Yet, Price equation is fully general, e.g., differences between sets can occur through space rather than time; *what matters is the mapping between both sets*.
-Most importantly, what is meant by the "part of total change due to selection" corresponds to *change in frequency* that arises directly from *differential contributions by ancestors*.
+Most importantly, what is meant by the "part of total change due to selection" corresponds to **change in frequency** that arises directly from **differential contributions by ancestors**.
 
 
 ## Definitions and notations
@@ -159,6 +159,7 @@ message ("After selection:")
 illustratePriceEq(3)
 ```
 
+<br>
 
 ## Derivation
 
@@ -205,10 +206,12 @@ Reminder: in the simple linear regression $y_i = \mu + \beta x_i + \epsilon_i$ w
 Gardner also recalls that if fitness $w$ is linearly dependent on $z$ with slope $\beta_{wz}$, then $Cov(w, z) = \beta_{wz} \, Var(z)$, which "captures Darwin's basic argument that selection occurs when there is variation in a character of interest that is correlated with fitness".
 
 
+<br>
+
 # Robertson's second theorem
 
 Let us assume that the ancestral set consists in potential parents and the descendant set consists in their offsprings.
-In quantitative genetics since Fisher, the parental phenotype $z$ is classically decomposed into a transmissible part noted $g_a$ (also kown as the additive genotypic, or *breeding*, value) and a non-transmissible part noted $\epsilon$, with $z = g_a + \epsilon$ and $\text{E}(\epsilon) = 0$ so that $z' = g_a$.
+In quantitative genetics since Fisher, the parental phenotype $z$ is classically decomposed into a transmissible part noted $g_a$ (called the **breeding** value, equal to the additive genotypic value when additive-additive epistasis is ignored) and a non-transmissible part noted $\epsilon$, with $z = g_a + \epsilon$ and $\text{E}(\epsilon) = 0$ so that $z' = g_a$.
 As a result, Price's equation applied to this mapping expresses the response to selection, $R$:
 
 \begin{align}
@@ -220,6 +223,8 @@ R &= \bar{z}_{\text{offsprings}} - \bar{z}_{\text{potential parents}} \\
 
 It is also known as Robertson's secondary theorem.
 
+
+<br>
 
 # Fisher's theorem of natural selection
 
@@ -238,6 +243,8 @@ Or equivalently using the absolute fitness:
 \end{align}
 
 
+<br>
+
 # The breeder's equation
 
 What defines a breeder is the possibility to apply selection, typically by truncation, on a population of $N$ individuals.
@@ -249,7 +256,7 @@ In the framework of Price's mapping, let us define two sets, before and after se
 
 Importantly, because individuals are the same between both sets, their phenotype remains the same: $\Delta z = 0$.
 
-As a result, Price's equation applied to this mapping expresses the selection differential:
+As a result, Price's equation applied to this mapping expresses the **selection differential**:
 
 \begin{align}
 S &= \bar{z}_{\text{selected parents}} - \bar{z}_{\text{potential parents}} \\
@@ -279,10 +286,10 @@ R &= Cov(w, g_a) \\
  &= h^2 \, S
 \end{align}
 
-This is also known as the breeder's equation where $h^2$ is called the (narrow-sense) heritability.
+This is also known as the breeder's equation where $h^2$ is called the (narrow-sense) **heritability**.
 
 The breeder's equation is then often written differently to ease the comparison of selection responses between traits and to highlight the factors determining the magnitude of selection response.
-Because $S$ is in the same unit as the phenotype $z$, it is often standardized by the phenotypic standard deviation, leading to the *intensity of selection*: $i = \frac{S}{\sigma_z}$.
+Because $S$ is in the same unit as the phenotype $z$, it is often standardized by the phenotypic standard deviation, leading to the **intensity of selection**: $i = \frac{S}{\sigma_z}$.
 Moreover, let us write $h^2$ as $h \times h$ so that $h := \frac{\sigma_{g_a}}{\sigma_z}$.
 This also means that $h$ corresponds to the correlation between breeding value and phenotype: $h = \frac{Var(g_a)}{\sigma_{g_a} \sigma_z} = \frac{Cov(g_a, z)}{\sigma_{g_a} \sigma_z} = Cor(g_a,z)$.
 
@@ -295,7 +302,7 @@ R &= i \, h^2 \, \sigma_z \\
 \end{align}
 
 This formula corresponds to the case where a breeder performs phenotypic selection, i.e., the selection is made using phenotypic observations, hence what counts is the accuracy with which phenotypic observations ($z$) inform about breeding values ($g_a$).
-More generally, a breeder applies its selection on estimated breeding values (EBVs):
+More generally, a breeder applies its selection on *estimated* breeding values (EBVs):
 
 \[
 R = i \, \rho \, \sigma_{g_a}
@@ -303,7 +310,37 @@ R = i \, \rho \, \sigma_{g_a}
 
 where $\rho$ is the correlation between the estimated and the true breeding values.
 
+<br>
 
+It is also important to realize that $\frac{S}{\sigma_z^2} = \frac{Cov(w,z)}{\sigma_z^2} = \beta_{wz}$ so that $R = \beta_{wz} \, \sigma_{g_a}^2$ where $\beta_{wz}$, the slope of the linear regression of the (relative) fitness on the trait, is known as the **selection gradient**.
+Beyond artificial selection, i.e., when no human is consciously applying a selection differential, $S$ cannot be estimated, yet $\beta_{wz}$ can, simply by regressing the relative fitness on the trait.
+The larger the slope, the stronger the selection.
+
+Caution though, there may well be several traits contributing to fitness, possibly with genetic covariance between them, in which case the multivariate version of the breeder's equation should be used, as formalized by Lande in 1979:
+
+\[
+\overset{\rightarrow}{R} = G \, \mathbf{\beta}
+\; \Leftrightarrow \;
+\begin{pmatrix}
+R_1 \\
+R_2
+\end{pmatrix}
+=
+\begin{pmatrix}
+\sigma^2_{g_a,1} & \sigma_{g_a,1-2} \\
+\sigma_{g_a,1-2} & \sigma^2_{g_a,2}
+\end{pmatrix}
+\begin{pmatrix}
+\beta_1 \\
+\beta_2
+\end{pmatrix}
+\]
+
+in the case of two traits, with the (in)famous **$G$ matrix**.
+
+
+
+<br>
 
 # References
 
@@ -318,6 +355,8 @@ where $\rho$ is the correlation between the estimated and the true breeding valu
 - Lush JL. 1937. Animal breeding plans. Ames: Iowa State University Press.
 
 - Robertson A. 1966. A mathematical model of the culling process in dairy cattle. Animal Science. 8(1):95–108. doi:10.1017/S0003356100037752.
+
+- Lande R. 1979. Quantitative genetic analysis of multivariate evolution, applied to brain: body size allometry. Evolution. 33(1):402–416. doi:10.2307/2407630.
 
 - Frank S. 1995. George Price’s contributions to evolutionary genetics. Journal of Theoretical Biology. 175(3):373–388. doi:10.1006/jtbi.1995.0148.
 
