@@ -40,11 +40,16 @@ Simulate phenotypes via the following model (\href{https://doi.org/10.1093/jxb/1
 }
 \examples{
 \dontrun{set.seed(1859)
-model <- simulGeneralisedLogistic(t=seq(-1.5, 3.5, 0.1), a=0, k=1, r=3, nu=0.5, b=0.5, c=1, sigma2=0.01)
-plot(x=model$t, y=model$g.t, type="b", las=1, xlab="time (t)", ylab="g(t)",
-     main="Generalised logistic without noise")
-plot(x=model$t, y=model$y.t, type="b", las=1, xlab="time (t)", ylab="y(t)",
-     main="Generalised logistic with noise")
+model <- simulGeneralisedLogistic(t=seq(-1.5, 3.5, 0.1),
+                                  a=0, k=1, r=3, nu=0.5, b=0.5, c=1,
+                                  sigma2=0.01)
+plot(x=model$t, y=model$g.t, type="l", las=1, xlab="time (t)", ylab="g(t) and y(t)",
+     main="Generalised logistic with/without noise", ylim=range(model$y.t))
+points(x=model$t, y=model$g.t, pch=1)
+points(x=model$t, y=model$y.t, pch=19, col="red", cex=1.2)
+## lines(x=model$t, y=model$y.t, col="red")
+legend("bottomright", bty="n", col=c("black", "black", "red"), lty=c(1,NA,NA),
+       pch=c(NA,1,19), legend=c("dynamics", "state", "obs."))
 }
 }
 \author{
