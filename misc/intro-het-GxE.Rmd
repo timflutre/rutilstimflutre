@@ -1,0 +1,1143 @@
+---
+title: "Introduction to the statistical analysis of a multi-environment trial"
+author: "Timothée Flutre (INRAE)"
+date: "`r format(Sys.time(), '%d/%m/%Y %H:%M:%S')`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    toc_depth: 6
+    number_sections: TRUE
+  pdf_document:
+    toc: true
+    toc_depth: 3
+    number_sections: TRUE
+---
+
+```{r knitr_setup, echo=FALSE}
+library(knitr)
+knitr::opts_chunk$set(fig.width=6, fig.height=5, fig.align="center",
+                      global.par=TRUE)
+```
+
+
+# Preamble
+
+Dependencies:
+```{r load_pkg}
+suppressPackageStartupMessages(library(ggplot2))
+suppressPackageStartupMessages(library(Matrix))
+suppressPackageStartupMessages(library(MASS))
+suppressPackageStartupMessages(library(emmeans))
+suppressPackageStartupMessages(library(lme4))
+suppressPackageStartupMessages(library(nlme))
+suppressPackageStartupMessages(library(MM4LMM))
+```
+
+Execution time (see the appendix):
+```{r time_0}
+t0 <- proc.time()
+```
+
+
+# Model
+
+The goal of this document is to introduce linear models to analyze trials with *genotype-environment interactions* allowing for *heteroscedasticity* in the errors.
+
+## Overview
+
+A *multi-environment trial* (MET) consists in $I$ varieties grown in $J$ environments.
+
+* At the scale of the whole trial, not all varieties are necessarily grown in all environments, in which case the MET is *incomplete*.
+However, it is still much advised that all varieties are grown in the same number of environments, and well distributed among them, so that the MET is *balanced*.
+
+* At the scale of a given environment, not all varieties grown in it are necessarily replicated.
+But at least some of them should be, e.g., to deal with spatial heterogeneity.
+
+When the design is complete and with the same replicate number of varieties in each environment, one may choose to model the variety and environment main effects as *fixed*.
+Otherwise, one may also choose to model both effects as *random*, or one as fixed and the other as random.
+When a main effect is modeled as fixed, a *contrast* needs to be chosen, typically the "sum" contrast.
+
+## Formulas
+
+Yield of the $k$-th replicate of variety $i$ in environment $j$:
+\[
+y_{ijk} = \mu + \alpha_i + \theta_j + \delta_{ij} + \epsilon_{ijk}
+\]
+where $\mu$ is the overall intercept, $\alpha_i$ is the main effect for variety $i$, $\theta_j$ is the main effect for environment $j$, $\delta_{ij}$ is the interaction effect for variety $i$ and environment $j$, and $\epsilon_{ijk}$ is the residual term for replicate $k$ of this variety-by-environment combination.
+
+Let $n_j$ denotes the number of plots in environment $j$, hence the MET sample size, i.e., the total number of plots, is defined as $n := \sum_j n_j$.
+
+In vector form:
+\begin{align}
+\boldsymbol{y} = \boldsymbol{\text{1}} \mu +  M_\alpha \, \boldsymbol{\alpha} + M_\theta \, \boldsymbol{\theta} + M_\delta \, \boldsymbol{\delta} + \boldsymbol{\epsilon} \text{ with } \epsilon_{ijk} \sim \mathcal{N}(0, \sigma_j^2)
+\end{align}
+where $\boldsymbol{y}$ and $\boldsymbol{\epsilon}$ are vectors of length $n$, the $M$'s are design matrices, and the lengths of vectors $\boldsymbol{\alpha}$, $\boldsymbol{\theta}$ and $\boldsymbol{\delta}$ depend on whether these effects are modeled as fixed or random.
+
+Such a model can be generically written like this:
+\[
+\boldsymbol{y} = X \boldsymbol{\beta} + \sum_{k=1}^K Z_k \boldsymbol{u}_k
+\]
+where $\boldsymbol{\beta}$ are fixed effects with $X$ as design matrix, the $\boldsymbol{u}_k$'s are random effects (including the error terms) with $Z_k$ as design matrix and $\boldsymbol{u}_k \sim \mathcal{N}(\boldsymbol{0}, \sigma_k^2 R_k)$ where $\sigma_k^2$ is a variance component and $R_k$ a correlation matrix.
+
+
+# Simulation
+
+```{r}
+set.seed(12345)
+```
+
+Dimensions of the MET assuming that it is complete and that each environment has a randomized complete block design with the same number of blocks:
+```{r}
+I <- 20 # nb of varieties
+nbSites <- 4; nbSeasons <- 2
+J <- nbSites * nbSeasons # nb of environments
+K <- 5 # nb of blocks; assumed
+```
+
+MET sample size:
+```{r}
+list_n_j <- lapply(1:J, function(j){
+  I * K
+})
+(n <- sum(do.call(c, list_n_j)))
+```
+
+## Identifiers and global data frame
+
+Genotype identifiers:
+```{r}
+genos <- sprintf("g%03i", 1:I)
+```
+
+Environment identifiers:
+```{r}
+sites <- sort(unique(sapply(1:nbSites, function(i){
+  paste(sample(LETTERS, 4), collapse="")})))
+seasons <- seq(2015, 2015 + nbSeasons - 1)
+envs <- apply(cbind(rep(seasons, times=nbSites),
+                    rep(sites, each=nbSeasons)),
+              1, paste, collapse="")
+envs
+names(list_n_j) <- envs
+```
+
+Block identifiers:
+```{r}
+blocks <- LETTERS[1:K]
+```
+
+Global data frame:
+```{r}
+dat <- data.frame(env=rep(envs, each=I*K),
+                  geno=rep(genos, times=K*J),
+                  gxe=NA,
+                  block=rep(rep(blocks, each=I), times=J),
+                  yield=NA,
+                  stringsAsFactors=TRUE)
+dat$env <- factor(as.character(dat$env), levels=envs)
+dat$gxe <- apply(dat, 1, function(x){paste0(x["geno"], x["env"], collapse="-")})
+## let the levels of the "gxe" column be ordered as varieties within environments:
+tmp <- cbind("geno"=rep(genos, times=J),
+             "env"=rep(envs, each=I))
+tmp <- as.data.frame(tmp)
+tmp$gxe <- apply(tmp, 1, function(x){paste0(x["geno"], x["env"], collapse="-")})
+dat$gxe <- factor(dat$gxe, levels=tmp$gxe)
+str(dat)
+stopifnot(nrow(dat) == n,
+          nlevels(dat$geno) == I,
+          nlevels(dat$env) == J,
+          nlevels(dat$gxe) == I * J)
+head(dat)
+```
+
+## $X$
+
+We will model here the environment main effects as fixed.
+
+Design matrix of the fixed effects, assuming an intercept and a "sum" contrast:
+```{r}
+X <- model.matrix(~ 1 + env, data=dat, contrasts.arg=list(env="contr.sum"))
+stopifnot(nrow(X) == n,
+          ncol(X) == 1 + (J - 1))
+dim(X)
+head(X)
+tail(X)
+image(t(X)[,nrow(X):1], main="X", col=c("grey","white","black"),
+      xaxt="n", yaxt="n")
+```
+
+## $\beta$
+
+Overall intercept:
+```{r}
+mu <- 50
+```
+
+Contrasts of the main environment effects modeled as fixed:
+```{r}
+var_theta <- 20
+theta <- mvrnorm(n=1, mu=rep(0, J-1), Sigma=var_theta * diag(J-1))
+summary(theta)
+```
+
+Vector of fixed effects of interest:
+```{r}
+beta <- c(mu, theta)
+length(beta)
+stopifnot(length(beta) == 1 + (J - 1))
+```
+
+Retrieve the main environment effects (not their contrasts):
+```{r}
+coding_matrix <- cbind(intercept=1,
+                       contr.sum(levels(dat$env)))
+dim(coding_matrix)
+(trueEnvEffs <- (coding_matrix %*% beta)[,1])
+```
+
+TODO: add block effects (nested in the environments)
+
+## $Z$
+
+Design matrix of the random effects:
+```{r}
+Z_g <- model.matrix(~ 0 + geno, data=dat)
+Z_gxe <- model.matrix(~ 0 + geno:env, data=dat)
+Z <- cbind(Z_g, Z_gxe)
+stopifnot(nrow(Z) == n,
+          ncol(Z) == I + (I * J))
+dim(Z)
+head(Z)[,1:6]
+tail(Z)[,tail(colnames(Z))]
+image(t(Z)[,nrow(Z):1], main="Z", col=c("white","black"),
+      xaxt="n", yaxt="n")
+```
+
+## $u$
+
+Main variety effects modeled as random, assuming no correlation between genotypic values:
+```{r}
+var_alpha <- 10
+R_alpha <- diag(I) # could be replaced by a kinship matrix
+alpha <- mvrnorm(n=1, mu=rep(0, I), Sigma=var_alpha * R_alpha)
+names(alpha) <- levels(dat$geno)
+summary(alpha)
+```
+
+Variety-environment effects:
+```{r}
+var_delta <- 3
+R_delta <- diag(I*J)
+delta <- mvrnorm(n=1, mu=rep(0, I*J), Sigma=var_delta * R_delta)
+names(delta) <- levels(dat$gxe)
+summary(delta)
+```
+
+Vector of random effects:
+```{r}
+u <- c(alpha, delta)
+length(u)
+stopifnot(length(u) == I + (I * J))
+```
+
+## $\epsilon$
+
+Error terms:
+```{r}
+## type_err_var <- "homoscedasticity"
+type_err_var <- "heteroscedasticity"
+list_var_j <- lapply(1:J, function(j){
+  if(type_err_var == "homoscedasticity"){
+    2
+  } else if(type_err_var == "heteroscedasticity")
+    runif(n=1, min=2, max=8)
+})
+names(list_var_j) <- envs
+unlist(list_var_j)
+summary(unlist(list_var_j))
+list_e_j <- lapply(1:J, function(j){
+  n_j <- sum(dat$env == envs[j])
+  rnorm(n=n_j, mean=0, sd=sqrt(list_var_j[[j]]))
+})
+epsilon <- do.call(c, list_e_j)
+length(epsilon)
+stopifnot(length(epsilon) == n)
+```
+
+## $y$
+
+```{r}
+y <- X %*% beta + Z %*% u + epsilon
+length(y)
+stopifnot(length(y) == n)
+```
+
+```{r}
+dat$yield <- y[,1]
+```
+
+## Save
+
+```{r}
+outF <- "intro-het-GxE_dat.csv"
+write.table(dat, outF, sep="\t", row.names=FALSE)
+tools::md5sum(outF)
+```
+
+
+# Exploration
+
+```{r}
+str(dat)
+summary(dat)
+```
+
+## Overall
+
+```{r}
+breaks <- pretty(range(dat$yield),
+                 n = nclass.FD(dat$yield),
+                 min.n = 1)
+p <- ggplot(dat, aes(x=yield)) +
+  labs(title="Simulation", x="yield") +
+  geom_histogram(color="white", breaks=breaks)
+p
+```
+
+## Per environment
+
+```{r}
+plotPerEnv <- function(dat){
+  ggplot() +
+    labs(title="Simulation", x="environment", y="yield") +
+    geom_violin(data=dat, aes(x=env, y=yield, fill=env)) +
+    geom_point(data=dat, aes(x=env, y=yield, fill=env),
+               position=position_jitterdodge(seed=1, dodge.width=0.9),
+               show.legend=FALSE) +
+    theme(axis.text.x = element_text(angle = 90))
+}
+```
+
+```{r, fig.width=12}
+plotPerEnv(dat)
+```
+
+## Per genotype
+
+```{r, fig.width=12}
+p <- ggplot(dat, aes(x=geno, y=yield, fill=geno)) +
+  labs(title="Simulation", x="genotype", y="yield") +
+  geom_violin() +
+  geom_point(position=position_jitterdodge(seed=1, dodge.width=0.9),
+             show.legend=FALSE)
+p
+```
+
+
+# Statistical analysis
+
+## Two-stage
+
+### `lm` then `coef`
+
+#### Run
+
+```{r}
+fits1 <- lapply(1:J, function(j){
+  sub_dat <- droplevels(subset(dat, env == envs[j]))
+  ## lm(yield ~ 0 + geno + block, data=sub_dat)
+  lm(yield ~ 0 + geno, data=sub_dat)
+})
+names(fits1) <- envs
+coefs1 <- lapply(seq_along(fits1), function(j){
+  env <- envs[j]
+  fit <- fits1[[env]]
+  tmp <- coef(fit)
+  tmp <- tmp[grep("^geno", names(tmp))]
+  names(tmp) <- sub("^geno", "", names(tmp))
+  data.frame(env=env, geno=names(tmp), estim=tmp, stringsAsFactors=TRUE)
+})
+df_coefs1 <- do.call(rbind, coefs1)
+rownames(df_coefs1) <- NULL
+head(df_coefs1)
+```
+
+Sort the environments per mean yield:
+```{r}
+meanEnvs <- sort(tapply(df_coefs1$estim, df_coefs1$env, mean))
+summary(meanEnvs)
+df_coefs1$env <- factor(as.character(df_coefs1$env), names(meanEnvs))
+```
+
+#### Check
+
+##### Error variances
+
+```{r}
+(tmp <- data.frame(true=unlist(list_var_j),
+                   estim=sapply(fits1, sigma)^2,
+                   row.names=envs))
+p <- ggplot(tmp, aes(x=true, y=estim)) +
+  labs(title=paste0("Error variances",
+                    " (cor=", round(cor(tmp$true, tmp$estim), 2), ")"),
+         x="true value", y="estimate") +
+    geom_point() +
+  geom_abline(intercept=0, slope=1)
+p
+```
+
+##### Genotype effects per environment
+
+```{r}
+for(j in 1:J){
+  tmp <- data.frame(true=trueEnvEffs[envs[j]] + alpha +
+                      delta[grep(envs[j], names(delta))],
+                    estim=coefs1[[j]]$estim)
+  p <- ggplot(tmp, aes(x=true, y=estim)) +
+    labs(title=paste0("Environment ", envs[j],
+                      " (R2=", round(summary(fits1[[j]])$r.squared, 3), ")"),
+         x="true value", y="estimate") +
+    geom_point() +
+    geom_abline(intercept=0, slope=1)
+  print(p)
+}
+```
+
+#### Plot
+
+```{r, fig.width=12}
+p <- ggplot(df_coefs1, aes(x=env, y=estim, group=geno)) +
+  labs(title="Simulation",
+       x="environment", y="marginal mean of genotype yield") +
+  geom_line(aes(color=geno)) + geom_point(aes(color=geno)) +
+  theme(axis.text.x = element_text(angle = 90))
+p
+```
+
+### `lm` then `emmeans`
+
+#### Run
+
+```{r}
+fits2 <- lapply(1:J, function(j){
+  sub_dat <- droplevels(subset(dat, env == envs[j]))
+  ## lm(yield ~ 1 + block + geno, data=sub_dat)
+  lm(yield ~ 1 + geno, data=sub_dat)
+})
+names(fits2) <- envs
+coefs2 <- lapply(seq_along(fits2), function(j){
+  env <- envs[j]
+  fit <- fits1[[env]]
+  tmp <- summary(emmeans(object=fit, specs="geno"))
+  tmp <- setNames(tmp$emmean, tmp$geno)
+  data.frame(env=env, geno=names(tmp), estim=tmp, stringsAsFactors=TRUE)
+})
+df_coefs2 <- do.call(rbind, coefs2)
+rownames(df_coefs2) <- NULL
+head(df_coefs2)
+```
+
+Sort the environments per mean yield:
+```{r}
+meanEnvs <- sort(tapply(df_coefs2$estim, df_coefs2$env, mean))
+summary(meanEnvs)
+df_coefs2$env <- factor(as.character(df_coefs2$env), names(meanEnvs))
+```
+
+#### Check
+
+##### Error variances
+
+```{r}
+(tmp <- data.frame(true=unlist(list_var_j),
+                   estim=sapply(fits2, sigma)^2,
+                   row.names=envs))
+p <- ggplot(tmp, aes(x=true, y=estim)) +
+  labs(title=paste0("Error variances",
+                    " (R2=", round(summary(fits2[[j]])$r.squared, 3), ")"),
+       x="true value", y="estimate") +
+  geom_point() +
+  geom_abline(intercept=0, slope=1)
+p
+```
+
+##### Genotype effects per environment
+
+```{r}
+for(j in 1:J){
+  tmp <- data.frame(true=trueEnvEffs[envs[j]] + alpha +
+                      delta[grep(envs[j], names(delta))],
+                    estim=coefs2[[j]]$estim)
+  p <- ggplot(tmp, aes(x=true, y=estim)) +
+    labs(title=paste0("Environment ", envs[j],
+                      " (R2=", round(summary(fits2[[j]])$r.squared, 3), ")"),
+         x="true value", y="estimate") +
+    geom_point() +
+    geom_abline(intercept=0, slope=1)
+  print(p)
+}
+```
+
+#### Plot
+
+```{r, fig.width=12}
+p <- ggplot(df_coefs2, aes(x=env, y=estim, group=geno)) +
+  labs(title="Simulation",
+       x="environment", y="marginal mean of genotype yield") +
+  geom_line(aes(color=geno)) + geom_point(aes(color=geno)) +
+  theme(axis.text.x = element_text(angle = 90))
+p
+```
+
+## One-stage
+
+### `lm`
+
+The `lm` function from the `stats` package performs inference via ordinary least squares assuming homoscedasticity and cannot handle random variables.
+
+#### Fit
+
+```{r}
+fits_lm <- list()
+```
+
+##### Without GxE
+
+```{r}
+## fit <- lm(model=yield ~ 1 + geno + env + geno:env + env/block, data=dat)
+system.time(
+    fit0 <- lm(yield ~ 1 + geno + env, data=dat,
+               contrasts=list(geno="contr.sum", env="contr.sum")))
+fits_lm[["woGxE"]] <- fit0
+fixef0 <- coef(fit0)
+err_var0 <- sigma(fit0)^2
+scaled_residuals0 <- residuals(fit0) / err_var0
+y_hat0 <- fitted(fit0)
+in_diag0 <- cbind(dat,
+                 "scaled_residuals"=scaled_residuals0,
+                 "y_hat"=y_hat0)
+```
+
+##### With GxE
+
+```{r}
+## fit <- lm(model=yield ~ 1 + geno + env + geno:env + env/block, data=dat)
+system.time(
+    fit <- lm(yield ~ 1 + geno + env + geno:env, data=dat,
+              contrasts=list(geno="contr.sum", env="contr.sum")))
+fits_lm[["wGxE"]] <- fit
+fixef <- coef(fit)
+err_var <- sigma(fit)^2
+scaled_residuals <- residuals(fit) / err_var
+y_hat <- fitted(fit)
+in_diag <- cbind(dat,
+                 "scaled_residuals"=scaled_residuals,
+                 "y_hat"=y_hat)
+```
+
+#### Model comparison
+
+```{r}
+AIC(fit0, fit)
+BIC(fit0, fit)
+```
+
+```{r}
+anova(fit0, fit)
+```
+
+#### Diagnostics
+
+```{r}
+par(mfrow=c(2,2))
+plot(fit0, ask=FALSE)
+```
+
+```{r}
+par(mfrow=c(2,2))
+plot(fit, ask=FALSE)
+```
+
+#### Inference
+      
+##### Intercept
+
+```{r}
+data.frame("true"=mu,
+           "estim"=summary(fit)$coefficients["(Intercept)", "Estimate"],
+           "se"=summary(fit)$coefficients["(Intercept)", "Std. Error"])
+```
+
+##### Environment main effects
+
+Contrasts:
+```{r}
+idx <- grep("^env", rownames(summary(fit)$coefficients))
+(tmp <- cbind("true"=theta,
+              "estim"=summary(fit)$coefficients[idx, "Estimate"],
+              "se"=summary(fit)$coefficients[idx, "Std. Error"]))
+plot(tmp[,"estim"], tmp[,"true"], las=1, asp=1, xlab="estimated value", ylab="true value", main="Environment main effects (lm)", pch=19); abline(a=0, b=1, lty=2)
+```
+
+Estimated marginal means:
+```{r}
+estimEnvEffs <- as.data.frame(emmeans(fit, "env"))$emmean
+(tmp <- cbind("true"=trueEnvEffs,
+              "estim"=estimEnvEffs))
+plot(tmp[,"estim"], tmp[,"true"], las=1, asp=1, xlab="estimated value", ylab="true value", main="Environment main effects (lm)", pch=19); abline(a=0, b=1, lty=2)
+```
+
+##### Genotype main effects
+
+Estimated marginal means:
+```{r}
+estimGenoEffs <- as.data.frame(emmeans(fit, "geno"))$emmean
+(tmp <- cbind("true"=mu + alpha,
+              "estim"=estimGenoEffs))
+plot(tmp[,"estim"], tmp[,"true"], las=1, asp=1, xlab="estimated value", ylab="true value", main="Genotype main effects (lm)", pch=19); abline(a=0, b=1, lty=2)
+```
+
+##### Error variances
+
+```{r}
+(tmp <- cbind("true"=unlist(list_var_j),
+              "estim"=err_var))
+plot(tmp[,"estim"], tmp[,"true"], las=1, asp=1, xlab="estimated value", ylab="true value", main="Error variances (lm)", pch=19); abline(a=0, b=1, lty=2)
+```
+
+##### PVE
+
+```{r}
+(tav <- anova(fit))
+```
+
+##### Plots
+
+```{r, fig.width=12}
+p <- plotPerEnv(dat)
+p + geom_segment(data=data.frame(x=1:J - 0.3,
+                                 xend=1:J + 0.3,
+                                 y=estimEnvEffs,
+                                 yend=estimEnvEffs),
+                 aes(x=x, xend=xend, y=y, yend=yend), size=3)
+```
+
+### `gls` from `nlme`
+
+The `gls` function from the `nlme` package performs inference via generalized least squares, but cannot handle random variables.
+
+#### Fit
+
+```{r}
+fits_gls <- list()
+fixefs <- list()
+errVars <- list()
+in_diags_gls <- list()
+```
+
+##### Assuming homoscedasticity
+
+```{r}
+options(contrasts=c("contr.sum", "contr.poly")) # gls() has no arg "contrasts"
+## fit <- gls(model=yield ~ 1 + geno + env + geno:env + env/block, data=dat)
+system.time(
+    fit <- gls(model=yield ~ 1 + geno + env + geno:env, data=dat))
+fits_gls[["hom"]] <- fit
+fixefs[["hom"]] <- coef(fit)
+errVars[["hom"]] <- fit$sigma^2
+scaled_residuals_hom <- residuals(fit) / errVars[["hom"]]
+y_hat_hom <- fitted(fit)
+in_diags_gls[["hom"]] <- cbind(dat,
+                               "scaled_residuals"=scaled_residuals_hom,
+                               "y_hat"=y_hat_hom)
+```
+
+##### Assuming heteroscedasticity
+
+```{r}
+options(contrasts=c("contr.sum", "contr.poly")) # gls() has no arg "contrasts"
+## fit <- gls(model=yield ~ 1 + geno + env + geno:env + env/block, data=dat,
+system.time(
+    fit <- gls(model=yield ~ 1 + geno + env + geno:env, data=dat,
+               weights=varIdent(form=~1|env)))
+fits_gls[["het"]] <- fit
+fixefs[["het"]] <- coef(fit)
+errVars[["het"]] <- (c(1, exp(coef(fit$modelStruct$varStruct))) *
+  fit$sigma)^2
+scaled_residuals_het <- residuals(fit) / rep(errVars[["het"]], each=I * K)
+y_hat_het <- fitted(fit)
+in_diags_gls[["het"]] <- cbind(dat,
+                               "scaled_residuals"=scaled_residuals_het,
+                               "y_hat"=y_hat_het)
+```
+
+#### Model comparison
+
+```{r}
+AIC(fits_gls[["hom"]], fits_gls[["het"]])
+BIC(fits_gls[["hom"]], fits_gls[["het"]])
+```
+
+```{r}
+anova(fits_gls[["hom"]], fits_gls[["het"]])
+```
+
+#### Diagnostics
+
+```{r, fig.width=10}
+plots <- lapply(names(in_diags_gls), function(hyp){
+  in_diag <- in_diags_gls[[hyp]]
+  p <- ggplot(in_diag, aes(x=y_hat, y=scaled_residuals, color=env)) +
+    labs(title=paste0("Error variance: ", hyp),
+         x="fitted values", y="scaled residuals") +
+    geom_hline(yintercept=0) +
+    geom_hline(yintercept=c(-2,2), linetype="dashed") +
+    geom_point(size=2)
+  p
+})
+plots[[1]]
+plots[[2]]
+```
+
+```{r, fig.width=10}
+sortEnvsPerVar <- names(sort(do.call(c, list_var_j)))
+plots <- lapply(names(in_diags_gls), function(hyp){
+  in_diag <- in_diags_gls[[hyp]]
+  in_diag$env <- factor(as.character(in_diag$env),
+                        levels=sortEnvsPerVar)
+  p <- ggplot(in_diag, aes(x=env, y=scaled_residuals)) +
+    labs(title=paste0("Error variance: ", hyp),
+         x="fitted values", y="scaled residuals") +
+    geom_hline(yintercept=0) +
+    geom_hline(yintercept=c(-2,2), linetype="dashed") +
+    geom_violin(aes(fill=env, color=env), trim=FALSE) +
+    geom_boxplot(width=0.1)
+  p
+})
+plots[[1]]
+plots[[2]]
+```
+
+#### Inference
+
+##### Assuming homoscedasticity
+
+```{r}
+hyp <- "hom"
+```
+
+###### Intercept
+
+```{r}
+data.frame("true"=mu,
+           "estim"=summary(fits_gls[[hyp]])$tTable["(Intercept)", "Value"],
+           "se"=summary(fits_gls[[hyp]])$tTable["(Intercept)", "Std.Error"])
+```
+
+###### Environment main effects
+
+Contrasts:
+```{r}
+idx <- grep("^env", rownames(summary(fits_gls[[hyp]])$tTable))
+(tmp <- cbind("true"=theta,
+              "estim"=summary(fits_gls[[hyp]])$tTable[idx, "Value"],
+              "se"=summary(fits_gls[[hyp]])$tTable[idx, "Std.Error"]))
+plot(tmp[,"estim"], tmp[,"true"], las=1, asp=1, xlab="estimated value", ylab="true value", main="Environment main effects (gls hom)", pch=19); abline(a=0, b=1, lty=2)
+```
+
+Estimated marginal means:
+```{r}
+estimEnvEffs <- as.data.frame(emmeans(fits_gls[[hyp]], "env"))$emmean
+(tmp <- cbind("true"=trueEnvEffs,
+              "estim"=estimEnvEffs))
+plot(tmp[,"estim"], tmp[,"true"], las=1, asp=1, xlab="estimated value", ylab="true value", main="Environment main effects (gls hom)", pch=19); abline(a=0, b=1, lty=2)
+```
+
+###### Genotype main effects
+
+Estimated marginal means:
+```{r}
+estimGenoEffs <- as.data.frame(emmeans(fits_gls[[hyp]], "geno"))$emmean
+(tmp <- cbind("true"=mu + alpha,
+              "estim"=estimGenoEffs))
+plot(tmp[,"estim"], tmp[,"true"], las=1, asp=1, xlab="estimated value", ylab="true value", main="Genotype main effects (gls hom)", pch=19); abline(a=0, b=1, lty=2)
+```
+
+###### Error variances
+
+```{r}
+(tmp <- cbind("true"=unlist(list_var_j),
+              "estim"=errVars[[hyp]]))
+plot(tmp[,"estim"], tmp[,"true"], las=1, asp=1, xlab="estimated value", ylab="true value", main="Error variances (gls hom)", pch=19); abline(a=0, b=1, lty=2)
+```
+
+##### PVE
+
+```{r}
+(tav_hom <- anova(fits_gls[[hyp]]))
+```
+
+##### Assuming heteroscedasticity
+
+```{r}
+hyp <- "het"
+```
+
+###### Intercept
+
+```{r}
+data.frame("true"=mu,
+           "estim"=summary(fits_gls[[hyp]])$tTable["(Intercept)", "Value"],
+           "se"=summary(fits_gls[[hyp]])$tTable["(Intercept)", "Std.Error"])
+```
+
+###### Environment main effects
+
+Contrasts:
+```{r}
+idx <- grep("^env", rownames(summary(fits_gls[[hyp]])$tTable))
+(tmp <- cbind("true"=theta,
+              "estim"=summary(fits_gls[[hyp]])$tTable[idx, "Value"],
+              "se"=summary(fits_gls[[hyp]])$tTable[idx, "Std.Error"]))
+plot(tmp[,"estim"], tmp[,"true"], las=1, asp=1, xlab="estimated value", ylab="true value", main="Environment main effects (gls het)", pch=19); abline(a=0, b=1, lty=2)
+```
+
+Estimated marginal means:
+```{r}
+estimEnvEffs <- as.data.frame(emmeans(fits_gls[[hyp]], "env"))$emmean
+(tmp <- cbind("true"=trueEnvEffs,
+              "estim"=estimEnvEffs))
+plot(tmp[,"estim"], tmp[,"true"], las=1, asp=1, xlab="estimated value", ylab="true value", main="Environment main effects (gls het)", pch=19); abline(a=0, b=1, lty=2)
+```
+
+###### Genotype main effects
+
+Estimated marginal means:
+```{r}
+estimGenoEffs <- as.data.frame(emmeans(fits_gls[[hyp]], "geno"))$emmean
+(tmp <- cbind("true"=mu + alpha,
+              "estim"=estimGenoEffs))
+plot(tmp[,"estim"], tmp[,"true"], las=1, asp=1, xlab="estimated value", ylab="true value", main="Genotype main effects (gls het)", pch=19); abline(a=0, b=1, lty=2)
+```
+
+###### Error variances
+
+```{r}
+(tmp <- cbind("true"=unlist(list_var_j),
+              "estim"=errVars[[hyp]]))
+cor(tmp[,"true"], tmp[,"estim"])
+plot(tmp[,"estim"], tmp[,"true"], las=1, asp=1, xlab="estimated value", ylab="true value", main="Error variances (gls het)", pch=19); abline(a=0, b=1, lty=2)
+```
+
+### `MMEst` from `MM4LMM`
+
+The `MMEst` from the `MM4LMM` package performs inference via ReML, and can handle both random variables and heteroscedasticity.
+
+#### Fit
+
+Output variables:
+```{r}
+fits_mm <- list()
+blups_mm <- list()
+in_diags_mm <- list()
+```
+
+Common design matrix of fixed effects:
+```{r}
+## X_C <- model.matrix(~ 1 + env + env/block, data=dat)
+X_C <- model.matrix(~ 1 + env, data=dat,
+                    contrasts.arg=list(env="contr.sum"))
+dim(X_C)
+head(X_C)
+tail(X_C)
+image(t(X_C)[,nrow(X_C):1], main="X_C", col=c("grey","white","black"),
+      xaxt="n", yaxt="n")
+```
+
+##### Assuming homoscedasticity
+
+Make design matrices:
+```{r, fig.width=14}
+hyp <- "hom"
+lZ_hom <- list("geno"=model.matrix(~ 0 + geno, data=dat),
+               "gxe"=model.matrix(~ 0 + gxe, data=dat),
+               "err"=diag(nrow(dat)))
+sapply(lZ_hom, dim)
+par(mfrow=c(1,3))
+for(k in seq_along(lZ_hom))
+  image(t(lZ_hom[[k]])[,nrow(lZ_hom[[k]]):1],
+        main=paste0("Z_", names(lZ_hom)[k], " (", nrow(lZ_hom[[k]]), " x ",
+                    ncol(lZ_hom[[k]]), ")"),
+        col=c("white","black"), xaxt="n", yaxt="n")
+```
+
+Make var-cov matrices:
+```{r, fig.width=14}
+lV_hom <- list("geno"=diag(nlevels(dat$geno)),
+               "gxe"=diag(nlevels(dat$gxe)),
+               "err"=diag(nrow(dat)))
+stopifnot(all(names(lV_hom) == names(lZ_hom)))
+par(mfrow=c(1,3))
+for(k in seq_along(lV_hom))
+  image(t(lV_hom[[k]])[,nrow(lV_hom[[k]]):1],
+        main=paste0("V_", names(lV_hom)[k], " (", nrow(lV_hom[[k]]), " x ",
+                    ncol(lV_hom[[k]]), ")"),
+        col=c("white","black"), xaxt="n", yaxt="n")
+```
+
+Fit:
+```{r}
+system.time(
+    fits_mm[[hyp]] <- MMEst(Y=dat$y, Cofactor=X_C, VarList=lV_hom, ZList=lZ_hom,
+                            Method="Reml"))
+blups_mm[[hyp]] <- MMBlup(Y=dat$y, Cofactor=X_C, VarList=lV_hom, ZList=lZ_hom,
+                          ResMM=fits_mm[[hyp]])
+y_hat_hom <- X_C %*% fits_mm[[hyp]]$NullModel$Beta +
+  cbind(lZ_hom$geno, lZ_hom$gxe) %*% c(blups_mm[[hyp]]$geno, blups_mm[[hyp]]$gxe)
+in_diags_mm[[hyp]] <- cbind(dat,
+                            "y_hat"=y_hat_hom,
+                            "residuals"=dat$y - y_hat_hom,
+                            "scaled_residuals"=NA)
+```
+
+##### Assuming heteroscedasticity
+
+Make design matrices:
+```{r, fig.width=15}
+hyp <- "het"
+mkZerr <- function(env, dat){
+  isEnv <- dat$env == env
+  nbReps <- sum(isEnv)
+  out <- matrix(0, nrow(dat), ncol=nbReps)
+  out[isEnv] <- diag(nbReps)
+  return(out)
+}
+lZerr <- lapply(levels(dat$env), mkZerr, dat)
+names(lZerr) <- paste0("err", levels(dat$env))
+lZ_het <- append(list("geno"=model.matrix(~ 0 + geno, data=dat),
+                      "gxe"=model.matrix(~ 0 + gxe, data=dat)),
+                 lZerr)
+par(mfrow=c(2,5))
+for(k in seq_along(lZ_het))
+  image(t(lZ_het[[k]])[,nrow(lZ_het[[k]]):1],
+        main=paste0("Z_", names(lZ_het)[k], " (", nrow(lZ_het[[k]]), " x ",
+                    ncol(lZ_het[[k]]), ")"),
+        col=c("white","black"), xaxt="n", yaxt="n")
+```
+
+Make var-cov matrices:
+```{r}
+lVerr <- lapply(table(dat$env), diag)
+names(lVerr) <- paste0("err", names(lVerr))
+lV_het <- append(list("geno"=diag(nlevels(dat$geno)),
+                      "gxe"=diag(nlevels(dat$gxe))),
+                 lVerr)
+stopifnot(all(names(lV_het) == names(lZ_het)))
+```
+
+Fit:
+```{r}
+system.time(
+    fits_mm[[hyp]] <- MMEst(Y=dat$y, Cofactor=X_C, VarList=lV_het, ZList=lZ_het,
+                            Method="Reml"))
+blups_mm[[hyp]] <- MMBlup(Y=dat$y, Cofactor=X_C, VarList=lV_het, ZList=lZ_het,
+                          ResMM=fits_mm[[hyp]])
+y_hat_het <- X_C %*% fits_mm[[hyp]]$NullModel$Beta +
+  cbind(lZ_het$geno, lZ_het$gxe) %*% c(blups_mm[[hyp]]$geno, blups_mm[[hyp]]$gxe)
+in_diags_mm[[hyp]] <- cbind(dat,
+                            "y_hat"=y_hat_het,
+                            "residuals"=dat$y - y_hat_het,
+                            "scaled_residuals"=NA)
+```
+
+#### Model comparison
+
+Likelihood ratio test statistic:
+\begin{align}
+LRT &= -2 \, \log \left( \frac{sup_{\theta \in \Theta_0} \mathcal{L}(\theta)}{sup_{\theta \in \Theta_1} \mathcal{L}(\theta)} \right) \\
+    &= 2 \, ( l(\hat{\theta}_{H_1}) - l(\hat{\theta}_{H_0}) )
+\end{align}
+
+Asymptotic distribution for testing that *one variance* equals zero in a linear mixed model with one single random effect (case 6 of Self and Liang, 1987): $LRT \rightarrow \frac{1}{2} \chi^2(0) + \frac{1}{2} \chi^2(1)$
+
+```{r}
+(loglik_hom <- fits_mm[["hom"]]$NullModel$LogLik)
+(loglik_het <- fits_mm[["het"]]$NullModel$LogLik)
+(lrt <- 2 * (loglik_het - loglik_hom))
+```
+
+A simple Chi2 test should be conservative:
+```{r}
+h1 <- hist(rchisq(n=1000, df=1), breaks="FD", plot=F)
+h2 <- hist(0.5 * rchisq(n=1000, df=0) + 0.5 * rchisq(n=1000, df=1),
+           breaks="FD", plot=F)
+plot(h1, col=rgb(0,0,1,1/4), xlim=c(0,12), main="Chi2 distributions",
+     xlab="support", las=1)
+plot(h2, col=rgb(1,0,0,1/4), xlim=c(0,12), add=T)
+legend("topright", legend=c("Chi2(1)", "\n0.5 Chi2(0)\n+ 0.5 Chi2(1)"), bty="n",
+       fill=c(rgb(0,0,1,1/4), rgb(1,0,0,1/4)))
+if(lrt <= 12){
+  abline(v=lrt, lwd=2)
+  legend("right", legend="LRT", lty=1, lwd=2, bty="n")
+}
+(pval <- pchisq(lrt, df=1, lower.tail=FALSE))
+(pval <- 0.5 * pchisq(lrt, df=0, lower.tail=FALSE) +
+   0.5 * pchisq(lrt, df=1, lower.tail=FALSE))
+```
+
+Attention, ici on a 7 contraintes d'égalité de var, mais on va considérer un test avec 7 nullités.
+Eventuellement simuler sous homoscédasticité, faire le test, vérif que p val ~ unif (mais attention, on ne sait pas exactement à quoi à ressemble la distrib sous H0: une unif + éventuellement une Dirac; ça peut notament poser pbm pour control tests multiples...).
+
+```{r}
+##' From the TcGSA package available at Bioconductor.
+##' @param quant value of the test statistic
+##' @param s number of fixed effects to test
+##' @param q number of random effects to test
+pchisqmix <- function(quant, s, q, lower.tail=TRUE){
+  if(q > 0){
+    mixprobs <- numeric(q + 1)
+    for(k in s:(q + s)){
+      mixprobs[k - s + 1] <- choose(q, k - s) * 2^(-q)
+    }
+    mix <- mixprobs
+  } else{
+    mix = 1
+  }
+  res <- numeric(length(mix))
+  for(k in (s:(q + s))){
+    res[k - s + 1] <- mix[k - s + 1] * stats::pchisq(quant, df = k,
+                                                     lower.tail = lower.tail)
+  }
+  return(sum(res) / sum(mix))
+}
+
+pchisqmix(lrt, 0, 7, FALSE)
+```
+
+TODO: Conditionnal AIC (Liang et al, 2008)
+```{r}
+## (AICc <- )
+```
+
+TODO: Hybrid BIC (Delattre et al, 2014) but used to select fixed effects
+```{r}
+## (BIChyb_hom <- -2 * loglik_hom +
+##    length(ncol(X_C)) * log(nrow(dat)) +
+##    length(lZ_hom) * log())
+```
+
+#### Diagnostics
+
+TODO
+
+#### Inference
+
+##### Assuming homoscedasticity
+
+```{r}
+hyp <- "hom"
+```
+
+###### Intercept
+
+```{r}
+data.frame("true"=mu,
+           "estim"=fits_mm[[hyp]]$NullModel$Beta[1],
+           "se"=sqrt(diag(fits_mm[[hyp]]$NullModel$VarBeta)[1]))
+```
+
+###### Environment main effects
+
+Contrasts:
+```{r}
+(tmp <- cbind("true"=theta,
+              "estim"=fits_mm[[hyp]]$NullModel$Beta[2:J],
+              "se"=sqrt(diag(fits_mm[[hyp]]$NullModel$VarBeta)[2:J])))
+plot(tmp[,"estim"], tmp[,"true"], las=1, asp=1, xlab="estimated value", ylab="true value", main="Environment main effects (MMEst hom)", pch=19); abline(a=0, b=1, lty=2)
+```
+
+###### Genotype main effects
+
+```{r}
+(tmp <- cbind("true"=alpha,
+              "estim"=blups_mm[[hyp]]$geno[,1]))
+plot(tmp[,"estim"], tmp[,"true"], las=1, asp=1, xlab="estimated value", ylab="true value", main="Genotype main effects (MMEst hom)", pch=19); abline(a=0, b=1, lty=2)
+```
+
+###### Error variances
+
+```{r}
+(tmp <- cbind("true"=unlist(list_var_j),
+              "estim"=rep(fits_mm[[hyp]]$NullModel$Sigma2["err"], J)))
+plot(tmp[,"estim"], tmp[,"true"], las=1, asp=1, xlab="estimated value", ylab="true value", main="Error variances (MMEst hom)", pch=19); abline(a=0, b=1, lty=2)
+```
+
+###### Genetic variances
+
+```{r}
+c(var_alpha, var_delta)
+fits_mm[[hyp]]$NullModel$Sigma2[1:2]
+```
+
+##### Assuming heteroscedasticity
+
+```{r}
+hyp <- "het"
+```
+
+###### Intercept
+
+```{r}
+data.frame("true"=mu,
+           "estim"=fits_mm[[hyp]]$NullModel$Beta[1],
+           "se"=diag(fits_mm[[hyp]]$NullModel$VarBeta)[1])
+```
+
+###### Environment main effects
+
+Contrasts:
+```{r}
+(tmp <- cbind("true"=theta,
+              "estim"=fits_mm[[hyp]]$NullModel$Beta[2:J],
+              "se"=diag(fits_mm[[hyp]]$NullModel$VarBeta)[2:J]))
+plot(tmp[,"estim"], tmp[,"true"], las=1, asp=1, xlab="estimated value", ylab="true value", main="Environment main effects (MMEst het)", pch=19); abline(a=0, b=1, lty=2)
+```
+
+###### Genotype main effects
+
+```{r}
+(tmp <- cbind("true"=alpha,
+              "estim"=blups_mm[[hyp]]$geno[,1]))
+plot(tmp[,"estim"], tmp[,"true"], las=1, asp=1, xlab="estimated value", ylab="true value", main="Genotype main effects (MMEst het)", pch=19); abline(a=0, b=1, lty=2)
+```
+
+###### Error variances
+
+```{r}
+idx <- grep("^err", names(fits_mm[[hyp]]$NullModel$Sigma2))
+(tmp <- cbind("true"=unlist(list_var_j),
+              "estim"=fits_mm[[hyp]]$NullModel$Sigma2[idx]))
+plot(tmp[,"estim"], tmp[,"true"], las=1, asp=1, xlab="estimated value", ylab="true value", main="Error variances (MMEst het)", pch=19); abline(a=0, b=1, lty=2)
+```
+
+###### Genetic variances
+
+```{r}
+c(var_alpha, var_delta)
+fits_mm[[hyp]]$NullModel$Sigma2[1:2]
+```
+
+
+# Acknowledgments
+
+T. Mary-Huard
+
+
+# Appendix
+
+```{r info}
+t1 <- proc.time()
+t1 - t0
+print(sessionInfo(), locale=FALSE)
+```
