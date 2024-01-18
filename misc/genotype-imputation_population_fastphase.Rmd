@@ -1,0 +1,166 @@
+---
+title: "Imputation of SNP genotypes in a population with fastPHASE"
+author: "Timothée Flutre (INRA)"
+date: "`r format(Sys.time(), '%d/%m/%Y %H:%M:%S')`"
+colorlinks: true
+output:
+  html_document:
+    toc: true
+    toc_depth: 3
+    toc_float: true
+    number_sections: TRUE
+  pdf_document:
+    toc: true
+    toc_depth: 3
+    number_sections: TRUE
+urlcolor: blue
+---
+
+<!--
+This R chunk is used to set up some options.
+-->
+```{r setup, include=FALSE}
+R.v.maj <- as.numeric(R.version$major)
+R.v.min.1 <- as.numeric(strsplit(R.version$minor, "\\.")[[1]][1])
+if(R.v.maj < 2 || (R.v.maj == 2 && R.v.min.1 < 15))
+  stop("requires R >= 2.15", call.=FALSE)
+
+suppressPackageStartupMessages(library(knitr))
+opts_chunk$set(echo=TRUE, warning=TRUE, message=TRUE, cache=FALSE, fig.align="center")
+```
+
+
+# Overview
+
+This document requires external packages to be available:
+```{r load_pkg}
+suppressPackageStartupMessages(library(scrm))
+suppressPackageStartupMessages(library(rutilstimflutre))
+stopifnot(file.exists(Sys.which("fastphase")))
+suppressPackageStartupMessages(library(parallel))
+nb.cores <- detectCores() - 1
+```
+
+This R chunk is used to assess how much time it takes to execute the R code in this document until the end:
+```{r time_0}
+t0 <- proc.time()
+```
+
+
+# Simulate genetic data at HWE
+
+Set the seed:
+```{r set_seed}
+set.seed(1859)
+```
+
+Simulate haplotypes and genotypes in a single population:
+```{r simul_haplos_genos}
+nb.genos <- 1*10^3
+nb.chrs <- 6
+Ne <- 10^4
+chrom.len <- 1*10^6
+mu <- 10^(-8)
+c.rec <- 10^(-8)
+genomes <- simulCoalescent(nb.inds=nb.genos,
+                           nb.reps=nb.chrs,
+                           pop.mut.rate=4 * Ne * mu * chrom.len,
+                           pop.recomb.rate=4 * Ne * c.rec * chrom.len,
+                           chrom.len=chrom.len,
+                           get.alleles=TRUE)
+afs.hwe <- estimSnpAf(X=genomes$genos)
+plotHistAllelFreq(afs=afs.hwe,
+                  main="Allele frequencies at HWE")
+mafs.hwe <- estimSnpMaf(afs=afs.hwe)
+plotHistMinAllelFreq(mafs=mafs.hwe,
+                     main="Minor allele frequencies at HWE")
+A.vr.hwe <- estimGenRel(X=genomes$genos, afs=afs.hwe, method="vanraden1")
+imageWithScale(A.vr.hwe,
+               main="Additive genetic relationships at HWE")
+summary(diag(A.vr.hwe))
+hist(diag(A.vr.hwe), col="grey", border="white")
+summary(A.vr.hwe[upper.tri(A.vr.hwe)])
+hist(A.vr.hwe[upper.tri(A.vr.hwe)], col="grey", border="white")
+```
+
+
+# Mimick RAD-seq
+
+Discard SNP genotypes according to a "RAD-seq" design, i.e. all genotypes and SNPs have NA, but with a skewed distribution (30% of the sites with 0-0.05% NA, 17% of the sites with 0.05-0.1% NA, 8% with 0.1-0.15% NA, and the remaining sites with a uniformly-increasing amount of NA):
+```{r radseq}
+genos.tokeep <- sample(rownames(genomes$genos), size=300)
+dim(X <- genomes$genos[genos.tokeep,])
+X.na <- X
+bin.width <- 0.05
+max.prop <- 0.9
+bin.mids <- seq(from=bin.width/2, to=max.prop, by=bin.width)
+bin.heights <- c(0.3, 0.17, 0.08,
+                 rep((1-(0.3+0.17+0.08))/(length(bin.mids) - 3),
+                     length(bin.mids) - 3))
+stopifnot(sum(bin.heights) == 1)
+assigned.bins <- cut(x=1:ncol(X),
+                     breaks=floor(ncol(X) * cumsum(c(0, bin.heights))),
+                     labels=FALSE)
+assigned.bins <- sample(assigned.bins) # shuffle the bins among SNPs
+table(assigned.bins)
+bin.probs <- seq(from=0, to=max.prop, length.out=length(bin.mids))
+## for each SNP, sample genotype indices to set as missing
+idx1 <- sapply(1:ncol(X), function(j){
+  sample.int(n=nrow(X), size=round(bin.probs[assigned.bins[j]] * nrow(X)))
+})
+idx2 <- do.call(c, lapply(1:length(idx1), function(j){
+  ((j-1) * nrow(X)) + idx1[[j]]
+}))
+X.na[idx2] <- NA
+sum(is.na(X.na))
+sum(is.na(X.na)) / length(X.na)
+```
+
+Plot grid of missing SNP genotypes:
+```{r}
+plotGridMissGenos(X=X.na)
+```
+
+Plot histogram of NA proportions (same as fig S4 of [Chan et al, 2016](http://dx.plos.org/10.1371/journal.pone.0160733)):
+```{r}
+miss.snps <- calcFreqMissSnpGenosPerSnp(X=X.na)
+hist(miss.snps, breaks=seq(0,1,0.05), col="grey", border="white",
+     main="Distribution of the proportion of missing data per biallelic SNP",
+     xlab="proportion of missing data at a given SNP",
+     ylab="number of SNPs")
+```
+
+
+# Perform imputation
+
+```{r imputation}
+system.time(
+    X.imp <- runFastphase(X.na)
+```
+
+
+# Assess accuracy
+
+```{r assess_accuracy}
+length(X)
+sum(X.na == X, na.rm=TRUE)
+sum(is.na(X.na))
+sum(X.imp == X)
+sum(X.imp != X)
+sum(X.imp != X) / sum(is.na(X.na))
+```
+
+Check additive genetic relationships:
+```{r}
+A.vr.imp <- estimGenRel(X=X.imp, afs=afs.hwe)
+summary(diag(A.vr.imp))
+summary(A.vr.imp[upper.tri(A.vr.imp)])
+```
+
+
+# Appendix
+
+```{r info}
+t1 <- proc.time(); t1 - t0
+print(sessionInfo(), locale=FALSE)
+```
