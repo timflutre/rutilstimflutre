@@ -460,12 +460,13 @@ fitsSep <- lapply(trials, function(trial){
     par(op)
   }
   tav <- anova(fit)
-  CV <- round((sqrt(tav["Residuals","Mean Sq"]) / mean(dat$yield,na.rm=T)) * 100,
+  CV <- round((sqrt(tav["Residuals","Mean Sq"]) / mean(subDat$yield,na.rm=T)) * 100,
               dig=1)
   ETR <- round(sqrt(tav["Residuals","Mean Sq"]), dig=1)
   blockEffs <- emmeans(fit, ~ block)
   genoEffs <- emmeans(fit, ~ geno)
-  list(fit=fit, tav=tav, CV=CV, ETR=ETR, blockEffs=blockEffs, genoEffs=genoEffs)
+  list(fit=fit, tav=tav, CV=CV, ETR=ETR,
+       blockEffs=blockEffs, genoEffs=genoEffs)
 })
 names(fitsSep) <- trials
 ```
