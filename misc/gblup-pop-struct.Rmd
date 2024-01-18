@@ -1,0 +1,616 @@
+---
+title: "GBLUP with population structure"
+author: "Timothée Flutre (INRA)"
+date: "`r format(Sys.time(), '%d/%m/%Y %H:%M:%S')`"
+colorlinks: true
+output:
+  html_document:
+    toc: true
+    toc_depth: 3
+    toc_float: true
+    number_sections: TRUE
+  pdf_document:
+    toc: true
+    toc_depth: 3
+    number_sections: TRUE
+urlcolor: blue
+---
+
+<!--
+This R chunk is used to set up some options.
+-->
+```{r setup, include=FALSE}
+R.v.maj <- as.numeric(R.version$major)
+R.v.min.1 <- as.numeric(strsplit(R.version$minor, "\\.")[[1]][1])
+if(R.v.maj < 2 || (R.v.maj == 2 && R.v.min.1 < 15))
+  stop("requires R >= 2.15", call.=FALSE)
+
+suppressPackageStartupMessages(library(knitr))
+opts_chunk$set(echo=TRUE, warning=TRUE, message=TRUE, cache=FALSE, fig.align="center")
+```
+
+
+# Overview
+
+This document aims at using GBLUP on a sample showing population structure, following [Janss et al (2012)](http://www.genetics.org/content/192/2/693.long).
+
+This document requires external packages to be available:
+```{r load_pkg}
+suppressPackageStartupMessages(library(scrm)) # on the CRAN
+suppressPackageStartupMessages(library(coda)) # on the CRAN
+suppressPackageStartupMessages(library(rutilstimflutre)) # on GitHub
+stopifnot(compareVersion("0.150.0",
+                         as.character(packageVersion("rutilstimflutre")))
+          != 1)
+```
+
+This R chunk is used to assess how much time it takes to execute the R code in this document until the end:
+```{r time_0}
+t0 <- proc.time()
+```
+
+
+# Simulate data
+
+## Genotypes
+
+Set the seed:
+```{r simul_genos_set_seed}
+set.seed(1859)
+```
+
+Simulate haplotypes and genotypes in three populations (the first two closer to each other than with the third):
+```{r simul_haplos_genos}
+nb.pops <- 3
+nb.genos <- 3 * 10^2
+nb.chrs <- 3
+chr.len.phy <- 10^4     # chromosome physical length in base pairs
+mu <- 10^(-7)           # neutral mutation rate in events / base / generation
+u <- mu * chr.len.phy   #  in events / chrom / gen
+chr.len.gen <- 10^(-1)  # chromosome genetic length in Morgans
+c.r <- chr.len.gen / chr.len.phy # recomb rate in events / base / gen
+r <- c.r * chr.len.phy  #  in events / chrom / gen
+m <- 1 * 10^(-4)        # fraction of a pop replaced from other pops each gen
+Ne <- 10^4              # effective population size
+theta <- 4 * Ne * u     # scaled neutral mutation rate in events / chrom
+rho <- 4 * Ne * r       # scaled recomb rate in events / chrom
+M <- 4 * Ne * m         # scaled migration rate in events
+system.time(
+    genomes <- simulCoalescent(nb.inds=nb.genos,
+                               nb.reps=nb.chrs,
+                               pop.mut.rate=theta,
+                               pop.recomb.rate=rho,
+                               chrom.len=chr.len.phy,
+                               nb.pops=nb.pops,
+                               other=paste0("-m 1 2 ", M,
+                                            " -m 1 3 ", 1.7 * M,
+                                            " -m 2 3 ", 1.7 * M),
+                               get.alleles=TRUE))
+nb.snps <- ncol(genomes$genos)
+afs.pop <- estimSnpAf(X=genomes$genos)
+mafs.pop <- estimSnpMaf(afs=afs.pop)
+mrk2chr <- setNames(genomes$snp.coords$chr, rownames(genomes$snp.coords))
+```
+
+
+## Phenotypes
+
+Set the seed:
+```{r simul_phenos_set_seed}
+set.seed(1859)
+```
+
+```{r simul_phenos}
+mu <- 50
+h2 <- 0.6
+phenos <- simulBvsr(Q=1, mu=mu, X=genomes$genos, m1=FALSE, ctr=TRUE,
+                    ## std=TRUE,
+                    std=FALSE,
+                    pi=1, pve=h2)
+phenos$sigma2
+phenos$sigma.a2
+(sigma.g.a2 <- phenos$sigma.a2 * 2 * sum(afs.pop * (1 - afs.pop)))
+sigma.g.a2 / (sigma.g.a2 + phenos$sigma2) # close to the specified h2
+```
+
+Note that one should set `std=FALSE` in order to get the specified `pve`.
+
+
+# Explore the data
+
+## Genotypes
+
+Check the number of genotypes per population:
+```{r explo_geno_inds_per_pop}
+table(inds.per.pop <- kmeans(genomes$genos, nb.pops)$cluster)
+```
+
+Look at allele frequencies:
+```{r explo_geno_allel_freq}
+plotHistAllelFreq(afs=afs.pop, main="Allele frequencies")
+plotHistMinAllelFreq(mafs=mafs.pop, main="Minor allele frequencies")
+```
+
+PCA can be used to look at population structure.
+
+As in [Engelhart and Stephens (2010)](http://dx.doi.org/10.1371/journal.pgen.1001117), the equivalent of admixture proportions can be plotted (note also the effect of centering, as in their figure 3):
+```{r explo_geno_pca_centering}
+pca.X <- pca(X=genomes$genos, ct=FALSE, sc=FALSE, ES10=TRUE)
+par(mfrow=c(2,2))
+plot(1:nb.genos, pca.X$Lambda[,1], ylim=c(-0.5, 0.5), main="Lambda 1", ylab="")
+plot(1:nb.genos, pca.X$Lambda[,2], main="Lambda 2", ylab=""); abline(h=0, lty=2)
+plot(1:nb.genos, pca.X$Lambda[,3], main="Lambda 3", ylab=""); abline(h=0, lty=2)
+plot(1:nb.genos, pca.X$Lambda[,4], main="Lambda 4", ylab=""); abline(h=0, lty=2)
+```
+
+The relative magnitude of the eigenvalues can give some indication about the number of populations represented in the sample:
+```{r explo_geno_pca_eigenvalues}
+par(mfrow=c(1,2))
+barplot(pca.X$prop.vars[1:10], main="pca(X) w/o centering")
+barplot(pca.X$prop.vars[1:10], main="zoom-in", ylim=c(0,0.01))
+```
+
+[Shriner (2011)](http://dx.doi.org/10.1038/hdy.2011.26) proposed a method based on average squared partial correlations to choose the number of PCs to keep, but it doesn't seem to be very efficient here:
+```{r explo_geno_pca_Shriner}
+getNbPCsMinimAvgSqPartCor(t(genomes$genos))
+```
+
+The `MASS::parcoord` function can be helpful in visualizing the coordinates of each individual in the PC system:
+```{r explo_geno_parcoord}
+MASS::parcoord(pca.X$rot.dat[,1:6], col=inds.per.pop, main="pca(X)")
+```
+
+Different estimators exist to estimate additive relationships between individuals:
+```{r explo_geno_add_rel}
+A.cs <- estimGenRel(X=genomes$genos, afs=afs.pop, method="center-std")
+A.vr <- estimGenRel(X=genomes$genos, afs=afs.pop, method="vanraden1")
+pca.A.cs <- pca(S=A.cs)
+pca.A.vr <- pca(S=A.vr)
+par(mfrow=c(1,2))
+barplot(pca.A.cs$prop.vars[1:10], main="pca(A.cs)")
+barplot(pca.A.vr$prop.vars[1:10], main="pca(A.vr)")
+plotPca(pca.A.vr$rot.dat, prop.vars=pca.A.vr$prop.vars,
+        idx.x=1, idx.y=2, cols=inds.per.pop, main="A.vr")
+plotPca(pca.A.vr$rot.dat, prop.vars=pca.A.vr$prop.vars,
+        idx.x=2, idx.y=3, cols=inds.per.pop, main="A.vr")
+MASS::parcoord(pca.A.vr$rot.dat[,1:6], col=inds.per.pop, main="pca(A.vr)")
+```
+
+But the one from [VanRaden (2008)](http://dx.doi.org/10.3168/jds.2007-0980) may be preferred as it is on the same scale as the one calculated from the pedigree, as shown in [Toro et al (2011)](http://www.gsejournal.org/content/43/1/27):
+```{r check_simul_genos}
+imageWithScale(A.vr, main="Additive genetic relationships")
+summary(diag(A.vr))
+summary(A.vr[upper.tri(A.vr)])
+par(mfrow=c(1,2))
+hist(diag(A.vr), col="grey", border="white")
+hist(A.vr[upper.tri(A.vr)], col="grey", border="white")
+```
+
+Whatsoever, Janss et al (2012) center and standardize the SNP genotype matrix, and then take its cross product divided by the number of genotypes.
+```{r explo_geno_pca_fig4}
+W <- scale(x=genomes$genos, center=TRUE, scale=TRUE)
+G <- tcrossprod(W) / ncol(W)
+pca.G <- pca(S=G)
+which(sapply(pca.G$eigen.values, function(x){
+  all.equal(0, x) == TRUE
+})) # one eigenvalue is 0 (the latest) due to the centering of W
+barplot(pca.G$prop.vars[1:10], main="pca(G)")
+plotPca(pca.G$rot.dat, pca.G$prop.vars, idx.x=1, idx.y=2, main="pca(G)",
+        cols=inds.per.pop)
+```
+
+Plot figure 4 from Janss et al on the simulated data:
+```{r explo_geno_pca_fig4}
+plot(x=0:nb.genos, y=c(0, cumsum(pca.G$eigen.values)) / nb.genos,
+     ylim=c(0,1), type="l", las=1,
+     xlab="number of eigenvalues", ylab="cumulative sum", main="pca(G)")
+abline(h=1, a=0, b=1/nb.genos, lty=2)
+```
+
+## Phenotypes
+
+```{r explo_pheno}
+phenos$dat$pop <- as.factor(paste0("pop", inds.per.pop))
+hist(phenos$Y[,1], col="grey", border="white", las=1,
+     main="Simulated phenotypes", xlab="")
+boxplot(response1 ~ pop, data=phenos$dat, notch=TRUE, las=1,
+        main="Simulated phenotypes")
+abline(h=median(phenos$dat$response1), lty=2)
+```
+
+
+
+# Perform inference
+
+### Classical LMM
+
+```{r}
+fit.g <- lmer(response1 ~ 1 + (1|geno), data=phenos$dat,
+              control=lmerControl(check.nobs.vs.nlev="ignore",
+                                  check.nobs.vs.nRE="ignore"))
+fit.p.g <- lmer(response1 ~ 1 + pop + (1|geno), data=phenos$dat,
+                control=lmerControl(check.nobs.vs.nlev="ignore",
+                                    check.nobs.vs.nRE="ignore"))
+extractAIC(fit.g)
+extractAIC(fit.p.g)
+```
+
+### As in Janss et al
+
+\[
+\boldsymbol{y} = \boldsymbol{1} \mu + W \boldsymbol{b} + \boldsymbol{e} \text{ with } \boldsymbol{b} \sim \mathcal{N}(\boldsymbol{0}, \sigma_b^2 \text{Id}) \text{ and } \boldsymbol{e} \sim \mathcal{N}(\boldsymbol{0}, \sigma_e^2 \text{Id})
+\]
+
+* $n$: number of individuals
+
+* $m$: number of markers
+
+* $W$: $n \times m$ matrix of marker genotypes, centered and scaled
+
+* $\boldsymbol{b}$: $m \times 1$ matrix of marker effects
+
+* $\boldsymbol{g}$: $n \times 1$ matrix of genomic values such that $\boldsymbol{g} = W \boldsymbol{b}$ such that $\mathbb{V}(\boldsymbol{g}|W) = W W' \sigma_b^2 = \frac{1}{m} W W' \sigma_g^2$
+
+Factorization: $W W' = U D U'$
+
+\[
+\boldsymbol{y} = \boldsymbol{1} \mu + U \boldsymbol{\alpha} + \boldsymbol{e} \text{ with } \boldsymbol{\alpha} \sim \mathcal{N}(\boldsymbol{0}, \sigma_b^2 D)
+\]
+
+* $\boldsymbol{\alpha}$: $n \times 1$ matrix of principal components of $WW'$ (indeed: $\boldsymbol{g} = U \boldsymbol{\alpha} \Leftrightarrow \boldsymbol{\alpha} = U' \boldsymbol{g}$)
+
+### Simplified implementation
+
+```{r implem_simplif, eval=FALSE}
+##' 
+##'
+##' Run a Gibbs sampler
+##' @param y vector of responses of length n
+##' @param K list of lists (one per prior)
+##' @param XF n x pF incidence matrix for fixed effects
+##' @param df0 degrees of freedom for the prior variances
+##' @param S0 scale for the prior variances
+##' @param weights optional vector
+##' @param nIter number of iterations
+##' @param burnIn burn-in
+##' @param thin thinning
+##' @param saveAt if not NULL, results will be saved in this file
+##' @param verbose verbosity level (0/1/2)
+##' @return list
+##' @author Luc Janss [aut], Gustavo de los Campos [aut], Timothee Flutre [ctb]
+##' @export
+gibbsJanss2012simple <- function(y, K, XF= NULL, df0=0, S0=0, weights=NULL,
+                                 nIter=110, burnIn=10, thin=10, saveAt=NULL,
+                                 verbose=0){
+  stopifnot(is.numeric(y),
+            is.list(K))
+  if(! is.null(saveAt))
+    if(file.exists(saveAt))
+      file.remove(saveAt)
+
+  if(verbose > 0)
+    write("prepare inputs...", stdout())
+  iter <- 0
+  n <- length(y)
+  whichNa <- which(is.na(y))
+  nNa <- length(whichNa)
+  hasWeights <- ! is.null(weights)
+  if(! hasWeights)
+    weights <- rep(1, n)
+  sumW2 <- sum(weights^2)
+  mu <- weighted.mean(x=y, w=weights, na.rm=TRUE)
+  yStar <- y * weights
+  yStar[whichNa] <- mu * weights[whichNa]
+  e <- (yStar - weights * mu)
+  varE <- as.numeric(var(e, na.rm=TRUE) / 2)
+  sdE <- sqrt(varE)
+  nK <- length(K)
+  postMu <- 0
+  postVarE <- 0
+  postYHat <- rep(0, n)
+  postYHat2 <- rep(0, n)
+  postLogLik <- 0
+  hasXF <- ! is.null(XF)
+  if(hasXF){
+    for(i in 1:n)
+      XF[i, ] <- weights[i] * XF[i, ]
+    SVD.XF <- svd(XF)
+    SVD.XF$Vt <- t(SVD.XF$v)
+    SVD.XF <- SVD.XF[-3]
+    pF0 <- length(SVD.XF$d)
+    pF <- ncol(XF)
+    bF0 <- rep(0, pF0)
+    bF <- rep(0, pF)
+    namesBF <- colnames(XF)
+    post_bF <- bF
+    post_bF2 <- bF
+    rm(XF)
+  }
+  for(k in 1:nK){
+    if(hasWeights & is.null(K[[k]]$K))
+      stop("if weights are provided, K is needed")
+    if(hasWeights){
+      T <- diag(weights)
+      K[[k]]$K <- T %*% K[[k]]$K %*% T
+    }
+    if(is.null(K[[k]]$V)){
+      K[[k]]$K <- as.matrix(K[[k]]$K)
+      tmp <- eigen(K[[k]]$K)
+      K[[k]]$V <- tmp$vectors
+      K[[k]]$d <- tmp$values
+    }
+    if(is.null(K[[k]]$tolD))
+      K[[k]]$tolD <- 1e-12
+
+    tmp <- K[[k]]$d > K[[k]]$tolD
+    K[[k]]$levelsU <- sum(tmp)
+    K[[k]]$d <- K[[k]]$d[tmp]
+    K[[k]]$V <- K[[k]]$V[, tmp]
+    if(is.null(K[[k]]$df0))
+      K[[k]]$df0 <- 1
+    if(is.null(K[[k]]$S0))
+      K[[k]]$S0 <- 1e-15
+    K[[k]]$varU <- varE / nK / 2
+    K[[k]]$u <- rep(0, n)
+    K[[k]]$uStar <- rep(0, K[[k]]$levelsU)
+    K[[k]]$postVarU <- 0
+    K[[k]]$postUStar <- rep(0, K[[k]]$levelsU)
+    K[[k]]$postU <- rep(0, n)
+    K[[k]]$postCumMSa<-rep(0, K[[k]]$levelsU)
+    K[[k]]$postH1<-rep(0, K[[k]]$levelsU)
+  }
+
+  if(verbose > 0)
+    write("perform inference...", stdout())
+  if(! is.null(saveAt)){
+    tmp <- c("logLik", "mu", "varE", paste0("varU", 1:nK))
+    if(hasXF)
+      tmp <- c(tmp, paste0("bF", 1:pF))
+    write(tmp, ncol=length(tmp), file=saveAt, append=FALSE,  sep=" ")
+  }
+  if(verbose > 0){
+    tmpOut <- paste0("iter: ", 0,
+                     "; time: ", round(0, 4),
+                     "; varE: ", round(varE, 3),
+                     "; mu: ", round(mu, 3), "\n")
+    cat(tmpOut)
+  }
+  time <- proc.time()[3]
+  for(i in 1:nIter){
+    if(hasXF){
+      sol <- (crossprod(SVD.XF$u, e) + bF0)
+      tmp <- sol + rnorm(n=pF0, sd=sqrt(varE))
+      bF <- crossprod(SVD.XF$Vt, tmp / SVD.XF$d)
+      e <- e + SVD.XF$u %*% (bF0 - tmp)
+      bF0 <- tmp
+    }
+    for(k in 1:nK){
+      e <- e + K[[k]]$u
+      rhs <- crossprod(K[[k]]$V, e) / varE
+      varU <- K[[k]]$varU * K[[k]]$d
+      C <- as.numeric(1 / varU + 1 / varE)
+      SD <- 1 / sqrt(C)
+      sol <- rhs / C
+      tmp <- rnorm(n=K[[k]]$levelsU, sd=SD, mean=sol)
+      K[[k]]$uStar <- tmp
+      K[[k]]$u <- as.vector(K[[k]]$V %*% tmp)
+      e <- e - K[[k]]$u
+      tmp <- K[[k]]$uStar / sqrt(K[[k]]$d)
+      S <- as.numeric(crossprod(tmp)) + K[[k]]$S0
+      df <- K[[k]]$levelsU + K[[k]]$df0
+      K[[k]]$varU <- S / rchisq(n=1, df=df)
+    }
+    e <- e + weights * mu
+    rhs <- sum(weights * e) / varE
+    C <- sumW2 / varE
+    sol <- rhs / C
+    mu <- rnorm(n=1, sd=sqrt(1 / C), mean=sol)
+    e <- e - weights * mu
+    df <- n + df0
+    SS <- as.numeric(crossprod(e)) + S0
+    varE <- SS / rchisq(n=1, df=df)
+    yHat <- yStar - e
+    if (nNa > 0) {
+      yStar[whichNa] <- yHat[whichNa] + rnorm(n=nNa,  sd=sdE)
+      e[whichNa] <- yStar[whichNa] - yHat[whichNa]
+    }
+    tmpE <- e / weights
+    tmpSD <- sqrt(varE) / weights
+    if(nNa > 0){
+      tmpE <- tmpE[-whichNa]
+      tmpSD <- tmpSD[-whichNa]
+    }
+    logLik <- sum(dnorm(tmpE, sd=tmpSD, log=TRUE))
+    if ((i > burnIn) & (i %% thin == 0)) {
+      iter <- iter + 1
+      constant <- (iter - 1) / (iter)
+      postMu <- postMu * constant + mu / iter
+      postVarE <- postVarE * constant + varE / iter
+      postYHat <- postYHat * constant + yHat / iter
+      for(k in 1:nK){
+        K[[k]]$postVarU <- K[[k]]$postVarU * constant +  K[[k]]$varU / iter
+        K[[k]]$postUStar <- K[[k]]$postUStar * constant + K[[k]]$uStar / iter
+        K[[k]]$postU <- K[[k]]$postU * constant + K[[k]]$u / iter
+        tmp <- cumsum(K[[k]]$uStar^2) / K[[k]]$levelsU
+        K[[k]]$postCumMSa <- K[[k]]$postCumMSa * constant + tmp / iter
+        tmp <- K[[k]]$uStar^2 > mean(K[[k]]$uStar^2)
+        K[[k]]$postH1 <- K[[k]]$postH1 * constant + tmp / iter 
+      }
+      postLogLik <- postLogLik * constant + logLik / iter
+      if(hasXF){
+        post_bF <- post_bF * constant + bF / iter
+        post_bF2 <- post_bF2 * constant + (bF^2) / iter
+      }
+    }
+    tmp <- i %% thin == 0
+    if(! is.null(saveAt) & i > burnIn & tmp){
+      tmp <- c(logLik, mu, varE)
+      for(k in 1:nK)
+        tmp <- c(tmp, K[[k]]$varU)
+      if(hasXF)
+        tmp <- bF
+      write(tmp, ncol=length(tmp), file=saveAt, append=TRUE,  sep=" ")
+    }
+    tmp <- proc.time()[3]
+    if(verbose > 0){
+      if(verbose == 1 & i %% thin != 0)
+        next
+      tmpOut <- paste0("iter: ", i,
+                       "; time: ", round(tmp - time, 4),
+                       "; varE: ", round(varE, 3), "\n")
+      cat(tmpOut)
+    }
+    time <- tmp
+  }
+
+  if(verbose > 0)
+    write("prepare the output...", stdout())
+  out <- list(mu=postMu, fit=list(), varE=postVarE,
+              yHat=as.numeric(postYHat / weights),
+              weights=weights, K=list(), whichNa=whichNa, df0=df0, 
+              S0=S0, nIter=nIter, burnIn=burnIn, saveAt=saveAt)
+  out$fit$postMeanLogLik <- postLogLik
+  tmpE <- (yStar - postYHat) / weights
+  tmpSD <- sqrt(postVarE) / weights
+  if(nNa > 0){
+    tmpE <- tmpE[-whichNa]
+    tmpSD <- tmpSD[-whichNa]
+  }
+  out$fit$logLikAtPostMean <- sum(dnorm(tmpE, sd=tmpSD, log=TRUE))
+  out$fit$pD <- -2 * (out$fit$postMeanLogLik - out$fit$logLikAtPostMean)
+  out$fit$DIC <- out$fit$pD - 2 * out$fit$postMeanLogLik
+  if(hasXF){
+    out$bF <- as.vector(post_bF)
+    out$SD.bF <- as.vector(sqrt(post_bF2 - post_bF^2))
+    names(out$bF) <- namesBF
+    names(out$SD.bF) <- namesBF
+  }
+  for(k in 1:nK){
+    out$K[[k]] <- list()
+    out$K[[k]]$u <- K[[k]]$postU
+    out$K[[k]]$uStar <- K[[k]]$postUStar
+    out$K[[k]]$varU <- K[[k]]$postVarU
+    out$K[[k]]$cumMSa <- K[[k]]$postCumMSa
+    out$K[[k]]$probH1 <- K[[k]]$postH1
+    out$K[[k]]$df0 <- K[[k]]$df0
+    out$K[[k]]$S0 <- K[[k]]$S0
+    out$K[[k]]$tolD <- K[[k]]$tolD
+  }
+  return(out)
+}
+```
+
+### Run Gibbs sampler
+
+```{r run_gibbs_simulated_data, eval=TRUE}
+nb.iters <- 2 * 10^4
+burnin <- 2 * 10^3
+thin <- 10
+seed <- 1859
+fit <- gibbsJanss2012(y=phenos$Y[,1],
+                      XF=NULL,
+                      K=list(list(V=pca.G$rot.dat,
+                                  d=pca.G$eigen.values,
+                                  df0=5, S0=3/2)),
+                      nIter=nb.iters, burnIn=burnin, thin=thin,
+                      saveAt="gibbsJanss2012_samples.txt", verbose=0)
+fit$mu
+fit$varE
+fit$K[[1]]$varU
+fit$fit$DIC
+posteriors <- mcmc(data=read.table(fit$saveAt, header=TRUE))
+posteriors <- mcmc(cbind(posteriors,
+                         h2=posteriors[,"varU1"] /
+                           (posteriors[,"varU1"] + posteriors[,"varE"])))
+summary(posteriors)
+snpeffs <- t(W) %*% pca.G$rot.dat %*%
+  diag(1 / pca.G$eigen.values) %*% fit$K[[1]]$u
+```
+
+Now let's shuffle the rows of W to reproduce the equivalent of figure 2 of Janss et al:
+```{r run_gibbs_simulated_data_shuffle, eval=TRUE}
+shuf.idx <- sample.int(n=nrow(W))
+G.shuf <- tcrossprod(W[shuf.idx,]) / ncol(W)
+dimnames(G.shuf) <- dimnames(G)
+pca.G.shuf <- pca(S=G.shuf)
+fit.shuf <- gibbsJanss2012(y=phenos$Y[,1],
+                           XF=NULL,
+                           K=list(list(V=pca.G.shuf$rot.dat,
+                                       d=pca.G.shuf$eigen.values,
+                                       df0=5, S0=3/2)),
+                           nIter=nb.iters, burnIn=burnin, thin=thin,
+                           saveAt="gibbsJanss2012_samples.txt", verbose=0)
+fit.shuf$mu
+fit.shuf$varE
+fit.shuf$K[[1]]$varU
+fit.shuf$fit$DIC
+posteriors.shuf <- mcmc(data=read.table(fit.shuf$saveAt, header=TRUE))
+snpeffs.shuf <- t(W) %*% pca.G.shuf$rot.dat %*%
+  diag(1 / pca.G.shuf$eigen.values) %*% fit.shuf$K[[1]]$u
+## reproduce figure 2
+plot(x=1:ncol(W), y=abs(snpeffs), pch=20, col="black")
+points(x=1:ncol(W), y=abs(snpeffs.shuf), pch=20, col="grey")
+```
+
+Now let's reproduce the equivalent of figures 5 and 6 of Janss et al:
+```{r run_gibbs_simulated_data, fig.height=15, eval=TRUE}
+nb.PCs <- 0
+nb.iters <- 2 * 10^4
+burnin <- 2 * 10^3
+thin <- 10
+seed <- 1859
+if(nb.PCs == 0){
+  fm <- RKHS(y=phenos$Y[,1],
+             XF=NULL,
+             K=list(list(V=pca.G$rot.dat, d=pca.G$eigen.values,
+                         df0=5, S0=3/2)),
+             nIter=nb.iters, burnIn=burnin, thin=thin)
+  fit <- gibbsJanss2012(y=phenos$Y[,1],
+                        XF=NULL,
+                        K=list(list(V=pca.G$rot.dat, d=pca.G$eigen.values,
+                                    df0=5, S0=3/2)),
+                        nIter=nb.iters, burnIn=burnin, thin=thin,
+                        saveAt="gibbsJanss2012_samples.txt", verbose=0)
+} else
+  fit <- gibbsJanss2012(y=phenos$Y[,1],
+                        XF=pca.G$rot.dat[, 1:nb.PCs, drop=FALSE],
+                        K=list(list(V=pca.G$rot.dat, d=pca.G$eigen.values,
+                                    df0=5, S0=3/2)),
+                        nIter=nb.iters, burnIn=burnin, thin=thin,
+                        saveAt=getwd(), verbose=0)
+
+fm$mu # 50
+fm$varE # 150
+fm$K[[1]]$varU # 139
+fm$fit$DIC # 2463
+
+fit$mu # 50
+fit$varE # 155
+fit$K[[1]]$varU # 133
+fit$fit$DIC # 2469
+
+post.samples <- mcmc(data=read.table(fit$saveAt, header=TRUE))
+dim(post.samples)
+post.samples <- mcmc(cbind(post.samples,
+                           h2=post.samples[,"varU1"] /
+                             (post.samples[,"varU1"] + post.samples[,"varE"])))
+head(post.samples)
+plot(post.samples, ask=FALSE)
+summary(post.samples)
+HPDinterval(post.samples)
+```
+
+Clean:
+```{r clean}
+for(f in Sys.glob("gibbsJanss2012_*.txt"))
+  file.remove(f)
+```
+
+
+
+# Appendix
+
+```{r info}
+t1 <- proc.time(); t1 - t0
+print(sessionInfo(), locale=FALSE)
+```
