@@ -11,6 +11,7 @@ estimLd(
   pops = NULL,
   only.chr = NULL,
   only.pop = NULL,
+  only.snp = NULL,
   use.ldcorsv = FALSE,
   use.snpStats = FALSE,
   as.cor = FALSE,
@@ -30,6 +31,8 @@ estimLd(
 \item{only.chr}{identifier of a given chromosome}
 
 \item{only.pop}{identifier of a given population}
+
+\item{only.snp}{identifier of a given SNP; compatible with neither use.ldcorsv nor use.snpStats (yet?)}
 
 \item{use.ldcorsv}{required if K and/or pops are not NULL; otherwise use the square of \code{\link{cor}}}
 

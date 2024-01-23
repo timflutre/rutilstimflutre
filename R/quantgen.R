@@ -5172,6 +5172,7 @@ estimGenRel <- function(X, afs=NULL, thresh=NULL, relationships="additive",
 ##' @param pops vector of characters indicating the population of each genotype
 ##' @param only.chr identifier of a given chromosome
 ##' @param only.pop identifier of a given population
+##' @param only.snp identifier of a given SNP; compatible with neither use.ldcorsv nor use.snpStats (yet?)
 ##' @param use.ldcorsv required if K and/or pops are not NULL; otherwise use the square of \code{\link{cor}}
 ##' @param use.snpStats if TRUE, the \code{ld} function of the snpStats package is used (see \href{https://dx.doi.org/10.1159/000101422}{Clayton and Leung, 2007})
 ##' @param as.cor if TRUE, the square root of the LD estimates is returned
@@ -5237,7 +5238,7 @@ estimGenRel <- function(X, afs=NULL, thresh=NULL, relationships="additive",
 ##' }
 ##' @export
 estimLd <- function(X, snp.coords, K=NULL, pops=NULL,
-                    only.chr=NULL, only.pop=NULL,
+                    only.chr=NULL, only.pop=NULL, only.snp=NULL,
                     use.ldcorsv=FALSE, use.snpStats=FALSE,
                     as.cor=FALSE, as.symmat=FALSE, verbose=1){
   if(use.ldcorsv)
@@ -5270,18 +5271,35 @@ estimLd <- function(X, snp.coords, K=NULL, pops=NULL,
   if(! is.null(only.pop))
     if(! only.pop %in% pops)
       stop(paste0("pop '", only.pop, "' absent from pops"))
+  if(! is.null(only.snp)){
+    stopifnot(only.snp %in% colnames(X),
+              only.snp %in% rownames(snp.coords))
+    if(use.ldcorsv)
+      stop("use.ldcorsv not available with only.snp")
+    if(use.snpStats)
+      stop("use.snpStats not available with only.snp")
+  }
 
-  ld <- NULL
+  ld <- NULL # output
 
+  ## subset the data
   subset.snps <- 1:ncol(X)
   subset.inds <- 1:nrow(X)
   if(! is.null(only.chr) | ! is.null(only.pop)){
-    if(verbose > 0)
-      write("extract relevant genotypes and SNPs...", stdout())
-    if(! is.null(only.chr))
+    if(! is.null(only.chr)){
+      if(verbose > 0)
+        write("extract subset of SNPs...", stdout())
       subset.snps <- which(snp.coords$chr == only.chr)
-    if(! is.null(only.pop))
+      if(! is.null(only.snp))
+        if(! only.snp %in% rownames(snp.coords)[subset.snps])
+          subset.snps <- c(which(rownames(snp.coords) == only.snp),
+                           subset.snps)
+    }
+    if(! is.null(only.pop)){
+      if(verbose > 0)
+        write("extract subset of genotypes...", stdout())
       subset.inds <- which(pops == only.pop)
+    }
   }
   X <- X[subset.inds, subset.snps]
   if(! is.null(K))
@@ -5294,6 +5312,7 @@ estimLd <- function(X, snp.coords, K=NULL, pops=NULL,
                stringsAsFactors=TRUE)
   }
 
+  ## estimate LD
   if(verbose > 0)
     write("estimate pairwise LD...", stdout())
   if(is.null(K)){
@@ -5321,16 +5340,27 @@ estimLd <- function(X, snp.coords, K=NULL, pops=NULL,
           colnames(ld) <- c("loc1", "loc2", ifelse(as.cor, "cor", "cor2"))
         }
       } else{
-        if(as.cor){
+        if(is.null(only.snp)){
           LDmat <- stats::cor(X)
         } else{
-          LDmat <- stats::cor(X)^2
+          LDmat <- stats::cor(x=X[, only.snp],
+                              y=X[, -which(colnames(X) == only.snp)])
+          rownames(LDmat) <- only.snp
+        }
+        if(! as.cor){
+          LDmat <- LDmat^2
         }
         if(as.symmat){
           ld <- LDmat
         } else{
-          ld <- symmat2longdf(LDmat)
-          colnames(ld) <- c("loc1", "loc2", ifelse(as.cor, "cor", "cor2"))
+          if(is.null(only.snp)){
+            ld <- symmat2longdf(LDmat)
+            colnames(ld) <- c("loc1", "loc2", ifelse(as.cor, "cor", "cor2"))
+          } else{
+            ld <- data.frame(loc1=only.snp,
+                             loc2=colnames(LDmat))
+            ld[[ifelse(as.cor, "cor", "cor2")]] <- LDmat[1,]
+          }
         }
       }
     } else{ # if(is.null(K) & ! is.null(pops))

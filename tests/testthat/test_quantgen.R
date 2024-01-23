@@ -2022,6 +2022,30 @@ test_that("estimLd_cor-r2", {
   }
 })
 
+test_that("estimLd_single-SNP", {
+    N <- 4 # individuals
+    P <- 5 # SNPs
+    X <- matrix(c(2,1,0,1, 2,0,0,1, 1,0,0,1, 0,0,0,1, 1,0,1,2), nrow=N, ncol=P,
+                dimnames=list(inds=paste0("ind", 1:N), snps=paste0("snp", 1:P)))
+    snp.coords <- data.frame(chr=c(rep("chr1", P-1), "chr2"),
+                             pos=c(2, 17, 25, 33, 5),
+                             stringsAsFactors=FALSE)
+    rownames(snp.coords) <- colnames(X)
+
+    expected <- data.frame(loc1=rep("snp1",4),
+                           loc2=c("snp2","snp3","snp4","snp5"),
+                           cor2=c(cor(X[,"snp1"], X[,"snp2"])^2,
+                                  cor(X[,"snp1"], X[,"snp3"])^2,
+                                  cor(X[,"snp1"], X[,"snp4"])^2,
+                                  cor(X[,"snp1"], X[,"snp5"])^2),
+                           stringsAsFactors=TRUE)
+
+    observed <- estimLd(X=X, snp.coords=snp.coords, only.snp="snp1",
+                        verbose=0)
+
+    expect_equal(observed, expected)
+})
+
 test_that("distConsecutiveSnps", {
   P <- 5 # SNPs
   snp.coords <- data.frame(chr=c(rep("chr1", P-2), rep("chr2", 2)),
