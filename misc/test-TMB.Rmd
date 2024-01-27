@@ -1,0 +1,1675 @@
+---
+title: "Test of TMB on uN, mN, LM and LMM"
+author: "T. Flutre"
+date: "`r format(Sys.time(), '%d/%m/%Y %H:%M:%S')`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    toc_depth: 6
+    number_sections: TRUE
+  pdf_document:
+    toc: true
+    toc_depth: 4
+    number_sections: TRUE
+editor_options: 
+  chunk_output_type: console
+abstract: |
+    This documents tests the TMB package to estimate the parameters of univariate Normals, multivariate Normals, linear models and linear mixed models.
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo=TRUE)
+```
+
+
+# Preamble
+
+https://kaskr.github.io/adcomp/_book/Introduction.html
+
+Dependencies:
+```{r}
+suppressPackageStartupMessages(library(mvtnorm))
+suppressPackageStartupMessages(library(MixMatrix))
+suppressPackageStartupMessages(library(lme4))
+suppressPackageStartupMessages(library(TMB))
+suppressPackageStartupMessages(library(glmmTMB))
+```
+
+Execution time (see the appendix):
+```{r time_0}
+t0 <- proc.time()
+```
+
+
+# Functions
+
+```{r}
+computFit <- function(start, objective, gradient, hessian=NULL,
+                      lower=NULL, upper=NULL){
+  out <- list(fit=NULL, st=NULL)
+  sink(nullfile())
+  st <- system.time(
+      fit <- try(
+          nlminb(start, objective, gradient, hessian,
+                 lower=lower, upper=upper))
+  )
+  if(! inherits(fit, "try-error")){
+    out$fit <- fit
+    out$st <- st
+  }
+  sink()
+  return(out)
+}
+```
+
+```{r}
+computFits <- function(f, lower, upper, which=1:4, verbose=0){
+  out <- list(fits=list(),
+              sts=list())
+  whichNames <- c("gr & low-upp & he", "gr & low-upp", "gr & he", "gr")
+  if(1 %in% which){
+    if(verbose > 0)
+      message(paste0("run '", whichNames[1], "'"))
+    tmp <- computFit(f$par, f$fn, f$gr, f$he, lower=lower, upper=upper)
+    if(! is.null(tmp$fit)){
+      out$fits[[whichNames[1]]] <- tmp$fit
+      out$sts[[whichNames[1]]] <- tmp$st
+    } else{
+      message(paste0("error for '", whichNames[1], "'"))
+      out$fits[[whichNames[1]]] <- NA
+      out$sts[[whichNames[1]]] <- NA
+    }
+  } else{
+    out$fits[[whichNames[1]]] <- NA
+    out$sts[[whichNames[1]]] <- NA
+  }
+  if(2 %in% which){
+    if(verbose > 0)
+      message(paste0("run '", whichNames[2], "'"))
+    tmp <- computFit(f$par, f$fn, f$gr, NULL, lower=lower, upper=upper)
+    if(! is.null(tmp$fit)){
+      out$fits[[whichNames[2]]] <- tmp$fit
+      out$sts[[whichNames[2]]] <- tmp$st
+    } else{
+      message(paste0("error for '", whichNames[2], "'"))
+      out$fits[[whichNames[2]]] <- NA
+      out$sts[[whichNames[2]]] <- NA
+    }
+  } else{
+    out$fits[[whichNames[2]]] <- NA
+    out$sts[[whichNames[2]]] <- NA
+  }
+  if(3 %in% which){
+    if(verbose > 0)
+      message(paste0("run '", whichNames[3], "'"))
+    tmp <- computFit(f$par, f$fn, f$gr, f$he)
+    if(! is.null(tmp$fit)){
+      out$fits[[whichNames[3]]] <- tmp$fit
+      out$sts[[whichNames[3]]] <- tmp$st
+    } else{
+      message(paste0("error for '", whichNames[3], "'"))
+      out$fits[[whichNames[3]]] <- NA
+      out$sts[[whichNames[3]]] <- NA
+    }
+  } else{
+    out$fits[[whichNames[3]]] <- NA
+    out$sts[[whichNames[3]]] <- NA
+  }
+  if(4 %in% which){
+    if(verbose > 0)
+      message(paste0("run '", whichNames[4], "'"))
+    tmp <- computFit(f$par, f$fn, f$gr)
+    if(! is.null(tmp$fit)){
+      out$fits[[whichNames[4]]] <- tmp$fit
+      out$sts[[whichNames[4]]] <- tmp$st
+    } else{
+      message(paste0("error for '", whichNames[4], "'"))
+      out$fits[[whichNames[4]]] <- NA
+      out$sts[[whichNames[4]]] <- NA
+    }
+  } else{
+    out$fits[[whichNames[4]]] <- NA
+    out$sts[[whichNames[4]]] <- NA
+  }
+  return(out)
+}
+```
+
+```{r}
+compComputFits <- function(fits, sts){
+  stopifnot(length(fits) == 4,
+            length(sts) == 4)
+  out <- data.frame(fit=names(fits),
+                    objective=NA,
+                    convergence=NA,
+                    iterations=NA,
+                    eval_fn=NA,
+                    eval_gr=NA,
+                    elapsed=NA)
+  for(i in 1:4){
+    if(! all(is.na(fits[[i]]))){
+      out[i,"objective"] <- fits[[i]]$objective
+      out[i,"convergence"] <- fits[[i]]$convergence
+      out[i,"iterations"] <- fits[[i]]$iterations
+      out[i,"eval_fn"] <- fits[[i]]$evaluations["function"]
+      out[i,"eval_gr"] <- fits[[i]]$evaluations["gradient"]
+      stopifnot(! is.null(sts[[i]]))
+      out[i,"elapsed"] <- sts[[i]]["elapsed"]
+    }
+  }
+  return(out)
+}
+```
+
+
+
+
+# Univariate Normal
+
+## Model
+
+### v1
+
+\[
+    \forall i \in \{1,\ldots,n\}, \; x_i \sim \mathcal{N}_1(\mu, \sigma^2)
+\]
+
+* $x_i$: scalar
+
+* $\mathcal{N}_1$: univariate Normal
+
+* $\mu$: mean
+
+* $\sigma^2$: variance
+
+### v2
+
+\[
+    \mathbf{x} \sim \mathcal{N}_n(\mathbf{1}_n \mu, \sigma^2 Id_n)
+\]
+
+* $\mathbf{x}$: $n$-vector
+
+* $\mathcal{N}_n$: multivariate Normal of dimension $n$
+
+* $\mathbf{1}_n$: $n$-vector of ones
+
+* $Id_n$: $n \times n$ identity matrix
+
+## Simulation
+
+```{r}
+set.seed(12345)
+n <- 100
+mu <- 3
+sigma <- 1
+x <- rnorm(n=n, mean=mu, sd=sigma)
+```
+
+## Inference
+
+### v1
+
+#### Implementation
+
+Using `dnorm`.
+
+```{r}
+cppTxt <- "
+#include <TMB.hpp>
+template<class Type>
+Type objective_function<Type>::operator() ()
+{
+  DATA_VECTOR(x);
+  PARAMETER(mu);
+  PARAMETER(log_sigma);
+  Type nll = Type(0.0);
+  nll = -sum(dnorm(x,mu,exp(log_sigma),true));
+  return nll;
+}
+"
+
+dllID <- "test_TMB_univNorm_v1"
+cat(cppTxt, file=paste0(dllID, ".cpp"))
+if(! file.exists(paste0(dllID, ".so")))
+  compile(paste0(dllID, ".cpp"))
+dyn.load(dynlib(dllID))
+```
+
+#### Usage
+
+```{r}
+system.time(
+    f_v1 <- MakeADFun(data=list(x=x),
+                      parameters=list(mu=0, log_sigma=log(1)),
+                      hessian=TRUE, DLL=dllID))
+tmp <- computFits(f_v1, lower=c(-10.0,-10.0), upper=c(10.0,10.0), which=1:4)
+fits_v1 <- tmp$fits
+sts_v1 <- tmp$sts
+sdrep_v1 <- sdreport(f_v1)
+rm(f_v1)
+```
+
+### v2
+
+#### Implementation
+
+Using `MVNORM`.
+
+```{r}
+cppTxt <- "
+#include <TMB.hpp>
+using namespace density;
+template<class Type>
+Type objective_function<Type>::operator() ()
+{
+  DATA_VECTOR(x);
+  DATA_VECTOR(ones_n);
+  DATA_MATRIX(Id_n);
+
+  PARAMETER(mu);
+  PARAMETER(log_sigma);
+  
+  int n = x.size();
+
+  vector<Type> m(n);
+  m = ones_n * mu;
+
+  matrix<Type> Sigma(n,n);
+  Sigma = exp(2 * log_sigma) * Id_n;
+
+  Type nll = Type(0.0);
+  nll = MVNORM(Sigma)(x - m);
+  return nll;
+}
+"
+
+dllID <- "test_TMB_univNorm_v2"
+cat(cppTxt, file=paste0(dllID, ".cpp"))
+if(! file.exists(paste0(dllID, ".so")))
+  compile(paste0(dllID, ".cpp"))
+dyn.load(dynlib(dllID))
+```
+
+#### Usage
+
+```{r}
+system.time(
+    f_v2 <- MakeADFun(data=list(x=x, ones_n=rep(1,n), Id_n=diag(n)),
+                      parameters=list(mu=0, log_sigma=log(1)),
+                      hessian=TRUE, DLL=dllID))
+tmp <- computFits(f_v2, lower=c(-10.0,-10.0), upper=c(10.0,10.0), which=1:4)
+fits_v2 <- tmp$fits
+sts_v2 <- tmp$sts
+sdrep_v2 <- sdreport(f_v2)
+rm(f_v2)
+```
+
+## Check
+
+```{r}
+rbind("truth"=c("mu"=mu, "sigma"=sigma),
+      "TMVv1_1"=c(fits_v1[[1]]$par[1], exp(fits_v1[[1]]$par[2])),
+      "TMVv1_2"=c(fits_v1[[2]]$par[1], exp(fits_v1[[2]]$par[2])),
+      "TMVv1_3"=c(fits_v1[[3]]$par[1], exp(fits_v1[[3]]$par[2])),
+      "TMVv1_4"=c(fits_v1[[4]]$par[1], exp(fits_v1[[4]]$par[2])),
+      "TMVv1_se"=summary(sdrep_v1)[,"Std. Error"],
+      "TMVv2_1"=c(fits_v2[[1]]$par[1], exp(fits_v2[[1]]$par[2])),
+      "TMVv2_2"=c(fits_v2[[2]]$par[1], exp(fits_v2[[2]]$par[2])),
+      "TMVv2_3"=c(fits_v2[[3]]$par[1], exp(fits_v2[[3]]$par[2])),
+      "TMVv2_4"=c(fits_v2[[4]]$par[1], exp(fits_v2[[4]]$par[2])),
+      "TMVv2_se"=summary(sdrep_v2)[,"Std. Error"])
+```
+
+* Same results whatever the implementations and usages.
+
+```{r}
+compComputFits(fits_v1, sts_v1)
+compComputFits(fits_v2, sts_v2)
+```
+
+* Including the Hessian leads to less iterations to reach convergence, though slower.
+
+* Using `MVNORM` is slower than using `dnorm` inside a for loop.
+
+
+
+
+# Multivariate Normal
+
+## Model
+
+### v1
+
+\[
+    \forall i\in \{1,\ldots,n\}, \; \mathbf{x}_i \sim \mathcal{N}_{p}(\mathbf{\mu}, \Sigma)
+\]
+
+* $\mathbf{x}$: $p$-vector
+
+* $\mathcal{N}_p$: multivariate Normal of dimension $p$
+
+* $\mathbf{\mu}$: $p$-vector of means
+
+* $\Sigma$: $p \times p$ variance-covariance matrix
+
+### v2
+
+\[
+    X \sim \mathcal{N}_{n \times p}(M, Id_n, \Sigma)
+\]
+
+* $X$: $n \times p$ matrix
+
+* $\mathcal{N}_{n \times p}$: matrix-variate Normal of dimension $n \times p$
+
+* $M := 1_n \mathbf{\mu}^T$: $n \times p$ matrix of means
+
+### v3
+
+After applying the [$vec$ operator](https://en.wikipedia.org/wiki/Vectorization_(mathematics)), this model is equivalent to:
+
+\[
+    \mathbf{x} \sim \mathcal{N}_{np}(\mathbf{m}, \Sigma \otimes Id_n)
+\]
+
+* $\mathbf{x} := vec(X)$: $np$-vector
+
+* $\mathcal{N}_{np}$: multivariate Normal of dimension $np$
+
+* $\mathbf{m} := vec(M)$: $np$-vector of means
+
+* $\otimes$: [Kronecker product](https://en.wikipedia.org/wiki/Kronecker_product)
+
+## Simulation
+
+```{r}
+set.seed(12345)
+p <- 2
+mu <- c(3, -2)
+sdevs <- c(2, 1)
+vars <- sdevs^2
+rho <- -0.8
+covar <- rho * sdevs[1] * sdevs[2]
+Sigma <- matrix(c(vars[1], covar, covar, vars[2]), nrow=2, ncol=2)
+n <- 100
+X <- rmvnorm(n=n, mean=mu, sigma=Sigma)
+pairs(X)
+```
+
+## Inference
+
+### v1
+
+#### Implementation
+
+Using `MVNORM` with type casting.
+
+See the tutorial on the MVN:
+
+* https://github.com/admb-project/tmb-examples/blob/master/multivariate-normal/simpleMVN1.R
+
+* https://github.com/admb-project/tmb-examples/blob/master/multivariate-normal/simpleMVN1.cpp
+
+```{r}
+cppTxt <- "
+#include <TMB.hpp>
+using namespace density;
+template<class Type>
+Type objective_function<Type>::operator() ()
+{
+  DATA_MATRIX(X);
+
+  PARAMETER_VECTOR(mu);
+  PARAMETER_VECTOR(log_sd);
+  PARAMETER(transf_rho);
+  
+  int n = X.rows();
+  int p = X.cols();
+
+  vector<Type> sd = exp(log_sd);
+  Type rho = 2.0 / (1.0 + exp(-transf_rho)) - 1.0; // 'shifted logistic transformation'
+  matrix<Type> Sigma(p,p);
+  // Sigma(0,0) = pow(sd[0],2);
+  // Sigma(1,1) = pow(sd[1],2);
+  // Sigma(1,2) = rho * sd[0] * sd[1];
+  // Sigma(2,1) = Sigma(1,2);
+  Sigma.row(0) << pow(sd[0],2),     rho*sd[0]*sd[1];
+  Sigma.row(1) << rho*sd[0]*sd[1],  pow(sd[1],2);
+
+  vector<Type> res(p);
+
+  Type nll = Type(0.0);
+  for(int i=0; i<n; i++){
+    res = vector<Type>(X.row(i)) - mu; // example of type casting
+    nll += MVNORM(Sigma)(res);
+  }
+
+  REPORT(Sigma);
+
+  return nll;
+}
+"
+
+dllID <- "test_TMB_multivNorm_v1"
+cat(cppTxt, file=paste0(dllID, ".cpp"))
+if(! file.exists(paste0(dllID, ".so")))
+  compile(paste0(dllID, ".cpp"))
+dyn.load(dynlib(dllID))
+```
+
+#### Usage
+
+```{r}
+system.time(
+    f_v1 <- MakeADFun(data=list(X=X),
+                      parameters=list(mu=rep(0,p),
+                                      log_sd=rep(log(1),p),
+                                      transf_rho=0),
+                      hessian=TRUE, DLL=dllID))
+tmp <- computFits(f_v1, lower=NULL, upper=NULL, which=1:4)
+fits_v1 <- tmp$fits
+sts_v1 <- tmp$sts
+sdrep_v1 <- sdreport(f_v1)
+rm(f_v1)
+```
+
+### v2
+
+#### Implementation
+
+Using [`VECSCALE`](https://kaskr.github.io/adcomp/classdensity_1_1VECSCALE__t.html) and [`UNSTRUCTURED_CORR`](https://kaskr.github.io/adcomp/classdensity_1_1UNSTRUCTURED__CORR__t.html) to estimate $\Sigma$ in such a way that the symmetry and positive definiteness constraint is respected.
+
+See also a tutorial on the MVN:
+
+* https://github.com/admb-project/tmb-examples/blob/master/multivariate-normal/simpleMVN2.R
+
+* https://github.com/admb-project/tmb-examples/blob/master/multivariate-normal/simpleMVN2.cpp
+
+```{r}
+cppTxt <- "
+#include <TMB.hpp>
+using namespace density;
+template<class Type>
+Type objective_function<Type>::operator() ()
+{
+  DATA_MATRIX(X);
+
+  PARAMETER_VECTOR(mu);
+  PARAMETER_VECTOR(log_sd);
+  PARAMETER_VECTOR(unconstr_cor); // lower triangle, filled row-wise
+  
+  int n = X.rows();
+  int p = X.cols();
+
+  vector<Type> sd = exp(log_sd);
+
+  vector<Type> res(p);
+
+  // Unscaled multivariate normal distribution with unstructured correlation matrix
+  UNSTRUCTURED_CORR_t<Type> mvn_u_u(unconstr_cor);
+  // scaling:
+  VECSCALE_t<UNSTRUCTURED_CORR_t<Type> > mvn_u = VECSCALE(mvn_u_u, sd);
+
+  Type nll = Type(0.0);
+  for(int i=0; i<n; i++){
+    res = vector<Type>(X.row(i)) - mu;
+    nll += mvn_u(res);
+  }
+
+  matrix<Type> Cor(p,p);
+  Cor = mvn_u_u.cov();
+  REPORT(Cor);
+
+  return nll;
+}
+"
+
+dllID <- "test_TMB_multivNorm_v2"
+cat(cppTxt, file=paste0(dllID, ".cpp"))
+if(! file.exists(paste0(dllID, ".so")))
+  compile(paste0(dllID, ".cpp"))
+dyn.load(dynlib(dllID))
+```
+
+#### Usage
+
+```{r}
+system.time(
+    f_v2 <- MakeADFun(data=list(X=X),
+                      parameters=list(mu=rep(0,p),
+                                      log_sd=rep(log(1),p),
+                                      unconstr_cor=0),
+                      hessian=TRUE, DLL=dllID))
+tmp <- computFits(f_v2, lower=NULL, upper=NULL, which=1:4)
+fits_v2 <- tmp$fits
+sts_v2 <- tmp$sts
+sdrep_v2 <- sdreport(f_v2)
+rm(f_v2)
+```
+
+```{r}
+## How to retrieve Sigma from fit$par? Not clear...
+## See https://kaskr.github.io/adcomp/classdensity_1_1UNSTRUCTURED__CORR__t.html
+if(FALSE){
+  L <- diag(p)
+  L[2,1] <- fits_v2[[2]]$par["unconstr_cor"]
+  L
+  L %*% t(L)
+  D <- diag(L %*% t(L))
+  D^{-1/2} %*% L %*% t(L) %*% D^{-1/2} # ??
+}
+```
+
+### v3
+
+#### Implementation
+
+Using [`SEPARABLE`](https://kaskr.github.io/adcomp/classdensity_1_1SEPARABLE__t.html) for the kronecker product.
+
+* `SEPARABLE` takes two densities, `f` with $n_f \times n_f$ cov matrix $\Sigma_f$ and `g` with $n_g \times n_g$ cov matrix $\Sigma_g$, and constructs the density of their separable extension, $h$, defined as the multivariate Gaussian distribution with $n_f n_g \times n_f n_g$ covariance matrix equal to the kronecker product between the covariance matrices of the two distributions: $\Sigma_h = \Sigma_f \otimes \Sigma_g$.
+
+* `SEPARABLE` is evaluated on an $n_g \times n_f$ array `x` (a tmbutils array, not an Eigen array).
+
+* Note that the arguments `f` and `g` to `SEPARABLE` are given in the opposite order to the dimensions of `x`.
+
+```
+DATA_ARRAY(x); // in R: x <- matrix(0, nrow=n_g, ncol=n_f);
+MVNORM_t<Type> f(Sigma_f);
+MVNORM_t<Type> g(Sigma_g);
+SEPARABLE_t< MVNORM_t<Type> , MVNORM_t<Type> > h(f, g);
+Type nll = h(x);
+```
+
+```{r}
+cppTxt <- "
+#include <TMB.hpp>
+using namespace density;
+template<class Type>
+Type objective_function<Type>::operator() ()
+{
+  DATA_ARRAY(X);
+  DATA_MATRIX(Id_n);
+  PARAMETER_VECTOR(mu);
+  PARAMETER_VECTOR(log_sd);
+  PARAMETER_VECTOR(unconstr_cor); // lower triangle, filled row-wise
+  int n = X.rows();
+  int p = X.cols();
+  matrix<Type> M(n, p);
+  matrix<Type> ones_n(n, 1);
+  ones_n.fill(1.0);
+  M = ones_n * mu.matrix().transpose();
+  UNSTRUCTURED_CORR_t<Type> f_unscl(unconstr_cor);
+  VECSCALE_t<UNSTRUCTURED_CORR_t<Type> > f = VECSCALE(f_unscl, exp(log_sd));
+  MVNORM_t<Type> g(Id_n);
+  SEPARABLE_t< VECSCALE_t<UNSTRUCTURED_CORR_t<Type> > , MVNORM_t<Type> > h(f, g);
+  Type nll = h(X - M.vec());
+
+  matrix<Type> Cor(p,p);
+  Cor = f_unscl.cov();
+  REPORT(Cor);
+
+  return nll;
+}
+"
+
+dllID <- "test_TMB_multivNorm_v3"
+cat(cppTxt, file=paste0(dllID, ".cpp"))
+if(! file.exists(paste0(dllID, ".so")))
+  compile(paste0(dllID, ".cpp"))
+dyn.load(dynlib(dllID))
+```
+
+#### Usage
+
+```{r}
+system.time(
+    f_v3 <- MakeADFun(data=list(X=X,
+                                Id_n=diag(n)),
+                      parameters=list(mu=rep(0,p),
+                                      log_sd=rep(log(1),p),
+                                      unconstr_cor=rep(0, p*(p-1)/2)),
+                      hessian=FALSE, DLL=dllID))
+tmp <- computFits(f_v3, lower=NULL, upper=NULL, which=1:4)
+fits_v3 <- tmp$fits
+sts_v3 <- tmp$sts
+sdrep_v3 <- sdreport(f_v3)
+repCor_v3 <- f_v3$report()
+rm(f_v3)
+```
+
+## Check
+
+```{r}
+rbind("truth"=c("mu1"=mu[1], "mu2"=mu[2], "var1"=vars[1], "var2"=vars[2], "rho"=rho),
+      "TMVv1_1"=NA,
+      "TMVv1_2"=c(fits_v1[[2]]$par[1:2], exp(fits_v1[[2]]$par[3:4])^2,
+                  2.0 / (1.0 + exp(-fits_v1[[2]]$par[5])) - 1.0),
+      "TMVv1_3"=NA,
+      "TMVv1_4"=c(fits_v1[[4]]$par[1:2], exp(fits_v1[[4]]$par[3:4])^2,
+                  2.0 / (1.0 + exp(-fits_v1[[4]]$par[5])) - 1.0),
+      "TMVv1_se"=summary(sdrep_v1)[,"Std. Error"],
+      "TMVv2_1"=NA,
+      "TMVv2_2"=c(fits_v2[[2]]$par[1:2], exp(fits_v2[[2]]$par[3:4])^2,
+                  fits_v2[[2]]$par[5]),
+      "TMVv2_3"=NA,
+      "TMVv2_4"=c(fits_v2[[4]]$par[1:2], exp(fits_v2[[4]]$par[3:4])^2,
+                  fits_v2[[4]]$par[5]),
+      "TMVv2_se"=summary(sdrep_v2)[,"Std. Error"],
+      "TMVv3_1"=NA,
+      "TMVv3_2"=c(fits_v3[[2]]$par[1:2], fits_v3[[2]]$par[3:4],
+                  fits_v3[[2]]$par[5]),
+      "TMVv3_3"=NA,
+      "TMVv3_4"=c(fits_v3[[4]]$par[1:2], fits_v3[[4]]$par[3:4],
+                  ## fits_v3[[4]]$par[5]),
+                  repCor_v3$Cor[1,2]),
+      "TMVv3_se"=NA)
+```
+
+* With `UNSTRUCTURED_CORR`, it is hard to retrieve the correlation estimate per fit. Need to use `report` but only the last call is kept (I think).
+
+```{r}
+compComputFits(fits_v1, sts_v1)
+compComputFits(fits_v2, sts_v2)
+compComputFits(fits_v3, sts_v3)
+```
+
+* Using `UNSTRUCTURED_CORR` is more than ten times faster.
+
+* `SEPARABLE` does not add any time penalty.
+
+* Including the Hessian failed.
+
+* Including boundaries did not change anything.
+
+
+
+# Linear model
+
+## One covariable
+
+### Model
+
+\[
+    \mathbf{y} \sim \mathcal{N}_n(\mathbf{1}_n \mu + \mathbf{x} \beta, \sigma^2 Id_n)
+\]
+
+### Simulation
+
+```{r}
+set.seed(12345)
+n <- 100
+mu <- 3
+beta <- 2
+sigma <- 1
+x <- rnorm(n)
+y <- mu + beta * x + rnorm(n, 0, 1)
+dat <- data.frame(x=x,
+                  y=y)
+```
+
+### Inference
+
+#### `lm`
+
+```{r}
+fit_lm <- lm(y ~ x, dat)
+summary(fit_lm)
+```
+
+#### `TMB`
+
+##### Implementation
+
+```{r}
+cppTxt <- "
+#include <TMB.hpp>
+template<class Type>
+Type objective_function<Type>::operator() ()
+{
+  DATA_VECTOR(y);
+  DATA_VECTOR(x);
+  PARAMETER(mu);
+  PARAMETER(beta);
+  PARAMETER(log_sigma);
+  Type nll = Type(0.0);
+  nll = -sum(dnorm(y, mu + beta*x, exp(log_sigma), true));
+  return nll;
+}
+"
+
+dllID <- "test_TMB_lm_single_v1"
+cat(cppTxt, file=paste0(dllID, ".cpp"))
+if(! file.exists(paste0(dllID, ".so")))
+  compile(paste0(dllID, ".cpp"))
+dyn.load(dynlib(dllID))
+```
+
+##### Usage
+
+```{r}
+system.time(
+    f_v1 <- MakeADFun(data=list(x=x, y=y),
+                      parameters=list(mu=0, beta=1, log_sigma=log(1)),
+                      hessian=TRUE, DLL=dllID))
+tmp <- computFits(f_v1, lower=c(-10.0,-10.0,-10.0), upper=c(10.0,10.0,10.0), which=1:4)
+fits_v1 <- tmp$fits
+sts_v1 <- tmp$sts
+sdrep_v1 <- sdreport(f_v1)
+rm(f_v1)
+```
+
+### Check
+
+```{r}
+rbind("truth"=c("mu"=mu, "beta"=beta, "sigma"=sigma),
+      "lm"=c(coef(fit_lm), summary(fit_lm)$sigma),
+      "TMBv1_1"=c(fits_v1[[1]]$par[1:2], exp(fits_v1[[1]]$par[3])),
+      "TMBv1_2"=c(fits_v1[[2]]$par[1:2], exp(fits_v1[[2]]$par[3])),
+      "TMBv1_3"=c(fits_v1[[3]]$par[1:2], exp(fits_v1[[3]]$par[3])),
+      "TMBv1_4"=c(fits_v1[[4]]$par[1:2], exp(fits_v1[[4]]$par[3])),
+      "TMVv1_se"=summary(sdrep_v1)[,"Std. Error"])
+```
+
+```{r}
+compComputFits(fits_v1, sts_v1)
+compComputFits(fits_v2, sts_v2)
+```
+
+## Several covariables
+
+### Model
+
+\[
+    \mathbf{y} \sim \mathcal{N}_n(X \mathbf{\beta}, \sigma^2 Id_n)
+\]
+
+### Simulation
+
+```{r}
+set.seed(12345)
+n <- 100
+p <- 5
+X <- matrix(rnorm(n*p), n, p)
+kappa(X)
+(beta <- rnorm(p, sd=2))
+sigma <- 1
+M <- X %*% beta
+Id_n <- diag(n)
+Sigma <- sigma * Id_n
+y <- rmvnorm(n=1, mean=M, sigma=Sigma)
+y <- y[1,]
+dat <- data.frame(X,
+                  y=y)
+```
+
+### Inference
+
+#### `lm`
+
+```{r}
+(form <- paste0("y ~ 0 + ",
+                paste(grep("X",colnames(dat),value=TRUE),collapse=" + ")))
+fit_lm <- lm(formula(form), dat)
+summary(fit_lm)
+```
+
+#### `TMB`
+
+##### v1
+
+Using `dnorm`.
+
+###### Implementation
+
+```{r}
+cppTxt <- "
+#include <TMB.hpp>
+template<class Type>
+Type objective_function<Type>::operator() ()
+{
+  DATA_VECTOR(y);
+  DATA_MATRIX(X)
+
+  PARAMETER_VECTOR(beta);
+  PARAMETER(log_sigma);
+
+  int n = y.size();
+  
+  vector<Type> m(n);
+  m = X * beta;
+
+  Type nll = Type(0.0);
+  for(int i=0; i<n; i++){
+    nll -= dnorm(y(i), m(i), exp(log_sigma), true);
+  }
+  
+  return nll;
+}
+"
+
+dllID <- "test_TMB_lm_multi_v1"
+cat(cppTxt, file=paste0(dllID, ".cpp"))
+if(! file.exists(paste0(dllID, ".so")))
+  compile(paste0(dllID, ".cpp"))
+dyn.load(dynlib(dllID))
+```
+
+###### Usage
+
+```{r}
+system.time(
+    f_v1 <- MakeADFun(data=list(X=X, y=y),
+                      parameters=list(beta=rep(0, p), log_sigma=log(1)),
+                      hessian=TRUE, DLL=dllID))
+tmp <- computFits(f_v1, lower=c(rep(-10.0,p),-10.0), upper=c(rep(10.0,p),10.0), which=1:4)
+fits_v1 <- tmp$fits
+sts_v1 <- tmp$sts
+sdrep_v1 <- sdreport(f_v1)
+rm(f_v1)
+```
+
+##### v2
+
+Using `MVNORM`.
+
+###### Implementation
+
+```{r}
+cppTxt <- "
+#include <TMB.hpp>
+using namespace density;
+template<class Type>
+Type objective_function<Type>::operator() ()
+{
+  DATA_VECTOR(y);
+  DATA_MATRIX(X);
+  DATA_MATRIX(Id_n);
+  
+  PARAMETER_VECTOR(beta);
+  PARAMETER(log_sigma);
+
+  int n = X.rows();
+  
+  vector<Type> m(n);
+  m = X * beta;
+
+  matrix<Type> Sigma(n,n);
+  Sigma = exp(log_sigma) * Id_n;
+  
+  Type nll = Type(0.0);
+  nll = MVNORM(Sigma)(y - m);
+  return nll;
+}
+"
+
+dllID <- "test_TMB_lm_multi_v2"
+cat(cppTxt, file=paste0(dllID, ".cpp"))
+if(! file.exists(paste0(dllID, ".so")))
+  compile(paste0(dllID, ".cpp"))
+dyn.load(dynlib(dllID))
+```
+
+###### Usage
+
+```{r}
+system.time(
+    f_v2 <- MakeADFun(data=list(X=X, y=y, Id_n=Id_n),
+                      parameters=list(beta=rep(0, p), log_sigma=log(1)),
+                      hessian=TRUE, DLL=dllID))
+tmp <- computFits(f_v2, lower=c(rep(-10.0,p),-10.0), upper=c(rep(10.0,p),10.0), which=1:4)
+fits_v2 <- tmp$fits
+sts_v2 <- tmp$sts
+sdrep_v2 <- sdreport(f_v2)
+rm(f_v2)
+```
+
+### Check
+
+```{r}
+rbind("truth"=c("beta"=beta, "sigma"=sigma),
+      "lm"=c(coef(fit_lm), summary(fit_lm)$sigma),
+      "TMBv1_1"=c(fits_v1[[1]]$par[1:p], exp(fits_v1[[1]]$par[p+1])),
+      "TMBv1_2"=c(fits_v1[[2]]$par[1:p], exp(fits_v1[[2]]$par[p+1])),
+      "TMBv1_3"=c(fits_v1[[3]]$par[1:p], exp(fits_v1[[3]]$par[p+1])),
+      "TMBv1_4"=c(fits_v1[[4]]$par[1:p], exp(fits_v1[[4]]$par[p+1])),
+      "TMBv2_1"=NA,
+      "TMBv2_2"=c(fits_v2[[2]]$par[1:p], exp(fits_v2[[2]]$par[p+1])),
+      "TMBv2_3"=NA,
+      "TMBv2_4"=c(fits_v2[[4]]$par[1:p], exp(fits_v2[[4]]$par[p+1])))
+```
+
+* Using the Hessian with `MVNORM` leads to an error (`"Atomic 'invpd' order not implemented"`).
+
+```{r}
+compComputFits(fits_v1, sts_v1)
+compComputFits(fits_v2, sts_v2)
+```
+
+* Using boundaries with the gradient leads to less iterations to reach convergence, and is a little faster.
+
+* Using `MVNORM` is slower than using `dnorm` inside a for loop.
+
+
+
+
+# Linear mixed model (variance components)
+
+## Without integrating out the random effects
+
+### Model
+
+\[
+    \mathbf{y} \sim \mathcal{N}(X \mathbf{\beta} + Z \mathbf{u}, \sigma^2 Id_n)
+\]
+
+* $\mathbf{u} \sim \mathcal{N}(\mathbf{0}, G)$ where $G = \sigma^2_u A$
+
+* $\mathbf{e} \sim \mathcal{N}(\mathbf{0}, R)$ where $R = \sigma^2_e Id_n$
+
+### Simulation
+
+```{r}
+set.seed(12345)
+nbBlocks <- 3
+levBlocks <- LETTERS[1:nbBlocks]
+nbGenos <- 50
+levGenos <- paste0("g", 1:nbGenos)
+dat <- data.frame(block=factor(rep(levBlocks, each=nbGenos), levels=levBlocks),
+                  geno=factor(levGenos, levels=levGenos),
+                  y=NA)
+n <- nrow(dat)
+X <- model.matrix(~ 1 + block, dat)
+p <- ncol(X)
+Z <- model.matrix(~ 0 + geno, dat)
+image(t(Z)[,nrow(Z):1], axes=FALSE,
+      main=paste0("Z (", nrow(Z), "x", ncol(Z), ") is very sparse"))
+q <- ncol(Z)
+(beta <- rnorm(p, sd=2))
+sigma_u <- 3
+A <- diag(q)
+A <- as.matrix(nearPD(A)$mat)
+G <- sigma_u^2 * A
+u <- rmvnorm(n=1, mean=rep(0, q), sigma=G)
+u <- u[1,]
+sigma_e <- 1
+Id_n <- diag(n)
+R <- sigma_e^2 * Id_n
+e <- rmvnorm(n=1, mean=rep(0, n), sigma=R)
+e <- e[1,]
+y <- X %*% beta + Z %*% u + e
+y <- y[,1]
+dat$y <- y
+```
+
+### Inference
+
+#### `lmer`
+
+```{r}
+system.time(
+    fit_lmer <- lmer(y ~ 1 + block + (1|geno), dat))
+summary(fit_lmer)
+cbind("truth"=beta,
+      "fixef"=fixef(fit_lmer))
+cbind("truth"=c(sigma_u, sigma_e),
+      as.data.frame(VarCorr(fit_lmer)))
+```
+
+#### `glmmTMB`
+
+```{r}
+system.time(
+    fit_g <- glmmTMB(y ~ 1 + block + (1|geno), dat, REML=TRUE, verbose=FALSE))
+summary(fit_g)
+cbind("truth"=beta,
+      "fixef"=fixef(fit_g)$cond)
+c(sigma_u, sigma_e)
+VarCorr(fit_g)
+```
+
+#### `TMB`
+
+##### v1
+
+Using plain and simple `MVNORM`.
+
+###### Implementation
+
+```{r}
+cppTxt <- "
+#include <TMB.hpp>
+using namespace density;
+template<class Type>
+Type objective_function<Type>::operator() ()
+{
+  DATA_VECTOR(y);
+  DATA_MATRIX(X);
+  DATA_MATRIX(Z);
+  DATA_MATRIX(tZ);
+  DATA_MATRIX(A);
+  DATA_MATRIX(Id_n);
+
+  PARAMETER_VECTOR(beta);
+  PARAMETER_VECTOR(u);
+  PARAMETER(log_sigma_u);
+  PARAMETER(log_sigma_e);
+
+  int n = X.rows();
+  int q = Z.cols();
+
+  Type nll = Type(0.0);
+  matrix<Type> G(q, q);
+  G = exp(2 * log_sigma_u) * A;
+  nll += MVNORM(G)(u);
+
+  vector<Type> m(n);
+  m = X * beta + Z * u;
+  matrix<Type> V(n, n);
+  V = exp(2 * log_sigma_e) * Id_n;
+  nll += MVNORM(V)(y - m);
+
+  return nll;
+}
+"
+
+dllID <- "test_TMB_lmm_varcomps_u_v1"
+cat(cppTxt, file=paste0(dllID, ".cpp"))
+if(! file.exists(paste0(dllID, ".so")))
+  compile(paste0(dllID, ".cpp"))
+dyn.load(dynlib(dllID))
+```
+
+###### Usage
+
+```{r}
+system.time(
+    f_v1 <- MakeADFun(data=list(y=y, X=X, Z=Z, tZ=t(Z), A=A, Id_n=Id_n),
+                      parameters=list(beta=rep(0, p), u=rep(0, q), log_sigma_u=log(1),
+                                      log_sigma_e=log(1)),
+                      random="u",
+                      hessian=TRUE, DLL=dllID))
+tmp <- computFits(f_v1, lower=c(rep(-10.0,p),rep(-10.0,q),-10.0,-10.0),
+                  upper=c(rep(10.0,p),rep(10.0,q),10.0,10.0), which=1:4, verbose=1)
+fits_v1 <- tmp$fits
+sts_v1 <- tmp$sts
+sdrep_v1 <- sdreport(f_v1)
+Matrix::image(f_v1$env$spHess(random=TRUE))
+rm(f_v1)
+```
+
+##### v2
+
+###### Implementation
+
+Using `VECSCALE` with `MVNORM`.
+
+```{r}
+cppTxt <- "
+#include <TMB.hpp>
+using namespace density;
+template<class Type>
+Type objective_function<Type>::operator() ()
+{
+  DATA_VECTOR(y);
+  DATA_MATRIX(X);
+  DATA_MATRIX(Z);
+  DATA_MATRIX(A);
+  DATA_MATRIX(Id_n);
+
+  PARAMETER_VECTOR(beta); // fixed effects
+  PARAMETER_VECTOR(u); // random effects
+  PARAMETER(log_sigma_u);
+  PARAMETER(log_sigma_e);
+
+  int n = X.rows();
+  int q = Z.cols();
+
+  Type nll = Type(0.0);
+
+  MVNORM_t<Type> mvn_u_cor(A);
+  vector<Type> vec_sigma_u(q);
+  vec_sigma_u.fill(exp(log_sigma_u));
+  nll += VECSCALE(mvn_u_cor, vec_sigma_u)(u);
+
+  vector<Type> m(n);
+  m = X * beta + Z * u;
+
+  MVNORM_t<Type> mvn_y_cor(Id_n);
+  vector<Type> vec_sigma_e(n);
+  vec_sigma_e.fill(exp(log_sigma_e));
+  nll += VECSCALE(mvn_y_cor, vec_sigma_e)(y - m);
+
+  return nll;
+}
+"
+
+dllID <- "test_TMB_lmm_varcomps_u_v2"
+cat(cppTxt, file=paste0(dllID, ".cpp"))
+if(! file.exists(paste0(dllID, ".so")))
+  compile(paste0(dllID, ".cpp"))
+dyn.load(dynlib(dllID))
+```
+
+###### Usage
+
+```{r}
+system.time(
+    f_v2 <- MakeADFun(data=list(y=y, X=X, Z=Z, A=A, Id_n=Id_n),
+                      parameters=list(beta=rep(0, p), u=rep(0, q), log_sigma_u=log(1),
+                                      log_sigma_e=log(1)),
+                      random="u",
+                      hessian=TRUE, DLL=dllID))
+tmp <- computFits(f_v2, lower=c(rep(-10.0,p),rep(-10.0,q),-10.0,-10.0),
+                  upper=c(rep(10.0,p),rep(10.0,q),10.0,10.0), which=1:4, verbose=1)
+fits_v2 <- tmp$fits
+sts_v2 <- tmp$sts
+sdrep_v2 <- sdreport(f_v2)
+Matrix::image(f_v2$env$spHess(random=TRUE))
+rm(f_v2)
+```
+
+### Check
+
+```{r}
+rbind("truth"=c("beta"=beta, "sigma_u"=sigma_u, "sigma_e"=sigma_e),
+      "lmer"=c(fixef(fit_lmer), as.data.frame(VarCorr(fit_lmer))[,"sdcor"]),
+      "glmmTMB"=NA,
+      "TMBv1_1"=NA,
+      "TMBv1_2"=c(fits_v1[[2]]$par[1:p], exp(fits_v1[[2]]$par[(p+1):(p+2)])),
+      "TMBv1_3"=NA,
+      "TMBv1_4"=c(fits_v1[[4]]$par[1:p], exp(fits_v1[[4]]$par[(p+1):(p+2)])),
+      "TMBv2_1"=NA,
+      "TMBv2_2"=c(fits_v2[[2]]$par[1:p], exp(fits_v2[[2]]$par[(p+1):(p+2)])),
+      "TMBv2_3"=NA,
+      "TMBv2_4"=c(fits_v2[[4]]$par[1:p], exp(fits_v2[[4]]$par[(p+1):(p+2)])))
+```
+
+```{r}
+compComputFits(fits_v1, sts_v1)
+compComputFits(fits_v2, sts_v2)
+```
+
+* Using `VECSCALE` with `MVNORM` is so much faster.
+
+```{r}
+plot(summary(sdrep_v1, select="random")[,1], u,
+     xlab="predicted u", ylab="true u", las=1,
+     main="Random effects (v1)")
+abline(h=0, v=0, a=0, b=1, lty=2)
+abline(lm(u ~ summary(sdrep_v1, select="random")[,1]), col="red")
+
+plot(summary(sdrep_v2, select="random")[,1], u,
+     xlab="predicted u", ylab="true u", las=1,
+     main="Random effects (v2)")
+abline(h=0, v=0, a=0, b=1, lty=2)
+abline(lm(u ~ summary(sdrep_v2, select="random")[,1]), col="red")
+```
+
+* Including the Hessian failed.
+
+* Using boundaries with the gradient is a little faster.
+
+## After integrating out the random effects
+
+### Model
+
+\[
+    \mathbf{y} \sim \mathcal{N}(X \mathbf{\beta}, \sigma^2_u Z A Z^T + \sigma^2 Id_n)
+\]
+
+### Simulation
+
+```{r}
+M <- X %*% beta
+V <- sigma_u^2 * Z %*% A %*% t(Z) + sigma_e^2 * Id_n
+image(t(V)[,nrow(V):1], axes=FALSE,
+      main=paste0("V (", nrow(V), "x", ncol(V), ") is very sparse"))
+y2 <- rmvnorm(n=1, mean=M, sigma=V)
+y2 <- y2[1,]
+dat$y2 <- y2
+```
+
+### Inference
+
+#### `lmer`
+
+```{r}
+system.time(
+    fit_lmer <- lmer(y2 ~ 1 + block + (1|geno), dat))
+summary(fit_lmer)
+cbind("truth"=beta,
+      "fixef"=fixef(fit_lmer))
+cbind("truth"=c(sigma_u, sigma_e),
+      as.data.frame(VarCorr(fit_lmer)))
+```
+
+#### `TMB`
+
+##### v1
+
+Using `MVNORM` (dense covariance matrix).
+
+###### Implementation
+
+```{r}
+cppTxt <- "
+#include <TMB.hpp>
+using namespace density;
+template<class Type>
+Type objective_function<Type>::operator() ()
+{
+  DATA_VECTOR(y);
+  DATA_MATRIX(X);
+  DATA_MATRIX(Z);
+  DATA_MATRIX(tZ);
+  DATA_MATRIX(A);
+  DATA_MATRIX(Id_n);
+
+  PARAMETER_VECTOR(beta);
+  PARAMETER(log_sigma_u);
+  PARAMETER(log_sigma_e);
+
+  int n = X.rows();
+  int q = Z.cols();
+
+  vector<Type> m(n);
+  m = X * beta;
+  matrix<Type> V(n, n), G(q, q), R(n, n);
+  G = exp(2 * log_sigma_u) * Z * A * tZ;
+  R = exp(2 * log_sigma_e) * Id_n;
+  V = G + R;
+
+  Type nll = Type(0.0);
+  nll = MVNORM(V)(y - m);
+  return nll;
+}
+"
+
+dllID <- "test_TMB_lmm_varcomps_marg"
+cat(cppTxt, file=paste0(dllID, ".cpp"))
+if(! file.exists(paste0(dllID, ".so")))
+  compile(paste0(dllID, ".cpp"))
+dyn.load(dynlib(dllID))
+```
+
+###### Usage
+
+```{r}
+system.time(
+    f_v1 <- MakeADFun(data=list(y=y2, X=X, Z=Z, tZ=t(Z), A=A, Id_n=Id_n),
+                      parameters=list(beta=rep(0, p), log_sigma_u=log(1),
+                                      log_sigma_e=log(1)),
+                      hessian=TRUE, DLL=dllID))
+tmp <- computFits(f_v1, lower=c(rep(-10.0,p),-10.0,-10.0),
+                  upper=c(rep(10.0,p),10.0,10.0), which=1:4, verbose=1)
+fits_v1 <- tmp$fits
+sts_v1 <- tmp$sts
+sdrep_v1 <- sdreport(f_v1)
+rm(f_v1)
+```
+
+##### v2
+
+Using `GMRF` (sparse precision matrix).
+
+Using the explicit formula of the lilelihood with sparse covariance matrices (eq 26 of Zhu and Wathen, 2018).
+
+###### Implementation
+
+TODO
+
+###### Usage
+
+TODO
+
+### Check
+
+```{r}
+rbind("truth"=c("beta"=beta, "sigma_u"=sigma_u, "sigma_e"=sigma_e),
+      "lmer"=c(fixef(fit_lmer), as.data.frame(VarCorr(fit_lmer))[,"sdcor"]),
+      "TMBv1_1"=NA,#c(fits_v1[[1]]$par[1:p], exp(fits_v1[[1]]$par[(p+1):(p+2)])),
+      "TMBv1_2"=c(fits_v1[[2]]$par[1:p], exp(fits_v1[[2]]$par[(p+1):(p+2)])),
+      "TMBv1_3"=NA,#c(fits_v1[[3]]$par[1:p], exp(fits_v1[[3]]$par[(p+1):(p+2)])),
+      "TMBv1_4"=c(fits_v1[[4]]$par[1:p], exp(fits_v1[[4]]$par[(p+1):(p+2)])))
+```
+
+```{r}
+compComputFits(fits_v1, sts_v1)
+```
+
+
+# Linear mixed models (correlated responses)
+
+## Model
+
+### Matrix-variate Normal likelihood
+
+\[
+    Y = X_1 B + Z_1 U + E \text{ with } U \sim \mathcal{N}(M_U, A, \Sigma_U) \text{ and } E \sim \mathcal{N}(M_E, Id_{n_1}, \Sigma_E)
+\]
+
+* $Y$ is $n_1 \times d$ (typically assuming here that $D$ is "small", say, $D < 5$)
+
+* $X_1$ is $n_1 \times d$
+
+* $B$ is $p \times d$
+
+* $Z_1$ is $n_1 \times q$
+
+* $U$ is $q \times d$
+
+    * $A$ is $q \times q$, known
+    
+    * $\Sigma_U$ is $d \times d$, to be estimated
+
+* $E$ is $n_1 \times d$
+    
+    * $\Sigma_E$ is $d \times d$, to be estimated
+    
+* $\mathcal{N}(M, \Sigma_r, \Sigma_c)$ is the matrix-variate Normal distribution with mean matrix $M$, covariance matrix between rows $\Sigma_r$ and covariance matrix between columns $\Sigma_c$
+
+### Multivariate Normal likelihood
+
+The matrix-variate model above is equivalent to a multivariate one, after applying the "vec" operator to $Y$:
+
+\[
+    \mathbf{y} \sim \mathcal{N}(X_2 \mathbf{b} + Z_2 \mathbf{u}, \Sigma_E \otimes Id_{n_1})
+\]
+
+* $\mathbf{y} := vec(Y)$
+
+* $X_2 \mathbf{b} := vec(X_1 B)$
+
+    * $X_2 := Id_d \otimes X_1$ is $n_2 \times d p$ with $n_2 = d n_1$
+    
+    * $\mathbf{b} := vec(B)$ is $d p \times 1$
+
+* $Z_2 \mathbf{u} := vec(Z_1 U)$
+
+    * $Z_2 := Id_d \otimes Z_1$ is $d n_2 \times d q$
+    
+    * $\mathbf{u} := vec(U)$ is $d q \times 1$ with $\mathbf{u} \sim \mathcal{N}(\mathbf{0}, G)$ where $G = \Sigma_U \otimes A$
+
+* $\mathbf{e} := vec(E)$ where $\mathbf{e}$ is $n_2 \times 1$
+
+    * $\mathbf{e} \sim \mathcal{N}(\mathbf{0}, R)$ where $R = \Sigma_E \otimes Id_{n_1}$ <!-- and $Q_E := R^{-1} = \Sigma_E^{-1} \otimes Id_{n_1}$ -->
+
+<!-- See Stegle et al (2011), Furlotte and Eskin (2015). -->
+
+## Simulation
+
+```{r}
+set.seed(12345)
+truth <- list()
+d <- 2
+levReps <- paste0("d", 1:d)
+p <- 3
+levFixEffs <- paste0("b", 1:p)
+q <- 25
+levRndEffs <- sprintf("u%02i", 1:q)
+n_1 <- p * q
+n_2 <- n_1 * d
+
+mu_1 <- 60; mu_2 <- 13
+B <- rbind(matrix(c(mu_1, mu_2),
+                  nrow=1, ncol=2),
+           matrix(sample(x=c(-1,1), size=(p-1)*2, replace=TRUE) *
+                  c(rnorm(n=p-1, mean=3, sd=7),
+                    rnorm(n=p-1, mean=0.5, sd=0.5)),
+                  nrow=p-1, ncol=2))
+dimnames(B) <- list(c("mu", "b1-mu", "b2-mu"), # because contr.sum below
+                    levReps)
+stopifnot(all(dim(B) == c(p, d)))
+B
+stopifnot(all(dim(B) == c(p, d)))
+truth[["B"]] <- B
+b <- c(B)
+names(b) <- paste(rep(rownames(B),ncol(B)),
+                  rep(colnames(B), each=nrow(B)),
+                  sep="_")
+b
+
+dat1 <- data.frame(B=rep(levFixEffs, each=q),
+                   U=rep(levRndEffs, times=p),
+                   stringsAsFactors=TRUE)
+str(dat1)
+
+X_1 <- model.matrix(~ 1 + B, dat1, list(B="contr.sum"))
+stopifnot(all(dim(X_1) == c(n_1, p)))
+
+dat2 <- data.frame(d=rep(levReps, each=n_1),
+                   b=rep(levFixEffs, each=q),
+                   u=rep(levRndEffs, times=p),
+                   stringsAsFactors=TRUE)
+str(dat2)
+
+X_2 <- diag(d) %x% X_1
+stopifnot(all(dim(X_2) == c(n_2, d*p)))
+
+if(FALSE){
+  ## https://en.wikipedia.org/wiki/Vectorization_(mathematics)#Compatibility_with_Kronecker_products
+  ## A is k x l
+  ## B is l x m
+  ## vec(AB) = (Id_m \otimes A) vec(B)
+  k <- 3
+  l <- 2
+  (A <- matrix(1:(k*l), k, l))
+  m <- 2
+  (B <- matrix(1:(l*m), l, m))
+  (vecAB1 <- matrix(c(A %*% B)))
+  (vecAB2 <- (diag(m) %x% A) %*% c(B))
+  all.equal(vecAB1, vecAB2)
+}
+
+M_U <- matrix(0, q, d,
+              dimnames=list(levRndEffs, levReps))
+A <- diag(q)
+dimnames(A) <- list(levRndEffs, levRndEffs)
+var_U1 <- 5; var_U2 <- 0.5; cor_U <- -0.8
+Sigma_U <- matrix(c(var_U1, NA, NA, var_U2), 2, 2)
+Sigma_U[1,2] <- Sigma_U[2,1] <- cor_U * sqrt(Sigma_U[1,1] * Sigma_U[2,2])
+dimnames(Sigma_U) <- list(levReps, levReps)
+truth[["Sigma_U"]] <- Sigma_U
+U <- rmatrixnorm(n=1, mean=M_U, U=A, V=Sigma_U)
+m_u <- rep(0, d*q)
+stopifnot(all(m_u == c(M_U)))
+names(m_u) <- paste(rep(levRndEffs, d),
+                    rep(levReps, each=q),
+                    sep="_")
+G <- Sigma_U %x% A
+rownames(G) <- names(m_u)
+colnames(G) <- rownames(G)
+if(FALSE){
+  u <- rmvnorm(1, m_u, G)[1,]
+  u
+}
+
+Z_1 <- model.matrix(~ 0 + U, dat1)
+stopifnot(all(dim(Z_1) == c(n_1, q)))
+
+Z_2 <- diag(d) %x% Z_1
+stopifnot(all(dim(Z_2) == c(n_2, d*q)))
+
+dat2$du <- factor(paste0(dat2$u, "_", dat2$d),
+                  paste0(levRndEffs, "_", rep(levReps, each=q)))
+tmp <- model.matrix(~ 0 + du, dat2)
+stopifnot(all.equal(tmp, Z_2, check.attributes=FALSE))
+
+## Errors:
+M_E <- matrix(0, n_1, d,
+              dimnames=list(NULL, levReps))
+Id_n1 <- diag(n_1)
+var_E1 <- 2; var_E2 <- 0.1; cor_E <- 0.2
+Sigma_E <- matrix(c(var_E1, NA, NA, var_E2), 2, 2)
+Sigma_E[1,2] <- Sigma_E[2,1] <- cor_E * sqrt(Sigma_E[1,1] * Sigma_E[2,2])
+dimnames(Sigma_E) <- list(levReps, levReps)
+truth[["Sigma_E"]] <- Sigma_E
+E <- rmatrixnorm(n=1, mean=M_E, U=Id_n1, V=Sigma_E)
+R <- Sigma_E %x% diag(n_1)
+if(FALSE){
+  e <- rmvnorm(1, rep(0, n), R)[1,]
+}
+
+## Responses:
+Y <- X_1 %*% B + Z_1 %*% U + E
+y <- c(Y)
+if(FALSE){
+  y <- X_2 %*% b + Z_2 %*% u + e
+}
+dat2$y <- y
+```
+
+## Inference
+
+### `lmer`
+
+```{r}
+fit_lmer1 <- lmer(y ~ 1 + b + (1|u), droplevels(dat2[dat2$d == "d1",]),
+                  contrasts=list("b"="contr.sum"))
+summary(fit_lmer1)
+cbind("truth"=truth$B[,1],
+      "fixef"=fixef(fit_lmer1))
+cbind("truth"=c(diag(truth$Sigma_U)[1], diag(truth$Sigma_E)[1]),
+      "estim"=as.data.frame(VarCorr(fit_lmer1))[,"vcov"])
+
+fit_lmer2 <- lmer(y ~ 1 + b + (1|u), droplevels(dat2[dat2$d == "d2",]),
+                  contrasts=list("b"="contr.sum"))
+summary(fit_lmer2)
+cbind("truth"=truth$B[,2],
+      "fixef"=fixef(fit_lmer2))
+cbind("truth"=c(diag(truth$Sigma_U)[2], diag(truth$Sigma_E)[2]),
+      "estim"=as.data.frame(VarCorr(fit_lmer2))[,"vcov"])
+```
+
+### `TMB`
+
+##### Implementation
+
+```{r}
+cppTxt <- "
+#include <TMB.hpp>
+using namespace density;
+template<class Type>
+Type objective_function<Type>::operator() ()
+{
+  DATA_ARRAY(Y);                     //   n_1   x    d
+  DATA_MATRIX(X_1);                  //   n_1   x    p
+  DATA_MATRIX(Z_1);                  //   n_1   x    q
+  DATA_MATRIX(A);                    //    q    x    q
+  DATA_MATRIX(Id_n1);                //   n_1   x   n_1
+  PARAMETER_MATRIX(B);               //    p    x    d
+  PARAMETER_ARRAY(U);                //    q    x    d
+  PARAMETER_VECTOR(log_sd_U);        //    d    x    1
+  PARAMETER_VECTOR(unconstr_cor_U);  // lower triangle, filled row-wise
+  PARAMETER_VECTOR(log_sd_E);        //    d    x    1
+  PARAMETER_VECTOR(unconstr_cor_E);  // lower triangle, filled row-wise
+
+  Type nll = Type(0.0);
+  int d = Y.cols();
+
+  // U
+  UNSTRUCTURED_CORR_t<Type> mvn_u_u(unconstr_cor_U); // d x d; unscaled
+  vector<Type> sd_U = exp(log_sd_U); // d x 1
+  VECSCALE_t<UNSTRUCTURED_CORR_t<Type> > f_u = VECSCALE(mvn_u_u, sd_U); // d x d
+  MVNORM_t<Type> g_u(A);             //    q    x    q
+  SEPARABLE_t< VECSCALE_t<UNSTRUCTURED_CORR_t<Type> > , MVNORM_t<Type> > h_U(f_u, g_u);
+  nll += h_U(U);
+
+  // Y | U
+  UNSTRUCTURED_CORR_t<Type> mvn_y_u(unconstr_cor_E); // d x d; unscaled
+  vector<Type> sd_E = exp(log_sd_E); // d x 1
+  VECSCALE_t<UNSTRUCTURED_CORR_t<Type> > f_y = VECSCALE(mvn_y_u, sd_E); // d x d
+  MVNORM_t<Type> g_y(Id_n1);         //   n_1   x   n_1
+  SEPARABLE_t< VECSCALE_t<UNSTRUCTURED_CORR_t<Type> > , MVNORM_t<Type> > h_Y(f_y, g_y);
+  matrix<Type> M(Y.rows(), d);
+  M = X_1 * B + Z_1 * U.matrix();
+  nll += h_Y(Y - M.vec());
+
+  // report correlation matrices
+  matrix<Type> Cor_U(d,d);
+  Cor_U = mvn_u_u.cov();
+  REPORT(Cor_U);
+  matrix<Type> Cor_E(d,d);
+  Cor_E = mvn_y_u.cov();
+  REPORT(Cor_E);
+
+  return nll;
+}
+"
+
+dllID <- "test_TMB_lmm_cor_U_E"
+cat(cppTxt, file=paste0(dllID, ".cpp"))
+if(! file.exists(paste0(dllID, ".so")))
+  compile(paste0(dllID, ".cpp"))
+dyn.load(dynlib(dllID))
+```
+
+##### Usage
+
+```{r}
+system.time(
+    f <- MakeADFun(data=list(Y=Y, X_1=X_1, Z_1=Z_1, A=A, Id_n1=diag(n_1)),
+                   parameters=list(
+                       B=matrix(0,p,d),
+                       U=matrix(0,q,d),
+                       log_sd_U=rep(log(1),d),
+                       unconstr_cor_U=rep(0, 1),
+                       log_sd_E=rep(log(1),d),
+                       unconstr_cor_E=rep(0, 1)
+                   ),
+                   random="U",
+                   hessian=FALSE, DLL=dllID))
+tmp <- computFits(f, lower=NULL, upper=NULL, which=1:4)
+fits <- tmp$fits
+sts <- tmp$sts
+sdrep <- sdreport(f)
+repCor <- f$report()
+```
+
+## Check
+
+```{r}
+rbind("truth"=b,
+      "lmer"=c(fixef(fit_lmer1), fixef(fit_lmer2)),
+      "TMB"=fits$gr$par[grep("B", names(fits$gr$par))])
+
+rbind("truth"=c(setNames(c(var_U1, cor_U, var_U2),
+                         c("var_U_1", "cor_U", "var_U_2")),
+                setNames(c(var_E1, cor_E, var_E2),
+                         c("var_E_1", "cor_E", "var_E_2"))),
+      "TMB"=c(exp(fits$gr$par[grep("log_sd_U", names(fits$gr$par))[1]])^2,
+              repCor$Cor_U[1,2],
+              exp(fits$gr$par[grep("log_sd_U", names(fits$gr$par))[2]])^2,
+              exp(fits$gr$par[grep("log_sd_E", names(fits$gr$par))[1]])^2,
+              repCor$Cor_E[1,2],
+              exp(fits$gr$par[grep("log_sd_E", names(fits$gr$par))[2]])^2))
+```
+
+```{r}
+compComputFits(fits, sts)
+```
+
+```{r}
+plot(summary(sdrep, select="random")[1:q,1], U[,1],
+     xlab="predicted u", ylab="true u", las=1,
+     main="Random effects U[,1]")
+abline(h=0, v=0, a=0, b=1, lty=2)
+abline(lm(U[,1] ~ summary(sdrep, select="random")[1:q,1]), col="red")
+
+plot(summary(sdrep, select="random")[-(1:q),1], U[,2],
+     xlab="predicted u", ylab="true u", las=1,
+     main="Random effects U[,2]")
+abline(h=0, v=0, a=0, b=1, lty=2)
+abline(lm(U[,2] ~ summary(sdrep, select="random")[-(1:q),1]), col="red")
+```
+
+
+
+# Appendix
+
+```{r info}
+t1 <- proc.time(); t1 - t0
+print(sessionInfo(), locale=FALSE)
+```
