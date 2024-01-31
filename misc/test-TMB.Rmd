@@ -993,7 +993,8 @@ A <- as.matrix(nearPD(A)$mat)
 G <- sigma_u^2 * A
 u <- rmvnorm(n=1, mean=rep(0, q), sigma=G)
 u <- u[1,]
-sigma_e <- 1
+h2 <- 0.6
+(sigma_e <- sqrt(nbBlocks * sigma_u^2 * (1 - h2)))
 Id_n <- diag(n)
 R <- sigma_e^2 * Id_n
 e <- rmvnorm(n=1, mean=rep(0, n), sigma=R)
@@ -1050,6 +1051,7 @@ Type objective_function<Type>::operator() ()
   DATA_MATRIX(tZ);
   DATA_MATRIX(A);
   DATA_MATRIX(Id_n);
+  DATA_SCALAR(nbReps);
 
   PARAMETER_VECTOR(beta);
   PARAMETER_VECTOR(u);
@@ -1070,6 +1072,9 @@ Type objective_function<Type>::operator() ()
   V = exp(2 * log_sigma_e) * Id_n;
   nll += MVNORM(V)(y - m);
 
+  Type h2 = exp(2 * log_sigma_u) / (exp(2 * log_sigma_u) + exp(2 * log_sigma_e) / nbReps);
+  ADREPORT(h2);
+
   return nll;
 }
 "
@@ -1085,7 +1090,7 @@ dyn.load(dynlib(dllID))
 
 ```{r}
 system.time(
-    f_v1 <- MakeADFun(data=list(y=y, X=X, Z=Z, tZ=t(Z), A=A, Id_n=Id_n),
+    f_v1 <- MakeADFun(data=list(y=y, X=X, Z=Z, tZ=t(Z), A=A, Id_n=Id_n, nbReps=nbBlocks),
                       parameters=list(beta=rep(0, p), u=rep(0, q), log_sigma_u=log(1),
                                       log_sigma_e=log(1)),
                       random="u",
@@ -1096,6 +1101,8 @@ fits_v1 <- tmp$fits
 sts_v1 <- tmp$sts
 sdrep_v1 <- sdreport(f_v1)
 Matrix::image(f_v1$env$spHess(random=TRUE))
+sdrep_v1$value
+sdrep_v1$sd
 rm(f_v1)
 ```
 
@@ -1117,6 +1124,7 @@ Type objective_function<Type>::operator() ()
   DATA_MATRIX(Z);
   DATA_MATRIX(A);
   DATA_MATRIX(Id_n);
+  DATA_SCALAR(nbReps);
 
   PARAMETER_VECTOR(beta); // fixed effects
   PARAMETER_VECTOR(u); // random effects
@@ -1141,6 +1149,9 @@ Type objective_function<Type>::operator() ()
   vec_sigma_e.fill(exp(log_sigma_e));
   nll += VECSCALE(mvn_y_cor, vec_sigma_e)(y - m);
 
+  Type h2 = exp(2 * log_sigma_u) / (exp(2 * log_sigma_u) + exp(2 * log_sigma_e) / nbReps);
+  ADREPORT(h2);
+
   return nll;
 }
 "
@@ -1156,7 +1167,7 @@ dyn.load(dynlib(dllID))
 
 ```{r}
 system.time(
-    f_v2 <- MakeADFun(data=list(y=y, X=X, Z=Z, A=A, Id_n=Id_n),
+    f_v2 <- MakeADFun(data=list(y=y, X=X, Z=Z, A=A, Id_n=Id_n, nbReps=nbBlocks),
                       parameters=list(beta=rep(0, p), u=rep(0, q), log_sigma_u=log(1),
                                       log_sigma_e=log(1)),
                       random="u",
@@ -1167,6 +1178,8 @@ fits_v2 <- tmp$fits
 sts_v2 <- tmp$sts
 sdrep_v2 <- sdreport(f_v2)
 Matrix::image(f_v2$env$spHess(random=TRUE))
+sdrep_v2$value
+sdrep_v2$sd
 rm(f_v2)
 ```
 
