@@ -45,7 +45,7 @@ where:
 
 * $\boldsymbol{\epsilon}$: vector of $n$ residuals
 
-The fixed effects are used to model the mean of $\boldsymbol{y}$ and the random effects are used to model its variance.
+The fixed effects model the mean of $\boldsymbol{y}$ and the random effects model its variance.
 
 ## Variance-ratio parametrization
 
@@ -76,7 +76,7 @@ As a result:
 \]
 
 Let us also introduce $\theta = (\sigma^2, \gamma, \phi)^T$.
-After integrating out the $\boldsymbol{u}$ (one also speaks of *marginalizing* them out):
+After integrating out the $\boldsymbol{u}$ (i.e., *marginalizing* them out):
 
 \[
 \boldsymbol{y} \, | \, \boldsymbol{\beta}, \theta \sim \mathcal{N}(X \boldsymbol{\beta}, V(\theta))
@@ -111,7 +111,7 @@ By definition, the likelihood noted $\mathcal{L}$ is the probability density of 
 
 where $|M|$ denotes the determinant of matrix $M$.
 
-In practice the log-likelihood is maximized as it is easier to compute and delivers the same results (the log is monotonous):
+In practice the log-likelihood is maximized as it is easier to compute and delivers the same results, the log being monotonous:
 \[
 l(\boldsymbol{\beta}, \theta) = \text{ln} \mathcal{L} = - \frac{1}{2} ( \, n \, \text{ln}(2 \pi) \, + \, \text{ln} |V(\theta)| \, + \, (\boldsymbol{y} - X \boldsymbol{\beta})^T V(\theta)^{-1} (\boldsymbol{y} - X \boldsymbol{\beta}) \, )
 \]
@@ -123,13 +123,15 @@ This document skips over the estimation of $\theta$ and, considering $\theta$ to
 
 ## Maximizing $\mathcal{L}(\boldsymbol{\beta})$
 
-Given that the expectation of $\boldsymbol{y}$ is $X \boldsymbol{\beta}$ and that its variance $V(\theta)$ is considered known here, one can maximize the likelihood (equivalent of the generalized least squares) to estimate $\boldsymbol{\beta}$:
+Given that the expectation of $\boldsymbol{y}$ is $X \boldsymbol{\beta}$ and that its variance $V(\theta)$ is considered known here, one can maximize the likelihood to estimate $\boldsymbol{\beta}$:
 
 \[
 \boldsymbol{\hat{\beta}} = (X^T V^{-1} X)^{-1} X^T V^{-1} \boldsymbol{y}
 \]
 
-eventually using a generalized inverse if $X$ is not full rank.
+eventually using a generalized inverse if $X$ is not full rank, i.e., when $\nu < p$.
+
+It is the equivalent of the *generalized least squares* (GLS).
 
 Nevertheless, this formula requires the inverse of $V$ which is $n \times n$, hence the computational challenge.
 
@@ -145,7 +147,7 @@ Assuming that $\theta$ is known, Henderson discovered that the best linear unbia
 
 knowing that $|c \, M| = c^n |M|$ if $M$ is $n \times n$.
 
-It is useful to re-write this by separating, as far as possible, the terms depending on $\boldsymbol{\beta}$ and those depending on $\boldsymbol{u}$:
+It is useful to re-write this by separating the terms depending on $\boldsymbol{\beta}$ and those depending on $\boldsymbol{u}$:
 
 \begin{align}
 \text{ln} \, f(\boldsymbol{y}, \boldsymbol{u} \, | \, \boldsymbol{\beta}, \theta) &= - \frac{1}{2 \sigma^2} \left[ \, (\boldsymbol{y} - X \boldsymbol{\beta})^T R^{-1} (\boldsymbol{y} - X \boldsymbol{\beta}) \, \right] \\
@@ -156,7 +158,7 @@ It is useful to re-write this by separating, as far as possible, the terms depen
 
 ## First derivative
 
-Then, one computes the first partial derivatives (called the *score* function when the derived function is a likelihood):
+Then, one computes the first partial derivatives (called the *score* function when the derived function is a likelihood, hence noted $s$):
 \begin{align}
 s(\boldsymbol{\beta}) &:= \frac{\partial \, \text{ln} f(\boldsymbol{y}, \boldsymbol{u} \, | \, \boldsymbol{\beta}, \theta)}{\partial \boldsymbol{\beta}}(\boldsymbol{\beta}) \\
     &= \frac{\partial }{\partial \boldsymbol{\beta}} \left( -\frac{1}{2 \sigma^2} [(\boldsymbol{y} - X \boldsymbol{\beta})^T R^{-1} (\boldsymbol{y} - X \boldsymbol{\beta}) - 2 (\boldsymbol{y} - X \boldsymbol{\beta})^T R^{-1} Z \boldsymbol{u}] \right) \\
@@ -173,7 +175,7 @@ s(\boldsymbol{u}) &:= \frac{\partial \, \text{ln} f(\boldsymbol{y}, \boldsymbol{
 
 ## MMEs
 
-By equating these derivatives to zero:
+By equating these derivatives to zero, the system of equations known as the *mixed model equations* (MMEs) can be written in matrix form as:
 
 \[
 \begin{bmatrix}
@@ -191,7 +193,31 @@ Z^T R^{-1} \boldsymbol{y}
 \end{bmatrix}
 \]
 
-where the $(p+q) \times (p+q)$ matrix on the left-hand side is named the coefficient matrix, noted $C$ and partitioned into four submatrices $C_{11}$, $C_{12}$, $C_{21}$ and $C_{22}$.
+where the $(p+q) \times (p+q)$ matrix on the left-hand side is named the *coefficient matrix*, noted $C$.
+
+It is partitioned into four submatrices $C_{11}$, $C_{12}$, $C_{21}$ and $C_{22}$:
+
+\[
+C := 
+\begin{bmatrix}
+C_{11} & C_{12} \\
+C_{21} & C_{22}
+\end{bmatrix}
+\]
+
+Such a block matrix can be [inverted blockwise](https://en.wikipedia.org/wiki/Block_matrix#Block_matrix_inversion):
+
+\[
+C^{-1} := 
+\begin{bmatrix}
+C^{11} & C^{12} \\
+C^{21} & C^{22}
+\end{bmatrix}
+\]
+
+where:
+
+* $C^{11} := (C_{11} - C_{12} C_{21}^{-1} C_{21})^{-1}$
 
 ## BLUEs and BLUPs
 
@@ -201,7 +227,7 @@ Developping these equations:
 
 * $(Z^T R^{-1} Z + G^{-1}) \hat{\boldsymbol{u}} = Z^T R^{-1} (\boldsymbol{y} - X \hat{\boldsymbol{\beta}})$.
 
-Inserting in the first equation the value of $\hat{\boldsymbol{u}}$ from the second, we get:
+Inserting in the first equation the value of $\hat{\boldsymbol{u}}$ from the second, we get the **BLUE** of $\boldsymbol{\beta}$, noted $\hat{\boldsymbol{\beta}}$:
 
 \begin{align}
 X^T (R^{-1} - R^{-1} Z (Z^T R^{-1} Z + G^{-1})^{-1} Z^T R^{-1}) X \hat{\boldsymbol{\beta}} &= X^T (R^{-1} - R^{-1} Z (Z^T R^{-1} Z + G^{-1})^{-1} Z^T R^{-1}) \boldsymbol{y} \\
@@ -210,25 +236,31 @@ X^T V^{-1} X \hat{\boldsymbol{\beta}} &= X^T V^{-1} \boldsymbol{y} \\
 \hat{\boldsymbol{\beta}} &= (X^T V^{-1} X)^- X^T V^{-1} \boldsymbol{y}
 \end{align}
 
-which corresponds to the BLUE.
-
-Similarly:
+Similarly, we get the **BLUP** of $\boldsymbol{u}$, noted $\hat{\boldsymbol{u}}$:
 
 \begin{align}
 \hat{\boldsymbol{u}} &= (Z^T R^{-1} Z + G^{-1})^{-1} Z^T R^{-1} (\boldsymbol{y} - X \hat{\boldsymbol{\beta}}) \\
     &= G Z^T V^{-1} (\boldsymbol{y} - X \hat{\boldsymbol{\beta}})
 \end{align}
 
-which corresponds to the BLUP.
-
 In pratice, the unknown $\theta$ is replaced by its estimate $\hat{\theta}$: one hence speaks of "empirical" BLUEs and BLUPs, noted eBLUEs and eBLUPs.
 
 ## Simplification
 
 Still, the formulas above require the inverse of $V$.
-Hopefully, it is possible to show that $V^{-1} = R^{-1} - R^{-1} Z W Z^T R^{-1}$ where $W = C_{22}^{-1} = (Z^T R^{-1} Z + G^{-1})^{-1}$
+But hopefully this can be simplified.
 
-Indeed:
+<!--
+, it is possible to show that $V^{-1} = R^{-1} - R^{-1} Z W Z^T R^{-1}$ where $W = C_{22}^{-1} = (Z^T R^{-1} Z + G^{-1})^{-1}$
+-->
+
+Let $W$ denote the inverse of $C_{22}$:
+
+\[
+W := C_{22}^{-1} = (Z^T R^{-1} Z + G^{-1})^{-1}
+\]
+
+Then, it can be shown that:
 
 \begin{align}
 V \, (R^{-1} - R^{-1} Z W Z^T R^{-1}) &= (R + Z G Z^T) \, (R^{-1} - R^{-1} Z W Z^T R^{-1}) \\
@@ -238,6 +270,12 @@ V \, (R^{-1} - R^{-1} Z W Z^T R^{-1}) &= (R + Z G Z^T) \, (R^{-1} - R^{-1} Z W Z
     &= \text{Id} + Z G Z^T R^{-1} - Z G W^{-1} W Z^T R^{-1} \\
     &= \text{Id}
 \end{align}
+
+Hence:
+
+\[
+V^{-1} = R^{-1} - R^{-1} Z W Z^T R^{-1}
+\]
 
 Usually, $R^{-1}$ has a structure allowing it to be easily computed.
 Moreover, $W$, i.e., the inverse of $C_{22}$, is $q \times q$ instead of $n \times n$ making it easier to invert than $V$ which is $n \times n$.
@@ -256,6 +294,43 @@ As a result, the formula for the BLUP can also be simplified:
 \end{align}
 
 TODO: simplify also the BLUEs of $\beta$
+
+
+
+# Estimation and prediction variance
+
+## $Var(\hat{\boldsymbol{\beta}})$
+
+When $A$ is a constant matrix and $x$ a random vector, it is known that $Var(A x) = A Var(x) A^T$ .
+
+Hence:
+
+\begin{align}
+Var(\hat{\boldsymbol{\beta}}) &= Var((X^T V^{-1} X)^- X^T V^{-1} \boldsymbol{y}) \\
+    &= (X^T V^{-1} X)^- X^T V^{-1} \; V \; V^{-1} X (X^T V^{-1} X)^- \\
+    &= (X^T V^{-1} X)^- X^T V^{-1} X (X^T V^{-1} X)^- \\
+    &= (X^T V^{-1} X)^-
+\end{align}
+
+Interestingly, the above variance can be shown to be equal to $C_{11}^{-1}$.
+Proving this hence requires to invert the coefficient matrix of the MMEs, and to retrieve its top-left submatrix, noted $C^{11}$, for which formulas exist, such as:
+
+\begin{align}
+C^{11} &= [ C_{11} - C_{12} C_{21}^{-1} C_{21} ]^{-1} \\
+    &= [ X^T R^{-1} X - X^T R^{-1} Z (Z^T R^{-1} Z + G^{-1})^{-1} Z^T R^{-1} X ]^{-1} \\
+    &= [ X^T ( R^{-1} - R^{-1} Z (Z^T R^{-1} Z + G^{-1})^{-1} Z^T R^{-1} ) X ]^{-1} \\
+    &= [ X^T V^{-1} X ]^{-1}
+\end{align}
+
+As a result:
+
+\[
+Var(\hat{\boldsymbol{\beta}}) = C^{11}
+\]
+
+## $Var(\hat{\boldsymbol{u}})$
+
+TODO
 
 
 
@@ -402,6 +477,15 @@ solveMme_v2 <- function(y, X, Z, sigma.u2, Ginv, Rinv){
   return(out)
 }
 ```
+
+
+
+
+```{r}
+knitr::knit_exit()
+```
+
+
 
 
 # Example
