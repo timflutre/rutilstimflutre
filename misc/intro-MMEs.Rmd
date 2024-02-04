@@ -13,7 +13,7 @@ output:
     toc_depth: 4
     number_sections: TRUE
 abstract: |
-    This documents introduces the mixed model equations (MMEs) for variance-component linear mixed models (LMMs).
+    This documents introduces the mixed model equations (MMEs) for linear mixed models (LMMs).
 ---
 
 ```{r setup, include=FALSE}
@@ -103,10 +103,10 @@ var(\boldsymbol{y}) = V(\theta) = H \; \text{ with } \; H := Z G Z^T + \sigma^2 
 
 ## Likelihood
 
-By definition, the likelihood noted $\mathcal{L}$ is the probability density of the data given the parameters, $p(\boldsymbol{y} | \boldsymbol{\beta}, \theta)$, but most importantly it is a function of the parameters:
+By definition, the likelihood noted $\mathcal{L}$ is the probability density of the data given the parameters but, most importantly, it is a function of the parameters:
 
 \[
-\mathcal{L}(\boldsymbol{\beta}, \theta) = (2 \pi)^{-\frac{n}{2}} \, |V(\theta)|^{-\frac{1}{2}} \, \exp \left( - \frac{1}{2}  (\boldsymbol{y} - X \boldsymbol{\beta})^T V(\theta)^{-1} (\boldsymbol{y} - X \boldsymbol{\beta}) \right)
+\mathcal{L}(\boldsymbol{\beta}, \theta) = p(\boldsymbol{y} | \boldsymbol{\beta}, \theta) = (2 \pi)^{-\frac{n}{2}} \, |V(\theta)|^{-\frac{1}{2}} \, \exp \left( - \frac{1}{2}  (\boldsymbol{y} - X \boldsymbol{\beta})^T V(\theta)^{-1} (\boldsymbol{y} - X \boldsymbol{\beta}) \right)
 \]
 
 where $|M|$ denotes the determinant of matrix $M$.
@@ -123,7 +123,7 @@ This document skips over the estimation of $\theta$ and, considering $\theta$ to
 
 ## Maximizing $\mathcal{L}(\boldsymbol{\beta})$
 
-Given that the expectation of $\boldsymbol{y}$ is $X \boldsymbol{\beta}$ and that its variance $V(\theta)$ is considered known here, one can maximize the likelihood to estimate $\boldsymbol{\beta}$:
+Given that the expectation of $\boldsymbol{y}$ is $X \boldsymbol{\beta}$ and that its variance $V(\theta)$ is considered known here, one can maximize the likelihood to estimate $\boldsymbol{\beta}$, which gives:
 
 \[
 \boldsymbol{\hat{\beta}} = (X^T V^{-1} X)^{-1} X^T V^{-1} \boldsymbol{y}
@@ -156,7 +156,7 @@ It is useful to re-write this by separating the terms depending on $\boldsymbol{
     &- \frac{1}{2} \left[ \, (n + q) \text{ln}(\sigma^2) + \text{ln} |R| + \text{ln} |G| + (n + q) \text{ln}(2 \pi) \right]
 \end{align}
 
-## First derivative
+## First derivatives
 
 Then, one computes the first partial derivatives (called the *score* function when the derived function is a likelihood, hence noted $s$):
 \begin{align}
@@ -215,13 +215,18 @@ C^{21} & C^{22}
 \end{bmatrix}
 \]
 
-where:
+Technically, as it is easier to invert matrices that are lower or upper triangular, a [LDU decomposition](https://en.wikipedia.org/wiki/LU_decomposition) is first applied to $C$.
+Such a decomposition involves the [Schur complement](https://en.wikipedia.org/wiki/Schur_complement) of its diagonal blocks, which are then inverted:
 
-* $C^{11} := (C_{11} - C_{12} C_{21}^{-1} C_{21})^{-1}$
+* first $C / C_{11} = C_{11} - C_{12} C_{21}^{-1} C_{21}$, and then $C^{11} := (C / C_{11})^{-1}$
+
+* first $C / C_{22} = C_{22} - C_{21} C_{11}^{-1} C_{12}$, and then $C^{22} := (C / C_{22})^{-1}$
+
+where $C / C_{ii}$ is the Schur complement of the block $C_{ii}$ of the matrix $C$.
 
 ## BLUEs and BLUPs
 
-Developping these equations:
+Developping the MMEs:
 
 * $X^T R^{-1} X \hat{\boldsymbol{\beta}} + X^T R^{-1} Z \hat{\boldsymbol{u}} = X^T R^{-1} \boldsymbol{y}$;
 
@@ -247,57 +252,44 @@ In pratice, the unknown $\theta$ is replaced by its estimate $\hat{\theta}$: one
 
 ## Simplification
 
-Still, the formulas above require the inverse of $V$.
-But hopefully this can be simplified.
-
-<!--
-, it is possible to show that $V^{-1} = R^{-1} - R^{-1} Z W Z^T R^{-1}$ where $W = C_{22}^{-1} = (Z^T R^{-1} Z + G^{-1})^{-1}$
--->
-
-Let $W$ denote the inverse of $C_{22}$:
-
-\[
-W := C_{22}^{-1} = (Z^T R^{-1} Z + G^{-1})^{-1}
-\]
-
-Then, it can be shown that:
+Still, the formulas above require the inverse of $V$, but it can be shown that:
 
 \begin{align}
-V \, (R^{-1} - R^{-1} Z W Z^T R^{-1}) &= (R + Z G Z^T) \, (R^{-1} - R^{-1} Z W Z^T R^{-1}) \\
-    &= \text{Id} + Z G Z^T R^{-1} - Z W Z^T R^{-1} - Z G Z^T R^{-1} Z W Z^T R^{-1} \\
-    &= \text{Id} + Z G Z^T R^{-1} - Z (\text{Id} + G Z^T R^{-1} Z) W Z^T R^{-1} \\
-    &= \text{Id} + Z G Z^T R^{-1} - Z G (G^{-1} + Z^T R^{-1} Z) W Z^T R^{-1} \\
-    &= \text{Id} + Z G Z^T R^{-1} - Z G W^{-1} W Z^T R^{-1} \\
+V \, (R^{-1} - R^{-1} Z C^{22} Z^T R^{-1}) &= (R + Z G Z^T) \, (R^{-1} - R^{-1} Z C^{22} Z^T R^{-1}) \\
+    &= \text{Id} + Z G Z^T R^{-1} - Z C^{22} Z^T R^{-1} - Z G Z^T R^{-1} Z C^{22} Z^T R^{-1} \\
+    &= \text{Id} + Z G Z^T R^{-1} - Z (\text{Id} + G Z^T R^{-1} Z) C^{22} Z^T R^{-1} \\
+    &= \text{Id} + Z G Z^T R^{-1} - Z G (G^{-1} + Z^T R^{-1} Z) C^{22} Z^T R^{-1} \\
+    &= \text{Id} + Z G Z^T R^{-1} - Z G C_{22} C^{22} Z^T R^{-1} \\
     &= \text{Id}
 \end{align}
 
 Hence:
 
 \[
-V^{-1} = R^{-1} - R^{-1} Z W Z^T R^{-1}
+V^{-1} = R^{-1} - R^{-1} Z C^{22} Z^T R^{-1}
 \]
 
 Usually, $R^{-1}$ has a structure allowing it to be easily computed.
-Moreover, $W$, i.e., the inverse of $C_{22}$, is $q \times q$ instead of $n \times n$ making it easier to invert than $V$ which is $n \times n$.
+Moreover, $C^{22}$, i.e., the lower-right block matrix of the inverse of $C$, is $q \times q$ with $q \ll n$, making it easier to invert than $V$ which is $n \times n$.
 
-As a result, the formula for the BLUP can also be simplified:
+As a result, the formula for the BLUP can be simplified:
 
 \begin{align}
 \hat{\boldsymbol{u}} &= G Z^T V^{-1} (\boldsymbol{y} - X \hat{\boldsymbol{\beta}}) \\
-    &= G Z^T (R^{-1} - R^{-1} Z W Z^T R^{-1}) (\boldsymbol{y} - X \hat{\boldsymbol{\beta}}) \\
-    &= G (Z^T R^{-1} - Z^T R^{-1} Z W Z^T R^{-1}) (\boldsymbol{y} - X \hat{\boldsymbol{\beta}}) \\
-    &= G (\text{Id} - Z^T R^{-1} Z W) Z^T R^{-1} (\boldsymbol{y} - X \hat{\boldsymbol{\beta}}) \\
-    &= G (W^{-1} - Z^T R^{-1} Z) W Z^T R^{-1} (\boldsymbol{y} - X \hat{\boldsymbol{\beta}}) \\
-    &= G (Z^T R^{-1} Z + G^{-1} - Z^T R^{-1} Z) W Z^T R^{-1} (\boldsymbol{y} - X \hat{\boldsymbol{\beta}}) \\
-    &= (G Z^T R^{-1} Z + \text{Id} - G Z^T R^{-1} Z) W Z^T R^{-1} (\boldsymbol{y} - X \hat{\boldsymbol{\beta}}) \\
-    &= W Z^T R^{-1} (\boldsymbol{y} - X \hat{\boldsymbol{\beta}})
+    &= G Z^T (R^{-1} - R^{-1} Z C^{22} Z^T R^{-1}) (\boldsymbol{y} - X \hat{\boldsymbol{\beta}}) \\
+    &= G (Z^T R^{-1} - Z^T R^{-1} Z C^{22} Z^T R^{-1}) (\boldsymbol{y} - X \hat{\boldsymbol{\beta}}) \\
+    &= G (\text{Id} - Z^T R^{-1} Z C^{22}) Z^T R^{-1} (\boldsymbol{y} - X \hat{\boldsymbol{\beta}}) \\
+    &= G (C_{22} - Z^T R^{-1} Z) C^{22} Z^T R^{-1} (\boldsymbol{y} - X \hat{\boldsymbol{\beta}}) \\
+    &= G (Z^T R^{-1} Z + G^{-1} - Z^T R^{-1} Z) C^{22} Z^T R^{-1} (\boldsymbol{y} - X \hat{\boldsymbol{\beta}}) \\
+    &= (G Z^T R^{-1} Z + \text{Id} - G Z^T R^{-1} Z) C^{22} Z^T R^{-1} (\boldsymbol{y} - X \hat{\boldsymbol{\beta}}) \\
+    &= C^{22} Z^T R^{-1} (\boldsymbol{y} - X \hat{\boldsymbol{\beta}})
 \end{align}
 
 TODO: simplify also the BLUEs of $\beta$
 
 
 
-# Estimation and prediction variance
+# Estimation and prediction variances
 
 ## $Var(\hat{\boldsymbol{\beta}})$
 
@@ -313,7 +305,8 @@ Var(\hat{\boldsymbol{\beta}}) &= Var((X^T V^{-1} X)^- X^T V^{-1} \boldsymbol{y})
 \end{align}
 
 Interestingly, the above variance can be shown to be equal to $C_{11}^{-1}$.
-Proving this hence requires to invert the coefficient matrix of the MMEs, and to retrieve its top-left submatrix, noted $C^{11}$, for which formulas exist, such as:
+Proving this requires to invert $C$, the coefficient matrix of the MMEs, and to retrieve its top-left submatrix, noted $C^{11}$.
+As $C$ is a block matrix, its inverse is one, too, and formulas exist:
 
 \begin{align}
 C^{11} &= [ C_{11} - C_{12} C_{21}^{-1} C_{21} ]^{-1} \\
@@ -329,6 +322,10 @@ Var(\hat{\boldsymbol{\beta}}) = C^{11}
 \]
 
 ## $Var(\hat{\boldsymbol{u}})$
+
+TODO
+
+## $Var(\hat{\boldsymbol{u}} - \boldsymbol{u})$
 
 TODO
 
