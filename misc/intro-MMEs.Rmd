@@ -195,35 +195,6 @@ Z^T R^{-1} \boldsymbol{y}
 
 where the $(p+q) \times (p+q)$ matrix on the left-hand side is named the *coefficient matrix*, noted $C$.
 
-It is partitioned into four submatrices $C_{11}$, $C_{12}$, $C_{21}$ and $C_{22}$:
-
-\[
-C := 
-\begin{bmatrix}
-C_{11} & C_{12} \\
-C_{21} & C_{22}
-\end{bmatrix}
-\]
-
-Such a block matrix can be [inverted blockwise](https://en.wikipedia.org/wiki/Block_matrix#Block_matrix_inversion):
-
-\[
-C^{-1} := 
-\begin{bmatrix}
-C^{11} & C^{12} \\
-C^{21} & C^{22}
-\end{bmatrix}
-\]
-
-Technically, as it is easier to invert matrices that are lower or upper triangular, a [LDU decomposition](https://en.wikipedia.org/wiki/LU_decomposition) is first applied to $C$.
-Such a decomposition involves the [Schur complement](https://en.wikipedia.org/wiki/Schur_complement) of its diagonal blocks, which are then inverted:
-
-* first $C / C_{11} = C_{11} - C_{12} C_{21}^{-1} C_{21}$, and then $C^{11} := (C / C_{11})^{-1}$
-
-* first $C / C_{22} = C_{22} - C_{21} C_{11}^{-1} C_{12}$, and then $C^{22} := (C / C_{22})^{-1}$
-
-where $C / C_{ii}$ is the Schur complement of the block $C_{ii}$ of the matrix $C$.
-
 ## BLUEs and BLUPs
 
 Developping the MMEs:
@@ -287,6 +258,57 @@ As a result, the formula for the BLUP can be simplified:
 
 TODO: simplify also the BLUEs of $\beta$
 
+## Inverse of $C$
+
+The coefficient matrix $C$ of the MMEs is a block matrix, i.e., it is partitioned into four submatrices $C_{11}$, $C_{12}$, $C_{21}$ and $C_{22}$:
+
+\[
+C := 
+\begin{bmatrix}
+C_{11} & C_{12} \\
+C_{21} & C_{22}
+\end{bmatrix}
+:=
+\begin{bmatrix}
+X^T R^{-1} X & X^T R^{-1} Z \\
+Z^T R^{-1} X & Z^T R^{-1} Z + G^{-1}
+\end{bmatrix}
+\]
+
+As such, it can be [inverted blockwise](https://en.wikipedia.org/wiki/Block_matrix#Block_matrix_inversion):
+
+\[
+C^{-1} := 
+\begin{bmatrix}
+C^{11} & C^{12} \\
+C^{21} & C^{22}
+\end{bmatrix}
+\]
+
+Technically, as it is easier to invert matrices that are lower or upper triangular, a [LDU decomposition](https://en.wikipedia.org/wiki/LU_decomposition) is first applied to $C$.
+Such a decomposition involves the [Schur complement](https://en.wikipedia.org/wiki/Schur_complement) of its diagonal blocks, which are then inverted:
+
+* first $C / C_{11} = C_{11} - C_{12} C_{22}^{-1} C_{21}$, and then $C^{11} := (C / C_{11})^{-1}$
+
+* first $C / C_{22} = C_{22} - C_{21} C_{11}^{-1} C_{12}$, and then $C^{22} := (C / C_{22})^{-1}$
+
+where $C / C_{ii}$ is the Schur complement of the block $C_{ii}$ of the matrix $C$.
+
+Developping the first equation above gives:
+
+\begin{align}
+C^{11} &= [ C_{11} - C_{12} C_{22}^{-1} C_{21} ]^{-1} \\
+    &= [ X^T R^{-1} X - X^T R^{-1} Z (Z^T R^{-1} Z + G^{-1})^{-1} Z^T R^{-1} X ]^{-1} \\
+    &= [ X^T ( R^{-1} - R^{-1} Z (Z^T R^{-1} Z + G^{-1})^{-1} Z^T R^{-1} ) X ]^{-1} \\
+    &= (X^T V^{-1} X)^{-1}
+\end{align}
+
+Developping the second equation above gives:
+
+\begin{align}
+C^{22} &= [ C_{22} - C_{21} C_{11}^{-1} C_{12} ]^{-1} \\
+    &= [ Z^T R^{-1} Z + G^{-1} - Z^T R^{-1} X (X^T R^{-1} X)^{-1} X^T R^{-1} Z ]^{-1} \\
+\end{align}
 
 
 # Estimation and prediction variances
@@ -298,36 +320,38 @@ When $A$ is a constant matrix and $x$ a random vector, it is known that $Var(A x
 Hence:
 
 \begin{align}
-Var(\hat{\boldsymbol{\beta}}) &= Var((X^T V^{-1} X)^- X^T V^{-1} \boldsymbol{y}) \\
-    &= (X^T V^{-1} X)^- X^T V^{-1} \; V \; V^{-1} X (X^T V^{-1} X)^- \\
-    &= (X^T V^{-1} X)^- X^T V^{-1} X (X^T V^{-1} X)^- \\
-    &= (X^T V^{-1} X)^-
+Var(\hat{\boldsymbol{\beta}}) &= Var((X^T V^{-1} X)^{-1} X^T V^{-1} \boldsymbol{y}) \\
+    &= (X^T V^{-1} X)^{-1} X^T V^{-1} \; V \; V^{-1} X (X^T V^{-1} X)^- \\
+    &= (X^T V^{-1} X)^{-1} X^T V^{-1} X (X^T V^{-1} X)^- \\
+    &= (X^T V^{-1} X)^{-1} \\
+    &= C^{11}
 \end{align}
-
-Interestingly, the above variance can be shown to be equal to $C_{11}^{-1}$.
-Proving this requires to invert $C$, the coefficient matrix of the MMEs, and to retrieve its top-left submatrix, noted $C^{11}$.
-As $C$ is a block matrix, its inverse is one, too, and formulas exist:
-
-\begin{align}
-C^{11} &= [ C_{11} - C_{12} C_{21}^{-1} C_{21} ]^{-1} \\
-    &= [ X^T R^{-1} X - X^T R^{-1} Z (Z^T R^{-1} Z + G^{-1})^{-1} Z^T R^{-1} X ]^{-1} \\
-    &= [ X^T ( R^{-1} - R^{-1} Z (Z^T R^{-1} Z + G^{-1})^{-1} Z^T R^{-1} ) X ]^{-1} \\
-    &= [ X^T V^{-1} X ]^{-1}
-\end{align}
-
-As a result:
-
-\[
-Var(\hat{\boldsymbol{\beta}}) = C^{11}
-\]
 
 ## $Var(\hat{\boldsymbol{u}})$
 
 TODO
 
+\begin{align}
+Var(\hat{\boldsymbol{u}}) &= ... \\
+    &= ... \\
+    &= G - C^{22}
+\end{align}
+
+Moreover:
+
+\begin{align}
+Cov(\hat{\boldsymbol{u}}, \boldsymbol{u}) &= ... \\
+    &= ... \\
+    &= Var(\hat{\boldsymbol{u}})
+\end{align}
+
 ## $Var(\hat{\boldsymbol{u}} - \boldsymbol{u})$
 
-TODO
+\begin{align}
+Var(\hat{\boldsymbol{u}} - \boldsymbol{u}) &= Var(\hat{\boldsymbol{u}}) - 2 Cov(\hat{\boldsymbol{u}}, \boldsymbol{u}) + Var(\boldsymbol{u}) \\
+    &= G - C^{22} - 2 (G - C^{22}) + G \\
+    &= C^{22}
+\end{align}
 
 
 
