@@ -11,6 +11,7 @@ estimGenRel(
   relationships = "additive",
   method = "vanraden1",
   theta = 0.5,
+  alpha = NULL,
   verbose = 1
 )
 }
@@ -29,6 +30,8 @@ estimGenRel(
 }}
 
 \item{theta}{smoothing parameter for "gauss"}
+
+\item{alpha}{if not NULL, weight to make the matrix invertible as it often is singular because two genotypes are clones or because the centered-coding of SNP genotypes makes the last row predictable from the other ones (see \href{https://doi.org/10.1186/1297-9686-43-25}{Stranden and Christensen, 2011}); otherwise use \code{\link[Matrix]{nearPD}}}
 
 \item{verbose}{verbosity level (0/1)}
 }

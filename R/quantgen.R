@@ -4928,6 +4928,7 @@ recodeIntoDominant <- function(X, simplify.imputed=FALSE){
 ##' \item if dominant relationships, can be "noia" (see \href{https://doi.org/10.1534/genetics.116.199406}{Vitezica et al, 2017}), "vitezica" (classical/statistical parametrization from \href{http://dx.doi.org/10.1534/genetics.113.155176}{Vitezica et al, 2013}) or "su" (from \href{http://dx.doi.org/10.1371/journal.pone.0045293}{Su et al, 2012})
 ##' }
 ##' @param theta smoothing parameter for "gauss"
+##' @param alpha if not NULL, weight to make the matrix invertible as it often is singular because two genotypes are clones or because the centered-coding of SNP genotypes makes the last row predictable from the other ones (see \href{https://doi.org/10.1186/1297-9686-43-25}{Stranden and Christensen, 2011}); otherwise use \code{\link[Matrix]{nearPD}}
 ##' @param verbose verbosity level (0/1)
 ##' @return symmetric matrix with the number of SNPs used as an attribute
 ##' @author Timothee Flutre
@@ -4954,7 +4955,7 @@ recodeIntoDominant <- function(X, simplify.imputed=FALSE){
 ##' }
 ##' @export
 estimGenRel <- function(X, afs=NULL, thresh=NULL, relationships="additive",
-                        method="vanraden1", theta=0.5, verbose=1){
+                        method="vanraden1", theta=0.5, alpha=NULL, verbose=1){
   stopIfNotValidGenosDose(X, check.noNA=FALSE)
   stopifnot(relationships %in% c("additive", "dominant", "gaussian"))
   if(relationships == "additive")
@@ -4979,6 +4980,12 @@ estimGenRel <- function(X, afs=NULL, thresh=NULL, relationships="additive",
               all(colnames(X) %in% names(afs)),
               all(names(afs) %in% colnames(X)))
     afs <- afs[colnames(X)] # put in same order
+  }
+  if(! is.null(alpha)){
+    if(alpha > 0.01){
+      msg <- paste0("you want alpha=", alpha, ", but it is recommended to keep it below 0.01")
+      warning(msg, immediate.=TRUE)
+    }
   }
 
   gen.rel <- NULL # to be filled and returned
@@ -5154,6 +5161,11 @@ estimGenRel <- function(X, afs=NULL, thresh=NULL, relationships="additive",
 
   ## force to be perfectly symmetric (beyond machine precision)
   gen.rel[lower.tri(gen.rel)] <- t(gen.rel)[lower.tri(t(gen.rel))]
+
+  ## make invertible
+  if(! is.null(alpha)){
+    gen.rel <- (1 - alpha) * gen.rel + alpha * gen.rel
+  }
 
   ## keep the nb of SNPs used in an attribute
   attr(gen.rel, "nbSnps") <- P
