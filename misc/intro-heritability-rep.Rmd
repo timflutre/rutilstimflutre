@@ -1,0 +1,113 @@
+---
+title: "How to increase heritability with more replicates?"
+author: "T. Flutre (INRAE)"
+date: "`r format(Sys.time(), '%d/%m/%Y %H:%M:%S')`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    toc_depth: 4
+    number_sections: TRUE
+  pdf_document:
+    toc: true
+    toc_depth: 4
+    number_sections: TRUE
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+```{r}
+suppressPackageStartupMessages(library(MASS))
+suppressPackageStartupMessages(library(ggplot2))
+```
+
+
+# Equations
+
+$H^2 = \frac{var(G)}{var(P)}$
+
+$H = cor(geno, pheno)$
+
+
+
+# High vs low broad-sense heritability
+
+```{r}
+var_p <- 10
+vars_g <- seq(0, var_p, by=1)
+plots <- list()
+for(i in seq_along(vars_g)){
+  var_g <- vars_g[i]
+  (H2 <- var_g / var_p)
+  (H <- sqrt(H2))
+  (cov_g_p <- H * sqrt(var_g * var_p))
+  (Sigma <- matrix(c(var_g, cov_g_p, cov_g_p, var_p),2,2))
+  eigen(Sigma)$values
+  dat <- data.frame(mvrnorm(n=100, mu=rep(0, 2), Sigma=Sigma))
+  colnames(dat) <- c("geno", "pheno")
+  fit <- lm(geno ~ pheno, dat)
+  summary(fit)$r.squared
+  p <- ggplot(dat) +
+    aes(x=pheno, y=geno) +
+    geom_point(size=2, col="red") +
+    labs(title=paste0("var(P) = ", var_p, " and var(G) = ", var_g,
+                      " => H2 = ", round(H2, 2), " and H = ", round(H, 2)),
+         x="phenotypic value", y="genetic value") +
+    geom_abline(slope=coef(fit)[2], intercept=coef(fit)[1]) +
+    coord_cartesian(xlim=c(-10, 10), ylim=c(-10, 10)) +
+    theme_light()
+  print(p)
+  plots[[i]] <- p
+}
+```
+
+```{r}
+knitr::knit_exit()
+```
+
+
+
+# Increasing broad-sense heritability
+
+```{r}
+var_g <- 0.1
+var_e <- 1
+params <- data.frame(var_g=var_g,
+                     var_e=var_e,
+                     nbReps=c(seq(1, 10, by=2),
+                              seq(11, 100, by=10)))
+params$var_p <- params$var_g + params$var_e / params$nbReps
+params$H2 <- round(params$var_g / params$var_p, 2)
+params
+ggplot(params) +
+  aes(x=nbReps, y=H2) +
+  geom_point() +
+  geom_line() +
+  coord_cartesian(ylim=c(0,1)) +
+  labs(title="Broad-sense heritability",
+       subtitle=paste0("var_g=", round(var_g, 2), " var_e=", round(var_e, 2)),
+       x="number of replicates",
+       y="H2") +
+  theme_light()
+```
+
+```{r}
+n <- 100
+set.seed(12345)
+dats <- lapply(1:nrow(params), function(i){
+  var_p <- params$var_p[i]
+  cov_g_p <- sqrt(params$H2[i]) * sqrt(var_g * var_p)
+  Sigma <- matrix(c(var_g, cov_g_p, cov_g_p, var_p),2,2)
+  mvrnorm(n=100, mu=rep(0, 2), Sigma=Sigma)
+})
+## dat <- do.call(rbind, dats)
+for(i in 1:nrow(params)){
+  p <- ggplot(dats[[i]]) +
+    aes(x=geno, y=pheno) +
+    geom_point() +
+    theme_light()
+  print(p)
+}
+```
