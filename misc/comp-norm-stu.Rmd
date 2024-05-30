@@ -1,0 +1,62 @@
+---
+title: "Compare Normal and Student"
+author: "T. Flutre (INRAE)"
+date: "`r format(Sys.time(), '%d/%m/%Y %H:%M:%S')`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    toc_depth: 4
+    number_sections: TRUE
+  pdf_document:
+    toc: true
+    toc_depth: 4
+    number_sections: TRUE
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+# Generate data
+
+```{r}
+set.seed(12345)
+n <- 200
+x_norm <- rnorm(n=n, mean=0, sd=1)
+x_stu <- rt(n=n, df=2.5)
+summary(x_norm)
+summary(x_stu)
+```
+
+
+# Plot
+
+```{r, fig.width=10}
+(max_abs <- max(abs(c(x_norm, x_stu))))
+breaks <- seq(-max_abs, max_abs, 0.5)
+
+cols <- c("norm"=rgb(0,0,1,1/4), "stu"=rgb(1,0,0,1/4))
+
+abs_thresh <- 10
+x_lim <- c(-abs_thresh, abs_thresh)
+
+p1 <- hist(x_norm, breaks=breaks, xlim=x_lim, las=1, col=cols["norm"],
+           main="Normal", xlab="Residuals")
+
+p2 <- hist(x_stu, breaks=breaks, xlim=x_lim, las=1, col=cols["stu"],
+           main="Student", xlab="Residuals")
+
+plot(p1, col=cols["norm"], xlim=x_lim, las=1,
+     main="Normal vs Student", xlab="Residuals")
+plot(p2, col=cols["stu"], xlim=x_lim, add=T)
+legend("topright", bty="n", legend=c("Normal(sd=1)", "Student(nu=2.5)"), fill=cols)
+
+qqplot(x_norm, x_norm,
+       xlab="Normal", ylab="Normal")
+qqline(x_norm)
+
+qqplot(x_norm, x_stu[abs(x_stu) <= abs_thresh],
+       xlab="Normal", ylab="Student")
+qqline(x_norm)
+```
