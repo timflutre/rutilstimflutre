@@ -310,6 +310,14 @@ C^{22} &= [ C_{22} - C_{21} C_{11}^{-1} C_{12} ]^{-1} \\
     &= [ Z^T R^{-1} Z + G^{-1} - Z^T R^{-1} X (X^T R^{-1} X)^{-1} X^T R^{-1} Z ]^{-1} \\
 \end{align}
 
+TODO: Moreover, McLean and Sanders (1988) showed the following:
+
+* $C^{11} = (X^T V^{-1} X)^{-1}$
+
+* $C^{12} = -G Z^T V^{-1} X C^{11}$
+
+* $C^{22} = (Z^T R^{-1} Z + G^{-1})^{-1} - C^{12} X^T V^{-1} Z G$
+
 
 # Estimation and prediction variances
 
