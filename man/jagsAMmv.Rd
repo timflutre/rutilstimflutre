@@ -7,6 +7,7 @@
 jagsAMmv(
   data,
   relmat,
+  inits = NULL,
   nb.chains = 1,
   nb.adapt = 10^3,
   burnin = 10^2,
@@ -21,6 +22,8 @@ jagsAMmv(
 \item{data}{data.frame containing the data corresponding to relmat; should have columns grep-able for "response" as well as a column "geno.add" used with matrix A; if a column "geno.dom" exists, it will be used with matrix D; any other column will be interpreted as corresponding to "fixed effects"}
 
 \item{relmat}{list containing the matrices of genetic relationships (see \code{\link{estimGenRel}}); additive relationships (matrix A) are compulsory, with name "geno.add"; dominant relationships (matrix D) are optional, with name "geno.dom"; can be in the "matrix" class (base) or the "dsCMatrix" class (Matrix package)}
+
+\item{inits}{list of initial values (possible to use 1 sub-list per chain, see \code{\link[rjags]{jags.model}}); if NULL, JAGS will choose typical values (usually mean, median, or mode of the prior)}
 
 \item{nb.chains}{number of independent chains to run (see \code{\link[rjags]{jags.model}})}
 

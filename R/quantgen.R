@@ -8023,6 +8023,7 @@ model {
 ##' Given T traits, I genotypes, Q covariates and N=I*Q phenotypes per trait, fit an "animal model" with the rstan package via the following likelihood: \eqn{Y = W C + Z G_A + Z G_D + E}, where Y is NxT; W is NxQ; Z is NxI; G_A ~ Normal_IxT(0, A, V_G_A) with A the known matrix of additive genetic relationships; G_D ~ Normal_IxT(0, D, V_G_D) with D the known matrix of dominant genetic relationships; E ~ Normal_NxT(0, Id_N, V_E); Missing phenotypes are jointly imputed with the other unknown variables, and the errors can follow a Student's t distribution to handle outliers.
 ##' @param data data.frame containing the data corresponding to relmat; should have columns grep-able for "response" as well as a column "geno.add" used with matrix A; if a column "geno.dom" exists, it will be used with matrix D; any other column will be interpreted as corresponding to "fixed effects"
 ##' @param relmat list containing the matrices of genetic relationships (see \code{\link{estimGenRel}}); additive relationships (matrix A) are compulsory, with name "geno.add"; dominant relationships (matrix D) are optional, with name "geno.dom"; can be in the "matrix" class (base) or the "dsCMatrix" class (Matrix package)
+##' @param inits list of initial values (possible to use 1 sub-list per chain, see \code{\link[rjags]{jags.model}}); if NULL, JAGS will choose typical values (usually mean, median, or mode of the prior)
 ##' @param nb.chains number of independent chains to run (see \code{\link[rjags]{jags.model}})
 ##' @param nb.adapt number of iterations for adaptation (see \code{\link[rjags]{jags.model}})
 ##' @param burnin number of initial iterations to discard (see the update function of the rjags package)
@@ -8034,11 +8035,13 @@ model {
 ##' @author Timothee Flutre, inspired by code from Najla Saad Elhezzani (arXiv:1507.08638)
 ##' @seealso \code{\link{jagsAM}}
 ##' @export
-jagsAMmv <- function(data, relmat,
+jagsAMmv <- function(data, relmat, inits=NULL,
                      nb.chains=1, nb.adapt=10^3, burnin=10^2,
                      nb.iters=10^3, thin=10,
                      progress.bar=NULL, rm.jags.file=TRUE, verbose=0){
   requireNamespace("rjags", quietly=TRUE)
+  if(! is.null(inits))
+    stopifnot(is.list(inits))
 
   ## define model in JAGS dialect of BUGS language in separate file
   st <- Sys.time()
@@ -8050,8 +8053,11 @@ jagsAMmv <- function(data, relmat,
       "\n# Source: rutilstimflutre ", utils::packageVersion("rutilstimflutre"),
       "\n# Date: ", format(st, "%Y-%m-%d %H:%M:%S"))
   cat(model.txt, file=jags.file)
+  ## TODO: completing the rest!
 
   ## read model file and create object
+  data.list <- list()
+  ## TODO: completing the rest!
   jags <- rjags::jags.model(file=jags.file, data=data.list, inits=inits,
                             n.chains=nb.chains,
                             n.adapt=nb.adapt,
@@ -8063,6 +8069,12 @@ jagsAMmv <- function(data, relmat,
   stats::update(jags, n.iter=burnin, progress.bar=progress.bar)
 
   ## extract samples from model
+  vn <- c() # TODO
+  fit <- rjags::coda.samples(model=jags,
+                             variable.names=vn,
+                             n.iter=nb.iters,
+                             thin=thin,
+                             progress.bar=progress.bar)
 
   return(fit)
 }
