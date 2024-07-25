@@ -16,7 +16,7 @@ numeric
 }
 \description{
 Computes the effective population size.
-##' Useful for the power analysis of a GWAS from \href{http://www.nature.com/articles/s41437-019-0205-3}{Wang and Xu (2019)}.
+Useful for the power analysis of a GWAS from \href{http://www.nature.com/articles/s41437-019-0205-3}{Wang and Xu (2019)}.
 Code from \href{https://onlinelibrary.wiley.com/doi/10.1002/csc2.20692}{White et al (2020)}.
 }
 \author{

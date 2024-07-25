@@ -26,7 +26,6 @@ Depends:
     stats
 License: GPL-3 | AGPL-3
 Copyright: INRAE
-LazyData: true
 URL: https://github.com/timflutre/rutilstimflutre
 BugReports: https://github.com/timflutre/rutilstimflutre/issues
 Suggests:
@@ -82,6 +81,6 @@ Suggests:
     utils,
     varbvs,
     VariantAnnotation
-RoxygenNote: 7.2.0
+RoxygenNote: 7.3.1
 Encoding: UTF-8
 VignetteBuilder: knitr

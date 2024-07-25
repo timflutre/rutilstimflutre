@@ -7,7 +7,7 @@
 aireml(A, y, X, Z, initE, initU, verbose = 0)
 }
 \arguments{
-\item{A}{dditive relationship matrix}
+\item{A}{additive relationship matrix}
 
 \item{y}{vector of responses}
 

@@ -4,4 +4,6 @@
 *.RData
 *.bgz*
 inst/doc
+*.pdf
 *.html
+*.rds

@@ -1,6 +1,6 @@
 ---
 title: "Introduction to heteroscedasticity in regression"
-author: "Timothée Flutre (INRA)"
+author: "Timothée Flutre (INRAE)"
 date: "`r format(Sys.time(), '%d/%m/%Y %H:%M:%S')`"
 output:
   html_document:
@@ -61,6 +61,7 @@ library(cvTools)
 library(caret)
 library(nlme)
 library(lme4)
+library(MM4LMM)
 library(INLA)
 library(rstan)
 library(loo)
@@ -80,7 +81,7 @@ Goal: study the genotype-phenotype map
 
 Notations:
 
-* $g \in \{1,\ldots,G\}$: index of the genotype (assuming a plant species whose genotypes can be vegetatively multipled, hence cloned and planted in multiple blocks, such as perennial crops), assuming $G$ is "large" (say, 100)
+* $g \in \{1,\ldots,G\}$: index of the genotype (assuming a plant species whose genotypes can be cloned and planted in multiple blocks), assuming $G$ is "large" (say, 100)
 
 * $b \in \{1,\ldots,B\}$: index of the block (field plots often are divided into multiple blocks to handle spatial heterogeneity), assuming $B$ is "small" (say, 3)
 
@@ -113,7 +114,8 @@ B <- 3
 G <- 2.5*10^2
 head(geno.ids <- sprintf(fmt=paste0("g%0", floor(log10(G)) + 1, "i"), 1:G))
 dat <- data.frame(block=rep(LETTERS[1:B], each=G),
-                  geno=rep(geno.ids, B))
+                  geno=rep(geno.ids, B),
+                  stringsAsFactors=TRUE)
 X <- model.matrix(~ 1 + block, data=dat)
 mu <- 50
 (beta <- c(mu, rnorm(n=B-1, mean=0, sd=3)))
@@ -232,35 +234,56 @@ summary(u[true.best.genos])
 
 #### Model fit
 
-The `gls` function from the `nlme` package performs inference via generalized least squares, but can't handle random variables.
+The `gls` function from the `nlme` package performs inference via generalized least squares, but cannot handle random variables.
 
-```{r}
-fit.gls0 <- gls(model=y ~ 1 + block, data=dat)
+Assuming homoscedasticity:
+```{r gls_fit_hom}
+fit.gls.hom <- gls(model=y ~ 1 + block, data=dat)
+beta.hat.hom <- coef(fit.gls.hom)
+sigma.b.hat.hom <- fit.gls.hom$sigma
+scaled.residuals.hom <- residuals(fit.gls.hom) / sigma.b.hat.hom
+y.hat.hom <- fitted(fit.gls.hom)
+tmp.hom <- cbind(dat,
+                 "scaled.residuals"=scaled.residuals.hom,
+                 "y.hat"=y.hat.hom)
 ```
 
-```{r gls_fit}
-fit.gls <- gls(model=y ~ 1 + block, data=dat,
-               weights=varIdent(form=~1|block))
-beta.hat <- coef(fit.gls)
-sigma.b.hat <- c(1, exp(coef(fit.gls$modelStruct$varStruct))) * fit.gls$sigma
-scaled.residuals <- residuals(fit.gls) / rep(sigma.b.hat, each=G)
-y.hat <- fitted(fit.gls)
-tmp <- cbind(dat, scaled.residuals, y.hat)
+Assuming heteroscedasticity:
+```{r gls_fit_het}
+fit.gls.het <- gls(model=y ~ 1 + block, data=dat,
+                   weights=varIdent(form=~1|block))
+beta.hat.het <- coef(fit.gls.het)
+sigma.b.hat.het <- c(1, exp(coef(fit.gls.het$modelStruct$varStruct))) *
+  fit.gls.het$sigma
+scaled.residuals.het <- residuals(fit.gls.het) / rep(sigma.b.hat.het, each=G)
+y.hat.het <- fitted(fit.gls.het)
+tmp.het <- cbind(dat,
+                 "scaled.residuals"=scaled.residuals.het,
+                 "y.hat"=y.hat.het)
 ```
 
 #### Model comparison and selection
 
 Clearly, the model assuming an error variance per block, i.e., heteroscedasticity, fits better than the model assuming homoscedasticity:
 ```{r gls_AIC}
-AIC(fit.gls0)
-AIC(fit.gls)
-AIC(fit.gls0, fit.gls)
-anova(fit.gls0, fit.gls)
+AIC(fit.gls.hom)
+AIC(fit.gls.het)
+AIC(fit.gls.hom, fit.gls.het)
+```
+
+```{r}
+BIC(fit.gls.hom)
+BIC(fit.gls.het)
+BIC(fit.gls.hom, fit.gls.het)
+```
+
+```{r}
+anova(fit.gls.hom, fit.gls.het)
 ```
 
 ```{r gls_cv, eval=FALSE}
-fit.gls.cv <- cvFit(gls, data=dat, y=dat$y, cost=rmspe, folds=cvf)
-fit.gls.cv
+fit.gls.het.cv <- cvFit(gls, data=dat, y=dat$y, cost=rmspe, folds=cvf)
+fit.gls.het.cv
 glsMeth <- list(label="Generalized least squares",
                 library="nlme",
                 type="Regression",
@@ -275,26 +298,34 @@ glsMeth <- list(label="Generalized least squares",
                 },
                 prob=NULL,
                 sort=NULL)
-fit.gls.cv <- train(form=y ~ 1 + block, data=dat,
+fit.gls.het.cv <- train(form=y ~ 1 + block, data=dat,
                     var.func=varIdent(form=~1|block),
                     method=glsMeth,
                     trControl=train.ctl)
-fit.gls.cv
+fit.gls.het.cv
 ```
 
 #### Diagnostics
 
 ```{r gls_diagno}
-diagnose("gls", tmp)
+diagnose("gls (hom)", tmp.hom)
+diagnose("gls (het)", tmp.het)
 ```
 
 #### Inference
 
+```{r gls_infer_hom}
+summary(fit.gls.hom)
+cbind(beta, beta.hat.hom, confint(fit.gls.hom))
+cbind(sigma.b, sigma.b.hat.hom)
+(tav <- anova(fit.gls.hom))
+```
+
 ```{r gls_infer}
-summary(fit.gls)
-cbind(beta, beta.hat, confint(fit.gls))
-cbind(sigma.b, sigma.b.hat)
-(tav <- anova(fit.gls))
+summary(fit.gls.het)
+cbind(beta, beta.hat.het, confint(fit.gls.het))
+cbind(sigma.b, sigma.b.hat.het)
+(tav <- anova(fit.gls.het))
 ```
 
 Unfortunately, `anova` applied to a `gls` object does not return the mean sums of squares.
@@ -305,7 +336,7 @@ In the code of `nlme:::anova.gls`, one can see how the F statistics are computed
 
 #### Model fit
 
-The `lmer` function from the `lme4` package performs inference via ReML and handle random variables, but can't handle heteroscedasticity.
+The `lmer` function from the `lme4` package performs inference via ReML and handles random variables, but cannot handle heteroscedasticity.
 
 ```{r lmer_fit}
 fit.lmer.hom <- lmer(formula=y ~ 1 + block + (1|geno), data=dat)
@@ -323,12 +354,13 @@ tmp <- cbind(dat, scaled.residuals, y.hat)
 
 ```{r lmer_modcomp}
 extractAIC(fit.lmer.hom)
+BIC(fit.lmer.hom)
 ```
 
 #### Diagnostics
 
 ```{r lmer_diagno}
-diagnose("lmer", tmp)
+diagnose("lmer (hom)", tmp)
 ```
 
 #### Inference
@@ -376,12 +408,13 @@ tmp <- cbind(dat, scaled.residuals, y.hat)
 
 ```{r lme_modcomp}
 AIC(fit.lme.het)
+BIC(fit.lme.het)
 ```
 
 #### Diagnostics
 
 ```{r lme_diagno}
-diagnose("lme", tmp)
+diagnose("lme (het)", tmp)
 ```
 
 #### Inference
@@ -406,6 +439,78 @@ if(sigma.u > 0){
 }
 ```
 
+
+### `MMEst`
+
+#### Model fit
+
+The `MMEst` from the `MM4LMM` package performs inference via ReML, and can handle both random variables and heteroscedasticity.
+
+Assuming homoscedasticity:
+```{r MMEst_fit_hom}
+lZ <- list("geno"=Z, "Error"=diag(nrow(dat)))
+lV <- list("geno"=diag(nlevels(dat$geno)),
+           "Error"=diag(nrow(dat)))
+fit.MMEst.hom <- MMEst(Y=dat$y, Cofactor=X, VarList=lV, ZList=lZ, Method="Reml")
+fit.MMEst.hom.ML <- MMEst(Y=dat$y, Cofactor=X, VarList=lV, ZList=lZ, Method="ML")
+beta.hat <- fit.MMEst.hom$NullModel$Beta
+tmp <- MMBlup(Y=dat$y, Cofactor=X, ZList=lZ, VarList=lV, ResMM=fit.MMEst.hom)
+u.hat <- setNames(tmp$geno[,1], colnames(Z))
+sigma.u.hat <- sqrt(fit.MMEst.hom$NullModel$Sigma2[-length(fit.MMEst.hom$NullModel$Sigma2)])
+(sigma.hat <- sqrt(fit.MMEst.hom$NullModel$Sigma2[length(fit.MMEst.hom$NullModel$Sigma2)]))
+scaled.residuals <- tmp$Error / sigma.hat
+y.hat <- X %*% beta.hat + Z %*% u.hat
+tmp <- cbind(dat, scaled.residuals, y.hat)
+```
+
+Assuming heteroscedasticity:
+```{r MMEst_fit_het}
+lSigmaBl <- lapply(1:nlevels(dat$block), function(bl){
+  tmp <- diag(as.numeric(dat$block))
+  diag(tmp)[diag(tmp) != bl] <- 0
+  diag(tmp)[diag(tmp) == bl] <- 1
+  tmp
+})
+names(lSigmaBl) <- paste0("ErrorBl", 1:nlevels(dat$block))
+lZ <- append(list("geno"=Z),
+             lapply(lSigmaBl, function(x){diag(1:nrow(dat))}))
+lV <- append(list("geno"=diag(nlevels(dat$geno))),
+             lSigmaBl)
+fit.MMEst.het <- MMEst(Y=dat$y, Cofactor=X, VarList=lV, ZList=lZ, Method="Reml")
+fit.MMEst.het.ML <- MMEst(Y=dat$y, Cofactor=X, VarList=lV, ZList=lZ, Method="ML")
+```
+
+#### Model comparison and selection
+
+```{r MMEst_modcomp}
+## AIC(fit.MMEst.het)
+BIC_MMEst <- function(fit, N, n_tot){
+  ## https://hal.archives-ouvertes.fr/hal-00991708
+  ## BIC = - 2 LL + pen
+  ## LL: maximized log-likelihood (ML)
+  ## pen: product of the number of estimated parameters and the logarithm of the sample size
+  stopifnot(fit$Method == "ML")
+  len_theta_R <- length(fit$Sigma2) - 1 # ignore the error term
+  len_theta_F <- length(fit$Beta)
+  - 2 * fit$LogLik + len_theta_R * log(N) + len_theta_F * log(n_tot)
+}
+BIC_MMEst(fit.MMEst.hom.ML$NullModel, N=ncol(Z), n_tot=nrow(dat))
+BIC_MMEst(fit.MMEst.het.ML$NullModel, N=ncol(Z), n_tot=nrow(dat))
+```
+
+#### Diagnostics
+
+```{r MMEst_diagno}
+diagnose("MMEst", tmp)
+```
+
+#### Inference
+
+```{r MMEst_infer}
+## summary(fit.MMEst.het)
+cbind(beta, beta.hat)
+print(c(sigma.u, sigma.u.hat))
+```
 
 ### `inla`
 

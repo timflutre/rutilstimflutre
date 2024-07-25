@@ -1,6 +1,6 @@
 ---
-title: "Introduction to multivariate 'animal model'"
-author: "Timothée Flutre (INRA)"
+title: "Introduction to the multivariate 'animal model'"
+author: "Timothée Flutre (INRAE)"
 date: "`r format(Sys.time(), '%d/%m/%Y %H:%M:%S')`"
 colorlinks: true
 output:
@@ -15,21 +15,16 @@ output:
     toc: true
     toc_depth: 3
     number_sections: TRUE
-vignette: >
-  %\VignetteIndexEntry{Intro AR1}
-  %\VignetteEngine{knitr::rmarkdown}
-  %\VignetteEncoding{UTF-8}
 ---
 
 <!--
-setwd("~/src/rutilstimflutre/vignettes/")
-
-library(devtools)
-build_vignettes()
-
-library(rmarkdown)
-render("intro-mvAM.Rmd", "html_document")
+This R chunk is used to set up important options.
 -->
+```{r, echo=FALSE}
+if(! "params" %in% ls())
+  params <- list(root.dir=NULL)
+knitr::opts_chunk$set(fig.align="center")
+```
 
 
 # Preamble
@@ -49,22 +44,35 @@ This R chunk is used to assess how much time it takes to execute the R code in t
 t0 <- proc.time()
 ```
 
-External packages:
 
+# Set-up
+
+Load the required external packages:
 ```{r load_pkg}
 options(digits=5)
-library(scrm)
-library(MASS)
-library(sommer)
-library(breedR)
-library(rstan)
-library(rutilstimflutre)
+suppressPackageStartupMessages(library(scrm))
+suppressPackageStartupMessages(library(MASS))
+suppressPackageStartupMessages(library(rutilstimflutre))
 ```
 
-To allow reproducibility, we set the seed of the generator of pseudo-random numbers:
+Set the default values of the parameters:
+```{r}
+inferPkg <- ""
+```
 
-```{r set_seed}
-set.seed(1859)
+Get the settings from the command-line:
+```{r}
+if(! is.null(params$rmd.params))
+  for(i in seq_along(params$rmd.params))
+    assign(names(params$rmd.params)[i], params$rmd.params[[i]])
+```
+
+Check the parameters:
+```{r}
+stopifnot(inferPkg %in% c("", "lme4", "sommer", "breedR", "rstan", "jags"))
+if(! inferPkg == ""){
+  suppressPackageStartupMessages(library(package=inferPkg, character.only=TRUE))
+}
 ```
 
 
@@ -78,7 +86,7 @@ Notations:
 
 * $Q$: number of replicates
 
-* $N$: number of phenotypes per trait (i.e. $I \times Q$)
+* $N$: number of phenotypes per trait (here $I \times Q$)
 
 * $P$: number of SNPs
 
@@ -114,9 +122,9 @@ with:
 
 * $E \sim \mathcal{MN}(0, Id, V_E)$.
 
-where $\mathcal{MN}_{n \times d}(M, U, V)$ represents a matrix-variate Normal distribution with mean matrix $M$ of dimension $n \times d$, and variance-covariance matrices $U$ and $V$ of respective dimensions $n \times n$ and $d \times d$.
+where $\mathcal{MN}_{n \times d}(M, U, V)$ represents a [matrix Normal distribution](https://en.wikipedia.org/wiki/Matrix_normal_distribution) with mean matrix $M$ of dimension $n \times d$, and variance-covariance matrices $U$ and $V$ of respective dimensions $n \times n$ and $d \times d$.
 
-Given that any matrix-variate Normal distribution is equivalent to a multivariate Normal distribution, $\text{MVN}(0, V \otimes U)$ of dimension $nd \times 1$, it is useful to re-write the likelihood using the $vec$ operator and Kronecker product ($\otimes$):
+Given that any matrix Normal distribution is equivalent to a multivariate Normal distribution, $\text{MVN}(0, V \otimes U)$ of dimension $nd \times 1$, it is useful to re-write the likelihood using the [$vec$ operator](https://en.wikipedia.org/wiki/Vectorization_(mathematics)) and [Kronecker product](https://en.wikipedia.org/wiki/Kronecker_product) ($\otimes$):
 
 \[
 vec(Y) = (Id_T \otimes W) vec(C) + (Id_T \otimes Z) vec(G_A) + vec(E)
@@ -131,17 +139,22 @@ with:
 
 # Simulate data
 
+To allow reproducibility, set the seed of the generator of pseudo-random numbers:
+```{r set_seed}
+set.seed(1859)
+```
+
 Set dimensions:
 ```{r set_dim}
 T <- 2     # number of traits (don't change in this vignette)
 I <- 100   # number of genotypes
-Q <- 5     # number of replicates per genotype
+Q <- 10    # number of replicates per genotype
 N <- I * Q # number of phenotypes per trait
 ```
 
 ## Genotypes
 
-Simulate haplotypes via the coalescent with recombination, and encode the corresponding bi-allelic SNP genotypes additively as allele doses in ${0,1,2}$:
+Simulate haplotypes via the [coalescent](https://en.wikipedia.org/wiki/Coalescent_theory) with recombination, and encode the corresponding bi-allelic SNP genotypes additively as allele doses in ${0,1,2}$:
 ```{r simul_genos}
 Ne <- 10^4
 chrom.len <- 10^5
@@ -164,325 +177,264 @@ summary(A[upper.tri(A)]) # under HWE, average should be 0
 
 ## Phenotypes
 
-Simulate phenotypes:
-```{r simul_phenos}
+Choose the parameters:
+```{r}
 mu <- c(50, 20) # global means
 mean.C <- 5
-sd.C <- 2
-var.G.1 <- 2 # additive genotypic variance of trait 1
-var.G.2 <- 4 # additive genotypic variance of trait 2
-cor.G <- 0.7 # additive genotypic correlation between traits 1 and 2
-cov.G <- cor.G * sqrt(var.G.1) * sqrt(var.G.2)
-(V.G.A <- matrix(c(var.G.1, cov.G, cov.G, var.G.2), nrow=2, ncol=2))
-var.E.1 <- 5
-var.E.2 <- 4
-cor.E <- -0.2
-cov.E <- cor.E * sqrt(var.E.1) * sqrt(var.E.2)
-(V.E <- matrix(c(var.E.1, cov.E, cov.E, var.E.2), nrow=2, ncol=2))
-model <- simulAnimalModel(T=T, Q=Q, mu=mu, mean.C=mean.C, sd.C=sd.C,
-                          A=A, V.G.A=V.G.A, V.E=V.E)
-str(model$data)
-regplot(model$G.A[,1], model$G.A[,2], xlab="G_A[,1]", ylab="G_A[,2]")
+sd_C <- 2
+var_G_1 <- 2 # additive genotypic variance of trait 1
+var_G_2 <- 4 # additive genotypic variance of trait 2
+cor_G <- 0.7 # additive genotypic correlation between traits 1 and 2
+cov.G <- cor_G * sqrt(var_G_1) * sqrt(var_G_2)
+(V_G_A <- matrix(c(var_G_1, cov.G, cov.G, var_G_2), nrow=2, ncol=2))
+kappa(V_G_A)
+h2_1 <- 0.7 # var_G_1 / (var_G_1 + var_E_1 / Q)
+h2_2 <- 0.3 # var_G_2 / (var_G_2 + var_E_2 / Q)
+## var_E_1 <- TODO
+## var_E_2 <- TODO
+var_E_1 <- 5
+var_E_2 <- 4
+cor_E <- 0 #-0.2
+cov_E <- cor_E * sqrt(var_E_1) * sqrt(var_E_2)
+(V_E <- matrix(c(var_E_1, cov_E, cov_E, var_E_2), nrow=2, ncol=2))
+kappa(V_E)
 ```
+
+Simulate phenotypes:
+```{r simul_phenos}
+model <- simulAnimalModel(T=T, Q=Q, mu=mu, mean.C=mean.C, sd.C=sd_C,
+                          A=A, V.G.A=V_G_A, V.E=V_E)
+str(model$data)
+head(model$data)
+regplot(model$G.A[,1], model$G.A[,2],
+        xlab="G_A of trait1", ylab="G_A of trait2", main="Genotypic covariation",
+        show.crit=c("corP", "R2adj"), legend.x="bottomright")
+abline(v=0, h=0, col="lightgrey")
+```
+
+Save the truth:
+```{r}
+truth <- list(T=T, I=I, Q=Q, N=N,
+              A=A)
+truth <- append(truth, model)
+truthFile <- "intro-mvAM_truth.rds"
+saveRDS(object=truth, file=truthFile)
+tools::md5sum(truthFile)
+```
+
 
 # Explore the data
 
+Data in the "wide" format:
+```{r}
+dat <- model$data
+str(dat)
+head(dat)
+```
+
+Reformat in the "long" format:
+```{r}
+datLong <- data.frame(geno=rep(dat$geno, times=2),
+                      trait=rep(c("response1","response2"), each=nrow(dat)),
+                      year=rep(dat$year, times=2),
+                      value=c(dat$response1, dat$response2),
+                      stringsAsFactors=TRUE)
+str(datLong)
+head(datLong)
+```
+
 Summary statistics:
 ```{r smry_stats}
-do.call(rbind, tapply(model$data$response1, model$data$year, summary))
-do.call(rbind, tapply(model$data$response2, model$data$year, summary))
+do.call(rbind, tapply(dat$response1, dat$year, summary))
+do.call(rbind, tapply(dat$response2, dat$year, summary))
 ```
 
 Plots:
 ```{r plots_data}
-hist(model$data$response1, breaks="FD", col="grey", border="white", las=1,
+hist(dat$response1, breaks="FD", col="grey", border="white", las=1,
      main="Trait 1")
-hist(model$data$response2, breaks="FD", col="grey", border="white", las=1,
+hist(dat$response2, breaks="FD", col="grey", border="white", las=1,
      main="Trait 2")
-regplot(model$data$response1, model$data$response2, asp=1,
-        xlab="Trait1", ylab="Trait2")
+regplot(dat$response1, dat$response2, asp=1,
+        xlab="Trait1", ylab="Trait2", main="Phenotypic covariation",
+        show.crit=c("corP", "R2adj"), legend.x="bottomright")
+abline(v=mu[1], h=mu[2], col="lightgrey")
+op <- par(mar=c(8,4,4,2)+0.1)
+boxplot(value ~ year + trait, data=datLong, las=2,
+        main="Phenotypes per trait and year", xlab="")
+par(op)
 ```
 
 
 # Fit the model to data
 
+## Vie ReML (`lme4`)
+
+[Trick](https://mac-theobio.github.io/QMEE/lectures/MultivariateMixed.notes.html)
+```{r fit_lmer}
+if(inferPkg == "lme4"){
+  st <- system.time(
+      fit.lmer <- lmer(value ~ -1 + trait + year + trait:year + (trait-1|geno),
+                       data=datLong,
+                       control=lmerControl(optimizer="bobyqa",
+                                           check.nobs.vs.nlev="ignore",
+                                           check.nobs.vs.nRE="ignore")))
+  print(st)
+}
+```
+
 ## Via ReML (`breedR`)
 
-```{r fit_remlf90, eval=FALSE}
-system.time(
-    fit.remlf90 <- remlf90(fixed=cbind(response1, response2) ~ year,
-                           generic=list(add=list(model$Z, A)),
-                           data=model$data))
+```{r fit_remlf90}
+if(inferPkg == "breedR"){
+  st <- system.time(
+      fit.remlf90 <- remlf90(fixed=cbind(response1, response2) ~ year,
+                             generic=list(add=list(model$Z, A)),
+                             data=dat))
+  print(st)
+}
 ```
 
 ## Via ReML (`sommer`)
 
-```{r fit_mmer, eval=FALSE}
-system.time(
-    fit.mmer <- mmer(Y=model$Y, X=model$W, Z=list(add=list(Z=model$Z, K=A)),
-                     method="NR", MVM=TRUE, REML=TRUE))
+```{r fit_mmer}
+if(inferPkg == "sommer"){
+  st <- system.time(
+      fit.mmer <- mmer(fixed=cbind(response1, response2) ~ year,
+                       random= ~ vsr(geno, Gu=A, Gtc=unsm(T)),
+                       rcov= ~ vsr(units, Gtc=unsm(T)),
+                       data=dat,
+                       method="NR"))
+  print(st)
+}
+```
+
+## Via Gibbs (`rjags`)
+
+See code in the appendix of https://arxiv.org/abs/1507.08638
+
+```{r, fit_jags}
+tmp.file.rjags <- "intro-mvAM_fit-rjags.rds"
+if(inferPkg == "rjags"){
+  if(! file.exists(tmp.file.rjags)){
+    ## TODO
+    ## forJags <- list(N=N, m=m, d=d,
+    ##                 y=y[1:d,1:N], x=x[1:m,],
+    ##                 b0=rep(0, m), B0=diag(0.0001, m),
+    ##                 Ku=diag(1, d), Ke=diag(1, d),
+    ##                 Z=rep(0, d), r=r)
+    st <- system.time(
+        fit.rjags <- jagsAMmv(data=tmp, relmat=list(geno.add=A),
+                              nb.chains=nb.chains, nb.iters=nb.iters,
+                              burnin=burnin, thin=thin,
+                              rm.jags.file=TRUE, verbose=1))
+    print(st)
+    saveRDS(fit.rjags, tmp.file.rjags)
+  } else{
+    print("load tmp file...")
+    fit.rjags <- readRDS(tmp.file.rjags)
+  }
+}
 ```
 
 ## Via HMC (`rstan`)
 
-To efficiently sample $vec(G_A)$, we first sample from a standard univariate Normal, then multiply by the Cholesky decomposition of $V_{G_A} \otimes A$.
-Then, $vec(Y)$ will be sampled using `multi_normal_cholesky`.
-Write and compile the model:
-```{r fit_stan_write_compile, eval=FALSE}
-stan.model <- "functions {
-  // A is m x n; B is p x q
-  // returns C = B %x% A which is mp x nq
-  matrix kron_mat(matrix A, int m, int n, matrix B, int p, int q) {
-    matrix[m*p,n*q] C;
-    for(i in 1:m)
-      for(j in 1:n)
-        for(s in 1:p)
-          for(t in 1:q)
-            C[s+p*(i-1),t+q*(j-1)] = A[i,j] * B[s,t];
-    return C;
+```{r fit_stan}
+tmp.file.rstan <- "intro-mvAM_fit-rstan.rds"
+if(inferPkg == "rstan"){
+  if(! file.exists(tmp.file.rstan)){
+    nb.chains <- 1
+    burnin <- 1 * 10^3
+    thin <- 1
+    nb.usable.iters <- 1 * 10^3
+    nb.iters <- ceiling(burnin + (nb.usable.iters * thin) / nb.chains)
+    tmp <- dat
+    colnames(tmp)[colnames(tmp) == "geno"] <- "geno.add"
+    st <- system.time(
+        fit.rstan <- stanAMmv(data=tmp, relmat=list(geno.add=A),
+                              nb.chains=nb.chains, nb.iters=nb.iters,
+                              burnin=burnin, thin=thin,
+                              task.id="intro-mvAM",
+                              verbose=1,
+                              rm.stan.file=TRUE, rm.sm.file=TRUE))
+    print(st)
+    saveRDS(fit.rstan, tmp.file.rstan)
+  } else{
+    print("load tmp file...")
+    fit.rstan <- readRDS(tmp.file.rstan)
   }
 }
-data {
-  int<lower=0> I;
-  int<lower=0> T;
-  int<lower=0> Q;
-  int<lower=0> N;
-  vector[N*T] vecY;
-  matrix[N,Q] W;
-  vector[T] loc_mu;
-  vector[T] scale_mu;
-  matrix[N,I] Z;
-  cov_matrix[I] A;
-  cov_matrix[N] IdN;
-  real nu_V_G_A;
-  real nu_V_E;
-}
-"
-stan.model.file <- "intro-mvAM_model.stan"
-write(x=stan.model, file=stan.model.file)
-rt <- stanc(file=stan.model.file, model_name="mvAM")
-sm <- stan_model(stanc_ret=rt, verbose=FALSE)
 ```
-
-<!--
-Write and compile the model:
-```{r fit_stan_write_compile2, eval=FALSE}
-stan.model <- "functions {
-  // A is m x n; B is p x q
-  // returns C = B %x% A which is mp x nq
-  matrix kron_mat(matrix A, int m, int n, matrix B, int p, int q) {
-    matrix[m*p,n*q] C;
-    for(i in 1:m)
-      for(j in 1:n)
-        for(s in 1:p)
-          for(t in 1:q)
-            C[s+p*(i-1),t+q*(j-1)] = A[i,j] * B[s,t];
-    return C;
-  }
-}
-data {
-  int<lower=0> I;
-  int<lower=0> T;
-  int<lower=0> Q;
-  int<lower=0> N;
-  vector[N*T] vecY;
-  matrix[T*N,T*Q] IdW;
-  vector[T] loc_mu;
-  vector[T] scale_mu;
-  matrix[N*T,T*I] IdZ;
-  cov_matrix[I] A;
-  cov_matrix[N] IdN;
-  real nu_V_G_A;
-  real nu_V_E;
-}
-transformed data {
-  cholesky_factor_cov[I] L_A;
-  cholesky_factor_cov[N] L_IdN;
-  L_A = cholesky_decompose(A);
-  L_IdN = cholesky_decompose(IdN);
-}
-parameters {
-  vector[Q*T] vecC;
-  vector[I*T] vecG_A_z;
-  vector<lower=0>[T] v_V_G_A;
-  vector<lower=0>[T] v_V_E;
-  cholesky_factor_corr[T] L_Omega_V_G_A;
-  cholesky_factor_corr[T] L_Omega_V_E;
-}
-model {
-  vector[I*T] vecG_A;
-  matrix[T,T] L_V_G_A;
-  matrix[T*I,T*I] L_V_G_A_A;
-  matrix[T,T] L_V_E;
-  matrix[T*N,T*N] L_V_E_IdN;
-
-  for(t in 1:T) {
-    vecC[1+(t-1)*Q] ~ cauchy(loc_mu[t], scale_mu[t]);
-    for(q in 2:Q) {
-      vecC[(t-1)*Q+q] ~ cauchy(0, 5);
-    }
-  }
-
-  v_V_G_A ~ cauchy(0, 5);
-  L_Omega_V_G_A ~ lkj_corr_cholesky(nu_V_G_A);
-  L_V_G_A = diag_pre_multiply(v_V_G_A, L_Omega_V_G_A);
-  L_V_G_A_A = kron_mat(L_V_G_A, T, T, L_A, I, I);
-  vecG_A_z ~ normal(0, 1);
-  vecG_A = L_V_G_A_A * vecG_A_z; // => vecG_A ~ multi_normal(0, V_G_A %x% A)
-
-  v_V_E ~ cauchy(0, 5);
-  L_Omega_V_E ~ lkj_corr_cholesky(nu_V_E);
-  L_V_E = diag_pre_multiply(v_V_E, L_Omega_V_E);
-  L_V_E_IdN = kron_mat(L_V_E, T, T, L_IdN, N, N);
-
-  vecY ~ multi_normal_cholesky(IdW * vecC + IdZ * vecG_A, L_V_E_IdN);
-}
-generated quantities {
-  vector[I*T] vecG_A;
-  cov_matrix[T] V_G_A;
-  cov_matrix[T] V_E;
-  matrix[T*I,T*I] L_V_G_A_A;
-  cholesky_factor_cov[T] L_V_G_A;
-  cholesky_factor_cov[T] L_V_E;
-  L_V_G_A = diag_pre_multiply(v_V_G_A, L_Omega_V_G_A);
-  V_G_A = L_V_G_A * L_V_G_A';
-  L_V_E = diag_pre_multiply(v_V_E, L_Omega_V_E);
-  V_E = L_V_E * L_V_E';
-  L_V_G_A_A = kron_mat(L_V_G_A, T, T, L_A, I, I);
-  vecG_A = L_V_G_A_A * vecG_A_z;
-}
-"
-stan.model.file <- "intro-mvAM_model.stan"
-write(x=stan.model, file=stan.model.file)
-rt <- stanc(file=stan.model.file, model_name="mvAM")
-sm <- stan_model(stanc_ret=rt, verbose=FALSE)
-```
-
-Fit the model:
-```{r fit_stan, eval=FALSE}
-nb.chains <- 4
-burnin <- 1 * 10^3
-thin <- 10
-nb.usable.iters <- 1 * 10^3
-nb.iters <- ceiling(burnin + (nb.usable.iters * thin) / nb.chains)
-loc.mu <- colMeans(model$Y)
-scale.mu <- rep(5, T)
-system.time(
-    fit.stan <- sampling(object=sm,
-                         data=list(I=I, T=T, Q=Q, N=N, vecY=c(model$Y),
-                                   IdW=diag(T) %x% model$W,
-                                   loc_mu=loc.mu, scale_mu=scale.mu,
-                                   IdZ=diag(T) %x% model$Z,
-                                   A=A, IdN=diag(N),
-                                   nu_V_G_A=4, nu_V_E=4),
-                         chains=nb.chains,
-                         iter=nb.iters,
-                         warmup=burnin,
-                         thin=thin)
-)
-```
-
-Assess convergence:
-```{r fit_stan_cvg, eval=FALSE}
-traceplot(fit.stan, pars=grep("^V\\[", names(fit.stan), value=TRUE))
-```
--->
 
 
 # Evaluate parameter estimates
 
+## From ReML (`lme4`)
+
+```{r eval_lmer}
+if(inferPkg == "lme4"){
+  print(summary(fit.lmer))
+  print(VarCorr(fit.lmer))
+  print(as.data.frame(VarCorr(fit.lmer)))
+  print(truth$V.G.A)
+  print(truth$V.E)
+}
+```
+
 ## From ReML (`breedR`)
 
-```{r eval_remlf90, eval=FALSE}
-summary(fit.remlf90)
+```{r eval_remlf90}
+if(inferPkg == "breedR"){
+  print(summary(fit.remlf90))
+}
 ```
 
 ## From ReML (`sommer`)
 
-```{r eval_mmer, eval=FALSE}
-names(fit.mmer)
-fit.mmer$var.comp
-rmse(c(fit.mmer$var.comp$add) - c(V.G.A))
-rmse(fit.mmer$var.comp$add[1,1] - V.G.A[1,1])
-rmse(fit.mmer$var.comp$add[2,2] - V.G.A[2,2])
-rmse(fit.mmer$var.comp$add[1,2] - V.G.A[1,2])
+```{r eval_mmer}
+if(inferPkg == "sommer"){
+  names(fit.mmer)
+  print(fit.mmer$sigma)
+  print(truth[c("V.G.A","V.E")])
 
-rmse(c(fit.mmer$var.comp$Residual) - c(V.E))
-rmse(fit.mmer$var.comp$Residual[1,1] - V.E[1,1])
-rmse(fit.mmer$var.comp$Residual[2,2] - V.E[2,2])
-rmse(fit.mmer$var.comp$Residual[1,2] - V.E[1,2])
+  ## rmse(c(fit.mmer$var.comp$add) - c(V_G_A))
+  ## rmse(fit.mmer$var.comp$add[1,1] - V_G_A[1,1])
+  ## rmse(fit.mmer$var.comp$add[2,2] - V_G_A[2,2])
+  ## rmse(fit.mmer$var.comp$add[1,2] - V_G_A[1,2])
 
-rmse(fit.mmer$u.hat$add[,1] - model$G.A[,1])
-rmse(fit.mmer$u.hat$add[,2] - model$G.A[,2])
-cor(model$G.A[,1], fit.mmer$u.hat$add[,1])
-cor(model$G.A[,2], fit.mmer$u.hat$add[,2])
-regplot(model$G.A[,1], fit.mmer$u.hat$add[,1], xlab="true G_A[,1]",
-        ylab="BLUP G_A[,1]")
-regplot(model$G.A[,2], fit.mmer$u.hat$add[,2], xlab="true G_A[,2]",
-        ylab="BLUP G_A[,2]")
+  ## rmse(c(fit.mmer$var.comp$Residual) - c(V_E))
+  ## rmse(fit.mmer$var.comp$Residual[1,1] - V_E[1,1])
+  ## rmse(fit.mmer$var.comp$Residual[2,2] - V_E[2,2])
+  ## rmse(fit.mmer$var.comp$Residual[1,2] - V_E[1,2])
+
+  rmse(fit.mmer$u.hat$add[,1] - model$G.A[,1])
+  rmse(fit.mmer$u.hat$add[,2] - model$G.A[,2])
+  cor(model$G.A[,1], fit.mmer$u.hat$add[,1])
+  cor(model$G.A[,2], fit.mmer$u.hat$add[,2])
+  regplot(model$G.A[,1], fit.mmer$u.hat$add[,1], xlab="true G_A[,1]",
+          ylab="BLUP G_A[,1]")
+  regplot(model$G.A[,2], fit.mmer$u.hat$add[,2], xlab="true G_A[,2]",
+          ylab="BLUP G_A[,2]")
+}
 ```
 
-## From HMC
+## From HMC (`rstan`)
 
-```{r eval_stan, eval=FALSE}
-print(fit.stan, pars=grep("^V\\[", names(fit.stan), value=TRUE))
+Assess convergence:
+```{r fit_stan_cvg, eval=TRUE}
+## tmp <- grep("^corr[GE]\\[", names(fit.rstan), value=TRUE)
+tmp <- c("corrG[1,1]", "corrG[1,2]", "corrG[2,2]",
+         "corrE[1,1]", "corrE[1,2]", "corrE[2,2]")
+rstan::traceplot(fit.rstan, pars=tmp)
+print(fit.rstan, pars=tmp)
 ```
 
 
 # Conclusions
 
-The ReML procedure is fast, but doesn't quantify the uncertainty in variance components.
+The ReML procedure is fast, but it does not quantify the uncertainty in variance components.
 It hence is required to use an additional procedures to do this, e.g. the bootstrap, which can then be computationally costly.
 
-
-<!--
-# Sensitivity analysis
-
-## Generic function
-
-```{r, eval=FALSE}
-ss <- function(I=100, Q=5, P=2000, seed=NULL){
-  if(! is.null(seed))
-    set.seed(seed)
-  T <- 2
-  out <- list(T=2, I=I, Q=Q, P=P)
-
-  X <- simulGenosDose(nb.genos=I, nb.snps=P)
-  out$X <- X
-
-  A <- estimGenRel(X, verbose=0)
-  out$A <- A
-
-  model <- simulAnimalModel(T=T, Q=Q, mu=rep(0,T), A=A, V.G.A=V.G.A, V.E=V.E)
-  out$model <- model
-
-  fit <- mmer(Y=model$Y, X=model$W, Z=list(add=list(Z=model$Z, K=A)),
-              method="NR", MVM=TRUE, REML=TRUE, silent=TRUE)
-  out$fit <- fit
-
-  out$rmse <- c(V.G.A=rmse(c(model$V.G.A) - c(fit$var.comp$add)),
-                V.E=rmse(c(model$V.E) - c(fit$var.comp$Residual)),
-                G.A=sapply(1:T, function(t){
-                  rmse(model$G.A[,t] - fit$u.hat$add[,t])
-                }))
-  out$cor.G.A <- sapply(1:T, function(t){
-    cor(model$G.A[,t], fit$u.hat$add[,t])
-  })
-
-  return(out)
-}
-```
-
-## Change the number of repeated measurement
-
-```{r, eval=FALSE}
-results <- list()
-for(Q in c(3,5,7,9))
-  results[[paste0("Q=",Q)]] <- ss(Q=Q, seed=Q)
-do.call(rbind, lapply(results, function(x){x$rmse}))
-do.call(rbind, lapply(results, function(x){x$cor.G.A}))
-```
--->
 
 # Appendix
 

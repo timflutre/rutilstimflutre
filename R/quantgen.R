@@ -3972,8 +3972,10 @@ simulGenosDose <- function(nb.genos, nb.snps, geno.ids=NULL, snp.ids=NULL, mafs=
     geno.ids <- sprintf(fmt=paste0("geno%0", floor(log10(nb.genos))+1, "i"),
                         1:nb.genos)
 
-  snp.ids <- sprintf(fmt=paste0("snp%0", floor(log10(nb.snps))+1, "i"),
-                     1:nb.snps)
+  if(is.null(snp.ids))
+    snp.ids <- sprintf(fmt=paste0("snp%0", floor(log10(nb.snps))+1, "i"),
+                       1:nb.snps)
+
   if(is.null(mafs))
     mafs <- stats::setNames(0.05 + 0.45 * stats::runif(nb.snps), snp.ids)
 
@@ -3981,6 +3983,93 @@ simulGenosDose <- function(nb.genos, nb.snps, geno.ids=NULL, snp.ids=NULL, mafs=
                 (stats::runif(nb.genos * nb.snps) < mafs),
               nrow=nb.genos, ncol=nb.snps, byrow=TRUE,
               dimnames=list(geno.ids, snp.ids))
+
+  return(X)
+}
+
+##' Genotypes
+##'
+##' Simulate SNP genotypes as allele dose additively encoded, i.e. 0,1,2, using correlated allele frequencies to mimick genetic structure.
+##' @param nb.genos number of genotypes (i.e. individuals) per population
+##' @param nb.snps number of SNPs
+##' @param div.pops matrix of divergence among populations, with a diagonal of 1's; the closer off-diagonal values are from 1; the weaker the divergence; the further, the stronger
+##' @param geno.ids vector of genotype identifiers (if NULL, will be "geno001", etc)
+##' @param snp.ids vector of SNP identifiers (if NULL, will be "snp001", etc)
+##' @return matrix with genotypes in rows and SNPs in columns
+##' @author Andres Legarra [aut], Timothee Flutre [ctb]
+##' @export
+##' @examples
+##' \dontrun{
+##' ## weak divergences among populations:
+##' weak.div.pops <- diag(3)
+##' weak.div.pops[upper.tri(weak.div.pops)] <- 0.9
+##' weak.div.pops[lower.tri(weak.div.pops)] <- weak.div.pops[upper.tri(weak.div.pops)]
+##' weak.div.pops
+##'
+##' ## strong divergences among populations:
+##' strong.div.pops <- diag(3)
+##' strong.div.pops[upper.tri(strong.div.pops)] <- 0.5
+##' strong.div.pops[lower.tri(strong.div.pops)] <- strong.div.pops[upper.tri(strong.div.pops)]
+##' strong.div.pops
+##'
+##' X <- simulGenosDoseStruct(div.pops=weak.div.pops)
+##' A <- estimGenRel(X)
+##' imageWithScale(A, "Weak divergence")
+##'
+##' X <- simulGenosDoseStruct(div.pops=strong.div.pops)
+##' A <- estimGenRel(X)
+##' imageWithScale(A, "Strong divergence")
+##' }
+simulGenosDoseStruct <- function(nb.genos=c(100, 120, 80),
+                                 nb.snps=1000,
+                                 div.pops=diag(3) * 0.5 + 0.5,
+                                 geno.ids=NULL, snp.ids=NULL){
+  stopifnot(requireNamespace("MASS", quietly=TRUE),
+            length(nb.genos) > 1,
+            length(nb.genos) == nrow(div.pops),
+            ncol(div.pops) == nrow(div.pops),
+            all(sapply(diag(div.pops), all.equal, 1)),
+            all(c(div.pops) >= 0),
+            all(c(div.pops) <= 1))
+  if(! is.null(geno.ids))
+    stopifnot(length(geno.ids) == nb.genos)
+  if(! is.null(snp.ids))
+    stopifnot(length(snp.ids) == nb.snps)
+
+  nb.pops <- length(nb.genos)
+  idx.pops <- matrix(nrow=nb.pops, ncol=2)
+  idx.pops[1,] <- c(1, nb.genos[1])
+  for(j in 2:nb.pops)
+    idx.pops[j,] <- c(sum(nb.genos[1:(j-1)]) + 1,
+                      sum(nb.genos[1:(j-1)]) + nb.genos[j])
+
+  ## draw allele frequencies from "not-too-different populations" with correlated allele frequencies
+  all.freqs <- MASS::mvrnorm(n=nb.snps, mu=rep(0,nb.pops), Sigma=div.pops)
+  all.freqs <- qbeta(pnorm(all.freqs), 2, 2)
+
+  ## sample SNP genotypes and assign {0,1,2} coding
+  X <- lapply(1:nb.snps, function(i){
+    tmp <- rep(NA, sum(nb.genos))
+    for(j in 1:nb.pops){
+      idx <- idx.pops[j,1]:idx.pops[j,2]
+      tmp[idx] <- sample(0:1, nb.genos[j], replace=TRUE,
+                         prob=c(1 - all.freqs[i,j], all.freqs[i,j])) +
+        sample(0:1, nb.genos[j], replace=TRUE,
+               prob=c(1 - all.freqs[i,j], all.freqs[i,j]))
+    }
+    tmp
+  })
+  X <- do.call(cbind, X)
+
+  if(is.null(geno.ids))
+    geno.ids <- sprintf(fmt=paste0("geno%0", floor(log10(nb.genos))+1, "i"),
+                        1:sum(nb.genos))
+  rownames(X) <- geno.ids
+
+  if(is.null(snp.ids))
+    snp.ids <- sprintf(fmt=paste0("snp%0", floor(log10(nb.snps))+1, "i"),
+                       1:nb.snps)
+  colnames(X) <- snp.ids
 
   return(X)
 }
@@ -6921,12 +7010,16 @@ aireml <- function(A, y, X, Z, initE, initU, verbose=0){
     AI[2,2] <- sum(diag((t(y) %*% P %*% Ze %*% t(Ze) %*%
                          P %*% Ze %*% t(Ze) %*% P %*% y)))
 
-    s[1,1] <- sum(diag((P %*% Z %*% t(Z)))) -
+    ## ~ eq 92 p.252 in Searle's book
+    ## ~ eq 4 in Johnson & Thompson
+    s[1,1] <- - sum(diag((P %*% Z %*% t(Z)))) +
       (t(y) %*% P %*% Z %*% t(Z) %*% P %*% y)
-    s[2,1] <- sum(diag((P %*% Ze %*% t(Ze)))) -
+    s[2,1] <- - sum(diag((P %*% Ze %*% t(Ze)))) +
       (t(y) %*% P %*% Ze %*% t(Ze) %*% P %*% y)
 
-    newvarcomps <- c(oldU, oldE) - solve(AI) %*% s
+    ## update of Fisher scoring
+    oldvarcomps <- c(oldU, oldE)
+    newvarcomps <- oldvarcomps + solve(AI) %*% s
     varU <- newvarcomps[1]
     varE <- newvarcomps[2]
 
@@ -7925,7 +8018,56 @@ model {
   return(fit)
 }
 
-##' Animal model
+##' Animal model (multivariate)
+##'
+##' Given T traits, I genotypes, Q covariates and N=I*Q phenotypes per trait, fit an "animal model" with the rstan package via the following likelihood: \eqn{Y = W C + Z G_A + Z G_D + E}, where Y is NxT; W is NxQ; Z is NxI; G_A ~ Normal_IxT(0, A, V_G_A) with A the known matrix of additive genetic relationships; G_D ~ Normal_IxT(0, D, V_G_D) with D the known matrix of dominant genetic relationships; E ~ Normal_NxT(0, Id_N, V_E); Missing phenotypes are jointly imputed with the other unknown variables, and the errors can follow a Student's t distribution to handle outliers.
+##' @param data data.frame containing the data corresponding to relmat; should have columns grep-able for "response" as well as a column "geno.add" used with matrix A; if a column "geno.dom" exists, it will be used with matrix D; any other column will be interpreted as corresponding to "fixed effects"
+##' @param relmat list containing the matrices of genetic relationships (see \code{\link{estimGenRel}}); additive relationships (matrix A) are compulsory, with name "geno.add"; dominant relationships (matrix D) are optional, with name "geno.dom"; can be in the "matrix" class (base) or the "dsCMatrix" class (Matrix package)
+##' @param nb.chains number of independent chains to run (see \code{\link[rjags]{jags.model}})
+##' @param nb.adapt number of iterations for adaptation (see \code{\link[rjags]{jags.model}})
+##' @param burnin number of initial iterations to discard (see the update function of the rjags package)
+##' @param nb.iters number of iterations to monitor (see \code{\link[rjags]{coda.samples}})
+##' @param thin thinning interval for monitored iterations (see \code{\link[rjags]{coda.samples}})
+##' @param progress.bar type of progress bar (text/gui/none or NULL)
+##' @param rm.jags.file remove the file specifying the model written in the JAGS-dialect of the BUGS language
+##' @param verbose verbosity level (0/1)
+##' @author Timothee Flutre, inspired by code from Najla Saad Elhezzani (arXiv:1507.08638)
+##' @seealso \code{\link{jagsAM}}
+##' @export
+jagsAMmv <- function(data, relmat,
+                     nb.chains=1, nb.adapt=10^3, burnin=10^2,
+                     nb.iters=10^3, thin=10,
+                     progress.bar=NULL, rm.jags.file=TRUE, verbose=0){
+  requireNamespace("rjags", quietly=TRUE)
+
+  ## define model in JAGS dialect of BUGS language in separate file
+  st <- Sys.time()
+  jags.file <- tempfile(paste0("jagsAMmv_", format(st, "%Y-%m-%d-%H-%M-%S"), "_"),
+                        getwd(), ".jags")
+  model.txt <- paste0(
+      "# Goal: fit an \"animal model\" with rjags",
+      "\n# Author: Timothee Flutre (INRA)",
+      "\n# Source: rutilstimflutre ", utils::packageVersion("rutilstimflutre"),
+      "\n# Date: ", format(st, "%Y-%m-%d %H:%M:%S"))
+  cat(model.txt, file=jags.file)
+
+  ## read model file and create object
+  jags <- rjags::jags.model(file=jags.file, data=data.list, inits=inits,
+                            n.chains=nb.chains,
+                            n.adapt=nb.adapt,
+                            quiet=ifelse(verbose > 0, FALSE, TRUE))
+  if(rm.jags.file)
+    file.remove(jags.file)
+
+  ## update model for burn-in period
+  stats::update(jags, n.iter=burnin, progress.bar=progress.bar)
+
+  ## extract samples from model
+
+  return(fit)
+}
+
+##' Animal model (univariate)
 ##'
 ##'
 ##' @param stan.file path to a file; if NULL, a temporary one will be created
@@ -8113,7 +8255,7 @@ generated quantities {
   invisible(stan.file)
 }
 
-##' Animal model
+##' Animal model (univariate)
 ##'
 ##' Given I genotypes, Q covariates and N=I*Q phenotypes for the trait, fit an "animal model" with the rstan package via the following likelihood: y = W c + Z g_A + Z g_D + epsilon, where y is Nx1; W is NxQ; Z is NxI; g_A ~ Normal_I(0, sigma_A^2 A) with A the known matrix of additive genetic relationships; g_D ~ Normal_I(0, sigma_D^2 D) with D the known matrix of dominant genetic relationships; epsilon ~ Normal_N(0, sigma^2 Id_N); Cov(g_A,g_D)=0; Cov(g_A,e)=0; Cov(g_D,e)=0. Missing phenotypes are jointly imputed with the other unknown variables, and the errors can follow a Student's t distribution to handle outliers.
 ##' @param data data.frame containing the data corresponding to relmat; should have a column grep-able for "response" as well as a column "geno.add" used with matrix A; if a column "geno.dom" exists, it will be used with matrix D; any other column will be interpreted as corresponding to "fixed effects"
@@ -8266,6 +8408,310 @@ stanAM <- function(data, relmat, errors.Student=FALSE,
     file.remove(stan.file)
   if(rm.sm.file)
     file.remove(sm.file)
+
+  return(fit)
+}
+
+##' Animal model (multivariate)
+##'
+##'
+##' @param stan.file path to a file; if NULL, a temporary one will be created
+##' @param verbose verbosity level (0/1)
+##' @return invisible path to stan.file
+##' @author Timothee Flutre
+##' @seealso \code{\link{stanAMmv}}
+##' @export
+stanAMmvwriteModel <- function(stan.file=NULL, verbose=0){
+  st <- Sys.time()
+  if(is.null(stan.file))
+    stan.file <- tempfile(pattern=paste0("stanAMmv_",
+                                         format(st, "%Y-%m-%d-%H-%M-%S"),
+                                         "_"),
+                          tmpdir=getwd(), fileext=".stan")
+  if(verbose > 0){
+    msg <- paste0("write model in file '", stan.file, "'...")
+    write(msg, stdout())
+  }
+
+  ## meta-data
+  model.code <- "// model: stanAMmv"
+  model.code <- paste0(model.code, "
+// ref: https://discourse.mc-stan.org/t/multivariate-animal-model/631/13")
+  model.code <- paste0(model.code, "
+// copyright: ?
+// license: ?
+// persons: Diogo Melo [cre,aut], Timothee Flutre [ctb]")
+  model.code <- paste0(model.code, "
+// date: ", format(Sys.time(), "%Y-%m-%d %H:%M:%S"), "
+")
+
+  ## block: functions
+  model.code <- paste0(model.code, "
+functions {
+  matrix as_matrix(vector X, int N, int K) {
+    matrix[N, K] Y;
+    for (i in 1:N) {
+      Y[i] = to_row_vector(X[((i - 1) * K + 1):(i * K)]);
+    }
+    return Y;
+  }
+  vector chol_kronecker_product(matrix LA, matrix LG, vector a) {
+    vector[num_elements(a)] new_a;
+    new_a = rep_vector(0, num_elements(a));
+    for(iA in 1:cols(LA)){
+      for(jA in 1:iA){
+        if(LA[iA, jA] > 1e-10){ // avoid calculating products between unrelated individuals
+          for(iG in 1:cols(LG)){
+            for(jG in 1:iG){
+              new_a[(cols(LG)*(iA-1))+iG] = new_a[(cols(LG)*(iA-1))+iG] +
+                                            LA[iA, jA] * LG[iG, jG] * a[(cols(LG)*(jA-1))+jG];
+            }
+          }
+        }
+      }
+    }
+    return new_a;
+  }
+}
+")
+
+  ## block: data
+  model.code <- paste0(model.code, "
+data {
+  int<lower=1>    K; // number of traits
+  int<lower=1>    J; // number of fixed effects
+  int<lower=0>    I; // number of genotypes
+  int<lower=0>    N; // number of phenotypes
+  vector[J]    X[N]; // design matrix for fixed effects
+  vector[I]    Z[N]; // design matrix for random effects
+  vector[K]    Y[N]; // response variable
+  matrix[I, I]    A; // relationship matrix
+}
+")
+
+  ## block: transformed data
+  model.code <- paste0(model.code, "
+transformed data {
+  matrix[I, I] LA;
+  LA = cholesky_decompose(A);
+}
+")
+
+  ## block: parameters
+  model.code <- paste0(model.code, "
+parameters {
+  matrix[K,J]    beta; // fixed effects
+  vector[I*K] a_tilde; // breeding values
+
+  cholesky_factor_corr[K] L_Omega_G;
+  vector<lower=0>[K] L_sigma_G;
+
+  cholesky_factor_corr[K] L_Omega_R;
+  vector<lower=0>[K] L_sigma_R;
+}
+")
+
+  ## block: transformed parameters
+  model.code <- paste0(model.code, "
+transformed parameters {
+  matrix[I, K] a;
+  a = as_matrix(chol_kronecker_product(LA, diag_pre_multiply(L_sigma_G, L_Omega_G), a_tilde), I, K);
+}
+")
+
+  ## block: model
+  model.code <- paste0(model.code, "
+model {
+    vector[K] mu[N];
+    matrix[K, K] L_Sigma_R;
+
+    L_Sigma_R = diag_pre_multiply(L_sigma_R, L_Omega_R);
+
+    for(n in 1:N)
+      mu[n] = beta * X[n] + a * Z[n];
+
+    Y ~ multi_normal_cholesky(mu, L_Sigma_R);
+
+    to_vector(beta) ~ normal(0, 1);
+    a_tilde   ~ normal(0, 1);
+    L_Omega_G ~ lkj_corr_cholesky(4);
+    L_sigma_G ~ cauchy(0, 5);
+    L_Omega_R ~ lkj_corr_cholesky(4);
+    L_sigma_R ~ cauchy(0, 5);
+}
+")
+
+
+  ## block: generated quantities
+  model.code <- paste0(model.code, "
+generated quantities {
+    cov_matrix[K] P;
+    cov_matrix[K] G;
+    cov_matrix[K] E;
+    corr_matrix[K] corrG;
+    corr_matrix[K] corrE;
+
+    G = multiply_lower_tri_self_transpose(diag_pre_multiply(L_sigma_G, L_Omega_G));
+    E = multiply_lower_tri_self_transpose(diag_pre_multiply(L_sigma_R, L_Omega_R));
+    P = G + E;
+
+    corrG = multiply_lower_tri_self_transpose(L_Omega_G);
+    corrE = multiply_lower_tri_self_transpose(L_Omega_R);
+}
+")
+
+  model.code <- paste0(model.code, "
+")
+
+  cat(model.code, file=stan.file)
+
+  invisible(stan.file)
+}
+
+##' Animal model (multivariate)
+##'
+##' Given T traits, I genotypes, Q covariates and N=I*Q phenotypes per trait, fit an "animal model" with the rstan package via the following likelihood: \eqn{Y = W C + Z G_A + Z G_D + E}, where Y is NxT; W is NxQ; Z is NxI; G_A ~ Normal_IxT(0, A, V_G_A) with A the known matrix of additive genetic relationships; G_D ~ Normal_IxT(0, D, V_G_D) with D the known matrix of dominant genetic relationships; E ~ Normal_NxT(0, Id_N, V_E); Missing phenotypes are jointly imputed with the other unknown variables, and the errors can follow a Student's t distribution to handle outliers.
+##' @param data data.frame containing the data corresponding to relmat; should have columns grep-able for "response" as well as a column "geno.add" used with matrix A; if a column "geno.dom" exists, it will be used with matrix D; any other column will be interpreted as corresponding to "fixed effects"
+##' @param relmat list containing the matrices of genetic relationships (see \code{\link{estimGenRel}}); additive relationships (matrix A) are compulsory, with name "geno.add"; dominant relationships (matrix D) are optional, with name "geno.dom"; can be in the "matrix" class (base) or the "dsCMatrix" class (Matrix package)
+##' @param errors.Student use a Student's t distribution for the errors (useful to handle outliers)
+##' @param nb.chains number of independent chains to run
+##' @param nb.iters number of iterations to monitor
+##' @param burnin number of initial iterations to discard
+##' @param thin thinning interval for monitored iterations
+##' @param out.dir working directory in which the stan and sm files will be written
+##' @param task.id identifier of the task (used in temporary file names)
+##' @param compile.only only compile the model, don't run it
+##' @param rm.stan.file remove the file specifying the model written in the STAN language
+##' @param rm.sm.file remove the file corresponding to the compiled model
+##' @param verbose verbosity level (0/1)
+##' @return path to compiled file if \code{compile.only=TRUE}, object of class \code{\link[rstan]{stanfit-class}} otherwise
+##' @author Timothee Flutre
+##' @seealso \code{\link{stanAM}}
+##' @examples
+##' \dontrun{## simulate genotypes
+##' set.seed(1859)
+##' X <- simulGenosDose(nb.genos=200, nb.snps=2000)
+##'
+##' ## simulate phenotypes with only additive part of genotypic values
+##' A <- estimGenRel(X, relationships="additive", method="vanraden1", verbose=0)
+##' modelA <- simulAnimalModel(T=2, Q=3, A=A, nu.G.A=5, nu.E=3, seed=1859)
+##'
+##' ## infer with rstan
+##' modelA$data$geno.add <- modelA$data$geno; modelA$data$geno <- NULL
+##' fitA <- stanAMmv(data=modelA$data, relmat=list(geno.add=A))
+##' fitA <- rstan::As.mcmc.list(fitA)
+##' plotMcmcChain(fitA[[1]], "sigma_g_A", 1:4, sqrt(modelA$V.G.A))
+##' cbind(truth=c(c(modelA$C), sqrt(modelA$V.G.A), sqrt(modelA$V.E)),
+##'       summaryMcmcChain(fitA[[1]], c("c[1]", "c[2]", "c[3]", "sigma_g_A", "sigma_E")))
+##'
+##' ## simulate phenotypes with additive and dominant parts of genotypic values
+##' D <- estimGenRel(X, relationships="dominant", method="vitezica", verbose=0)
+##' modelAD <- simulAnimalModel(T=2, Q=3, A=A, nu.G.A=15, nu.E=5,
+##'                             D=D, nu.G.D=3, seed=1859)
+##'
+##' ## infer with rstan
+##' modelAD$data$geno.add <- modelAD$data$geno; modelAD$data$geno <- NULL
+##' fitAD <- stanAMmv(data=modelAD$data, relmat=list(geno.add=A, geno.dom=D))
+##' fitAD <- rstan::As.mcmc.list(fitAD)
+##' plotMcmcChain(fitAD[[1]], "sigma_g_A", 1:4, sqrt(modelAD$V.G.A))
+##' plotMcmcChain(fitAD[[1]], "sigma_g_D", 1:4, sqrt(modelAD$V.G.D))
+##' cbind(truth=c(c(modelAD$C), sqrt(modelAD$V.G.A), sqrt(modelAD$V.G.D), sqrt(modelAD$V.E)),
+##'       summaryMcmcChain(fitAD[[1]], c("c[1]", "c[2]", "c[3]", "sigma_g_A", "sigma_g_D", "sigma_E")))
+##' plot(as.vector(fitAD[[1]][,"sigma_g_A"]), as.vector(fitAD[[1]][,"sigma_g_D"]))
+##' }
+##' @export
+stanAMmv <- function(data, relmat, errors.Student=FALSE,
+                     nb.chains=1, nb.iters=10^3, burnin=10^2, thin=10,
+                     out.dir=getwd(),
+                     task.id=format(Sys.time(), "%Y-%m-%d-%H-%M-%S"),
+                     compile.only=FALSE, rm.stan.file=FALSE, rm.sm.file=FALSE,
+                     verbose=0){
+  requireNamespace("rstan", quietly=TRUE)
+  stopifnot(is.data.frame(data),
+            sum(grepl("response", colnames(data))) >= 1,
+            "geno.add" %in% colnames(data),
+            is.list(relmat),
+            ! is.null(names(relmat)),
+            "geno.add" %in% names(relmat),
+            nrow(relmat[["geno.add"]]) == ncol(relmat[["geno.add"]]),
+            dir.exists(out.dir))
+  if("geno.dom" %in% names(relmat))
+    stopifnot(nrow(relmat[["geno.add"]]) == nrow(relmat[["geno.dom"]]))
+
+  ## make the input matrices from the input data.frame
+  Y <- as.matrix(data[, grepl("response", colnames(data))])
+  W <- matrix(1, nrow=nrow(data), ncol=1)
+  colnames(W) <- "mu"
+  for(j in 1:ncol(data))
+    if(! grepl("response", colnames(data)[j]) &
+       colnames(data)[j] != "geno.add" &
+       colnames(data)[j] != "geno.dom"){
+      W <- cbind(W, stats::model.matrix(~ data[,j])[,-1])
+    }
+  colnames(W) <- gsub("data\\[, j\\]", "", colnames(W))
+  Z <- stats::model.matrix(~ data[,"geno.add"] - 1)
+  stopifnot(ncol(Z) == nrow(relmat[["geno.add"]]))
+  T <- ncol(Y)
+  N <- nrow(W)
+  Q <- ncol(W)
+  I <- ncol(Z)
+  if(verbose > 0){
+    msg <- paste0("dimensions: ", T, " traits",
+                  ", ", Q, " fixed effect", ifelse(Q > 1, "s", ""),
+                  ", ", I, " individuals")
+    write(msg, stdout())
+  }
+
+  ## define model in STAN language in separate file
+  stan.file <- paste0(out.dir, "/stanAMmv_", task.id, ".stan")
+  stanAMmvwriteModel(stan.file, verbose)
+
+  ## compile, or make the input list and run
+  sm.file <- paste0(out.dir, "/stanAMmv_", task.id, "_sm.RData")
+  if(compile.only){
+    if(verbose > 0)
+      write(paste0("compile..."), stdout())
+    rt <- rstan::stanc(file=stan.file, model_name="stanAMmv")
+    sm <- rstan::stan_model(stanc_ret=rt,
+                            verbose=ifelse(verbose > 0, TRUE, FALSE))
+    save(sm, file=sm.file)
+    return(sm.file)
+  } else{ # compile (if necessary) and run
+    ldat <- list(K=T, # nb of traits
+                 J=Q, # nb of fixed effects
+                 N=I, # nb of individuals
+                 X=W, # design matrix of fixed effects
+                 Z=Z, # design matrix of random effects
+                 Y=Y, # matrix of responses
+                 A=relmat[["geno.add"]])
+    if(file.exists(sm.file)){ # run only
+      if(verbose > 0)
+        write(paste0("run..."), stdout())
+      load(sm.file)
+      fit <- rstan::sampling(sm,
+                             data=ldat,
+                             iter=nb.iters + burnin,
+                             warmup=burnin,
+                             thin=thin,
+                             chains=nb.chains)
+    } else # compile and run
+      if(verbose > 0)
+        write(paste0("compile and run..."), stdout())
+      fit <- rstan::stan(file=stan.file,
+                         data=ldat,
+                         iter=nb.iters + burnin,
+                         warmup=burnin,
+                         thin=thin,
+                         chains=nb.chains)
+  }
+  if(rm.stan.file){
+    if(file.exists(stan.file))
+      file.remove(stan.file)
+  }
+  if(rm.sm.file){
+    if(file.exists(sm.file))
+      file.remove(sm.file)
+  }
 
   return(fit)
 }
