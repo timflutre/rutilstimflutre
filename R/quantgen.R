@@ -4032,7 +4032,7 @@ simulGenosDoseStruct <- function(nb.genos=c(100, 120, 80),
             all(c(div.pops) >= 0),
             all(c(div.pops) <= 1))
   if(! is.null(geno.ids))
-    stopifnot(length(geno.ids) == nb.genos)
+    stopifnot(length(geno.ids) == sum(nb.genos))
   if(! is.null(snp.ids))
     stopifnot(length(snp.ids) == nb.snps)
 
