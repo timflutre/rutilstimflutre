@@ -31,7 +31,9 @@ Les valeurs par défaut ci-dessous correspondent à un semoir à 7 rangs, large 
 \
 
 
-# Surface semée
+# Au semis
+
+## Surface semée
 
 Nécessaire pour calculer la quantité de semence d'une parcelle d'essai.
 
@@ -67,8 +69,45 @@ renderText({
 ```
 \
 
+## Dose de semence
 
-# Surface récoltée
+```{r, echo=TRUE, class.source="fold-hide"}
+##' @param sowingDensity sowing density in seeds per square meter
+##' @param sowingArea sowing area in square meter
+##' @param TKW thousand kernel weight in g
+##' @param GA germinative ability in percentage
+calcSeedWeightOnePlot <- function(sowingDensity, sowingArea, TKW=45, GA=90){
+  out <- sowingDensity * (TKW / 1000) * sowingArea / GA * 100
+  names(out) <- NULL
+  return(out)
+}
+```
+
+```{r, echo=FALSE}
+numericInput("sowingDensity", "Entrez la densité de semis voulue (graines par m2) :", 300, step=10)
+
+numericInput("sowingArea", "Entrez la surface à semer (en m2) :", 8.67, step=0.1)
+
+numericInput("TKW", "Entrez le PMG de vos semences (en g) :", 40, step=0.1)
+
+numericInput("GA", "Entrez la faculté germinative de vos semences (en %) :", 90, step=0.05)
+
+renderText({
+  seedWeight <- calcSeedWeightOnePlot(input$sowingDensity,
+                                      input$sowingArea,
+                                      input$TKW,
+                                      input$GA)
+  paste0("Voici la dose de semence à préparer : ",
+         round(seedWeight, 2), " g")
+})
+```
+\
+\
+
+
+# A la récolte
+
+## Surface récoltée
 
 Nécessaire pour calculer le rendement d'une parcelle d'essai.
 
@@ -141,6 +180,41 @@ renderText({
          " (+", round(inc, 2), "%)")
 })
 ```
+\
+
+## Rendement
+
+```{r, echo=TRUE, class.source="fold-hide"}
+##' @param grainWeight grain weight in kg (e.g., from the combine harvester)
+##' @param grainHumidity grain humidity in % (e.g., from the combine harvester)
+##' @param harvSurfCorr harvest surface in square meter corrected for interplot distances and alleys
+##' @return grain yield in qt.ha-1 standardized at 15% humidity
+calcHumCorrYield15 <- function(grainWeight, grainHumidity, harvSurfCorr){
+  out <- (grainWeight / harvSurfCorr) *
+  (((100 - grainHumidity) / 85) * 100)
+  names(out) <- NULL
+  return(out)
+}
+```
+
+```{r, echo=FALSE}
+numericInput("grainWeight", "Entrez le poids de grains (en kg) :", 5, step=0.1)
+
+numericInput("grainHumidity", "Entrez l'humidité des grains (en %) :", 10, step=0.1)
+
+numericInput("harvSurfCorr", "Entrez la surface récoltée corrigée (en m2) :", 7.51, step=0.1)
+
+renderText({
+  grainYield <- calcHumCorrYield15(input$grainWeight,
+                                   input$grainHumidity,
+                                   input$harvSurfCorr)
+  paste0("Voici le rendement en grains standardisé à 15% d'humidité : ",
+         round(grainYield, 2), " qt.ha-1")
+})
+```
+
+
+
 \
 \
 \
