@@ -1,0 +1,182 @@
+---
+title: "Introduction to the equivalence between GBLUP and SNPBLUP"
+author: "T. Flutre"
+date: "`r format(Sys.time(), '%d/%m/%Y %H:%M:%S')`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    toc_depth: 4
+    number_sections: TRUE
+  pdf_document:
+    toc: true
+    toc_depth: 4
+    number_sections: TRUE
+abstract: |
+    This documents introduces the equivalence between GBLUP and SNPBLUP, and its consequence for backsolving SNP effects from GBLUP, as used in GWAS.
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo=TRUE)
+```
+
+
+# Linear mixed models
+
+## GBLUP
+
+Linear mixed model for breeding values:
+
+\begin{align}
+\boldsymbol{y} = X \boldsymbol{\beta} + Z_a \boldsymbol{a} + \boldsymbol{\epsilon}
+\end{align}
+
+where:
+
+* $\boldsymbol{y}$: $n \times 1$ vector of observations
+
+* $X$: $n \times p$ design matrix for fixed-effect factors, of rank $\nu$
+
+* $\boldsymbol{\beta}$: $p \times 1$ vector of fixed effects
+
+* $Z_a$: $n \times q$ design matrix for $q$ breeding values
+
+* $\boldsymbol{a}$: $q \times 1$ vector of random breeding values
+
+* $\boldsymbol{\epsilon}$: vector of $n$ residuals
+
+Distributions of the random effects:
+
+* $\boldsymbol{\epsilon} \sim \mathcal{N}(\boldsymbol{0}, R)$ with $R$ diagonal
+
+* $\boldsymbol{a} \sim \mathcal{N}(\boldsymbol{0}, \sigma_a^2 G)$ and $\tau_a := 1 / \sigma_a^2$
+
+## SNPBLUP
+
+Linear mixed model for SNP effects:
+
+\begin{align}
+\boldsymbol{y} = X \boldsymbol{\beta} + Z_a Z \boldsymbol{u} + \boldsymbol{\epsilon}
+\end{align}
+
+where:
+
+* $Z$: $n \times m$ design matrix for $m$ markers
+
+* $\boldsymbol{u}$: $m \times 1$ vector of random marker effects
+
+Distributions of the random effects:
+
+* $\boldsymbol{u} \sim \mathcal{N}(\boldsymbol{0}, \sigma_u^2 \text{I})$ where $\text{I}$ is the identity and $\tau_u := 1 / \sigma_u^2$
+
+## Conditions for equivalence
+
+For GBLUP and SNPBLUP to be "equivalent", $\boldsymbol{a}$ and $Z \boldsymbol{u}$ must have the same probability distribution: $\boldsymbol{a} \overset{d}{=} Z \boldsymbol{u}$.
+
+Let $M$ be the $n \times m$ matrix with $M_{ij} \in \{0,1,2\}$ so that it contains the number of copies of an arbitrary allele used as reference for SNP $j$ in individual $i$.
+More generally, if SNP genotypes are imputed, then $M_{ij} \in [0,2]$.
+
+* A first condition for equivalence between GBLUP and SNPBLUP is that $Z$ corresponds to $M$ after centering the columns, so that the sample mean of the breeding values equals zero ($\bar{a} = 0$).
+It ensures the uniqueness of the definition of $\boldsymbol{a}$; otherwise, a different coding of the SNP genotypes in $M$ would lead to different breeding values $\boldsymbol{a}$.
+This can typically be achieved using the frequencies of each reference allele, noted $p_j$'s, as computed from the sample at hand:
+
+    $Z_{ij} = M_{ij} - 2 p_j$
+
+* A second condition is that $G$ is estimated using $Z$ such that:
+
+    $G = \frac{Z Z^T}{2 \sum_j p_j(1-p_j)}$
+
+As a result: $\sigma_a^2 = \sigma_u^2 \, \times \, 2 \sum_j p_j(1-p_j)$
+
+
+
+# Backsolving
+
+## Useful formula
+
+[Woodbury matrix identity](https://en.wikipedia.org/wiki/Woodbury_matrix_identity):
+
+$(Q + B S C^T)^{-1} = Q^{-1} - Q^{-1} B (S^{-1} + C^T Q^{-1} B)^{-1} C^T Q^{-1}$
+
+## Computing BLUP(a) from BLUP(u)
+
+Applying the formula for the BLUP:
+
+$\hat{\boldsymbol{u}} := \text{BLUP}(\boldsymbol{u}) = (Z^T R^{-1} Z + \tau_u \text{I})^{-1} Z^T R^{-1} (\boldsymbol{y} - X \hat{\boldsymbol{\beta}})$
+
+$\hat{\boldsymbol{a}} = Z \hat{\boldsymbol{u}} \, \Rightarrow \hat{\boldsymbol{a}} = Z (Z^T R^{-1} Z + \tau_u \text{I})^{-1} Z^T R^{-1} (\boldsymbol{y} - X \hat{\boldsymbol{\beta}})$
+
+... see Strandén and Garrick (2009) ...
+
+$\hat{\boldsymbol{a}} = (R^{-1} + \tau_a G^{-1})^{-1} R^{-1} (\boldsymbol{y} - X \hat{\boldsymbol{\beta}})$
+
+Moving $R^{-1}$ inside the parentheses:
+
+$\hat{\boldsymbol{a}} = (\text{I} + R \tau_a G^{-1})^{-1} (\boldsymbol{y} - X \hat{\boldsymbol{\beta}})$
+
+And now moving $G^{-1}$ outside of the parentheses gives equation 5 of Strandén and Garrick (2009):
+
+$\hat{\boldsymbol{a}} = G (G + R \tau_a)^{-1} (\boldsymbol{y} - X \hat{\boldsymbol{\beta}})$
+
+## Computing BLUP(u) from BLUP(a)
+
+TODO
+
+... see Strandén and Garrick (2009) ...
+
+$\hat{\boldsymbol{u}} = \tau_a \sigma_u^2 Z^T (G + R \tau_a)^{-1} (\boldsymbol{y} - X \hat{\boldsymbol{\beta}})$
+
+Hence: $\hat{\boldsymbol{u}} = \tau_a \sigma_u^2 Z^T G^{-1} \hat{\boldsymbol{a}}$.
+First, we fit the GBLUP model by ReML, then we compute $\hat{\boldsymbol{a}}$, and use it to compute $\hat{\boldsymbol{u}}$.
+
+## SNP-specific variances
+
+Interestingly, even though the SNPBLUP model assumes a single variance for the SNP effects, we can then estimate a SNP-specific variance for the effect of any SNP $j$ as in Zhang et al (2010):
+
+$\hat{\sigma}_{u,j}^2 = \hat{u}_j^2 \, 2 p_j (1 - p_j)$
+
+<!-- The $t$-statistic for "$H_0: u_j = 0$" is: $\hat{u}_j / \hat{\sigma}_{u,j}^2$. -->
+
+
+
+# Single-SNP GWAS
+
+## SNP effects as random
+
+In the SNPBLUP model, the BLUPs of the SNP effects, $\hat{\boldsymbol{u}}$,  as well as its variance, $Var(\hat{\boldsymbol{u}})$, can be obtained by the inversion of the coefficient matrix of the MMEs: ...
+
+The $t$-statistic for "$H_0: u_j = 0$" is: $\hat{u}_j / \sqrt{Var(\hat{u}_j)}$.
+
+## SNP effects as fixed
+
+For each SNP $j$: $\boldsymbol{y} = \boldsymbol{z}_j b_j + \boldsymbol{a} + \boldsymbol{e}$ with $\boldsymbol{a} \sim \mathcal{N}(\boldsymbol{0}, \sigma_a^2 G)$ and $\boldsymbol{e} \sim \mathcal{N}(\boldsymbol{0}, \sigma_e^2 Id)$.
+
+Equivalently: $\boldsymbol{y} = \boldsymbol{z}_j b_j + \boldsymbol{\epsilon}$ with $\boldsymbol{\epsilon} \sim \mathcal{N}(\boldsymbol{0}, V)$ where $V = \sigma_a^2 G + \sigma_e^2 Id$.
+
+The BLUE of $b_j$ is: $\hat{b}_j = (\boldsymbol{z}_j^T V^{-1} \boldsymbol{z}_j)^{-1} \boldsymbol{z}_j^T V^{-1} \boldsymbol{y}$ and $Var(\hat{b}_j) = (\boldsymbol{z}_j^T V^{-1} \boldsymbol{z}_j)^{-1}$.
+
+The $t$-statistic for "$H_0: b_j = 0$" is: $\hat{b}_j / \sqrt{Var(\hat{b}_j)}$.
+
+## Equivalence
+
+TODO: suppl of Bernal Rubio et al 2016
+
+
+
+# References
+
+- Strandén I, Garrick DJ. 2009. Technical note: Derivation of equivalent computing algorithms for genomic predictions and reliabilities of animal merit. Journal of Dairy Science. 92(6):2971–2975. doi:10.3168/jds.2008-1929.
+
+- Zhang Z, Liu J, Ding X, Bijma P, De Koning D-J, Zhang Q. 2010. Best Linear Unbiased Prediction of Genomic Breeding Values Using a Trait-Specific Marker-Derived Relationship Matrix. PLoS ONE. 5(9):e12648. doi:10.1371/journal.pone.0012648
+
+- Wang H, Misztal I, Aguilar I, Legarra A, Muir WM. 2012. Genome-wide association mapping including phenotypes from relatives without genotypes. Genetics Research. 94(02):73–83. doi:10.1017/S0016672312000274.
+
+- Gualdrón Duarte JL, Cantet RJ, Bates RO, Ernst CW, Raney NE, Steibel JP. 2014. Rapid screening for phenotype-genotype associations by linear transformations of genomic evaluations. BMC Bioinformatics. 15(1):246. doi:10.1186/1471-2105-15-246.
+
+- Bernal Rubio YL, Gualdrón Duarte JL, Bates RO, Ernst CW, Nonneman D, Rohrer GA, King A, Shackelford SD, Wheeler TL, Cantet RJC, et al. 2016. Meta‐analysis of genome‐wide association from genomic prediction models. Animal Genetics. 47(1):36–48. doi:10.1111/age.12378.
+
+- Chen C, Steibel JP, Tempelman RJ. 2017. Genome-Wide Association Analyses Based on Broadly Different Specifications for Prior Distributions, Genomic Windows, and Estimation Methods. Genetics. 206(4):1791–1806. doi:10.1534/genetics.117.202259.
+
+- Aguilar I, Legarra A, Cardoso F, Masuda Y, Lourenco D, Misztal I. 2019. Frequentist p-values for large-scale-single step genome-wide association, with an application to birth weight in American Angus cattle. Genet Sel Evol. 51(1):28. doi:10.1186/s12711-019-0469-3.
+
+- Schreck N, Piepho H-P, Schlather M. 2019. Best Prediction of the Additive Genomic Variance in Random-Effects Models. Genetics. 213(2):379–394. doi:10.1534/genetics.119.302324.
