@@ -69,6 +69,8 @@ Distributions of the random effects:
 
 * $\boldsymbol{u} \sim \mathcal{N}(\boldsymbol{0}, \sigma_u^2 \text{I})$ where $\text{I}$ is the identity and $\tau_u := 1 / \sigma_u^2$
 
+This model is also known as RRBLUP where "RR" stands for "ridge regression".
+
 ## Conditions for equivalence
 
 For GBLUP and SNPBLUP to be "equivalent", $\boldsymbol{a}$ and $Z \boldsymbol{u}$ must have the same probability distribution: $\boldsymbol{a} \overset{d}{=} Z \boldsymbol{u}$.
@@ -131,35 +133,48 @@ First, we fit the GBLUP model by ReML, then we compute $\hat{\boldsymbol{a}}$, a
 
 ## SNP-specific variances
 
-Interestingly, even though the SNPBLUP model assumes a single variance for the SNP effects, we can then estimate a SNP-specific variance for the effect of any SNP $j$ as in Zhang et al (2010):
+Even though the SNPBLUP model assumes a single variance for the SNP effects, the contribution of the *j*th SNP to the overall genetic variance can be deduced as in Zhang et al (2010):
 
 $\hat{\sigma}_{u,j}^2 = \hat{u}_j^2 \, 2 p_j (1 - p_j)$
 
-<!-- The $t$-statistic for "$H_0: u_j = 0$" is: $\hat{u}_j / \hat{\sigma}_{u,j}^2$. -->
 
 
-
-# Single-SNP GWAS
-
-## SNP effects as random
-
-In the SNPBLUP model, the BLUPs of the SNP effects, $\hat{\boldsymbol{u}}$,  as well as its variance, $Var(\hat{\boldsymbol{u}})$, can be obtained by the inversion of the coefficient matrix of the MMEs: ...
-
-The $t$-statistic for "$H_0: u_j = 0$" is: $\hat{u}_j / \sqrt{Var(\hat{u}_j)}$.
+# GWAS
 
 ## SNP effects as fixed
 
-For each SNP $j$: $\boldsymbol{y} = \boldsymbol{z}_j b_j + \boldsymbol{a} + \boldsymbol{e}$ with $\boldsymbol{a} \sim \mathcal{N}(\boldsymbol{0}, \sigma_a^2 G)$ and $\boldsymbol{e} \sim \mathcal{N}(\boldsymbol{0}, \sigma_e^2 Id)$.
+In a GWAS, it is more common to model the effect of each SNP as fixed, and to fit the model SNP by SNP.
+
+For each SNP $j$: $\boldsymbol{y} = \boldsymbol{1} \mu + \boldsymbol{z}_j b_j + \boldsymbol{a} + \boldsymbol{e}$ with $\boldsymbol{a} \sim \mathcal{N}(\boldsymbol{0}, \sigma_a^2 G)$ and $\boldsymbol{e} \sim \mathcal{N}(\boldsymbol{0}, \sigma_e^2 Id)$, where $\boldsymbol{z}_j$ contains centered gene contents at SNP $j$.
 
 Equivalently: $\boldsymbol{y} = \boldsymbol{z}_j b_j + \boldsymbol{\epsilon}$ with $\boldsymbol{\epsilon} \sim \mathcal{N}(\boldsymbol{0}, V)$ where $V = \sigma_a^2 G + \sigma_e^2 Id$.
 
 The BLUE of $b_j$ is: $\hat{b}_j = (\boldsymbol{z}_j^T V^{-1} \boldsymbol{z}_j)^{-1} \boldsymbol{z}_j^T V^{-1} \boldsymbol{y}$ and $Var(\hat{b}_j) = (\boldsymbol{z}_j^T V^{-1} \boldsymbol{z}_j)^{-1}$.
 
-The $t$-statistic for "$H_0: b_j = 0$" is: $\hat{b}_j / \sqrt{Var(\hat{b}_j)}$.
+The [$t$-statistic](https://en.wikipedia.org/wiki/T-statistic) for "$H_0: b_j = 0$" then is: $tb_j := \hat{b}_j / \sqrt{Var(\hat{b}_j)}$.
+
+## SNP effects as random
+
+In the SNPBLUP model, the BLUPs of the SNP effects, $\hat{\boldsymbol{u}}$, as well as their variance, $Var(\hat{\boldsymbol{u}})$, can be obtained by inverting the coefficient matrix of the MMEs.
+
+The $t$-statistic to test the null hypothesis for a given SNP, "$H_0: u_j = 0$", then is: $tu_j := \hat{u}_j / \sqrt{Var(\hat{u}_j)}$.
 
 ## Equivalence
 
+Quite remarkably, it can be shown that $tb_j = tu_j$.
+
 TODO: suppl of Bernal Rubio et al 2016
+
+Hence, the GBLUP-SNPBLUP model can be used to fit the data, and then a GWAS can be performed without having to fit the SNP-by-SNP model.
+
+Caution however, it is not because the test statistics are equal that the estimates of the SNP effects are equal.
+Because GWAS is often used to prioritize which SNP(s) should be investigated further and functionally validated, the goal is not simply to detect them, but also to estimate their effects as accurately as possible.
+
+
+
+# Perspectives
+
+See Lu et al (2018) for the usage of backsolving in a multivariate setting.
 
 
 
@@ -177,6 +192,6 @@ TODO: suppl of Bernal Rubio et al 2016
 
 - Chen C, Steibel JP, Tempelman RJ. 2017. Genome-Wide Association Analyses Based on Broadly Different Specifications for Prior Distributions, Genomic Windows, and Estimation Methods. Genetics. 206(4):1791–1806. doi:10.1534/genetics.117.202259.
 
-- Aguilar I, Legarra A, Cardoso F, Masuda Y, Lourenco D, Misztal I. 2019. Frequentist p-values for large-scale-single step genome-wide association, with an application to birth weight in American Angus cattle. Genet Sel Evol. 51(1):28. doi:10.1186/s12711-019-0469-3.
+- Lu Y, Vandehaar MJ, Spurlock DM, Weigel KA, Armentano LE, Connor EE, Coffey M, Veerkamp RF, De Haas Y, Staples CR, et al. 2018. Genome-wide association analyses based on a multiple-trait approach for modeling feed efficiency. Journal of Dairy Science. 101(4):3140–3154. doi:10.3168/jds.2017-13364.
 
-- Schreck N, Piepho H-P, Schlather M. 2019. Best Prediction of the Additive Genomic Variance in Random-Effects Models. Genetics. 213(2):379–394. doi:10.1534/genetics.119.302324.
+- Aguilar I, Legarra A, Cardoso F, Masuda Y, Lourenco D, Misztal I. 2019. Frequentist p-values for large-scale-single step genome-wide association, with an application to birth weight in American Angus cattle. Genet Sel Evol. 51(1):28. doi:10.1186/s12711-019-0469-3.
