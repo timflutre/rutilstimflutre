@@ -174,7 +174,7 @@ Because GWAS is often used to prioritize which SNP(s) should be investigated fur
 
 # Perspectives
 
-See Lu et al (2018) for the usage of backsolving in a multivariate setting.
+See Maeir et al (2015) and Lu et al (2018) for the usage of backsolving in a multivariate setting.
 
 
 
