@@ -481,9 +481,7 @@ Hence, $Var(\hat{\boldsymbol{u}} - \boldsymbol{u})$ is known as the **prediction
 
 ## Version 1
 
-### Make the building blocks
-
-#### Make the elements
+### Make the MME elements
 
 ```{r}
 makeMmeElements <- function(y, X, Z){
@@ -511,7 +509,7 @@ makeMmeElements <- function(y, X, Z){
 }
 ```
 
-#### Make the right-hand side
+### Make the MME right-hand side
 
 ```{r}
 makeMmeRhs <- function(tX.y, tZ.y){
@@ -526,7 +524,7 @@ makeMmeRhs <- function(tX.y, tZ.y){
 }
 ```
 
-#### Make the MME left-hand side
+### Make the MME left-hand side
 
 ```{r}
 makeMmeLhs <- function(tX.X, tZ.X, tX.Z, tZ.Z, lambda, Ainv){
@@ -623,14 +621,6 @@ solveMme_v2 <- function(y, X, Z, sigma.u2, Ginv, Rinv){
 
 
 
-
-```{r}
-knitr::knit_exit()
-```
-
-
-
-
 # Example
 
 ```{r}
@@ -645,25 +635,34 @@ set.seed(12345)
 
 ### SNP genotypes
 
-#### Coalescent
-
-```{r, simulCoalescent}
+```{r}
 nbGenos <- 300
-nbChroms <- 10
-Ne <- 10^4
-chromLen <- 10^5
-mutRate <- 10^(-8)
-recRate <- 10^(-8)
-nbPops <- 10
-migRate <- 50 # between 0.5 and 100
-genomes <- simulCoalescent(nb.inds=nbGenos,
-                           nb.reps=nbChroms,
-                           pop.mut.rate=4 * Ne * mutRate * chromLen,
-                           pop.recomb.rate=4 * Ne * recRate * chromLen,
-                           chrom.len=chromLen,
-                           nb.pops=nbPops,
-                           mig.rate=migRate)
-M <- genomes$genos
+if(FALSE){
+  nbChroms <- 10
+  Ne <- 10^4
+  chromLen <- 10^5
+  mutRate <- 10^(-8)
+  recRate <- 10^(-8)
+  nbPops <- 10
+  migRate <- 50 # between 0.5 and 100
+  genomes <- simulCoalescent(nb.inds=nbGenos,
+                             nb.reps=nbChroms,
+                             pop.mut.rate=4 * Ne * mutRate * chromLen,
+                             pop.recomb.rate=4 * Ne * recRate * chromLen,
+                             chrom.len=chromLen,
+                             nb.pops=nbPops,
+                             mig.rate=migRate)
+  M <- genomes$genos
+} else{
+  nbSnps <- 2000
+  nbPops <- 3
+  divBtwPops <- diag(nbPops)
+  divBtwPops[upper.tri(divBtwPops)] <- 0.95
+  divBtwPops[lower.tri(divBtwPops)] <- divBtwPops[upper.tri(divBtwPops)]
+  M <- simulGenosDoseStruct(nb.genos=rep(nbGenos / nbPops, nbPops),
+                            nb.snps=nbSnps,
+                            div.pops=divBtwPops)
+}
 dim(M)
 M[1:3, 1:5]
 nbSnps <- ncol(M)
@@ -685,18 +684,21 @@ plotHistMinAllelFreq(mafs=mafs)
 #### Genetic relationships
 
 ```{r}
-A_vr <- estimGenRel(M, afs, relationships="additive", method="vanraden1")
-hist(diag(A_vr), # 1 expected under HWE
-     breaks="FD", main="Inbreeding coefficients")
-hist(A_vr[upper.tri(A_vr)], # 0 expected under HWE
-     main="Additive genetic relationships")
-imageWithScale(A_vr,
-               main="Additive genetic relationships")
+A_noia <- estimGenRel(M, afs, relationships="additive", method="noia")
+
+hist(diag(A_noia), breaks="FD", main="Inbreeding coefficients")
+abline(v=mean(diag(A_noia)), lwd=2)
+
+hist(A_noia[upper.tri(A_noia)], main="Additive genetic relationships")
+abline(v=mean(A_noia[upper.tri(A_noia)]), lwd=2)
+
+imageWithScale(A_noia, main="Additive genetic relationships")
 ```
 
-#### Linkage disequilibrium
-
-TODO
+```{r}
+outPca <- pca(M)
+plotPca(outPca$rot.dat, outPca$prop.vars)
+```
 
 ### Phenotypes
 
@@ -769,7 +771,7 @@ y <- X %*% beta + Z %*% u + epsilon
 
 ```{r}
 system.time(
-    out <- solveMme_v1(y=y, X=X, Z=Z, sigma.u2=sigma_u2, Ainv=solve(A_vr), sigma2))
+    out <- solveMme_v1(y=y, X=X, Z=Z, sigma.u2=sigma_u2, Ainv=solve(A_noia), sigma2))
 ```
 
 ```{r}
@@ -784,7 +786,7 @@ cor(checkRndEffs[,"truth"], checkRndEffs[,"BLUP"])
 
 ```{r}
 system.time(
-    out <- solveMme_v2(y=y, X=X, Z=Z, sigma.u2=sigma_u2, Ginv=solve(A_vr), Rinv=diag(nrow(y))))
+    out <- solveMme_v2(y=y, X=X, Z=Z, sigma.u2=sigma_u2, Ginv=solve(A_noia), Rinv=diag(nrow(y))))
 (checkFixEffs <- cbind(truth=beta,
                        BLUE=out[1:p]))
 checkRndEffs <- cbind(truth=u[,1],
@@ -794,6 +796,10 @@ cor(checkRndEffs[,"truth"], checkRndEffs[,"BLUP"])
 
 
 # References
+
+- Meyer K. 1989. Restricted maximum likelihood to estimate variance components for animal models with several random effects using a derivative-free algorithm. Genet Sel Evol. 21(3):317. doi:10.1186/1297-9686-21-3-317.
+
+- Gilmour A, Thompson R, Cullis B. 1995. Average Information REML: An Efficient Algorithm for Variance Parameter Estimation in Linear Mixed Models. Biometrics. 51(4):1440–1450. doi:10.2307/2533274.
 
 - Gumedze FN, Dunne TT. 2011. Parameter estimation and inference in the linear mixed model. Linear Algebra and its Applications. 435(8):1920–1944. doi:10.1016/j.laa.2011.04.015.
 
