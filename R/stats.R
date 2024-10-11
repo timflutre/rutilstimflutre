@@ -79,21 +79,51 @@ prettyPrintBetterSummary <- function(x=NULL, smy=NULL, spec="%.2f", header=NULL)
 
 ##' Root mean squared error
 ##'
-##' Returns the root mean squared error (RMSE).
+##' Returns the root mean squared error (RMSE) as defined in \href{https://doi.org/10.3354/cr030079}{Willmott and Matsuura (2005)}.
 ##' @param error vector \eqn{\hat{\theta}_i - \theta_i}
 ##' @return numeric
 ##' @author Timothee Flutre
+##' @seealso \code{\link{rmsre}}, \code{\link{rrmse}}, \code{\link{mae}}
 ##' @export
 rmse <- function(error){
   sqrt(mean(error^2))
 }
 
+##' Root mean squared relative error
+##'
+##' Returns the root mean squared relative error (RMSRE) as defined in \href{https://doi.org/10.3354/cr030079}{Willmott and Matsuura (2005)}.
+##' @param rel_error vector \eqn{(\hat{\theta}_i - \theta_i) / \theta_i}
+##' @return numeric
+##' @author Timothee Flutre
+##' @seealso \code{\link{rmse}}, \code{\link{rrmse}}, \code{\link{mae}}
+##' @export
+rmsre <- function(rel_error){
+  sqrt(mean(rel_error^2))
+}
+
+##' Relative root mean squared error
+##'
+##' Returns the relative root mean squared error (RRMSE) as defined in \href{https://doi.org/10.3354/cr030079}{Willmott and Matsuura (2005)}.
+##' @param error vector \eqn{(\hat{\theta}_i - \theta_i)}
+##' @param theta vector \eqn{\theta_i}
+##' @return numeric
+##' @author Timothee Flutre
+##' @seealso \code{\link{rmse}}, \code{\link{rmsre}}
+##' @export
+rrmse <- function(error, theta, perc=TRUE){
+  out <- rmse(error) / mean(theta)
+  if(perc) out <- out * 100
+  return(out)
+}
+
 ##' Mean absolute error
 ##'
-##' Returns the mean absolute error (MAE).
+##' Returns the mean absolute error (MAE) as defined in \href{https://doi.org/10.3354/cr030079}{Willmott and Matsuura (2005)}.
+##' It can have some advantages over the RMSE (\href{https://doi.org/10.3354/cr030079}{Willmott and Matsuura (2005)}).
 ##' @param error vector \eqn{\hat{\theta}_i - \theta_i}
 ##' @return numeric
 ##' @author Timothee Flutre
+##' @seealso \code{\link{rmse}}
 ##' @export
 mae <- function(error){
   mean(abs(error))
@@ -105,8 +135,21 @@ mae <- function(error){
 ##' @param error vector \eqn{\hat{\theta}_i - \theta_i}
 ##' @return numeric
 ##' @author Timothee Flutre
+##' @seealso \code{\link{mbe}}, \code{\link{rmse}}, \code{\link{mae}}
 ##' @export
 msd <- function(error){
+  mean(error)
+}
+
+##' Mean bias error
+##'
+##' Returns the mean biased error (MBE) as defined in \href{https://doi.org/10.3354/cr030079}{Willmott and Matsuura (2005)}.
+##' @param error vector \eqn{\hat{\theta}_i - \theta_i}
+##' @return numeric
+##' @author Timothee Flutre
+##' @seealso \code{\link{msd}}, \code{\link{rmse}}, \code{\link{mae}}
+##' @export
+mbe <- function(error){
   mean(error)
 }
 

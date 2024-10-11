@@ -13,7 +13,11 @@ mae(error)
 numeric
 }
 \description{
-Returns the mean absolute error (MAE).
+Returns the mean absolute error (MAE) as defined in \href{https://doi.org/10.3354/cr030079}{Willmott and Matsuura (2005)}.
+It can have some advantages over the RMSE (\href{https://doi.org/10.3354/cr030079}{Willmott and Matsuura (2005)}).
+}
+\seealso{
+\code{\link{rmse}}
 }
 \author{
 Timothee Flutre

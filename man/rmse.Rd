@@ -13,7 +13,10 @@ rmse(error)
 numeric
 }
 \description{
-Returns the root mean squared error (RMSE).
+Returns the root mean squared error (RMSE) as defined in \href{https://doi.org/10.3354/cr030079}{Willmott and Matsuura (2005)}.
+}
+\seealso{
+\code{\link{rmsre}}, \code{\link{rrmse}}, \code{\link{mae}}
 }
 \author{
 Timothee Flutre
