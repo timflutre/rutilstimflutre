@@ -4,10 +4,19 @@
 \alias{matWide2Long}
 \title{Reformat}
 \usage{
-matWide2Long(mat, stringsAsFactors = FALSE)
+matWide2Long(
+  mat,
+  diag = TRUE,
+  outColNs = c("row", "col"),
+  stringsAsFactors = FALSE
+)
 }
 \arguments{
 \item{mat}{matrix}
+
+\item{diag}{if FALSE, the diagonal entries will be ignored}
+
+\item{outColNs}{names of the columns in the output}
 
 \item{stringsAsFactors}{if TRUE, character vectors will be converted to factors}
 }
@@ -15,7 +24,7 @@ matWide2Long(mat, stringsAsFactors = FALSE)
 data frame
 }
 \description{
-Reformats the diagonal and upper triangular parts of a matrix from the wide format into the long format.
+Reformats the upper triangular part (and, optionally, the diagonal) of a matrix from the wide format into the long format.
 }
 \author{
 Zheyuan Li [aut] (https://stackoverflow.com/a/41745373/597069), Timothee Flutre [ctb]
