@@ -1401,7 +1401,7 @@ The matrix-variate model above is equivalent to a multivariate one, after applyi
 
 * $Z_2 \mathbf{u} := vec(Z_1 U)$
 
-    * $Z_2 := Id_d \otimes Z_1$ is $d n_2 \times d q$
+    * $Z_2 := Id_d \otimes Z_1$ is $n_2 \times d q$ with $n_2 = d n_1$ as above
     
     * $\mathbf{u} := vec(U)$ is $d q \times 1$ with $\mathbf{u} \sim \mathcal{N}(\mathbf{0}, G)$ where $G = \Sigma_U \otimes A$
 
