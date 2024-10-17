@@ -20,7 +20,8 @@ Le calcul des surfaces semée et récoltée d'une micro-parcelle d'essai au cham
 Ci-dessous seul le cas d'une récolte de l'ensemble des rangs est implémenté, mais il existe aussi des formules pour la récolte des rangs centraux uniquement.
 \
 
-Les valeurs par défaut ci-dessous correspondent à un semoir à 7 rangs, large de 106 cm, attelé derrière un tracteur dont la [voie](https://www.iso.org/obp/ui/#iso:std:iso:4004:ed-1:v1:fr) est de 150 cm, soit une distance inter-rang de 17,7 cm (106/(7-1)) et une distance inter-parcelle de 44 cm (150-106).
+Les valeurs par défaut ci-dessous correspondent à un semoir à 7 rangs, large de 106 cm, attelé derrière un tracteur dont la [voie](https://www.iso.org/obp/ui/#iso:std:iso:4004:ed-1:v1:fr) est de 150 cm, soit une distance inter-rang d'environ 17,7 cm (106/(7-1)) et une distance inter-parcelle de 44 cm (150-106).
+On peut aussi calculer la largeur du passage de roues, ici environ 26,3 cm (150 - 7x17.67).
 <!--
 ## Saclay : 7 rangs ; largeur semoir = 106 cm ; voie du tracteur = 150 cm
 ## donc interRows = 106 / (7-1) = 17.7
@@ -28,6 +29,29 @@ Les valeurs par défaut ci-dessous correspondent à un semoir à 7 rangs, large 
 -->
 \
 \
+\
+
+
+# Distances utiles
+
+
+```{r, echo=FALSE}
+numericInput("voieTract", "Entrez la voie du tracteur tirant le semoir (en cm) :", 150, step=1)
+
+numericInput("widthSower", "Entrez la largeur de votre semoir (en cm) :", 106, step=1)
+
+numericInput("nbRows_s", "Entrez le nombre de rangs de semis de votre semoir :", 7, step=1)
+
+renderText({
+  paste0("Voici la distance inter-rang : ",
+         round(input$widthSower / (input$nbRows_s - 1), 2), " cm")
+})
+
+renderText({
+  paste0("Voici la largeur du passage de roues : ",
+         round(input$voieTract - input$nbRows_s * input$widthSower / (input$nbRows_s - 1), 2), " cm")
+})
+```
 \
 
 
@@ -200,7 +224,7 @@ calcHumCorrYield15 <- function(grainWeight, grainHumidity, harvSurfCorr){
 ```{r, echo=FALSE}
 numericInput("grainWeight", "Entrez le poids de grains (en kg) :", 5, step=0.1)
 
-numericInput("grainHumidity", "Entrez l'humidité des grains (en %) :", 10, step=0.1)
+numericInput("grainHumidity", "Entrez l'humidité des grains (en %) :", 12, step=0.1)
 
 numericInput("harvSurfCorr", "Entrez la surface récoltée corrigée (en m2) :", 7.51, step=0.1)
 
