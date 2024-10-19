@@ -7,7 +7,7 @@
 matWide2Long(
   mat,
   diag = TRUE,
-  outColNs = c("row", "col"),
+  outColNs = c("row", "col", "val"),
   stringsAsFactors = FALSE
 )
 }

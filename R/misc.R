@@ -1,6 +1,7 @@
 ##' @import data.table
 ##' @import lme4
 ##' @import Matrix
+##' @importFrom methods is
 ##' @import Rcpp
 ##' @import stats
 

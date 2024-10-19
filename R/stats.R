@@ -106,6 +106,7 @@ rmsre <- function(rel_error){
 ##' Returns the relative root mean squared error (RRMSE) as defined in \href{https://doi.org/10.3354/cr030079}{Willmott and Matsuura (2005)}.
 ##' @param error vector \eqn{(\hat{\theta}_i - \theta_i)}
 ##' @param theta vector \eqn{\theta_i}
+##' @param perc if TRUE, the return value will be a percentage
 ##' @return numeric
 ##' @author Timothee Flutre
 ##' @seealso \code{\link{rmse}}, \code{\link{rmsre}}

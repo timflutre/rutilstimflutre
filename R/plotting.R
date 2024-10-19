@@ -225,6 +225,25 @@ hinton <- function(m, main="", max.sqrt.m=NULL){
   on.exit(graphics::par(def.par))
 }
 
+##' Image of a matrix
+##'
+##' Plots an image of a matrix.
+##' @param mat matrix
+##' @param title optional title of the plot
+##' @param col colors
+##' @return nothing
+##' @author Timothee Flutre
+##' @export
+imageMat <- function(mat, title,
+                     col=grDevices::grey.colors(length(table(c(mat))), rev=TRUE)){
+  if(missing(title)){
+    title <- deparse(substitute(mat))
+    title <- paste0(title, " (", nrow(mat), " x ", ncol(mat), ")")
+  }
+  graphics::image(t(mat)[,nrow(mat):1], axes=FALSE, main=title,
+                  col=col)
+}
+
 ##' Plot a scale, e.g. to add on the side of image()
 ##'
 ##' Takes some time to draw (there is one polygon per break...)

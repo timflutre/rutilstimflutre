@@ -10,6 +10,8 @@ rrmse(error, theta, perc = TRUE)
 \item{error}{vector \eqn{(\hat{\theta}_i - \theta_i)}}
 
 \item{theta}{vector \eqn{\theta_i}}
+
+\item{perc}{if TRUE, the return value will be a percentage}
 }
 \value{
 numeric

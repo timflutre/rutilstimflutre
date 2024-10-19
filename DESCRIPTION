@@ -22,6 +22,7 @@ Depends:
     data.table,
     lme4,
     Matrix,
+    methods,
     Rcpp,
     stats
 License: GPL-3 | AGPL-3
@@ -55,7 +56,6 @@ Suggests:
     lmerTest,
     loo,
     MASS,
-    methods,
     MuMIn,
     nlme,
     pdftools,

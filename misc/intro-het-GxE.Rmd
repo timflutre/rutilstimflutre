@@ -32,6 +32,7 @@ suppressPackageStartupMessages(library(emmeans))
 suppressPackageStartupMessages(library(lme4))
 suppressPackageStartupMessages(library(nlme))
 suppressPackageStartupMessages(library(MM4LMM))
+suppressPackageStartupMessages(library(MegaLMM))
 ```
 
 Execution time (see the appendix):
@@ -829,6 +830,12 @@ plot(tmp[,"estim"], tmp[,"true"], las=1, asp=1, xlab="estimated value", ylab="tr
 cor(tmp[,"true"], tmp[,"estim"])
 plot(tmp[,"estim"], tmp[,"true"], las=1, asp=1, xlab="estimated value", ylab="true value", main="Error variances (gls het)", pch=19); abline(a=0, b=1, lty=2)
 ```
+
+### `MegaLMM`
+
+Details: https://github.com/deruncie/MegaLMM/blob/master/vignettes/MultiEnvironmentTrial.Rmd
+
+TODO
 
 ### `MMEst` from `MM4LMM`
 
