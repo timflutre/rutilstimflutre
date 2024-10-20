@@ -1,4 +1,5 @@
 ##' @import data.table
+##' @importFrom grDevices rgb
 ##' @import lme4
 ##' @import Matrix
 ##' @importFrom methods is

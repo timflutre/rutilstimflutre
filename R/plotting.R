@@ -387,6 +387,47 @@ imageWithScale <- function(z, main=NULL, idx.rownames=NULL, idx.colnames=NULL,
   on.exit(graphics::par(def.par))
 }
 
+##' Overlay two barplots
+##'
+##'
+##' Plots two histograms as densities by overlaying two barplots.
+##' @param x1 numeric vector for the first histogram
+##' @param x2 numeric vector for the second histogram
+##' @param nbBins number of bins; will be the same for both histograms
+##' @param leg1 legend for the first histogram
+##' @param leg2 legend for the second histogram
+##' @param cols vector of colors, one per histogram
+##' @param main main title
+##' @param xlab label of the x-axis
+##' @param ylab label of the y-axis
+##' @return nothing
+##' @author Timothee Flutre
+##' @export
+overlayBarplots <- function(x1, x2, nbBins, leg1, leg2,
+                            cols=c(rgb(0,0,1,1/4), rgb(1,0,0,1/4)),
+                            main="", xlab="", ylab=""){
+  stopifnot(length(cols) == 2)
+  xlim <- range(c(x1, x2))
+  width <- (xlim[2] - xlim[1]) / nbBins
+  breaks <- seq(xlim[1], xlim[2], width)
+  h1 <- graphics::hist(x1, breaks=breaks, plot=FALSE)
+  h2 <- graphics::hist(x2, breaks=breaks, plot=FALSE)
+  h1$counts <- h1$counts / sum(h1$counts)
+  h2$counts <- h2$counts / sum(h2$counts)
+  ylim <- range(c(h1$counts, h2$counts))
+  mid <- graphics::barplot(h1$counts, plot=FALSE)
+  graphics::plot(mid, rep(0, nbBins), xaxt="n",
+                 xlab=xlab, ylab=ylab, main=main,
+                 type="n", ylim=ylim, las=1)
+  graphics::barplot(h1$counts, yaxt="n", xpd=F, col=cols[1], add=TRUE)
+  graphics::barplot(h2$counts, yaxt="n", col=cols[2],
+                    main=main, xlab=xlab, ylab=ylab, add=TRUE)
+  graphics::axis(1, at=mid, las=2,
+                 labels=as.character(round(h1$mid * 10^5, 2)))
+  graphics::legend("topleft", bty="n", fill=cols,
+                   legend=c(leg1, leg2))
+}
+
 ##' Principal component analysis
 ##'
 ##' Plot the two first principal components from a PCA.
