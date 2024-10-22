@@ -6978,9 +6978,28 @@ getSparseInv <- function(D, U, verbose=FALSE){
 ##' This wrapper around \code{\link{chol}} factors a square, symmetric, positive (semi-)definite matrix into the product of a lower triangular matrix (L), a diagonal matrix (D), and the transpose of the lower triangular matrix (U=L').
 ##' The value returned is a lower triangular matrix with the elements of D on the diagonal.
 ##' This decomposition is notably used in quantitative genetics (Misztal and Perez-Enciso, 1993).
+##' The determinant of the input matrix is then easily computed as the product of the diagonal entries of the decomposition.
 ##' @param x matrix
 ##' @return matrix
 ##' @seealso \code{\link{getSparseInv}}
+##' @examples
+##' \dontrun{## example matrix from Misztal and Perez-Enciso (1993):
+##' W <- matrix(NA, nrow=5, ncol=5)
+##' W[1,] <- c(5, 0, 0, 3, 0)
+##' W[2,-1] <- c(3, 0, 0, 1)
+##' W[3,-c(1:2)] <- c(4, 1, 1)
+##' W[4,-c(1:3)] <- c(4, 0)
+##' W[5,-c(1:4)] <- 2
+##' W
+##' W[lower.tri(W)] <- t(W)[lower.tri(W)]
+##' W
+##'
+##' ## square root free Cholesky decomposition:
+##' decomp <- rootfreeChol(W)
+##'
+##' ## determinant:
+##' prod(diag(decomp)) # ~= 162, as in the paper
+##' }
 ##' @export
 rootfreeChol <- function(x){
   stopifnot(nrow(x) == ncol(x))
