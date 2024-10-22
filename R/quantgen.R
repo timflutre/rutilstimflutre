@@ -6893,9 +6893,10 @@ solveMme <- function(y, X, Z, sigma.u2, Ainv, sigma2){
 ##'
 ##' Efficiently computes the entries of the sparse inverse (C) of a square, symmetric matrix (W) from its square-root-free Cholesky decomposition (W = L D U with U=L') as implemented in \code{\link{rootfreeChol}}.
 ##' This is notably used in quantitative genetics as described initially by \href{http://doi.org/10.3168/jds.S0022-0302(93)77478-0}{Misztal and Perez-Enciso (1993)}.
-##' See the section 15.7 "Computing entries of the inverse of a sparse matrix" from Duff et al (2017).
+##' See the section 15.7 "Computing entries of the inverse of a sparse matrix" from Duff et al (2017) for the correct equation.
 ##' @param D diagonal matrix
 ##' @param U upper triangular matrix
+##' @param reprSparse if not NULL, the output matrix will be a \code{\link[Matrix]{sparseMatrix}} of the given representation ("C", "R" or "T")
 ##' @param verbose verbosity level
 ##' @return matrix
 ##' @author Timothee Flutre
@@ -6919,16 +6920,24 @@ solveMme <- function(y, X, Z, sigma.u2, Ainv, sigma2){
 ##' D <- diag(diag(decomp))
 ##' U <- decomp
 ##' diag(U) <- 1
-##' U<- t(U)
+##' U <- t(U)
 ##' getSparseInv(D, U)
+##' getSparseInv(D, U, "T")
 ##' }
 ##' @export
-getSparseInv <- function(D, U, verbose=FALSE){
+getSparseInv <- function(D, U, reprSparse=NULL, verbose=FALSE){
   stopifnot(is.matrix(D),
             is.matrix(U))
+  if(! is.null(reprSparse))
+    stopifnot(reprSparse %in% c("C","R","T"))
 
   n <- nrow(U)
-  C <- matrix(NA, nrow=n, ncol=n) # square and symmetric
+  if(! is.null(reprSparse)){
+    vec_i <- vector("integer")
+    vec_j <- vector("integer")
+    vec_x <- vector("numeric")
+  } else
+    C <- matrix(NA, nrow=n, ncol=n)
 
   for(j in n:1){
     if(verbose) cat(paste0("j=",j,"\n"))
@@ -6938,10 +6947,26 @@ getSparseInv <- function(D, U, verbose=FALSE){
     if(verbose) cat(paste0("i=",i, " -> C_ii\n"))
     tmp <- rep(0, n-(i+1)+1)
     if(i < n){
-      for(k in (i+1):n)
-        tmp[k-i] <- U[i,k] * C[i,k]
+      for(k in (i+1):n){
+        if(U[i,k] != 0){
+          if(! is.null(reprSparse)){
+            idx <- which(vec_i == i & vec_j == k)
+            stopifnot(length(idx) == 1)
+            C_ik <- vec_x[idx]
+          } else
+            C_ik <- C[i,k]
+          tmp[k-i] <- U[i,k] * C_ik
+        }
+      }
     }
-    C[i,i] <- 1 / D[i,i] - sum(tmp, na.rm=TRUE)
+    if(verbose > 1) print(tmp)
+    C_ii <- 1 / D[i,i] - sum(tmp)
+    if(! is.null(reprSparse)){
+      vec_i <- c(vec_i, i)
+      vec_j <- c(vec_j, j)
+      vec_x <- c(vec_x, C_ii)
+    } else
+      C[i,i] <- C_ii
 
     ## upper-triangular values:
     for(i in (j-1):1){
@@ -6956,19 +6981,43 @@ getSparseInv <- function(D, U, verbose=FALSE){
           tmp <- rep(0, n-(i+1)+1)
           for(k in n:(i+1)){
             if(k <= j){
-              if(U[k,j] != 0)
-                tmp[n-k+1] <- U[i,k] * C[k,j] # see Duff et al (2017), eq.15.7.5
+              if(U[k,j] != 0){
+                if(! is.null(reprSparse)){
+                  idx <- which(vec_i == k & vec_j == j)
+                  stopifnot(length(idx) == 1)
+                  C_kj <- vec_x[idx]
+                } else
+                  C_kj <- C[k,j]
+                tmp[n-k+1] <- U[i,k] * C_kj # see Duff et al (2017), eq.15.7.5
+              }
             } else{
-              if(U[j,k] != 0)
-                tmp[n-k+1] <- U[i,k] * C[j,k]
+              if(U[j,k] != 0){
+                if(! is.null(reprSparse)){
+                  idx <- which(vec_i == j & vec_j == k)
+                  stopifnot(length(idx) == 1)
+                  C_jk <- vec_x[idx]
+                } else
+                  C_jk <- C[j,k]
+                tmp[n-k+1] <- U[i,k] * C_jk
+              }
             }
           }
-          print(tmp)
-          C[i,j] <- - sum(tmp)
+          if(verbose > 1) print(tmp)
+          C_ij <- - sum(tmp)
+          if(! is.null(reprSparse)){
+            vec_i <- c(vec_i, i)
+            vec_j <- c(vec_j, j)
+            vec_x <- c(vec_x, C_ij)
+          } else
+            C[i,j] <- C_ij
         }
       }
     }
   }
+
+  if(! is.null(reprSparse))
+    C <- Matrix::sparseMatrix(i=vec_i, j=vec_j, x=vec_x, dims=c(n, n),
+                              symmetric=TRUE, index1=TRUE, repr=reprSparse)
 
   return(C)
 }

@@ -4,12 +4,14 @@
 \alias{getSparseInv}
 \title{Entries of a sparse inverse}
 \usage{
-getSparseInv(D, U, verbose = FALSE)
+getSparseInv(D, U, reprSparse = NULL, verbose = FALSE)
 }
 \arguments{
 \item{D}{diagonal matrix}
 
 \item{U}{upper triangular matrix}
+
+\item{reprSparse}{if not NULL, the output matrix will be a \code{\link[Matrix]{sparseMatrix}} of the given representation ("C", "R" or "T")}
 
 \item{verbose}{verbosity level}
 }
@@ -19,7 +21,7 @@ matrix
 \description{
 Efficiently computes the entries of the sparse inverse (C) of a square, symmetric matrix (W) from its square-root-free Cholesky decomposition (W = L D U with U=L') as implemented in \code{\link{rootfreeChol}}.
 This is notably used in quantitative genetics as described initially by \href{http://doi.org/10.3168/jds.S0022-0302(93)77478-0}{Misztal and Perez-Enciso (1993)}.
-See the section 15.7 "Computing entries of the inverse of a sparse matrix" from Duff et al (2017).
+See the section 15.7 "Computing entries of the inverse of a sparse matrix" from Duff et al (2017) for the correct equation.
 }
 \examples{
 \dontrun{## example matrix from Misztal and Perez-Enciso (1993):
@@ -40,8 +42,9 @@ decomp <- rootfreeChol(W)
 D <- diag(diag(decomp))
 U <- decomp
 diag(U) <- 1
-U<- t(U)
+U <- t(U)
 getSparseInv(D, U)
+getSparseInv(D, U, "T")
 }
 }
 \seealso{
