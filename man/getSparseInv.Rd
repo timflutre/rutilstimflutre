@@ -4,12 +4,12 @@
 \alias{getSparseInv}
 \title{Entries of a sparse inverse}
 \usage{
-getSparseInv(D, U, reprSparse = NULL, verbose = FALSE)
+getSparseInv(vecD, L, reprSparse = NULL, verbose = FALSE)
 }
 \arguments{
-\item{D}{diagonal matrix}
+\item{vecD}{vector}
 
-\item{U}{upper triangular matrix}
+\item{L}{lower triangular matrix}
 
 \item{reprSparse}{if not NULL, the output matrix will be a \code{\link[Matrix]{sparseMatrix}} of the given representation ("C", "R" or "T")}
 
@@ -19,7 +19,7 @@ getSparseInv(D, U, reprSparse = NULL, verbose = FALSE)
 matrix
 }
 \description{
-Efficiently computes the entries of the sparse inverse (C) of a square, symmetric matrix (W) from its square-root-free Cholesky decomposition (W = L D U with U=L') as implemented in \code{\link{rootfreeChol}}.
+Efficiently computes the entries of the sparse inverse (C) of a square, symmetric matrix (W) from its square-root-free Cholesky decomposition (W = L D L') as implemented in \code{\link{LDLT}}.
 This is notably used in quantitative genetics as described initially by \href{http://doi.org/10.3168/jds.S0022-0302(93)77478-0}{Misztal and Perez-Enciso (1993)}.
 See the section 15.7 "Computing entries of the inverse of a sparse matrix" from Duff et al (2017) for the correct equation.
 }
@@ -35,20 +35,16 @@ W
 W[lower.tri(W)] <- t(W)[lower.tri(W)]
 W
 
-## square root free Cholesky decomposition:
-decomp <- rootfreeChol(W)
+## LDLT decomposition (a.k.a. square-root-free Cholesky):
+decomp <- LDLT(W, returnFormat="list")
 
 ## C, inverse of W:
-D <- diag(diag(decomp))
-U <- decomp
-diag(U) <- 1
-U <- t(U)
-getSparseInv(D, U)
-getSparseInv(D, U, "T")
+getSparseInv(decomp$vecD, decomp$L)
+getSparseInv(decomp$vecD, decomp$L, "T")
 }
 }
 \seealso{
-\code{\link{rootfreeChol}}
+\code{\link{LDLT}}
 }
 \author{
 Timothee Flutre

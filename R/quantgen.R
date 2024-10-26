@@ -6891,16 +6891,16 @@ solveMme <- function(y, X, Z, sigma.u2, Ainv, sigma2){
 
 ##' Entries of a sparse inverse
 ##'
-##' Efficiently computes the entries of the sparse inverse (C) of a square, symmetric matrix (W) from its square-root-free Cholesky decomposition (W = L D U with U=L') as implemented in \code{\link{rootfreeChol}}.
+##' Efficiently computes the entries of the sparse inverse (C) of a square, symmetric matrix (W) from its square-root-free Cholesky decomposition (W = L D L') as implemented in \code{\link{LDLT}}.
 ##' This is notably used in quantitative genetics as described initially by \href{http://doi.org/10.3168/jds.S0022-0302(93)77478-0}{Misztal and Perez-Enciso (1993)}.
 ##' See the section 15.7 "Computing entries of the inverse of a sparse matrix" from Duff et al (2017) for the correct equation.
-##' @param D diagonal matrix
-##' @param U upper triangular matrix
+##' @param vecD vector
+##' @param L lower triangular matrix
 ##' @param reprSparse if not NULL, the output matrix will be a \code{\link[Matrix]{sparseMatrix}} of the given representation ("C", "R" or "T")
 ##' @param verbose verbosity level
 ##' @return matrix
 ##' @author Timothee Flutre
-##' @seealso \code{\link{rootfreeChol}}
+##' @seealso \code{\link{LDLT}}
 ##' @examples
 ##' \dontrun{## example matrix from Misztal and Perez-Enciso (1993):
 ##' W <- matrix(NA, nrow=5, ncol=5)
@@ -6913,24 +6913,21 @@ solveMme <- function(y, X, Z, sigma.u2, Ainv, sigma2){
 ##' W[lower.tri(W)] <- t(W)[lower.tri(W)]
 ##' W
 ##'
-##' ## square root free Cholesky decomposition:
-##' decomp <- rootfreeChol(W)
+##' ## LDLT decomposition (a.k.a. square-root-free Cholesky):
+##' decomp <- LDLT(W, returnFormat="list")
 ##'
 ##' ## C, inverse of W:
-##' D <- diag(diag(decomp))
-##' U <- decomp
-##' diag(U) <- 1
-##' U <- t(U)
-##' getSparseInv(D, U)
-##' getSparseInv(D, U, "T")
+##' getSparseInv(decomp$vecD, decomp$L)
+##' getSparseInv(decomp$vecD, decomp$L, "T")
 ##' }
 ##' @export
-getSparseInv <- function(D, U, reprSparse=NULL, verbose=FALSE){
-  stopifnot(is.matrix(D),
-            is.matrix(U))
+getSparseInv <- function(vecD, L, reprSparse=NULL, verbose=FALSE){
+  stopifnot(is.vector(vecD),
+            is.matrix(L))
   if(! is.null(reprSparse))
     stopifnot(reprSparse %in% c("C","R","T"))
 
+  U <- t(L)
   n <- nrow(U)
   if(! is.null(reprSparse)){
     vec_i <- vector("integer")
@@ -6960,7 +6957,7 @@ getSparseInv <- function(D, U, reprSparse=NULL, verbose=FALSE){
       }
     }
     if(verbose > 1) print(tmp)
-    C_ii <- 1 / D[i,i] - sum(tmp)
+    C_ii <- 1 / vecD[i] - sum(tmp)
     if(! is.null(reprSparse)){
       vec_i <- c(vec_i, i)
       vec_j <- c(vec_j, j)
@@ -7024,11 +7021,12 @@ getSparseInv <- function(D, U, reprSparse=NULL, verbose=FALSE){
 
 ##' LDL' decomposition
 ##'
-##' This wrapper around \code{\link{chol}} factors a square, symmetric, positive (semi-)definite matrix into the product of a lower triangular matrix (L), a diagonal matrix (D), and the transpose of the lower triangular matrix (U=L').
-##' The value returned is a lower triangular matrix with the elements of D on the diagonal.
+##' This wrapper around \code{\link[base]{chol}} factors a square, symmetric, positive (semi-)definite matrix into the product of a lower triangular matrix (L), a diagonal matrix (D), and an upper triangular matrix (U) equal to the transpose of the lower triangular one (U=L').
+##' It is also known as the square-root-free Cholesky decomposition.
 ##' This decomposition is notably used in quantitative genetics (Misztal and Perez-Enciso, 1993).
 ##' The determinant of the input matrix is then easily computed as the product of the diagonal entries of the decomposition.
 ##' @param x matrix
+##' @param returnFormat a lower triangular matrix with the elements of D on the diagonal, or a list with two components, L as a matrix with 1 on the diagonal and the diagonal of D as a vector
 ##' @return matrix
 ##' @seealso \code{\link{getSparseInv}}
 ##' @examples
@@ -7043,24 +7041,32 @@ getSparseInv <- function(D, U, reprSparse=NULL, verbose=FALSE){
 ##' W[lower.tri(W)] <- t(W)[lower.tri(W)]
 ##' W
 ##'
-##' ## square root free Cholesky decomposition:
-##' decomp <- rootfreeChol(W)
+##' ## decomposition/factorization:
+##' (decompM <- LDLT(W, returnFormat="matrix"))
+##' (decompL <- LDLT(W, returnFormat="list"))
 ##'
 ##' ## determinant:
-##' prod(diag(decomp)) # ~= 162, as in the paper
+##' prod(diag(decompM)) # ~= 162, as in the paper
+##' prod(decompL$vecD)
 ##' }
 ##' @export
-rootfreeChol <- function(x){
-  stopifnot(nrow(x) == ncol(x))
+LDLT <- function(x, returnFormat="matrix"){
+  stopifnot(nrow(x) == ncol(x),
+            returnFormat %in% c("matrix","list"))
 
   ## chol() returns the upper triangular factor of the Cholesky decomposition
   ## i.e., R such that R' R = x
-  ret <- t(chol(x))
-  d <- diag(ret)
-  ret <- ret %*% diag(1/d, nrow=length(d))
-  diag(ret) <- d^2
+  L <- t(chol(x))
+  vecD <- diag(L)
+  if(returnFormat == "matrix"){
+    out <- L %*% diag(1/vecD)
+    diag(out) <- vecD^2
+  } else if(returnFormat == "list"){
+    out <- list(L=L %*% diag(1/vecD),
+                vecD=vecD^2)
+  }
 
-  return(ret)
+  return(out)
 }
 
 ##' Estimate variance components via REML using EM
