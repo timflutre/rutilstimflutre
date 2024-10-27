@@ -7,3 +7,5 @@ inst/doc
 *.pdf
 *.html
 *.rds
+*.o
+*.so
