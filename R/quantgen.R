@@ -4026,6 +4026,7 @@ simulGenosDoseStruct <- function(nb.genos=c(100, 120, 80),
                                  geno.ids=NULL, snp.ids=NULL){
   stopifnot(requireNamespace("MASS", quietly=TRUE),
             length(nb.genos) > 1,
+            all(nb.genos %% 1 == 0),
             length(nb.genos) == nrow(div.pops),
             ncol(div.pops) == nrow(div.pops),
             all(sapply(diag(div.pops), all.equal, 1)),
