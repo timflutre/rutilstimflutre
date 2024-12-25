@@ -1539,6 +1539,21 @@ adjustThreshGalwey <- function(effNbIndepTests, thresh=0.05){
   return(adjustThreshSidak(effNbIndepTests, thresh))
 }
 
+##' Pooled variance
+##'
+##' Returns the pooled variance.
+##' @param v vector of sampled variances
+##' @param n vector of sample sizes
+##' @return numeric
+##' @author Timothee Flutre
+##' @export
+pooledVar <- function(v, n){
+  ## https://en.wikipedia.org/wiki/Pooled_variance
+  stopifnot(length(n) == length(v))
+  out <- sum((n - 1) * v) / sum(n - 1)
+  return(out)
+}
+
 ##' FDR
 ##'
 ##' Estimate pi0 (proba for a null hypothesis to be true) via the EBF procedure from Wen (Statistics in Biosciences, 2016).

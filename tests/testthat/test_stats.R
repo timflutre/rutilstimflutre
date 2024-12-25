@@ -182,3 +182,21 @@ test_that("significantTests", {
 
   expect_equal(observed, expected)
 })
+
+test_that("pooledVar", {
+  ## data per group:
+  x1 <- c(6, 7, 7, 8, 10, 11, 13, 14, 14, 16, 18, 19, 19, 19, 20)
+  x2 <- c(5, 7, 7, 8, 10, 13, 14, 15, 19, 20, 20, 23, 25, 28, 32)
+  ## sample sizes:
+  n1 <- length(x1)
+  n2 <- length(x2)
+  ## sample variances:
+  var1 <- var(x1)
+  var2 <- var(x2)
+  ## pooled variance:
+  expected <- ((n1-1)*var1 + (n2-1)*var2) / (n1+n2-2)
+
+  observed <- pooledVar(c(var1, var2), c(n1, n2))
+
+  expect_equal(observed, expected)
+})
