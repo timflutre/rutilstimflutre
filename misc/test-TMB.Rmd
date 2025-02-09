@@ -1008,26 +1008,54 @@ dat$y <- y
 
 #### `lmer`
 
+##### REML
+
 ```{r}
 system.time(
-    fit_lmer <- lmer(y ~ 1 + block + (1|geno), dat))
-summary(fit_lmer)
+    fit_lmer_r <- lmer(y ~ 1 + block + (1|geno), dat, REML=TRUE))
+summary(fit_lmer_r)
 cbind("truth"=beta,
-      "fixef"=fixef(fit_lmer))
+      "fixef"=fixef(fit_lmer_r))
 cbind("truth"=c(sigma_u, sigma_e),
-      as.data.frame(VarCorr(fit_lmer)))
+      as.data.frame(VarCorr(fit_lmer_r)))
+```
+
+##### ML
+
+```{r}
+system.time(
+    fit_lmer_m <- lmer(y ~ 1 + block + (1|geno), dat, REML=FALSE))
+summary(fit_lmer_m)
+cbind("truth"=beta,
+      "fixef"=fixef(fit_lmer_m))
+cbind("truth"=c(sigma_u, sigma_e),
+      as.data.frame(VarCorr(fit_lmer_m)))
 ```
 
 #### `glmmTMB`
 
+##### REML
+
 ```{r}
 system.time(
-    fit_g <- glmmTMB(y ~ 1 + block + (1|geno), dat, REML=TRUE, verbose=FALSE))
-summary(fit_g)
+    fit_g_r <- glmmTMB(y ~ 1 + block + (1|geno), dat, REML=TRUE, verbose=FALSE))
+summary(fit_g_r)
 cbind("truth"=beta,
-      "fixef"=fixef(fit_g)$cond)
+      "fixef"=fixef(fit_g_r)$cond)
 c(sigma_u, sigma_e)
-VarCorr(fit_g)
+VarCorr(fit_g_r)
+```
+
+##### ML
+
+```{r}
+system.time(
+    fit_g_m <- glmmTMB(y ~ 1 + block + (1|geno), dat, REML=FALSE, verbose=FALSE))
+summary(fit_g_m)
+cbind("truth"=beta,
+      "fixef"=fixef(fit_g_m)$cond)
+c(sigma_u, sigma_e)
+VarCorr(fit_g_m)
 ```
 
 #### `TMB`
@@ -1187,7 +1215,7 @@ rm(f_v2)
 
 ```{r}
 rbind("truth"=c("beta"=beta, "sigma_u"=sigma_u, "sigma_e"=sigma_e),
-      "lmer"=c(fixef(fit_lmer), as.data.frame(VarCorr(fit_lmer))[,"sdcor"]),
+      "lmer"=c(fixef(fit_lmer_m), as.data.frame(VarCorr(fit_lmer_m))[,"sdcor"]),
       "glmmTMB"=NA,
       "TMBv1_1"=NA,
       "TMBv1_2"=c(fits_v1[[2]]$par[1:p], exp(fits_v1[[2]]$par[(p+1):(p+2)])),
@@ -1223,6 +1251,41 @@ abline(lm(u ~ summary(sdrep_v2, select="random")[,1]), col="red")
 * Including the Hessian failed.
 
 * Using boundaries with the gradient is a little faster.
+
+### REML vs ML
+
+In TMB, it suffices to implement the conditional log-likelihood, i.e., $\boldsymbol{y}|\boldsymbol{\beta},\boldsymbol{u}$:
+
+* to fit in REML, only the $\boldsymbol{u}$ should be declared as `"random"`,
+
+* to fit in ML, both the fixed-effect vector $\boldsymbol{\beta}$ and the random-effect vector $\boldsymbol{u}$ should be declared as `"random"`.
+
+```{r}
+system.time(
+    f_v2_m <- MakeADFun(data=list(y=y, X=X, Z=Z, A=A, Id_n=Id_n, nbReps=nbBlocks),
+                        parameters=list(beta=rep(0, p), u=rep(0, q), log_sigma_u=log(1),
+                                        log_sigma_e=log(1)),
+                        random="u",
+                        hessian=TRUE, DLL=dllID))
+fit_v2_m <- computFit(f_v2_m$par, f_v2_m$fn, f_v2_m$gr)
+
+system.time(
+    f_v2_r <- MakeADFun(data=list(y=y, X=X, Z=Z, A=A, Id_n=Id_n, nbReps=nbBlocks),
+                        parameters=list(beta=rep(0, p), u=rep(0, q), log_sigma_u=log(1),
+                                        log_sigma_e=log(1)),
+                        random=c("beta","u"),
+                        hessian=TRUE, DLL=dllID))
+fit_v2_r <- computFit(f_v2_r$par, f_v2_r$fn, f_v2_r$gr)
+
+cbind("truth"=beta,
+      "lmer_m"=fixef(fit_lmer_m), "lmer_r"=fixef(fit_lmer_r),
+      "tmb_m"=fit_v2_m$fit$par[grep("beta", names(fit_v2_m$fit$par))])
+cbind("truth"=c("sigma_u"=sigma_u, "sigma_e"=sigma_e),
+      "lmer_m"=as.data.frame(VarCorr(fit_lmer_m))[,5],
+      "lmer_r"=as.data.frame(VarCorr(fit_lmer_r))[,5],
+      "tmb_m"=exp(fit_v2_m$fit$par[grep("sigma", names(fit_v2_m$fit$par))]),
+      "tmb_r"=exp(fit_v2_r$fit$par))
+```
 
 ## After integrating out the random effects
 
