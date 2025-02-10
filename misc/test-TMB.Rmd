@@ -1268,6 +1268,7 @@ system.time(
                         random="u",
                         hessian=TRUE, DLL=dllID))
 fit_v2_m <- computFit(f_v2_m$par, f_v2_m$fn, f_v2_m$gr)
+sdrep_v2_m <- sdreport(f_v2_m)
 
 system.time(
     f_v2_r <- MakeADFun(data=list(y=y, X=X, Z=Z, A=A, Id_n=Id_n, nbReps=nbBlocks),
@@ -1276,10 +1277,15 @@ system.time(
                         random=c("beta","u"),
                         hessian=TRUE, DLL=dllID))
 fit_v2_r <- computFit(f_v2_r$par, f_v2_r$fn, f_v2_r$gr)
+sdrep_v2_r <- sdreport(f_v2_r)
+beta_v2_r <- summary(sdrep_v2_r, select="random")
+beta_v2_r <- beta_v2_r[grep("beta", rownames(beta_v2_r)),]
 
 cbind("truth"=beta,
-      "lmer_m"=fixef(fit_lmer_m), "lmer_r"=fixef(fit_lmer_r),
-      "tmb_m"=fit_v2_m$fit$par[grep("beta", names(fit_v2_m$fit$par))])
+      "lmer_m"=fixef(fit_lmer_m),
+      "lmer_r"=fixef(fit_lmer_r),
+      "tmb_m"=fit_v2_m$fit$par[grep("beta", names(fit_v2_m$fit$par))],
+      "tmb_r"=beta_v2_r[,"Estimate"])
 cbind("truth"=c("sigma_u"=sigma_u, "sigma_e"=sigma_e),
       "lmer_m"=as.data.frame(VarCorr(fit_lmer_m))[,5],
       "lmer_r"=as.data.frame(VarCorr(fit_lmer_r))[,5],
