@@ -7689,7 +7689,7 @@ lmerAM <- function(formula, data, relmat, REML=TRUE, na.action=stats::na.exclude
         I <- nlevels(outputs$data$geno.add)
         Q <- length(params$fix.eff)
         N <- I * Q
-        stopifnot(N == nrow(outputs$data))
+        ##stopifnot(N == nrow(outputs$data))
 
         ## make design matrices
         fm <- paste(c("~ 1", fix), collapse="+")
@@ -7701,7 +7701,8 @@ lmerAM <- function(formula, data, relmat, REML=TRUE, na.action=stats::na.exclude
         stopifnot(ncol(Z) == I)
 
         ## draw random variables and generate responses
-        e <- stats::rnorm(n=N, mean=0, sd=params$sd.err)
+        ## e <- stats::rnorm(n=N, mean=0, sd=params$sd.err)
+	e <- stats::rnorm(n=nrow(outputs$data), mean=0, sd=params$sd.err)
         g.a <- MASS::mvrnorm(n=1, mu=rep(0, I),
                              Sigma=params$sd.geno.add * relmat$geno.add)
         y <- X %*% params$fix.eff + Z %*% g.a + e
