@@ -7468,6 +7468,7 @@ estimH2means <- function(dat, colname.resp, colname.trial="year", vc,
 ##' Animal model
 ##'
 ##' Given I genotypes, Q covariates and N=I*Q phenotypes for the trait, fit an "animal model" with the lme4 package via the following likelihood: y = W c + Z g_A + Z g_D + epsilon, where y is Nx1; W is NxQ; Z is NxI; g_A ~ Normal_I(0, sigma_A^2 A) with A the known matrix of additive genetic relationships; g_D ~ Normal_I(0, sigma_D^2 D) with D the known matrix of dominant genetic relationships; epsilon ~ Normal_N(0, sigma^2 Id_N); Cov(g_A,g_D)=0; Cov(g_A,e)=0; Cov(g_D,e)=0.
+##' Works also for an incomplete design, i.e., when nrow(data) < N (thanks to N. Rode).
 ##' @param formula formula (see \code{\link[lme4]{lmer}})
 ##' @param data data.frame containing the data corresponding to formula and relmat (see \code{\link[lme4]{lmer}}); the additive genotypic effect should be named "geno.add" and the dominance genotypic effect, if any, should be named "geno.dom"
 ##' @param relmat list containing the matrices of genetic relationships (A is compulsory but D is optional); the list should use the same names as the colnames in data (i.e., \code{"geno.add"} and \code{"geno.dom"}) to compute heritability properly; the matrices can be in the "matrix" class (base) or the "dsCMatrix" class (Matrix package); see \code{\link{estimGenRel}}
@@ -7653,7 +7654,9 @@ lmerAM <- function(formula, data, relmat, REML=TRUE, na.action=stats::na.exclude
                                  c(lme4::fixef(fit.boot$merMod),
                                    sqrt(fit.boot$vc["geno.add"]),
                                    sqrt(fit.boot$vc["Residual"])),
-                                 c(names(lme4::fixef(fit.boot$merMod)),"sd.geno.add", "sd.err"))
+                                 c(names(lme4::fixef(fit.boot$merMod)),
+                                   "sd.geno.add",
+                                   "sd.err"))
         if("geno.dom" %in% names(fit.boot$vc)){
           stats.boot <- c(stats.boot,
                           sqrt(fit.boot$vc["geno.dom"]))
@@ -7690,7 +7693,10 @@ lmerAM <- function(formula, data, relmat, REML=TRUE, na.action=stats::na.exclude
         I <- nlevels(outputs$data$geno.add)
         Q <- length(params$fix.eff)
         N <- I * Q
-        ##stopifnot(N == nrow(outputs$data))
+        if(nrow(outputs$data) < N){
+          print("note that the design is incomplete")
+        } else
+          print("note that the design is complete")
 
         ## make design matrices
         fm <- paste(c("~ 1", fix), collapse="+")
@@ -7702,8 +7708,7 @@ lmerAM <- function(formula, data, relmat, REML=TRUE, na.action=stats::na.exclude
         stopifnot(ncol(Z) == I)
 
         ## draw random variables and generate responses
-        ## e <- stats::rnorm(n=N, mean=0, sd=params$sd.err)
-	e <- stats::rnorm(n=nrow(outputs$data), mean=0, sd=params$sd.err)
+        e <- stats::rnorm(n=nrow(outputs$data), mean=0, sd=params$sd.err)
         g.a <- MASS::mvrnorm(n=1, mu=rep(0, I),
                              Sigma=params$sd.geno.add * relmat$geno.add)
         y <- X %*% params$fix.eff + Z %*% g.a + e
