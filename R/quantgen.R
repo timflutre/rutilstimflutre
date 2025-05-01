@@ -7650,9 +7650,10 @@ lmerAM <- function(formula, data, relmat, REML=TRUE, na.action=stats::na.exclude
                            na.action=inputs$na.action, ci.meth=NULL,
                            verbose=0)
         stats.boot <- stats::setNames(
-                                 c(sqrt(fit.boot$vc["Residual"]),
-                                   sqrt(fit.boot$vc["geno.add"])),
-                                 c("sd.err", "sd.geno.add"))
+                                 c(lme4::fixef(fit.boot$merMod),
+                                   sqrt(fit.boot$vc["geno.add"]),
+                                   sqrt(fit.boot$vc["Residual"])),
+                                 c(names(lme4::fixef(fit.boot$merMod)),"sd.geno.add", "sd.err"))
         if("geno.dom" %in% names(fit.boot$vc)){
           stats.boot <- c(stats.boot,
                           sqrt(fit.boot$vc["geno.dom"]))
