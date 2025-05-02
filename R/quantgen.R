@@ -7653,10 +7653,16 @@ lmerAM <- function(formula, data, relmat, REML=TRUE, na.action=stats::na.exclude
         stats.boot <- stats::setNames(
                                  c(lme4::fixef(fit.boot$merMod),
                                    sqrt(fit.boot$vc["geno.add"]),
-                                   sqrt(fit.boot$vc["Residual"])),
+                                   sqrt(fit.boot$vc["Residual"]),
+				   variance=unlist(lme4::VarCorr(fit.boot$merMod)),
+				   residual=sigma(fit.boot$merMod)^2,
+				   heritability=unlist(VarCorr(fit.boot$merMod))/sum(c(unlist(VarCorr(fit.boot$merMod)),sigma(fit.boot$merMod)^2))),
                                  c(names(lme4::fixef(fit.boot$merMod)),
                                    "sd.geno.add",
-                                   "sd.err"))
+                                   "sd.err",
+				   names(lme4::VarCorr(fit.boot$merMod)),
+				  "Residual",
+				  "heritability"))
         if("geno.dom" %in% names(fit.boot$vc)){
           stats.boot <- c(stats.boot,
                           sqrt(fit.boot$vc["geno.dom"]))
