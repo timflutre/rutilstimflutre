@@ -8738,7 +8738,7 @@ stanAMmv <- function(data, relmat, errors.Student=FALSE,
 
 ##' BVSR
 ##'
-##' Simulate phenotypes according to the following model: Y = W c + Z X_A a + + Z X_D d + epsilon where Y is N x 1; W is N x Q; c is Q x 1; Z is N x I; X_A/D is I x P and epsilon is N x 1 with epsilon ~ Normal_N(0, sigma^2 Id) and c ~ Normal(mean_a, sd_a) so that sd_a is large ("fixed effect").
+##' Simulate phenotypes according to the following model: Y = W c + Z X_A a + Z X_D d + epsilon where Y is N x 1; W is N x Q; c is Q x 1; Z is N x I; X_A/D is I x P and epsilon is N x 1 with epsilon ~ Normal_N(0, sigma^2 Id) and c ~ Normal(mean_a, sd_a) so that sd_a is large ("fixed effect").
 ##' For SNP p, gamma_p indicates if it is causal, i.e. non-zero additive and/or dominant effect, where Prob(gamma_p=1) is named pi.
 ##' For the case where pi is small, see Guan & Stephens (2011), Carbonetto & Stephens (2012), Peltola et al (2012), Verzelen (2012).
 ##' Causal SNP p can have an additive effect, a_p | gamma_p=1 ~ Normal_1(0, sigma_a^2), a dominant effect, d_p | gamma_p=1 ~ Normal_1(0, sigma_d^2), or both.
@@ -9462,6 +9462,77 @@ qtlrelPerChr <- function(y, X, snp.coords, thresh=0.01, chr.ids=NULL, W=NULL, Z=
   } # end of chromosome-by-chromosome inference
 
   return(out)
+}
+
+##' Genomic control
+##'
+##' Estimates lambda (\href{http://dx.doi.org/10.1006/tpbi.2001.1542}{Devlin et al, 2001}).
+##' @param pvalues vector of raw p values (missing values will be omitted)
+##' @return numeric
+##' @author Timothee Flutre
+##' @examples
+##' \dontrun{## simulate SNP genotypes
+##' set.seed(1859)
+##' library(scrm)
+##' nb.genos <- 200
+##' Ne <- 10^4
+##' chrom.len <- 10^5
+##' mu <- 10^(-8)
+##' c <- 10^(-8)
+##' genomes <- simulCoalescent(nb.inds=nb.genos,
+##'                            pop.mut.rate=4 * Ne * mu * chrom.len,
+##'                            pop.recomb.rate=4 * Ne * c * chrom.len,
+##'                            chrom.len=chrom.len)
+##' X <- genomes$genos
+##'
+##' ## simulate SNP effects
+##' Q <- 1
+##' modelA <- simulBvsr(Q=Q, X=X, pi=0.1, pve=0.7, sigma.a2=1)
+##'
+##' ## filter out SNPs with low MAF
+##' mafs <- estimSnpMaf(X)
+##' maf_threshold <- 0.05
+##' subset_snps <- names(mafs[which(mafs >= maf_threshold)])
+##' length(subset_snps)
+##'
+##' ## perform SNP-by-SNP GWAS *without* kinship matrix
+##' library(MM4LMM)
+##' out_mmest <- MMEst(Y=modelA$Y[,1], X=X[,subset_snps],
+##'                    VarList=list(Error=diag(nrow(modelA$Y))),
+##'                                 Verbose=FALSE)
+##' out_anovatest <- AnovaTest(out_mmest, Type="TypeI")
+##' out_gwas <- t(sapply(out_anovatest, function(x){x["Xeffect",]}))
+##' head(out_gwas)
+##'
+##' ## look at p values
+##' qqplotPval(out_gwas[,"pval"])
+##' genomicControl(out_gwas[,"pval"])
+##'
+##' ## estimate genetic relatedness
+##' A_vr <- estimGenRel(X, relationships="additive", method="vanraden1")
+##'
+##' ## perform SNP-by-SNP GWAS *with* kinship matrix
+##' library(MM4LMM)
+##' out_mmest <- MMEst(Y=modelA$Y[,1], X=X[,subset_snps],
+##'                    VarList=list(Additive=A_vr,
+##'                                 Error=diag(nrow(modelA$Y))),
+##'                                 Verbose=FALSE)
+##' out_anovatest <- AnovaTest(out_mmest, Type="TypeI")
+##' out_gwas <- t(sapply(out_anovatest, function(x){x["Xeffect",]}))
+##'
+##' ## look at p values
+##' qqplotPval(out_gwas[,"pval"])
+##' genomicControl(out_gwas[,"pval"])
+##' }
+##' @export
+genomicControl <- function(pvalues){
+  if(any(is.na(pvalues)))
+    pvalues <- pvalues[! is.na(pvalues)]
+  ## https://www.biostars.org/p/43328/#102996
+  zscores <- qnorm(pvalues / 2)
+  expValH0 <- qchisq(0.5, 1) # ~ 0.455
+  lambda <- median(zscores^2) / expValH0
+  return(lambda)
 }
 
 ##' Gibbs sampler from Janss et al (2012)

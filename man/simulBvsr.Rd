@@ -63,7 +63,7 @@ simulBvsr(
 list
 }
 \description{
-Simulate phenotypes according to the following model: Y = W c + Z X_A a + + Z X_D d + epsilon where Y is N x 1; W is N x Q; c is Q x 1; Z is N x I; X_A/D is I x P and epsilon is N x 1 with epsilon ~ Normal_N(0, sigma^2 Id) and c ~ Normal(mean_a, sd_a) so that sd_a is large ("fixed effect").
+Simulate phenotypes according to the following model: Y = W c + Z X_A a + Z X_D d + epsilon where Y is N x 1; W is N x Q; c is Q x 1; Z is N x I; X_A/D is I x P and epsilon is N x 1 with epsilon ~ Normal_N(0, sigma^2 Id) and c ~ Normal(mean_a, sd_a) so that sd_a is large ("fixed effect").
 For SNP p, gamma_p indicates if it is causal, i.e. non-zero additive and/or dominant effect, where Prob(gamma_p=1) is named pi.
 For the case where pi is small, see Guan & Stephens (2011), Carbonetto & Stephens (2012), Peltola et al (2012), Verzelen (2012).
 Causal SNP p can have an additive effect, a_p | gamma_p=1 ~ Normal_1(0, sigma_a^2), a dominant effect, d_p | gamma_p=1 ~ Normal_1(0, sigma_d^2), or both.
