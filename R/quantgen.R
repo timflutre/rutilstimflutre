@@ -7655,14 +7655,12 @@ lmerAM <- function(formula, data, relmat, REML=TRUE, na.action=stats::na.exclude
                                    sqrt(fit.boot$vc["geno.add"]),
                                    sqrt(fit.boot$vc["Residual"]),
 				   variance=unlist(lme4::VarCorr(fit.boot$merMod)),
-				   residual=sigma(fit.boot$merMod)^2,
-				   heritability=unlist(VarCorr(fit.boot$merMod))/sum(c(unlist(VarCorr(fit.boot$merMod)),sigma(fit.boot$merMod)^2))),
+				   residual=sigma(fit.boot$merMod)^2),
                                  c(names(lme4::fixef(fit.boot$merMod)),
                                    "sd.geno.add",
                                    "sd.err",
 				   names(lme4::VarCorr(fit.boot$merMod)),
-				  "Residual",
-				  "heritability"))
+				  "ResidualVar"))
         if("geno.dom" %in% names(fit.boot$vc)){
           stats.boot <- c(stats.boot,
                           sqrt(fit.boot$vc["geno.dom"]))
@@ -7716,11 +7714,11 @@ lmerAM <- function(formula, data, relmat, REML=TRUE, na.action=stats::na.exclude
         ## draw random variables and generate responses
         e <- stats::rnorm(n=nrow(outputs$data), mean=0, sd=params$sd.err)
         g.a <- MASS::mvrnorm(n=1, mu=rep(0, I),
-                             Sigma=params$sd.geno.add * relmat$geno.add)
+                             Sigma=params$sd.geno.add^2 * relmat$geno.add)
         y <- X %*% params$fix.eff + Z %*% g.a + e
         if(! is.null(idx.geno.dom)){
           g.d <- MASS::mvrnorm(n=1, mu=rep(0, I),
-                               Sigma=params$sd.geno.dom * relmat$geno.dom)
+                               Sigma=params$sd.geno.dom^2 * relmat$geno.dom)
           y <- y + g.d
         }
         outputs$data[,response] <- y
