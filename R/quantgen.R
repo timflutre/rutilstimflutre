@@ -7545,7 +7545,7 @@ estimH2means <- function(dat, colname.resp, colname.trial="year", vc,
 ##'   vc[vc$grp == "geno.dom", "vcov"])
 ##' }
 ##' @export
-lmerAM <- function(formula, data, relmat, REML=TRUE, na.action=stats::na.exclude,
+lmerAM <- function(formula, data, relmat, REML=TRUE, na.action=stats::na.exclude, drop.unused.levels=FALSE,
                    ci.meth=NULL, ci.lev=0.95, nb.boots=10^3,
                    parallel="no", ncpus=1, cl=NULL, verbose=1){
   requireNamespaces(c("lme4", "Matrix"))
@@ -7587,6 +7587,17 @@ lmerAM <- function(formula, data, relmat, REML=TRUE, na.action=stats::na.exclude
     write(paste0("structure the design and covariance matrices",
                  " of the random effects ..."),
           stdout())
+
+  if(drop.unused.levels)
+	  if(!is.null(parsedFormula$reTrms$Ztlist$`1 | geno.dom`)){
+		  parsedFormula$reTrms$Zt <- rbind(Matrix:::fac2sparse(data$geno.add, "d", drop.unused.levels=FALSE), Matrix:::fac2sparse(data$geno.dom, "d", drop.unused.levels=FALSE))
+		  parsedFormula$reTrms$Ztlist$`1 | geno.add` <- Matrix:::fac2sparse(data$geno.add, "d", drop.unused.levels=FALSE)
+		  parsedFormula$reTrms$Ztlist$`1 | geno.dom` <- Matrix:::fac2sparse(data$geno.dom, "d", drop.unused.levels=FALSE)
+	  }else{
+		  parsedFormula$reTrms$Zt <- Matrix:::fac2sparse(data$geno.add, "d", drop.unused.levels=FALSE)
+		  parsedFormula$reTrms$Ztlist$`1 | geno.add` <- Matrix:::fac2sparse(data$geno.add, "d", drop.unused.levels=FALSE)
+	  }
+	
   relfac <- relmat
   flist <- parsedFormula$reTrms[["flist"]] # list of grouping factors
   asgn <- attr(flist, "assign")
