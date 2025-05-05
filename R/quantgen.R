@@ -7473,8 +7473,7 @@ estimH2means <- function(dat, colname.resp, colname.trial="year", vc,
 ##' @param data data.frame containing the data corresponding to formula and relmat (see \code{\link[lme4]{lmer}}); the additive genotypic effect should be named "geno.add" and the dominance genotypic effect, if any, should be named "geno.dom"
 ##' @param relmat list containing the matrices of genetic relationships (A is compulsory but D is optional); the list should use the same names as the colnames in data (i.e., \code{"geno.add"} and \code{"geno.dom"}) to compute heritability properly; the matrices can be in the "matrix" class (base) or the "dsCMatrix" class (Matrix package); see \code{\link{estimGenRel}}
 ##' @param REML default is TRUE (use FALSE to compare models with different fixed effects)
-##' @param na.action a function that indicates what should happen when the data contain \code{NA}s (see \code{\link[lme4]{lmer}})
-##' @param drop.unused.levels a boolean indicating whether unused levels from a factor should be dropped for the analysis (default is TRUE)
+##' @param na.action a function that indicates what should happen when the data contain \code{NA}s (e.g. to compute the BLUp of unobserved genotype, use na.action=NULL, see \code{\link[lme4]{lmer}})
 ##' @param ci.meth method to compute confidence intervals (profile/boot)
 ##' @param ci.lev level to compute confidence intervals
 ##' @param nb.boots number of bootstrap replicates; used only if \code{ci.meth="boot"}
@@ -7590,19 +7589,6 @@ lmerAM <- function(formula, data, relmat, REML=TRUE, na.action=stats::na.exclude
                  " of the random effects ..."),
           stdout())
 
-  if(!drop.unused.levels)
-	  if(!is.null(parsedFormula$reTrms$Ztlist$`1 | geno.dom`)){
-		  parsedFormula$reTrms[["flist"]]$geno.add <- factor(parsedFormula$reTrms[["flist"]]$geno.add, levels=levels(data$geno.add))
-		  parsedFormula$reTrms[["flist"]]$geno.dom <- factor(parsedFormula$reTrms[["flist"]]$geno.dom, levels=levels(data$geno.dom))
-		  parsedFormula$reTrms$Zt <- rbind(Matrix:::fac2sparse(data$geno.add, "d", drop.unused.levels=FALSE), Matrix:::fac2sparse(data$geno.dom, "d", drop.unused.levels=FALSE))
-		  parsedFormula$reTrms$Ztlist$`1 | geno.add` <- Matrix:::fac2sparse(data$geno.add, "d", drop.unused.levels=FALSE)
-		  parsedFormula$reTrms$Ztlist$`1 | geno.dom` <- Matrix:::fac2sparse(data$geno.dom, "d", drop.unused.levels=FALSE)
-	  }else{
-		  parsedFormula$reTrms[["flist"]]$geno.add <- factor(parsedFormula$reTrms[["flist"]]$geno.add, levels=levels(data$geno.add))
-		  parsedFormula$reTrms$Zt <- Matrix:::fac2sparse(data$geno.add, "d", drop.unused.levels=FALSE)
-		  parsedFormula$reTrms$Ztlist$`1 | geno.add` <- Matrix:::fac2sparse(data$geno.add, "d", drop.unused.levels=FALSE)
-	  }
-	
   relfac <- relmat
   flist <- parsedFormula$reTrms[["flist"]] # list of grouping factors
   asgn <- attr(flist, "assign")
