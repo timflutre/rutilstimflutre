@@ -7468,12 +7468,13 @@ estimH2means <- function(dat, colname.resp, colname.trial="year", vc,
 ##' Animal model
 ##'
 ##' Given I genotypes, Q covariates and N=I*Q phenotypes for the trait, fit an "animal model" with the lme4 package via the following likelihood: y = W c + Z g_A + Z g_D + epsilon, where y is Nx1; W is NxQ; Z is NxI; g_A ~ Normal_I(0, sigma_A^2 A) with A the known matrix of additive genetic relationships; g_D ~ Normal_I(0, sigma_D^2 D) with D the known matrix of dominant genetic relationships; epsilon ~ Normal_N(0, sigma^2 Id_N); Cov(g_A,g_D)=0; Cov(g_A,e)=0; Cov(g_D,e)=0.
-##' Works also for an incomplete design, i.e., when nrow(data) < N (thanks to N. Rode).
+##' Works also for an incomplete design, i.e., when the number of replicates per genotype is unbalanced across genotypes and nrow(data) < N (thanks to N.O. Rode).
 ##' @param formula formula (see \code{\link[lme4]{lmer}})
 ##' @param data data.frame containing the data corresponding to formula and relmat (see \code{\link[lme4]{lmer}}); the additive genotypic effect should be named "geno.add" and the dominance genotypic effect, if any, should be named "geno.dom"
 ##' @param relmat list containing the matrices of genetic relationships (A is compulsory but D is optional); the list should use the same names as the colnames in data (i.e., \code{"geno.add"} and \code{"geno.dom"}) to compute heritability properly; the matrices can be in the "matrix" class (base) or the "dsCMatrix" class (Matrix package); see \code{\link{estimGenRel}}
 ##' @param REML default is TRUE (use FALSE to compare models with different fixed effects)
 ##' @param na.action a function that indicates what should happen when the data contain \code{NA}s (see \code{\link[lme4]{lmer}})
+##' @param drop.unused.levels a boolean indicating whether unused levels from a factor should be dropped for the analysis (default is TRUE)
 ##' @param ci.meth method to compute confidence intervals (profile/boot)
 ##' @param ci.lev level to compute confidence intervals
 ##' @param nb.boots number of bootstrap replicates; used only if \code{ci.meth="boot"}
@@ -7545,7 +7546,8 @@ estimH2means <- function(dat, colname.resp, colname.trial="year", vc,
 ##'   vc[vc$grp == "geno.dom", "vcov"])
 ##' }
 ##' @export
-lmerAM <- function(formula, data, relmat, REML=TRUE, na.action=stats::na.exclude, drop.unused.levels=FALSE,
+lmerAM <- function(formula, data, relmat, REML=TRUE, na.action=stats::na.exclude,
+		   drop.unused.levels=TRUE,
                    ci.meth=NULL, ci.lev=0.95, nb.boots=10^3,
                    parallel="no", ncpus=1, cl=NULL, verbose=1){
   requireNamespaces(c("lme4", "Matrix"))
@@ -7588,12 +7590,15 @@ lmerAM <- function(formula, data, relmat, REML=TRUE, na.action=stats::na.exclude
                  " of the random effects ..."),
           stdout())
 
-  if(drop.unused.levels)
+  if(!drop.unused.levels)
 	  if(!is.null(parsedFormula$reTrms$Ztlist$`1 | geno.dom`)){
+		  parsedFormula$reTrms[["flist"]]$geno.add <- factor(parsedFormula$reTrms[["flist"]]$geno.add, levels=levels(data$geno.add))
+		  parsedFormula$reTrms[["flist"]]$geno.dom <- factor(parsedFormula$reTrms[["flist"]]$geno.dom, levels=levels(data$geno.dom))
 		  parsedFormula$reTrms$Zt <- rbind(Matrix:::fac2sparse(data$geno.add, "d", drop.unused.levels=FALSE), Matrix:::fac2sparse(data$geno.dom, "d", drop.unused.levels=FALSE))
 		  parsedFormula$reTrms$Ztlist$`1 | geno.add` <- Matrix:::fac2sparse(data$geno.add, "d", drop.unused.levels=FALSE)
 		  parsedFormula$reTrms$Ztlist$`1 | geno.dom` <- Matrix:::fac2sparse(data$geno.dom, "d", drop.unused.levels=FALSE)
 	  }else{
+		  parsedFormula$reTrms[["flist"]]$geno.add <- factor(parsedFormula$reTrms[["flist"]]$geno.add, levels=levels(data$geno.add))
 		  parsedFormula$reTrms$Zt <- Matrix:::fac2sparse(data$geno.add, "d", drop.unused.levels=FALSE)
 		  parsedFormula$reTrms$Ztlist$`1 | geno.add` <- Matrix:::fac2sparse(data$geno.add, "d", drop.unused.levels=FALSE)
 	  }
