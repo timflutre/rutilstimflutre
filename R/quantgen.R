@@ -7562,7 +7562,7 @@ lmerAM <- function(formula, data, relmat, REML=TRUE, na.action=stats::na.exclude
               ! is.null(rownames(relmat[[i]])),
               ! is.null(colnames(relmat[[i]])),
               rownames(relmat[[i]]) == colnames(relmat[[i]]),
-              all(rownames(relmat[[i]]) %in% data[,names(relmat)[i]]))
+	      all(data[,names(relmat)[i]] %in% rownames(relmat[[i]])))
   if(! is.null(ci.meth)){
     stopifnot(ci.meth %in% c("profile", "boot"))
     if(ci.meth == "boot"){
