@@ -1211,6 +1211,84 @@ sdrep_v2$sd
 rm(f_v2)
 ```
 
+##### v3
+
+###### Implementation
+
+Using `GMRF`.
+
+```{r}
+cppTxt <- "
+#include <TMB.hpp>
+using namespace density;
+template<class Type>
+Type objective_function<Type>::operator() ()
+{
+  DATA_VECTOR(y);
+  DATA_MATRIX(X);
+  DATA_MATRIX(Z);
+  DATA_MATRIX(A);
+  DATA_MATRIX(Id_n);
+  DATA_SCALAR(nbReps);
+
+  PARAMETER_VECTOR(beta); // fixed effects
+  PARAMETER_VECTOR(u); // random effects
+  PARAMETER(log_sigma_u);
+  PARAMETER(log_sigma_e);
+
+  int n = X.rows();
+  int q = Z.cols();
+
+  Type nll = Type(0.0);
+
+  MVNORM_t<Type> mvn_u_cor(A);
+  vector<Type> vec_sigma_u(q);
+  vec_sigma_u.fill(exp(log_sigma_u));
+  nll += VECSCALE(mvn_u_cor, vec_sigma_u)(u);
+
+  vector<Type> m(n);
+  m = X * beta + Z * u;
+
+  SparseMatrix<Type> Rinv(n, n);
+  Rinv.setZero();
+  for(int idx=0; idx<n; idx++)
+    Rinv.coeffRef(idx,idx) = 1 / exp(2 * log_sigma_e);
+  nll += GMRF(Rinv)(y - m);
+
+  Type h2 = exp(2 * log_sigma_u) / (exp(2 * log_sigma_u) + exp(2 * log_sigma_e) / nbReps);
+  ADREPORT(h2);
+
+  return nll;
+}
+"
+
+dllID <- "test_TMB_lmm_varcomps_u_v3"
+cat(cppTxt, file=paste0(dllID, ".cpp"))
+if(! file.exists(paste0(dllID, ".so")))
+  compile(paste0(dllID, ".cpp"))
+dyn.load(dynlib(dllID))
+```
+
+###### Usage
+
+```{r}
+system.time(
+    f_v3 <- MakeADFun(data=list(y=y, X=X, Z=Z, A=A, Id_n=Id_n, nbReps=nbBlocks),
+                      parameters=list(beta=rep(0, p), u=rep(0, q),
+                                      log_sigma_u=log(1), log_sigma_e=log(1)),
+                      random="u",
+                      hessian=TRUE, DLL=dllID))
+tmp <- computFits(f_v3, lower=c(rep(-10.0,p),rep(-10.0,q),-10.0,-10.0),
+                  upper=c(rep(10.0,p),rep(10.0,q),10.0,10.0), which=1:4, verbose=1)
+fits_v3 <- tmp$fits
+sts_v3 <- tmp$sts
+sdrep_v3 <- sdreport(f_v3)
+Matrix::image(f_v3$env$spHess(random=TRUE))
+sdrep_v3$value
+sdrep_v3$sd
+rm(f_v3)
+```
+
 ### Check
 
 ```{r}
@@ -1224,15 +1302,20 @@ rbind("truth"=c("beta"=beta, "sigma_u"=sigma_u, "sigma_e"=sigma_e),
       "TMBv2_1"=NA,
       "TMBv2_2"=c(fits_v2[[2]]$par[1:p], exp(fits_v2[[2]]$par[(p+1):(p+2)])),
       "TMBv2_3"=NA,
-      "TMBv2_4"=c(fits_v2[[4]]$par[1:p], exp(fits_v2[[4]]$par[(p+1):(p+2)])))
+      "TMBv2_4"=c(fits_v2[[4]]$par[1:p], exp(fits_v2[[4]]$par[(p+1):(p+2)])),
+      "TMBv3_1"=NA,
+      "TMBv3_2"=c(fits_v3[[2]]$par[1:p], exp(fits_v3[[2]]$par[(p+1):(p+2)])),
+      "TMBv3_3"=NA,
+      "TMBv3_4"=c(fits_v3[[2]]$par[1:p], exp(fits_v3[[2]]$par[(p+1):(p+2)])))
 ```
 
 ```{r}
 compComputFits(fits_v1, sts_v1)
 compComputFits(fits_v2, sts_v2)
+compComputFits(fits_v3, sts_v2)
 ```
 
-* Using `VECSCALE` with `MVNORM` is so much faster.
+* Using `VECSCALE` with `MVNORM`, or `GMRF`, is so much faster than `MVNORM` alone.
 
 ```{r}
 plot(summary(sdrep_v1, select="random")[,1], u,
@@ -1246,6 +1329,12 @@ plot(summary(sdrep_v2, select="random")[,1], u,
      main="Random effects (v2)")
 abline(h=0, v=0, a=0, b=1, lty=2)
 abline(lm(u ~ summary(sdrep_v2, select="random")[,1]), col="red")
+
+plot(summary(sdrep_v3, select="random")[,1], u,
+     xlab="predicted u", ylab="true u", las=1,
+     main="Random effects (v3)")
+abline(h=0, v=0, a=0, b=1, lty=2)
+abline(lm(u ~ summary(sdrep_v3, select="random")[,1]), col="red")
 ```
 
 * Including the Hessian failed.
@@ -1254,13 +1343,14 @@ abline(lm(u ~ summary(sdrep_v2, select="random")[,1]), col="red")
 
 ### REML vs ML
 
-In TMB, it suffices to implement the conditional log-likelihood, i.e., $\boldsymbol{y}|\boldsymbol{\beta},\boldsymbol{u}$:
+In TMB, it suffices to implement the (negative) conditional log-likelihood, i.e., $\boldsymbol{y}|\boldsymbol{\beta},\boldsymbol{u}$, as objective funtion, and then:
 
-* to fit in REML, only the $\boldsymbol{u}$ should be declared as `"random"`,
+* to fit in ML, only the $\boldsymbol{u}$ should be declared as `"random"`,
 
-* to fit in ML, both the fixed-effect vector $\boldsymbol{\beta}$ and the random-effect vector $\boldsymbol{u}$ should be declared as `"random"`.
+* to fit in REML, both the fixed-effect vector $\boldsymbol{\beta}$ and the random-effect vector $\boldsymbol{u}$ should be declared as `"random"` so that both are integrated out.
 
 ```{r}
+dllID <- "test_TMB_lmm_varcomps_u_v2"
 system.time(
     f_v2_m <- MakeADFun(data=list(y=y, X=X, Z=Z, A=A, Id_n=Id_n, nbReps=nbBlocks),
                         parameters=list(beta=rep(0, p), u=rep(0, q), log_sigma_u=log(1),
@@ -1281,16 +1371,41 @@ sdrep_v2_r <- sdreport(f_v2_r)
 beta_v2_r <- summary(sdrep_v2_r, select="random")
 beta_v2_r <- beta_v2_r[grep("beta", rownames(beta_v2_r)),]
 
+dllID <- "test_TMB_lmm_varcomps_u_v3"
+system.time(
+    f_v3_m <- MakeADFun(data=list(y=y, X=X, Z=Z, A=A, Id_n=Id_n, nbReps=nbBlocks),
+                        parameters=list(beta=rep(0, p), u=rep(0, q), log_sigma_u=log(1),
+                                        log_sigma_e=log(1)),
+                        random="u",
+                        hessian=TRUE, DLL=dllID))
+fit_v3_m <- computFit(f_v3_m$par, f_v3_m$fn, f_v3_m$gr)
+sdrep_v3_m <- sdreport(f_v3_m)
+
+system.time(
+    f_v3_r <- MakeADFun(data=list(y=y, X=X, Z=Z, A=A, Id_n=Id_n, nbReps=nbBlocks),
+                        parameters=list(beta=rep(0, p), u=rep(0, q), log_sigma_u=log(1),
+                                        log_sigma_e=log(1)),
+                        random=c("beta","u"),
+                        hessian=TRUE, DLL=dllID))
+fit_v3_r <- computFit(f_v3_r$par, f_v3_r$fn, f_v3_r$gr)
+sdrep_v3_r <- sdreport(f_v3_r)
+beta_v3_r <- summary(sdrep_v3_r, select="random")
+beta_v3_r <- beta_v3_r[grep("beta", rownames(beta_v3_r)),]
+
 cbind("truth"=beta,
       "lmer_m"=fixef(fit_lmer_m),
       "lmer_r"=fixef(fit_lmer_r),
-      "tmb_m"=fit_v2_m$fit$par[grep("beta", names(fit_v2_m$fit$par))],
-      "tmb_r"=beta_v2_r[,"Estimate"])
+      "tmb2_m"=fit_v2_m$fit$par[grep("beta", names(fit_v2_m$fit$par))],
+      "tmb2_r"=beta_v2_r[,"Estimate"],
+      "tmb3_m"=fit_v3_m$fit$par[grep("beta", names(fit_v3_m$fit$par))],
+      "tmb3_r"=beta_v3_r[,"Estimate"])
 cbind("truth"=c("sigma_u"=sigma_u, "sigma_e"=sigma_e),
       "lmer_m"=as.data.frame(VarCorr(fit_lmer_m))[,5],
       "lmer_r"=as.data.frame(VarCorr(fit_lmer_r))[,5],
-      "tmb_m"=exp(fit_v2_m$fit$par[grep("sigma", names(fit_v2_m$fit$par))]),
-      "tmb_r"=exp(fit_v2_r$fit$par))
+      "tmb2_m"=exp(fit_v2_m$fit$par[grep("sigma", names(fit_v2_m$fit$par))]),
+      "tmb2_r"=exp(fit_v2_r$fit$par),
+      "tmb3_m"=exp(fit_v3_m$fit$par[grep("sigma", names(fit_v3_m$fit$par))]),
+      "tmb3_r"=exp(fit_v3_r$fit$par))
 ```
 
 ## After integrating out the random effects
