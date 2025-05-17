@@ -816,9 +816,19 @@ l <- 0.05
 
 The `emmeans` package aims at simplifying all this:
 ```{r}
-(emm <- emmeans(object=fit.cs, specs="geno"))
+emm <- emmeans(object=fit.cs, specs="geno")
+summary(emm, level=0.95)
 contrast(object=emm, method="dunnett") # same as contr.treatment
 contrast(object=emm, method="eff")     # same as contr.sum
+test(emm, null=mean(dat$yield)) # testing if each mean is equal to the grand mean
+test(emm, null=coef(fit.cs)[1]) # testing if each mean is equal to the intercept with contr.sum
+```
+
+Comparisons:
+```{r}
+pairs(emm, adjust="tukey") # Tukey's HSD test
+(tukey <- multcomp::cld(object=emm, adjust="Tukey", alpha=0.05, Letters=letters))
+plot(tukey) + ggplot2::theme_bw()
 ```
 
 
@@ -838,6 +848,9 @@ contrast(object=emm, method="eff")     # same as contr.sum
 - [notes](https://www.stat.purdue.edu/~boli/stat512/lectures/topic6.pdf) of a course on applied linear models devoted to one-way ANOVA from Bo Li (Purdue University)
 
 - [tutorial](https://stats.idre.ucla.edu/r/library/r-library-contrast-coding-systems-for-categorical-variables/) on coding systems from the Institute for Digital Reasearch and Education at UCLA
+
+- Piepho H. 2018. Letters in Mean Comparisons: What They Do and Don’t Mean. Agronomy Journal. 110(2):431–434. https://doi.org/10.2134/agronj2017.10.0580
+
 
 
 # Appendix
