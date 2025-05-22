@@ -7633,10 +7633,11 @@ lmerAM <- function(formula, data, relmat, REML=TRUE, na.action=stats::na.exclude
 
   ## point estimate of h2 at the individual level
   if(!is.null(nrep))
-	  denom_ind <- vc["geno.add"] + nrep * vc["Residual"]
+	denom_ind <- vc["geno.add"] + nrep * vc["Residual"]
+	h2_ind <- num / denom_ind
      if("geno.dom" %in% names(vc))
 	     denom_ind <- denom_ind + vc["geno.dom"]
-	  h2_ind <- num / denom_ind
+	     h2_ind <- num / denom_ind
 
   out.prof <- NULL
   out.boot <- NULL
