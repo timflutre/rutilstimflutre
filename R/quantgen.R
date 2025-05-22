@@ -7630,7 +7630,7 @@ lmerAM <- function(formula, data, relmat, REML=TRUE, na.action=stats::na.exclude
   if("geno.dom" %in% names(vc))
     denom <- denom + vc["geno.dom"]
   h2 <- num / denom
-  names(h2) <- "h2
+  names(h2) <- "h2"
   ## point estimate of h2 at the individual level
   if(!is.null(nrep)){
 	  denom_ind <- vc["geno.add"] + nrep * vc["Residual"]
