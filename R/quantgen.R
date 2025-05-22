@@ -7474,6 +7474,7 @@ estimH2means <- function(dat, colname.resp, colname.trial="year", vc,
 ##' @param relmat list containing the matrices of genetic relationships (A is compulsory but D is optional); the list should use the same names as the colnames in data (i.e., \code{"geno.add"} and \code{"geno.dom"}) to compute heritability properly; the matrices can be in the "matrix" class (base) or the "dsCMatrix" class (Matrix package); see \code{\link{estimGenRel}}
 ##' @param REML default is TRUE (use FALSE to compare models with different fixed effects)
 ##' @param na.action a function that indicates what should happen when the data contain \code{NA}s (e.g. to compute the BLUp of unobserved genotype, use na.action=NULL, see \code{\link[lme4]{lmer}})
+##' @param nrep a number or a vector that indicates the number of replicates per genotype if line phenotypic means are provided in data (used to compute individual-level heritability, default = NULL)
 ##' @param ci.meth method to compute confidence intervals (profile/boot)
 ##' @param ci.lev level to compute confidence intervals
 ##' @param nb.boots number of bootstrap replicates; used only if \code{ci.meth="boot"}
@@ -7546,7 +7547,7 @@ estimH2means <- function(dat, colname.resp, colname.trial="year", vc,
 ##' }
 ##' @export
 lmerAM <- function(formula, data, relmat, REML=TRUE, na.action=stats::na.exclude,
-		   drop.unused.levels=TRUE,
+		   nrep=NULL,
                    ci.meth=NULL, ci.lev=0.95, nb.boots=10^3,
                    parallel="no", ncpus=1, cl=NULL, verbose=1){
   requireNamespaces(c("lme4", "Matrix"))
@@ -7630,6 +7631,13 @@ lmerAM <- function(formula, data, relmat, REML=TRUE, na.action=stats::na.exclude
     denom <- denom + vc["geno.dom"]
   h2 <- num / denom
 
+  ## point estimate of h2 at the individual level
+  if(!is.null(nrep))
+	denom_ind <- vc["geno.add"] + nrep * vc["Residual"]
+     if("geno.dom" %in% names(vc))
+	     denom_ind <- denom_ind + vc["geno.dom"]
+     h2_ind <- num / denom_ind
+
   out.prof <- NULL
   out.boot <- NULL
   ci <- NULL
@@ -7671,7 +7679,11 @@ lmerAM <- function(formula, data, relmat, REML=TRUE, na.action=stats::na.exclude
         }
         stats.boot <- c(stats.boot,
                         fit.boot$h2)
-        names(stats.boot)[length(stats.boot)] <- "h2"
+	names(stats.boot)[length(stats.boot)] <- "h2"
+	if(!is.null(nrep))
+	   stats.boot <- c(stats.boot,
+                        fit.boot$h2_ind)
+	   names(stats.boot)[length(stats.boot)] <- "h2_ind"
         return(stats.boot)
       }
       .bootRanGen <- function(inputs, params){
@@ -7755,8 +7767,12 @@ lmerAM <- function(formula, data, relmat, REML=TRUE, na.action=stats::na.exclude
       }
     }
   }
-
-  return(list(merMod=fit, vc=vc, h2=h2, prof=out.prof, boot=out.boot, ci=ci))
+  if(is.null(nrep)){
+	  return(list(merMod=fit, vc=vc, h2=h2, prof=out.prof, boot=out.boot, ci=ci))
+	  }else{
+	  return(list(merMod=fit, vc=vc, h2=h2, h2_ind=h2_ind, prof=out.prof, boot=out.boot, ci=ci))
+	  }
+ 
 }
 
 ##' Animal model
