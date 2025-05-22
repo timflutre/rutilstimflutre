@@ -7625,7 +7625,7 @@ lmerAM <- function(formula, data, relmat, REML=TRUE, na.action=stats::na.exclude
   vc <- stats::setNames(vc$vcov, vc$grp)
 
   ## point estimate of h2
-  num <- vc["geno.add"]
+  num <- as.numeric(vc["geno.add"])
   denom <- vc["geno.add"] + vc["Residual"]
   if("geno.dom" %in% names(vc))
     denom <- denom + vc["geno.dom"]
@@ -7661,7 +7661,7 @@ lmerAM <- function(formula, data, relmat, REML=TRUE, na.action=stats::na.exclude
         fit.boot <- lmerAM(formula=inputs$formula, data=inputs$data,
                            relmat=inputs$relmat, REML=inputs$REML,
                            na.action=inputs$na.action, ci.meth=NULL,
-                           verbose=0)
+                           verbose=0, nrep=inputs$nrep)
         stats.boot <- stats::setNames(
                                  c(lme4::fixef(fit.boot$merMod),
                                    sqrt(fit.boot$vc["geno.add"]),
@@ -7681,10 +7681,11 @@ lmerAM <- function(formula, data, relmat, REML=TRUE, na.action=stats::na.exclude
         stats.boot <- c(stats.boot,
                         fit.boot$h2)
 	names(stats.boot)[length(stats.boot)] <- "h2"
-	if(!is.null(nrep))
-	   stats.boot <- c(stats.boot,
+	if(!is.null(nrep)){
+		stats.boot <- c(stats.boot,
                         fit.boot$h2_ind)
-	   names(stats.boot)[length(stats.boot)] <- "h2_ind"
+		names(stats.boot)[length(stats.boot)-length(nrep)-1:length(stats.boot)] <- paste0("h2_ind(nrep=", nrep, ")") 
+		} 
         return(stats.boot)
       }
       .bootRanGen <- function(inputs, params){
@@ -7742,7 +7743,7 @@ lmerAM <- function(formula, data, relmat, REML=TRUE, na.action=stats::na.exclude
         return(outputs)
       }
       inputs <- list(formula=formula, data=data, relmat=relmat,
-                     REML=REML, na.action=na.action)
+                     REML=REML, na.action=na.action, nrep=nrep)
       ## .bootStat(inputs) # to debug
       params <- list(sd.err=sqrt(as.numeric(vc["Residual"])),
                      sd.geno.add=sqrt(as.numeric(vc["geno.add"])),
