@@ -7684,7 +7684,7 @@ lmerAM <- function(formula, data, relmat, REML=TRUE, na.action=stats::na.exclude
 	if(!is.null(nrep)){
 		stats.boot <- c(stats.boot,
                         fit.boot$h2_ind)
-		names(stats.boot)[(length(stats.boot)-length(nrep)-1):length(stats.boot)] <- paste0("h2_ind(nrep=", nrep, ")") 
+		names(stats.boot)[length(stats.boot)] <- paste0("h2_ind(nrep=", nrep, ")") 
 		} 
         return(stats.boot)
       }
