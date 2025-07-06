@@ -1,0 +1,400 @@
+---
+title: "Examples of Tukey HSD test"
+author: "Timothée Flutre (INRAE)"
+date: "`r format(Sys.time(), '%d/%m/%Y %H:%M:%S')`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    toc_depth: 4
+    number_sections: TRUE
+  pdf_document:
+    toc: true
+    toc_depth: 4
+    number_sections: TRUE
+abstract: "This documents shows how to use various implementations of [Tukey HSD test](https://en.wikipedia.org/wiki/Tukey%27s_range_test) in R [(Tukey, 1949)](https://www.jstor.org/stable/3001913)."
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo=TRUE)
+```
+
+
+# Preamble
+
+```{r}
+suppressPackageStartupMessages(library(ggplot2))
+suppressPackageStartupMessages(library(car))
+suppressPackageStartupMessages(library(multcomp))
+suppressPackageStartupMessages(library(agricolae))
+suppressPackageStartupMessages(library(emmeans))
+suppressPackageStartupMessages(library(rutilstimflutre))
+```
+
+
+# Example 1
+
+## Data simulation
+
+Below some yield data are simulated, with two explanatory factors, genotype and block, and their interactions, with several replicates for each genotype per block, some being missing as often occurs in real data sets.
+
+Linear model: $\boldsymbol{y} = X \boldsymbol{\beta} + \boldsymbol{\epsilon}$ with $\boldsymbol{\epsilon} \sim \mathcal{N}(\boldsymbol{0}, \sigma_ 2 \text{Id})$
+
+### Make the complete design
+
+```{r}
+nbGenos <- 10
+levGenos <- sprintf("g%02i", 1:nbGenos)
+nbBlocks <- 5
+levBlocks <- LETTERS[1:nbBlocks]
+dat <- expand.grid(list(geno=levGenos, block=levBlocks, rep=c("1","2")), KEEP.OUT.ATTRS=FALSE)
+dat$inter <- factor(paste0(dat$geno, "_", dat$block))
+table(dat$geno, dat$block)
+```
+
+### Draw main effects, interactions and errors
+
+```{r}
+set.seed(12345)
+mu <- 50
+genoEffs <- setNames(rnorm(n=nbGenos, mean=0, sd=5), levGenos)
+blockEffs <- setNames(rnorm(n=nbGenos, mean=0, sd=5), levBlocks)
+interEffs <- setNames(rnorm(n=nlevels(dat$inter), mean=0, sd=3), levels(dat$inter))
+epsilon <- rnorm(n=nrow(dat), mean=0, sd=2)
+```
+
+### Compute response and create missing data
+
+```{r}
+dat$yield <- mu + genoEffs[as.character(dat$geno)] +
+  blockEffs[as.character(dat$block)] +
+  interEffs[as.character(dat$inter)] +
+  epsilon
+idx <- sample.int(nrow(dat), 4)
+dat <- droplevels(dat[-idx,])
+```
+
+## Data balance
+
+```{r}
+table(dat$geno, dat$block)
+replications(yield ~ geno * block, dat)
+```
+
+## Exploratory plot
+
+```{r}
+ggplot(dat) +
+  aes(x=geno, y=yield, col=geno, shape=block) +
+  geom_jitter(width=0.2, height=0, size=3) +
+  theme_bw()
+```
+
+## Model fit
+
+```{r}
+fit <- lm(yield ~ geno * block, dat,
+          contrasts=list("geno"="contr.sum", "block"="contr.sum"))
+```
+
+## Diagnostics
+
+```{r}
+op <- par(mfrow=c(2,2))
+plot(fit, ask=FALSE)
+par(op)
+```
+
+## Anova
+
+When data is unbalanced, there are three different ways to calculate the sums of squares for ANOVA, commonly called Type I, II and III sums of squares:
+
+* Type I: also called "sequential" sum of squares; will give different results for unbalanced data depending on which main effect is considered first, hence it rarely tests a hypothesis of interest
+
+* Type II: need to test first for the interaction, and proceed only if it is nont significant; in that case, it is more powerful than Type III tests
+
+* Type III: does not depend on the order; valid in the presence of significant interactions (however, if interactions are present, it is often not interesting to interpret a main effect...)
+
+### `stats::aov`
+
+Implements the sequential sum of squares (Type I).
+
+#### With default, non-orthogonal contrasts
+
+```{r}
+options("contrasts")
+tav1 <- aov(fit)
+summary(tav1)
+```
+
+#### With orthogonal contrasts
+
+```{r}
+tav1 <- aov(fit, contrasts=list("geno"="contr.sum", "block"="contr.sum"))
+summary(tav1)
+```
+
+### `stats::drop1`
+
+Type III sum of squares.
+
+```{r}
+(tav3 <- drop1(fit, .~., test="F"))
+```
+
+### `car::Anova`
+
+Type III sum of squares with an external package.
+
+```{r}
+(tav3_ext <- car::Anova(fit, type="III"))
+```
+
+## EMMs
+
+Estimated marginal means
+
+```{r}
+emm <- emmeans(object=fit, specs="geno")
+summary(emm, level=0.95)
+```
+
+## Tukey's HSD test
+
+### `stats::TukeyHSD`
+
+#### For all terms by default
+
+```{r}
+tukeyTests <- TukeyHSD(tav1)
+str(tukeyTests)
+```
+
+#### Only for the term of interest
+
+##### Unordered
+
+```{r}
+tukeyTests <- TukeyHSD(tav1, which="geno")
+tukeyTests
+
+op <- par(mar=c(5, 5, 4, 2) + 0.1)
+plot(tukeyTests, las=1)
+par(op)
+```
+
+##### Ordered
+
+```{r}
+tukeyTests <- TukeyHSD(tav1, which="geno", ordered=TRUE)
+tukeyTests
+
+op <- par(mar=c(5, 5, 4, 2) + 0.1)
+plot(tukeyTests, las=1)
+par(op)
+```
+
+### `emmeans::pairs`
+
+```{r}
+(tuk <- pairs(emm, adjust="tukey"))
+```
+
+### `multcomp::cld`
+
+```{r}
+(tukey <- cld(object=emm, adjust="Tukey", alpha=0.05, Letters=letters))
+plot(tukey) + theme_bw()
+```
+
+### `agricolae::HSD.test`
+
+```{r}
+agricolae::HSD.test(tav1, trt="geno")
+```
+
+## Piepho's simplification
+
+```{r}
+(emm2 <- simplifTukey(emm, tuk, colEmmID="geno", plot.it=TRUE))
+```
+
+## Plot
+
+### Factor levels sorted alphabetically
+
+```{r}
+ggplot(emm2) +
+  aes(x=emmean, y=geno, color=group_simplif, xmin=lower.CL, xmax=upper.CL) +
+  geom_point() +
+  geom_errorbar() +
+  labs(color="Piepho's\ngroups:") +
+  theme_bw()
+```
+
+### Factor levels sorted w.r.t. their EMMs
+
+```{r}
+emm2$geno <- factor(as.character(emm2$geno),
+                    levels=as.character(emm2$geno)[order(emm2$emmean)])
+ggplot(emm2) +
+  aes(x=emmean, y=geno, color=group_simplif, xmin=lower.CL, xmax=upper.CL) +
+  geom_point() +
+  geom_errorbar() +
+  labs(color="Piepho's\ngroups:") +
+  theme_bw()
+```
+
+## Take-out message
+
+Steps:
+
+1. Fit the model with `lm()` without forgetting to specify `contr.sum` contrasts for all explanatory factors
+
+    * keep the output in a variable named `fit`
+
+2. Perform type III tests for the ANOVA with `drop1()` or `car::Anova()`
+
+3. Compute the EMMs of your factor of interest with `emmeans::emmeans()` taking `fit` as input
+
+    * keep the output in a variable named `emm`
+
+4. Perform Tukey's HSD tests with `emmeans::pairs()` taking `emm` as inputs
+
+    * keep the output in a variable named `tuk`
+
+5. Define groups using Piepho's simplification method with `simplifTukey()` taking `emm` and `tuk` as inputs
+
+    * keep the output in a variable named `emm2`
+
+6. Plot the EMMs colored by simplified groups using `emm2`
+
+
+## References
+
+Articles:
+
+* Herr DG. 1986. On the History of ANOVA in Unbalanced, Factorial Designs: The First 30 Years. The American Statistician. 40(4):265–270. doi:10.1080/00031305.1986.10475409.
+
+* Langsrud Ø. 2003. ANOVA for unbalanced data: Use Type II instead of Type III sums of squares. Statistics and Computing. 13(2):163–167. doi:10.1023/A:1023260610025.
+
+* Piepho H-P. 2004. An Algorithm for a Letter-Based Representation of All-Pairwise Comparisons. Journal of Computational and Graphical Statistics. 13(2):456–466. doi:10.1198/1061860043515.
+
+* Piepho H. 2018. Letters in Mean Comparisons: What They Do and Don’t Mean. Agronomy Journal. 110(2):431–434. doi:10.2134/agronj2017.10.0580.
+
+Web sites:
+
+* https://www.r-bloggers.com/2011/03/anova-%E2%80%93-type-iiiiii-ss-explained/
+
+* https://md.psych.bio.uni-goettingen.de/mv/unit/lm_cat/lm_cat_unbal_ss_explained.html#type-iii-ss-in-r
+
+
+
+
+
+# Example 2
+
+## Data
+
+```{r}
+data("PlantGrowth")
+str(PlantGrowth)
+boxplot(weight ~ group, data=PlantGrowth, main="Dataset 'PlantGrowth'")
+```
+
+## Anova
+
+```{r}
+fit <- lm(weight ~ group, data=PlantGrowth)
+tav <- aov(fit)
+summary(tav)
+```
+
+## `stats::TukeyHSD`
+
+```{r}
+(tukey.test <- TukeyHSD(tav))
+plot(tukey.test)
+```
+
+## `agricolae::HSD.test`
+
+```{r}
+(tukey.test2 <- HSD.test(tav, trt='group'))
+```
+
+## Manually v1
+
+```{r}
+N <- length(PlantGrowth$weight) # total sample size
+k <- length(unique(PlantGrowth$group)) # number of treatments
+n <- length(PlantGrowth$weight) / k # number of samples per group (since sizes are equal)
+
+# Mean Square
+plants <- split(PlantGrowth, PlantGrowth$group)
+
+sse <- sum(Reduce('+', lapply(plants, function(x) {
+  (length(x[,1]) - 1) * sd(x[,1])^2
+})))
+
+mse <- sse / (N - k)
+mse
+
+q.value <- qtukey(p = 0.95, nmeans = k, df = N - k)
+q.value
+
+tukey.hsd <- q.value * sqrt(mse / n)
+tukey.hsd
+
+means <- tapply(PlantGrowth$weight, PlantGrowth$group, mean)
+trt1.ctrl.diff <- means[2] - means[1]
+abs(trt1.ctrl.diff) >= tukey.hsd
+trt2.ctrl.diff <- means[3] - means[1]
+abs(trt2.ctrl.diff) >= tukey.hsd
+trt2.trt1.diff <- means[3] - means[2]
+abs(trt2.trt1.diff) >= tukey.hsd
+```
+
+## Manually v2
+
+```{r}
+emms <- emmeans(fit, ~group)
+emms <- as.data.frame(emms)
+rownames(emms) <- emms$group
+emms
+
+(res_var <- sigma(fit)^2)
+
+(hsdTestStat <- q.value * sqrt(res_var / 10))
+
+## hypothesis testings:
+abs(emms["trt1","emmean"] - emms["ctrl","emmean"]) >= hsdTestStat
+abs(emms["trt2","emmean"] - emms["ctrl","emmean"]) >= hsdTestStat
+abs(emms["trt2","emmean"] - emms["trt1","emmean"]) >= hsdTestStat
+
+## confidence intervals:
+trt1.ctrl.diff + q.value * sqrt(res_var/ 2 * (2 / n))
+trt1.ctrl.diff - q.value * sqrt(res_var/ 2 * (2 / n))
+
+## p values:
+tmp <- sqrt((res_var / 2) * (1/10 + 1/10))
+ptukey(q=abs(emms["trt1","emmean"] - emms["ctrl","emmean"]) / tmp,
+       nmeans=k, df=N-k, lower.tail=FALSE)
+
+
+
+(S2 <- pooledVar(emms[c("trt1","ctrl"),"SE"]^2, table(PlantGrowth$group)[c("trt1","ctrl")]))
+(emms["trt1","emmean"] - emms["ctrl","emmean"]) / (sqrt(S2) * sqrt(2 / n))
+(emms["trt1","emmean"] - emms["ctrl","emmean"]) / sqrt(S2)
+
+(tmp <- coef(summary(fit)))
+(S2 <- pooledVar(tmp[,"Std. Error"]^2, table(PlantGrowth$group)))
+
+(emms <- as.data.frame(emmeans(aov(fit), ~group, adjust="tukey")))
+```
+
+## References
+
+- https://en.wikipedia.org/wiki/Tukey%27s_range_test#Advantages_and_disadvantages
+
+- https://rpubs.com/aaronsc32/post-hoc-analysis-tukey

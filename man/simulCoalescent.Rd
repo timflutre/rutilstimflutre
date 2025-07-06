@@ -44,7 +44,7 @@ simulCoalescent(
 
 \item{get.tmrca}{get time to most recent common ancestor and local tree lengths}
 
-\item{get.alleles}{get fake alleles sampled in {A,T,G,C}}
+\item{get.alleles}{get fake alleles sampled in \{A,T,G,C\}}
 
 \item{permute.alleles}{if TRUE, the reference alleles are randomly chosen between ancestral and derived alleles}
 

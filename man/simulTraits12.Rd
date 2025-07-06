@@ -28,7 +28,7 @@ simulTraits12(
 
 \item{Alpha}{matrix of "year" effects, for each trait, the years corresponding to those indicated in \code{dat} (if NULL, will be simulated using \code{sigma.alpha2})}
 
-\item{X}{matrix of bi-allelic SNP genotypes encoded in allele dose in {0,1,2}, with individuals in rows in the same order as the levels of \code{dat$ind}}
+\item{X}{matrix of bi-allelic SNP genotypes encoded in allele dose in \{0,1,2\}, with individuals in rows in the same order as the levels of \code{dat$ind}}
 
 \item{afs}{vector of allele frequencies (to center X so that the genotypic values are also centered) which names are the SNPs}
 

@@ -4,7 +4,7 @@
 ##'
 ##' Reformat bi-allelic SNP genotypes encoded in genotypic classes to ease subsequent manipulations.
 ##' @param file the name of the file which the data are to be read from, with a header line, columns separated by a tabulation, and row names as the first column
-##' @param x if \code{file=NULL}, data.frame of bi-allelic SNP genotypes encoded in genotypic classes, i.e. in {AA,AB or BA,BB}, with SNPs in rows and genotypes in columns; if it is a matrix, it will be silently transformed into a data frame
+##' @param x if \code{file=NULL}, data.frame of bi-allelic SNP genotypes encoded in genotypic classes, i.e. in \{AA,AB or BA,BB\}, with SNPs in rows and genotypes in columns; if it is a matrix, it will be silently transformed into a data frame
 ##' @param na.string a character to be interpreted as NA values
 ##' @param sep separator of alleles within each SNP genotype to be removed
 ##' @param verbose verbosity level (0/1)
@@ -2551,7 +2551,7 @@ getSegregatingLocusPerParent <- function(tX){
 ##' Convert genotypes
 ##'
 ##' Convert SNP genotypes of a bi-parental cross from "allele doses" for usage in the "ASMap" package.
-##' @param X matrix of bi-allelic SNP genotypes encoded, for each SNP, in number of copies of its second allele, i.e. as allele doses in {0,1,2}, with genotypes in rows and SNPs in columns; the "second" allele is arbitrary, it can correspond to the minor (least frequent) or the major (most frequent) allele
+##' @param X matrix of bi-allelic SNP genotypes encoded, for each SNP, in number of copies of its second allele, i.e. as allele doses in \{0,1,2\}, with genotypes in rows and SNPs in columns; the "second" allele is arbitrary, it can correspond to the minor (least frequent) or the major (most frequent) allele
 ##' @param tX matrix with SNPs in rows and genotypes in columns
 ##' @return list of two data frames, one per parental map
 ##' @author Timothee Flutre
@@ -2758,7 +2758,7 @@ stopIfNotValidGenosDose <- function(X, check.hasColNames=TRUE,
 ##' Those being heterozygous are "1" and will be "AB".
 ##' Finally, those being homozygous for the second allele are "2" and will be "BB".
 ##' The code is not particularly efficient, but at least it exists.
-##' @param X matrix of bi-allelic SNP genotypes encoded, for each SNP, in number of copies of its second allele, i.e. as allele doses in {0,1,2}, with genotypes in rows and SNPs in columns; the "second" allele is arbitrary, it corresponds to the second column of \code{alleles}, which can be the minor or the major allele
+##' @param X matrix of bi-allelic SNP genotypes encoded, for each SNP, in number of copies of its second allele, i.e. as allele doses in \{0,1,2\}, with genotypes in rows and SNPs in columns; the "second" allele is arbitrary, it corresponds to the second column of \code{alleles}, which can be the minor or the major allele
 ##' @param tX matrix with SNPs in rows and genotypes in columns
 ##' @param alleles data.frame with SNPs in rows (names as row names) and alleles in columns (exactly 2 columns are required); the second column should correspond to the allele which number of copies is counted at each SNP in \code{X}; only the rows corresponding to SNPs in X or tX will be kept
 ##' @param na.string character used to replace NA values
@@ -2884,7 +2884,7 @@ genoDoses2genoClasses <- function(X=NULL, tX=NULL, alleles, na.string="--",
 ##' Index the dose of each SNP genotype
 ##'
 ##' Return if a given SNP enotype is 0 or 1, even if it was imputed.
-##' @param X matrix of bi-allelic SNP genotypes encoded, for each SNP, in number of copies of its second allele, i.e. as allele doses in {0,1,2}, with genotypes in rows and SNPs in columns; the "second" allele is arbitrary, which can be the minor or the major allele
+##' @param X matrix of bi-allelic SNP genotypes encoded, for each SNP, in number of copies of its second allele, i.e. as allele doses in \{0,1,2\}, with genotypes in rows and SNPs in columns; the "second" allele is arbitrary, which can be the minor or the major allele
 ##' @param boundaries vector with interval boundaries of allele dose
 ##' @return matrix of logicals with two columns, is.0 and is.1
 ##' @author Timothee Flutre
@@ -2910,7 +2910,7 @@ indexGenoDoses <- function(X, boundaries=seq(from=0, to=2, length.out=4)){
 ##' Convert genotypes
 ##'
 ##' Convert SNP genotypes from "allele doses" into the \href{http://samtools.github.io/hts-specs/}{VCF} format.
-##' @param X matrix of bi-allelic SNP genotypes encoded, for each SNP, in number of copies of its second allele, i.e. as allele doses in {0,1,2}, with genotypes in rows and SNPs in columns; the "second" allele corresponds to the second column of \code{alleles} and will be interpreted as 'alt'
+##' @param X matrix of bi-allelic SNP genotypes encoded, for each SNP, in number of copies of its second allele, i.e. as allele doses in \{0,1,2\}, with genotypes in rows and SNPs in columns; the "second" allele corresponds to the second column of \code{alleles} and will be interpreted as 'alt'
 ##' @param snp.coords data.frame with SNP identifiers as row names, and two columns, "chr" and "pos" (or "coord"); columns as factors will be converted into characters
 ##' @param alleles data.frame (or matrix) with SNPs in rows (names as row names) and alleles in columns (exactly 2 columns are required); the first column will be interpreted as 'ref' and the second column, which should correspond to the allele which number of copies is counted at each SNP in \code{X}, will be interpreted as 'alt'; columns as factors will be converted into characters
 ##' @param file.date date to indicate into the object
@@ -3339,7 +3339,7 @@ recodeGenosMinorSnpAllele <- function(X, alleles, verbose=1){
 ##' Genotypic classes
 ##'
 ##' Count the genotypic classes per SNP (not imputed, i.e. 0, 1, 2 and NA).
-##' @param X matrix of bi-allelic SNP genotypes encoded in allele doses in {0,1,2}, with genotypes in rows and SNPs in columns; missing values should be encoded as NA
+##' @param X matrix of bi-allelic SNP genotypes encoded in allele doses in \{0,1,2\}, with genotypes in rows and SNPs in columns; missing values should be encoded as NA
 ##' @return matrix with 4 columns and as many rows as there are SNPs
 ##' @author Timothee Flutre
 ##' @export
@@ -3362,7 +3362,7 @@ countGenotypicClasses <- function(X){
 ##'
 ##' Calculate the chi2 statistic to test for Hardy-Weinberg equilibrium.
 ##' See \href{http://www.karger.com/?doi=10.1159/000108939}{Graffelman & Camarena (2007)} and \href{https://dx.doi.org/10.1002/gepi.20612}{Shriner (2011)}.
-##' @param X matrix of bi-allelic SNP genotypes encoded as allele doses in {0,1,2}, with genotypes in rows and SNPs in columns; missing values should be encoded as NA
+##' @param X matrix of bi-allelic SNP genotypes encoded as allele doses in \{0,1,2\}, with genotypes in rows and SNPs in columns; missing values should be encoded as NA
 ##' @param mafs vector of minor allele frequencies; if NULL, the frequencies will be estimated by feeding \code{X} to \code{\link{estimSnpMaf}}
 ##' @param c continuity correction (\code{0} means "no correction"; usually, \code{0.5} is used, from \href{http://dx.doi.org/10.2307/2983604}{Yates (1934)})
 ##' @param thresh.c threshold on minor allele frequencies below which the continuity correction isn't applied (used when \code{c > 0}); see \href{https://dx.doi.org/10.1016\%2Fj.ajhg.2009.11.019}{Graffelman (2010)}
@@ -3809,7 +3809,7 @@ permuteAllelesInHaplosNum <- function(haplos, snps.toperm, verbose=0){
 ##' Genotypes
 ##'
 ##' Permute alleles in genotypes once alleles have been permuted in the corresponding haplotypes.
-##' @param X matrix of bi-allelic SNP genotypes encoded, for each SNP, in number of copies of its second allele, i.e. as allele doses in {0,1,2}, with genotypes in rows and SNPs in columns; the "second" allele is arbitrary, it can be the minor or the major allele
+##' @param X matrix of bi-allelic SNP genotypes encoded, for each SNP, in number of copies of its second allele, i.e. as allele doses in \{0,1,2\}, with genotypes in rows and SNPs in columns; the "second" allele is arbitrary, it can be the minor or the major allele
 ##' @param snps.toperm vector of SNP identifiers corresponding to the SNPs to which allele permutation will be performed (column names of \code{X})
 ##' @param verbose verbosity level (0/1)
 ##' @return matrix of genotypes
@@ -4048,7 +4048,7 @@ simulGenosDoseStruct <- function(nb.genos=c(100, 120, 80),
   all.freqs <- MASS::mvrnorm(n=nb.snps, mu=rep(0,nb.pops), Sigma=div.pops)
   all.freqs <- qbeta(pnorm(all.freqs), 2, 2)
 
-  ## sample SNP genotypes and assign {0,1,2} coding
+  ## sample SNP genotypes and assign \{0,1,2\} coding
   X <- lapply(1:nb.snps, function(i){
     tmp <- rep(NA, sum(nb.genos))
     for(j in 1:nb.pops){
@@ -4133,7 +4133,7 @@ simulRefAltSnpAlleles <- function(nb.snps=NULL, snp.ids=NULL,
 ##' @param mig.rate migration rate = 4 N0 m (will be symmetric)
 ##' @param get.trees get gene genealogies in the Newick format
 ##' @param get.tmrca get time to most recent common ancestor and local tree lengths
-##' @param get.alleles get fake alleles sampled in {A,T,G,C}
+##' @param get.alleles get fake alleles sampled in \{A,T,G,C\}
 ##' @param permute.alleles if TRUE, the reference alleles are randomly chosen between ancestral and derived alleles
 ##' @param verbose verbosity level (0/1/2)
 ##' @return list with haplotypes (list), genotypes as allele doses (matrix) and SNP coordinates (data.frame)
@@ -4980,9 +4980,9 @@ distSnpPairs <- function(snp.pairs, snp.coords, nb.cores=1, verbose=1){
 ##' SNP genotypes
 ##'
 ##' Recode SNP genotypes from additive to dominant.
-##' @param X matrix of bi-allelic SNP genotypes encoded in allele doses in {0,1,2}, with genotypes in rows and SNPs in columns; missing values should be encoded as NA
+##' @param X matrix of bi-allelic SNP genotypes encoded in allele doses in \{0,1,2\}, with genotypes in rows and SNPs in columns; missing values should be encoded as NA
 ##' @param simplify.imputed if TRUE, imputed genotypes will be considered as homozygotes if less than 0.66 or more than 1.33, and heterozygotes otherwise
-##' @return matrix with genotypes in {0,1}
+##' @return matrix with genotypes in \{0,1\}
 ##' @author Timothee Flutre
 ##' @export
 recodeIntoDominant <- function(X, simplify.imputed=FALSE){
@@ -5009,7 +5009,7 @@ recodeIntoDominant <- function(X, simplify.imputed=FALSE){
 ##' Estimate genetic relationships between genotypes from their SNP genotypes.
 ##' Note that this function estimates "relationships" and not "coancestries".
 ##' See \href{http://dx.doi.org/10.1186/1297-9686-43-27}{Toro et al (2011)}: "for diploid individuals, twice the coancestry coefficient is the additive relationship coefficient, which describes the ratio between the genetic covariance between individuals and the genetic variance of the base population".
-##' @param X matrix of bi-allelic SNP genotypes encoded in allele doses in {0,1,2}, with genotypes in rows and SNPs in columns; missing values should be encoded as NA
+##' @param X matrix of bi-allelic SNP genotypes encoded in allele doses in \{0,1,2\}, with genotypes in rows and SNPs in columns; missing values should be encoded as NA
 ##' @param afs vector of allele frequencies, corresponding to the alleles whose copies are counted in \code{X} (if NULL, will be calculated with \code{\link{estimSnpAf}})
 ##' @param thresh threshold on minor allele frequencies below which SNPs are ignored (e.g. 0.01; NULL to skip this step)
 ##' @param relationships relationship to estimate (additive/dominant/gaussian) where "gaussian" corresponds to the Gaussian kernel from \href{http://dx.doi.org/10.3835/plantgenome2011.08.0024}{Endelman (2011)}
@@ -5268,7 +5268,7 @@ estimGenRel <- function(X, afs=NULL, thresh=NULL, relationships="additive",
 ##' Estimates linkage disequilibrium between pairs of SNPs when the observations are the genotypes of genotypes, not their gametes (i.e. the gametic phases are unknown).
 ##' When ignoring kinship and population structure, the estimator of Rogers and Huff (Genetics, 2009) can be used.
 ##' When kinship and/or population structure are controlled for, the estimator of Mangin et al (Heredity, 2012) is used via their LDcorSV package.
-##' @param X matrix of bi-allelic SNP genotypes encoded in allele doses in {0,1,2}, with genotypes in rows and SNPs in columns; missing values should be encoded as NA
+##' @param X matrix of bi-allelic SNP genotypes encoded in allele doses in \{0,1,2\}, with genotypes in rows and SNPs in columns; missing values should be encoded as NA
 ##' @param snp.coords data.frame with SNP identifiers as row names, and two columns, "chr" and "pos"
 ##' @param K matrix of "kinship" (additive genetic relationships)
 ##' @param pops vector of characters indicating the population of each genotype
@@ -5520,7 +5520,7 @@ estimLd <- function(X, snp.coords, K=NULL, pops=NULL,
 ##' Estimates linkage disequilibrium between pairs of SNPs belonging to the same chromosome when the observations are the genotypes of genotypes, not their gametes (i.e. the gametic phases are unknown).
 ##' When ignoring kinship and population structure, the estimator of Rogers and Huff (Genetics, 2009) can be used.
 ##' When kinship and/or population structure are controlled for, the estimator of Mangin et al (Heredity, 2012) is used via their LDcorSV package.
-##' @param X matrix of bi-allelic SNP genotypes encoded in allele doses in {0,1,2}, with genotypes in rows and SNPs in columns; missing values should be encoded as NA
+##' @param X matrix of bi-allelic SNP genotypes encoded in allele doses in \{0,1,2\}, with genotypes in rows and SNPs in columns; missing values should be encoded as NA
 ##' @param snp.coords data.frame with SNP identifiers as row names, and two columns, "chr" and "pos"
 ##' @param K matrix of "kinship" (additive genetic relationships)
 ##' @param pops vector of characters indicating the population of each genotype
@@ -6171,7 +6171,7 @@ pruneSnpsLd <- function(X=NULL, snp.coords=NULL, gds=NULL,
 ##'
 ##' Impute missing SNP genotypes with the mean of the non-missing.
 ##' The code was inspired from the \code{A.mat} function from the \href{https://cran.r-project.org/web/packages/rrBLUP/}{rrBLUP} package.
-##' @param X matrix of bi-allelic SNP genotypes encoded in allele doses in {0,1,2}, with genotypes in rows and SNPs in columns; missing values should be encoded as NA
+##' @param X matrix of bi-allelic SNP genotypes encoded in allele doses in \{0,1,2\}, with genotypes in rows and SNPs in columns; missing values should be encoded as NA
 ##' @param min.maf minimum minor allele frequency (before imputation) below which SNPs are discarded
 ##' @param max.miss maximum amount of missing genotypes (before imputation) above which SNPs are discarded
 ##' @param rm.still.miss if TRUE, remove SNP(s) still with missing genotype(s) after imputation (depending on \code{min.maf} and \code{max.miss})
@@ -6210,7 +6210,7 @@ imputeGenosWithMean <- function(X, min.maf=0.1, max.miss=0.3, rm.still.miss=TRUE
 ##' Genotype imputation
 ##'
 ##' Impute missing SNP genotypes with the mean of the non-missing, population by population.
-##' @param X matrix of bi-allelic SNP genotypes encoded in allele doses in {0,1,2}, with genotypes in rows and SNPs in columns; missing values should be encoded as NA
+##' @param X matrix of bi-allelic SNP genotypes encoded in allele doses in \{0,1,2\}, with genotypes in rows and SNPs in columns; missing values should be encoded as NA
 ##' @param pops data.frame with 2 columns, "ind" and "pop"
 ##' @param min.maf.pop minimum minor allele frequency per population (before imputation) below which SNPs are discarded
 ##' @param max.miss.pop maximum amount of missing genotypes per population (before imputation) above which SNPs are discarded
@@ -6483,7 +6483,7 @@ quass <- function(s, d){
 
 ##' Animal model
 ##'
-##' Given T traits, I genotypes, Q covariates and N=I*Q phenotypes per trait, simulate phenotypes via the following "animal model": \eqn{Y = W C + Z G_A + Z G_D + E}, where Y is N x T; W is N x Q; Z is N x I; G_A ~ Normal_IxT(0, A, V_{G_A}) with A being IxI and V_{G_A} being TxT; G_D ~ Normal_IxT(0, D, V_{G_D}) with D being IxI and V_{G_D} being TxT; E ~ Normal_NxT(0, Id_N, V_E) with Id_N being NxN and V_E being TxT. Note that using the matrix Normal (MN) is equivalent to using the multivariate Normal (MVN) via the vec operator and Kronecker product: \eqn{Y ~ MN(M, U, V) <=> vec(Y) ~ MVN(vec(M), V \otimes U)}. Spatial heterogeneity can be add (see \href{http://dx.doi.org/10.1139/x02-111}{Dutkowski et al (2002)}).
+##' Given T traits, I genotypes, Q covariates and N=I*Q phenotypes per trait, simulate phenotypes via the following "animal model": \eqn{Y = W C + Z G_A + Z G_D + E}, where Y is N x T; W is N x Q; Z is N x I; \eqn{G_A ~ Normal_IxT(0, A, V_{G_A})} with A being IxI and \eqn{V_{G_A}} being TxT; \eqn{G_D ~ Normal_IxT(0, D, V_{G_D})} with D being IxI and \eqn{V_{G_D}} being TxT; \eqn{E ~ Normal_NxT(0, Id_N, V_E)} with Id_N being NxN and V_E being TxT. Note that using the matrix Normal (MN) is equivalent to using the multivariate Normal (MVN) via the vec operator and Kronecker product: \eqn{Y ~ MN(M, U, V) <=> vec(Y) ~ MVN(vec(M), V \otimes U)}. Spatial heterogeneity can be add (see \href{http://dx.doi.org/10.1139/x02-111}{Dutkowski et al (2002)}).
 ##' @param T number of traits
 ##' @param Q number of covariates (as "fixed effects", e.g. replicates)
 ##' @param mu T-vector of overall means (one per trait), i.e. C[1,1:T]
@@ -6491,14 +6491,14 @@ quass <- function(s, d){
 ##' @param sd.C std dev of the univariate Normal prior on C[2:Q,1:T] (ignored if Q=1)
 ##' @param A IxI matrix of additive genetic relationships between genotypes (see \code{\link{estimGenRel}} with VanRaden's estimator); if A is singular (i.e. has a large condition number), the Choleski decomposition will be performed with pivoting
 ##' @param V.G.A scalar (if T=1) or TxT matrix of additive genetic variance-covariance between traits (e.g. 15 when T=1)
-##' @param scale.hC.G.A scale of the half-Cauchy prior for sqrt{V_{G_A}} (e.g. 5; used if V.G.A=NULL and T=1)
-##' @param nu.G.A degrees of freedom of the Wishart prior for V_{G_A} (used if V.G.A=NULL and T>1)
+##' @param scale.hC.G.A scale of the half-Cauchy prior for \eqn{sqrt{V_{G_A}}} (e.g. 5; used if V.G.A=NULL and T=1)
+##' @param nu.G.A degrees of freedom of the Wishart prior for \eqn{V_{G_A}} (used if V.G.A=NULL and T>1)
 ##' @param D IxI matrix of dominant genetic relationships between genotypes (see \code{\link{estimGenRel}} with Vitezica's estimator); if D is singular (i.e. has a large condition number), the Choleski decomposition will be performed with pivoting
 ##' @param V.G.D scalar (if T=1) or TxT matrix of dominant genetic variance-covariance between traits (e.g. 3 when T=1; used if D!=NULL)
-##' @param scale.hC.G.D scale of the half-Cauchy prior for sqrt{V_{G_D}} (e.g. 5; used if D!=NULL, V.G.D=NULL and T=1)
-##' @param nu.G.D degrees of freedom of the Wishart prior for V_{G_D} (used if D!=NULL, V.G.D=NULL and T>1)
+##' @param scale.hC.G.D scale of the half-Cauchy prior for \eqn{sqrt{V_{G_D}}} (e.g. 5; used if D!=NULL, V.G.D=NULL and T=1)
+##' @param nu.G.D degrees of freedom of the Wishart prior for \eqn{V_{G_D}} (used if D!=NULL, V.G.D=NULL and T>1)
 ##' @param V.E scalar (if T=1) or TxT matrix of error variance-covariance between traits (used if T=1 and err.df=Inf)
-##' @param scale.hC.E scale of the half-Cauchy prior for sqrt{V_E} (e.g. 5; used if V.E=NULL and T=1 and err.df=Inf)
+##' @param scale.hC.E scale of the half-Cauchy prior for \eqn{sqrt{V_E}} (e.g. 5; used if V.E=NULL and T=1 and err.df=Inf)
 ##' @param nu.E degrees of freedom of the Wishart prior for V_E (used if V.E=NULL and T>1)
 ##' @param err.df degrees of freedom of the Student's t-distribution of the errors (e.g. 3; Inf means Normal distribution; will be Inf if T>1)
 ##' @param perc.NA percentage of missing phenotypes, at random
@@ -9262,10 +9262,10 @@ rearrangeInputsForAssoGenet <- function(ids, y, X, snp.coords, alleles,
 ##' Given I genotypes, P SNPs, Q covariates (e.g. replicates) and N=I*Q phenotypes, the whole likelihood is: y = W alpha + Z X beta + epsilon, where y is Nx1, W is NxQ, Z is NxI, X is IxP and u = X beta.
 ##' The QTLRel package (Cheng et al, BMC Genetics, 2011) decomposes the inference into an \emph{ad hoc} procedure of two steps.
 ##' First, the variance components and fixed effects are estimated: y = W alpha + Z u + epsilon.
-##' Second the allele effects are tested SNP per SNP: for all p in {1,..,P}, y = W alpha + Z x_p beta_p + Z u + epsilon, using the fixed effects and variance components estimated in the first step.
+##' Second the allele effects are tested SNP per SNP: for all p in \{1,..,P\}, y = W alpha + Z x_p beta_p + Z u + epsilon, using the fixed effects and variance components estimated in the first step.
 ##' As the SNPs can be in linkage disequilibrium, it is advised (Yang et al, Nature Genetics, 2014) to perform the procedure chromosome per chromosome, which is the goal of this function; but I advise to also run it with chr.ids=NULL.
 ##' @param y vector or one-column matrix of phenotypes (the order is important and should be in agreement with the other arguments X, W and Z)
-##' @param X matrix of bi-allelic SNP genotypes encoded in allele doses in {0,1,2}, with genotypes in rows and SNPs in columns
+##' @param X matrix of bi-allelic SNP genotypes encoded in allele doses in \{0,1,2\}, with genotypes in rows and SNPs in columns
 ##' @param snp.coords data.frame with SNP identifiers as row names and two columns named "chr" and "coord" (or "pos")
 ##' @param thresh threshold on minor allele frequencies below which SNPs are ignored via \code{\link{discardSnpsLowMaf}} (default=0.01; NULL to skip this step; SNPs are ignored for testing, but all are still used to calculate the matrix of additive genetic relationships as rare SNPs are informative in this purpose)
 ##' @param chr.ids vector of chromosome identifiers to analyze (if NULL, the regular QTLRel procedure is launched, i.e. all chromosomes are used to estimate the variance components)
@@ -10153,7 +10153,7 @@ maf2genoFreq <- function(maf){
 
 ##' Proportion of variance explained
 ##'
-##' Computes the additive effect of a bi-allelic SNP (beta) given its PVE, MAF and error standard deviation for the simple linear regression model: for all i in {1,...,n}, y_i = mu + beta * x_i + epsilon_i with epsilon_i ~ N(0, sigma^2).
+##' Computes the additive effect of a bi-allelic SNP (beta) given its PVE, MAF and error standard deviation for the simple linear regression model: for all i in \{1,...,n\}, y_i = mu + beta * x_i + epsilon_i with epsilon_i ~ N(0, sigma^2).
 ##' Indeed, for this model: var(y) = beta^2 var(x) + sigma^2.
 ##' Assuming Hardy-Weinberg equilibrium: x ~ Binomial(2, maf); hence: var(x) = 2 f (1 - f).
 ##' Moreover: PVE = var(beta x) / var(y).
@@ -10475,7 +10475,7 @@ calcL10ApproximateBayesFactorWen <- function(Y, Xg, Xc,
 ##' @param y vector of phenotypes with genotype names
 ##' @param X matrix of bi-allelic SNP genotypes encoded in allele doses in [0,2], with genotypes in rows and SNPs in columns; missing values should be encoded as NA
 ##' @param snp character with SNP name corresponding to the candidate QTL to plot
-##' @param simplify.imputed if TRUE, imputed genotypes will be transformed back to {0,1,2}
+##' @param simplify.imputed if TRUE, imputed genotypes will be transformed back to \{0,1,2\}
 ##' @param xlab label of the x-axis
 ##' @param maf.xlab if TRUE, the minor allele frequency will appear in the label of the x-axis
 ##' @param ylab label of the y-axis

@@ -20,7 +20,7 @@ runFindhap(
 )
 }
 \arguments{
-\item{X}{matrix of bi-allelic SNP genotypes encoded in number of copies of the 2nd allele, i.e. as allele doses in {0,1,2}, with genotypes in rows and SNPs in columns; missing values should be encoded as NA; if not NULL, will be used in priority even if \code{vcf.file} is not NULL}
+\item{X}{matrix of bi-allelic SNP genotypes encoded in number of copies of the 2nd allele, i.e. as allele doses in \{0,1,2\}, with genotypes in rows and SNPs in columns; missing values should be encoded as NA; if not NULL, will be used in priority even if \code{vcf.file} is not NULL}
 
 \item{chips}{if several microarrays were used, provide a vector with chip numbers which names are genotype identifiers (same as in \code{X})}
 

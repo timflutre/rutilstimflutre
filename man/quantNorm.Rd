@@ -2,7 +2,7 @@
 % Please edit documentation in R/stats.R
 \name{quantNorm}
 \alias{quantNorm}
-\title{Quantile-normalize a vector of numbers to a standard normal distribution.}
+\title{Quantile normalization}
 \usage{
 quantNorm(x, break.ties.rand = TRUE, seed = 1859)
 }
@@ -17,7 +17,7 @@ quantNorm(x, break.ties.rand = TRUE, seed = 1859)
 vector
 }
 \description{
-Bolstad et al, Bioinformatics, 2003
+Quantile-normalizes a vector of numbers to a standard normal distribution as described in \href{http://dx.doi.org/10.1093/bioinformatics/19.2.185}{Bolstad et al (2003)}.
 }
 \author{
 Timothee Flutre

@@ -7,7 +7,7 @@
 genoDoses2ASMap(X = NULL, tX = NULL)
 }
 \arguments{
-\item{X}{matrix of bi-allelic SNP genotypes encoded, for each SNP, in number of copies of its second allele, i.e. as allele doses in {0,1,2}, with genotypes in rows and SNPs in columns; the "second" allele is arbitrary, it can correspond to the minor (least frequent) or the major (most frequent) allele}
+\item{X}{matrix of bi-allelic SNP genotypes encoded, for each SNP, in number of copies of its second allele, i.e. as allele doses in \{0,1,2\}, with genotypes in rows and SNPs in columns; the "second" allele is arbitrary, it can correspond to the minor (least frequent) or the major (most frequent) allele}
 
 \item{tX}{matrix with SNPs in rows and genotypes in columns}
 }

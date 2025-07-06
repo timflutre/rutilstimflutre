@@ -283,7 +283,7 @@ caretGridBglr <- function(x, y, len=NULL, search="grid"){
 ##' @param genmap genetic map in data frame with columns linkage.group, genetic.distance and locus
 ##' @param cross.geno.prob list containing genotypic class probabilities calculated from calc.genoprob.
 ##' If not passed (NULL), prediction is done with allelic effects at the closest marker.
-##' @param phase vector of character (length nb of markers) in the format '{--}'
+##' @param phase vector of character (length nb of markers) in the format \{--\}
 ##' @param tuneThreshold logical, if TRUE (default), the threshold is chosen for minimizing prediction error with a criterion,
 ##' else threshold is chosen by permutations for minimizing False Positive error in QTL detection.
 ##' @param alpha numeric vector with first element corresponding to alpha rate error for chosing LOD significance threshold after permutations,

@@ -39,7 +39,7 @@ boxplotCandidateQtl(
 
 \item{snp}{character with SNP name corresponding to the candidate QTL to plot}
 
-\item{simplify.imputed}{if TRUE, imputed genotypes will be transformed back to {0,1,2}}
+\item{simplify.imputed}{if TRUE, imputed genotypes will be transformed back to \{0,1,2\}}
 
 \item{xlab}{label of the x-axis}
 

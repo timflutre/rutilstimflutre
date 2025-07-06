@@ -7,7 +7,7 @@
 permuteAllelesInGenosDose(X, snps.toperm, verbose = 0)
 }
 \arguments{
-\item{X}{matrix of bi-allelic SNP genotypes encoded, for each SNP, in number of copies of its second allele, i.e. as allele doses in {0,1,2}, with genotypes in rows and SNPs in columns; the "second" allele is arbitrary, it can be the minor or the major allele}
+\item{X}{matrix of bi-allelic SNP genotypes encoded, for each SNP, in number of copies of its second allele, i.e. as allele doses in \{0,1,2\}, with genotypes in rows and SNPs in columns; the "second" allele is arbitrary, it can be the minor or the major allele}
 
 \item{snps.toperm}{vector of SNP identifiers corresponding to the SNPs to which allele permutation will be performed (column names of \code{X})}
 

@@ -50,7 +50,7 @@ caretFitQtl(
 \item{cross.geno.prob}{list containing genotypic class probabilities calculated from calc.genoprob.
 If not passed (NULL), prediction is done with allelic effects at the closest marker.}
 
-\item{phase}{vector of character (length nb of markers) in the format '{--}'}
+\item{phase}{vector of character (length nb of markers) in the format \{--\}}
 
 \item{tuneThreshold}{logical, if TRUE (default), the threshold is chosen for minimizing prediction error with a criterion,
 else threshold is chosen by permutations for minimizing False Positive error in QTL detection.}

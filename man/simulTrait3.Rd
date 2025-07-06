@@ -18,7 +18,7 @@ simulTrait3(
 \arguments{
 \item{dat}{data.frame specifying the structure of the initial data set of phenotypes}
 
-\item{X}{matrix of bi-allelic SNP genotypes encoded in allele dose in {0,1,2}}
+\item{X}{matrix of bi-allelic SNP genotypes encoded in allele dose in \{0,1,2\}}
 
 \item{afs}{vector of allele frequencies (ignored if \code{qtn.id} is not NULL)}
 

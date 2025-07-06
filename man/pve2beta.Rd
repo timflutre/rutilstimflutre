@@ -17,7 +17,7 @@ pve2beta(pve = 0.7, maf = 0.3, sigma = 1)
 numeric
 }
 \description{
-Computes the additive effect of a bi-allelic SNP (beta) given its PVE, MAF and error standard deviation for the simple linear regression model: for all i in {1,...,n}, y_i = mu + beta * x_i + epsilon_i with epsilon_i ~ N(0, sigma^2).
+Computes the additive effect of a bi-allelic SNP (beta) given its PVE, MAF and error standard deviation for the simple linear regression model: for all i in \{1,...,n\}, y_i = mu + beta * x_i + epsilon_i with epsilon_i ~ N(0, sigma^2).
 Indeed, for this model: var(y) = beta^2 var(x) + sigma^2.
 Assuming Hardy-Weinberg equilibrium: x ~ Binomial(2, maf); hence: var(x) = 2 f (1 - f).
 Moreover: PVE = var(beta x) / var(y).

@@ -49,7 +49,7 @@ writeSnpInfoFimpute <- function(snp.coords, snp.info.file){
 ##' Write SNP genotypes for FImpute
 ##'
 ##' Write SNP genotypes into a file formatted for FImpute.
-##' @param X matrix of bi-allelic SNP genotypes encoded in number of copies of the 2nd allele, i.e. as allele doses in {0,1,2}, with genotypes in rows and SNPs in columns; missing values should be encoded as NA; the maximum length of genotypes identifiers is 30 characters
+##' @param X matrix of bi-allelic SNP genotypes encoded in number of copies of the 2nd allele, i.e. as allele doses in \{0,1,2\}, with genotypes in rows and SNPs in columns; missing values should be encoded as NA; the maximum length of genotypes identifiers is 30 characters
 ##' @param genos.file path to the file in which genotypes will be saved
 ##' @param chips if several microarrays were used, provide a vector with chip numbers which names are genotype identifiers (same as in \code{X})
 ##' @return nothing
@@ -83,7 +83,7 @@ writeGenosFimpute <- function(X, genos.file, chips=NULL){
 ##'
 ##' Write inputs into files formatted for FImpute.
 ##' @param ctl.file path to the control file in which FImpute's configuration will be saved
-##' @param X matrix of bi-allelic SNP genotypes encoded in number of copies of the 2nd allele, i.e. as allele doses in {0,1,2}, with genotypes in rows and SNPs in columns; missing values should be encoded as NA; the maximum length of genotypes identifiers is 30 characters; if not NULL, will be used in priority even if \code{vcf.file} is not NULL
+##' @param X matrix of bi-allelic SNP genotypes encoded in number of copies of the 2nd allele, i.e. as allele doses in \{0,1,2\}, with genotypes in rows and SNPs in columns; missing values should be encoded as NA; the maximum length of genotypes identifiers is 30 characters; if not NULL, will be used in priority even if \code{vcf.file} is not NULL
 ##' @param genos.file path to the file in which genotypes will be saved
 ##' @param chips if several microarrays were used, provide a vector with chip numbers which names are genotype identifiers (same as in \code{X})
 ##' @param snp.coords data.frame with SNP identifiers as row names, and two compulsory columns in that order, chromosome identifiers and coordinate/position identifiers; the maximum length of SNP identifiers is 50 characters; chromosome identifiers should be numeric; other optional column(s) contain the SNP order on the microarray(s) (maximum 10); compulsory if \code{X} is specified
@@ -101,7 +101,7 @@ writeGenosFimpute <- function(X, genos.file, chips=NULL){
 ##' @param turn.off.fam turn off family imputation
 ##' @param turn.off.pop turn off population imputation
 ##' @param save.partial save partial calls
-##' @param save.genos save genotypes instead of haplotypes (encoded as {0,1,2,5/NA})
+##' @param save.genos save genotypes instead of haplotypes (encoded as \{0,1,2,5/NA\})
 ##' @param save.hap.lib save the haplotype library built from reference individuals
 ##' @param random.fill ramdom filling (imputation) based on allele frequency; useful to assess minimum accuracy
 ##' @param nb.jobs number of jobs
@@ -420,7 +420,7 @@ readOutputsFimpute <- function(out.dir){
 ##' Genotype imputation via FImpute
 ##'
 ##' Impute SNP genotypes via FImpute (\href{http://dx.doi.org/10.1186/1471-2164-15-478}{Sargolzaei et al, 2014}).
-##' @param X matrix of bi-allelic SNP genotypes encoded in number of copies of the 2nd allele, i.e. as allele doses in {0,1,2}, with genotypes in rows and SNPs in columns; missing values should be encoded as NA; the maximum length of genotypes identifiers is 30 characters; if not NULL, will be used in priority even if \code{vcf.file} is not NULL
+##' @param X matrix of bi-allelic SNP genotypes encoded in number of copies of the 2nd allele, i.e. as allele doses in \{0,1,2\}, with genotypes in rows and SNPs in columns; missing values should be encoded as NA; the maximum length of genotypes identifiers is 30 characters; if not NULL, will be used in priority even if \code{vcf.file} is not NULL
 ##' @param chips if several microarrays were used, provide a vector with chip numbers which names are genotype identifiers (same as in \code{X})
 ##' @param snp.coords data.frame with SNP identifiers as row names, and two compulsory columns in that order, chromosome identifiers and coordinate/position identifiers; the maximum length of SNP identifiers is 50 characters; chromosome identifiers should be numeric; other optional column(s) contain the SNP order on the microarray(s) (maximum 10); compulsory if \code{X} is specified
 ##' @param vcf.file path to the VCF file (if the bgzip index doesn't exist in the same directory, it will be created); used only if \code{X=NULL}

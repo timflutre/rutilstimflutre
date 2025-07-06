@@ -81,6 +81,6 @@ Suggests:
     utils,
     varbvs,
     VariantAnnotation
-RoxygenNote: 7.3.1
+RoxygenNote: 7.3.2
 Encoding: UTF-8
 VignetteBuilder: knitr

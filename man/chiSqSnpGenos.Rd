@@ -14,7 +14,7 @@ chiSqSnpGenos(
 )
 }
 \arguments{
-\item{X}{matrix of bi-allelic SNP genotypes encoded as allele doses in {0,1,2}, with genotypes in rows and SNPs in columns; missing values should be encoded as NA}
+\item{X}{matrix of bi-allelic SNP genotypes encoded as allele doses in \{0,1,2\}, with genotypes in rows and SNPs in columns; missing values should be encoded as NA}
 
 \item{mafs}{vector of minor allele frequencies; if NULL, the frequencies will be estimated by feeding \code{X} to \code{\link{estimSnpMaf}}}
 

@@ -19,7 +19,7 @@ qtlrelPerChr(
 \arguments{
 \item{y}{vector or one-column matrix of phenotypes (the order is important and should be in agreement with the other arguments X, W and Z)}
 
-\item{X}{matrix of bi-allelic SNP genotypes encoded in allele doses in {0,1,2}, with genotypes in rows and SNPs in columns}
+\item{X}{matrix of bi-allelic SNP genotypes encoded in allele doses in \{0,1,2\}, with genotypes in rows and SNPs in columns}
 
 \item{snp.coords}{data.frame with SNP identifiers as row names and two columns named "chr" and "coord" (or "pos")}
 
@@ -42,7 +42,7 @@ a list with three data.frames as components, variance.components, fixed.effects 
 Given I genotypes, P SNPs, Q covariates (e.g. replicates) and N=I*Q phenotypes, the whole likelihood is: y = W alpha + Z X beta + epsilon, where y is Nx1, W is NxQ, Z is NxI, X is IxP and u = X beta.
 The QTLRel package (Cheng et al, BMC Genetics, 2011) decomposes the inference into an \emph{ad hoc} procedure of two steps.
 First, the variance components and fixed effects are estimated: y = W alpha + Z u + epsilon.
-Second the allele effects are tested SNP per SNP: for all p in {1,..,P}, y = W alpha + Z x_p beta_p + Z u + epsilon, using the fixed effects and variance components estimated in the first step.
+Second the allele effects are tested SNP per SNP: for all p in \{1,..,P\}, y = W alpha + Z x_p beta_p + Z u + epsilon, using the fixed effects and variance components estimated in the first step.
 As the SNPs can be in linkage disequilibrium, it is advised (Yang et al, Nature Genetics, 2014) to perform the procedure chromosome per chromosome, which is the goal of this function; but I advise to also run it with chr.ids=NULL.
 }
 \examples{

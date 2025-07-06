@@ -32,7 +32,7 @@ writeInputsFindhap(
 \arguments{
 \item{opt.file}{path to the options file in which findhap's configuration will be saved}
 
-\item{X}{matrix of bi-allelic SNP genotypes encoded in number of copies of the 2nd allele, i.e. as allele doses in {0,1,2}, with genotypes in rows and SNPs in columns; missing values should be encoded as NA; if not NULL, will be used in priority even if \code{vcf.file} is not NULL}
+\item{X}{matrix of bi-allelic SNP genotypes encoded in number of copies of the 2nd allele, i.e. as allele doses in \{0,1,2\}, with genotypes in rows and SNPs in columns; missing values should be encoded as NA; if not NULL, will be used in priority even if \code{vcf.file} is not NULL}
 
 \item{genos.file}{path to the file in which genotypes will be saved}
 

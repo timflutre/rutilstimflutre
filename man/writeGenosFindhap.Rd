@@ -7,7 +7,7 @@
 writeGenosFindhap(X, genos.file)
 }
 \arguments{
-\item{X}{matrix of bi-allelic SNP genotypes encoded in number of copies of the 2nd allele, i.e. as allele doses in {0,1,2}, with genotypes in rows and SNPs in columns; missing values should be encoded as NA; the maximum length of genotypes identifiers is 10 characters}
+\item{X}{matrix of bi-allelic SNP genotypes encoded in number of copies of the 2nd allele, i.e. as allele doses in \{0,1,2\}, with genotypes in rows and SNPs in columns; missing values should be encoded as NA; the maximum length of genotypes identifiers is 10 characters}
 
 \item{genos.file}{path to the file in which genotypes will be saved}
 }

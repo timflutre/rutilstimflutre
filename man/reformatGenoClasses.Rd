@@ -15,7 +15,7 @@ reformatGenoClasses(
 \arguments{
 \item{file}{the name of the file which the data are to be read from, with a header line, columns separated by a tabulation, and row names as the first column}
 
-\item{x}{if \code{file=NULL}, data.frame of bi-allelic SNP genotypes encoded in genotypic classes, i.e. in {AA,AB or BA,BB}, with SNPs in rows and genotypes in columns; if it is a matrix, it will be silently transformed into a data frame}
+\item{x}{if \code{file=NULL}, data.frame of bi-allelic SNP genotypes encoded in genotypic classes, i.e. in \{AA,AB or BA,BB\}, with SNPs in rows and genotypes in columns; if it is a matrix, it will be silently transformed into a data frame}
 
 \item{na.string}{a character to be interpreted as NA values}
 

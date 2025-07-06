@@ -292,6 +292,204 @@ binaryClassif <- function(known.nulls, called.nulls){
            mcc=mcc))
 }
 
+##' Tukey plot
+##'
+##' Plots significant pairwise differences from Tukey HSD test as proposed in \href{https://acsess.onlinelibrary.wiley.com/doi/10.2134/agronj2017.10.0580}{Piepho (2018)}.
+##' @param mat square matrix with
+##' @param title optional title
+##' @return nothing
+##' @author Timothee Flutre
+##' @seealso \code{\link{simplifTukey}}
+##' @examples
+##' ## From Piepho (2018):
+##' n <- 5
+##' (tab1 <- data.frame(farmID=LETTERS[1:n],
+##'                     mlc=c(1.86, 2.34, 1.82, 2.18, 1.38),
+##'                     group=c("ab", "a", "ab", "a", "b")))
+##' vec1 <- setNames(tab1$mlc, tab1$farmID)
+##' vec1 <- sort(vec1, decreasing=TRUE)
+##' (sortedFarmIDs <- names(vec1))
+##' tab3 <- matrix(nrow=n, ncol=n,
+##'                dimnames=list(names(vec1), names(vec1)))
+##' tab3[1, 2:n] <- c(0.16, 0.48, 0.52, 0.96)
+##' tab3[2, 3:n] <- c(0.32, 0.36, 0.80)
+##' tab3[3, 4:n] <- c(0.04, 0.48)
+##' tab3[4, n] <- c(.44)
+##' tab3
+##' tab3_notSignif <- tab3
+##' tab3_notSignif["B","E"] <- NA
+##' tab3_notSignif["D","E"] <- NA
+##' tab3_notSignif
+##' plotTukey(tab3_notSignif, title="Fig. I from Piepho (2018)")
+##' @export
+plotTukey <- function(mat, title=NULL){
+  stopifnot(is.matrix(mat),
+            nrow(mat) == ncol(mat))
+  if(! is.null(title))
+    stopifnot(is.character(title))
+
+  n <- nrow(mat)
+
+  op <- par(mar=c(1, 1, ifelse(is.null(title), 2, 5), 1))
+
+  off <- 0.3
+  plot(0, 0, type="n", axes=FALSE,
+       xlim=c(1-off, n+off), ylim=c(1, n+0.5),
+       xlab="", ylab="", main=title)
+  axis(side=3, at=1:n, labels=colnames(mat), line=-1)
+  segments(x0=1:n, y0=n+off, x1=1:n, y1=1-off, col="grey", lty=2)
+
+  for(i in n:2){ # row index for the plot (y axis)
+    j <- rev(1:n)[i] # col/row index for the square matrix
+    isNA <- is.na(mat[j,])
+    if(all(isNA))
+      next
+    idxNotNA <- which(! isNA)
+    segments(x0=min(j,idxNotNA)-off, y0=i, x1=max(idxNotNA)+off, y1=i)
+  }
+  segments(x0=n-off, y0=1, x1=n+off, y1=1)
+
+  par(op)
+}
+
+##' Simplify Tukey's groups
+##'
+##' Simplifies groups from Tukey's HSD test as proposed in \href{https://acsess.onlinelibrary.wiley.com/doi/10.2134/agronj2017.10.0580}{Piepho (2018)}.
+##' @param emm data frame with the estimated marginal means per level of the factor of interest
+##' @param tuk data frame with the contrasts as the parwise differences between factor levels
+##' @param colEmmID name of the column in \code{emm} that contains the names of levels of the factor of interest
+##' @param colEmmVal name of the column in \code{emm} that contains the estimated marginal means
+##' @param colContrID name of the column in \code{tuk} that contains the names of the contrasts
+##' @param colContrVal name of the column in \code{tuk} that contains the values of the contrasts
+##' @param colPv name of the column in \code{tuk} that contains the p values of the contrasts
+##' @param alpha value of the type I error rate
+##' @param plot.it logical; if TRUE, will call \code{\link{plotTukey}}
+##' @param title optional title
+##' @return data frame \code{emm} with a new column \code{"group_simplif"}
+##' @author Timothee Flutre
+##' @seealso \code{\link{plotTukey}}
+##' @examples
+##' ## From Piepho (2018):
+##' n <- 5
+##' (tab1 <- data.frame(farmID=LETTERS[1:n],
+##'                     mlc=c(1.86, 2.34, 1.82, 2.18, 1.38),
+##'                     group=c("ab", "a", "ab", "a", "b")))
+##' vec1 <- setNames(tab1$mlc, tab1$farmID)
+##' vec1 <- sort(vec1, decreasing=TRUE)
+##' (sortedFarmIDs <- names(vec1))
+##' tab3 <- matrix(nrow=n, ncol=n,
+##'                dimnames=list(names(vec1), names(vec1)))
+##' tab3[1, 2:n] <- c(0.16, 0.48, 0.52, 0.96)
+##' tab3[2, 3:n] <- c(0.32, 0.36, 0.80)
+##' tab3[3, 4:n] <- c(0.04, 0.48)
+##' tab3[4, n] <- c(.44)
+##' tab3
+##'
+##'
+##' tuk <- matWide2Long(tab3, diag=FALSE, outColNs=c("lev1","lev2","diff"))
+##' tuk <- data.frame(contrast = paste0(tuk$lev1, " - ", tuk$lev2),
+##'                   estimate = tuk[,"diff"])
+##' tuk$p.value <- runif(nrow(tuk), min=0.051, max=1)
+##' idx <- which(tuk$contrast %in% c("B - E","D - E"))
+##' tuk$p.value[idx] <- runif(length(idx), min=0, max=0.05)
+##' tuk
+##' simplifTukey(tab1, tuk, colEmmID="farmID", colEmmVal="mlc", plot.it=TRUE,
+##'              title="Fig. I from Piepho (2018)")
+##' @export
+simplifTukey <- function(emm, tuk,
+                         colEmmID, colEmmVal="emmean",
+                         colContrID="contrast", colContrVal="estimate", colPv="p.value",
+                         alpha=0.05, plot.it=FALSE, title=NULL){
+  if(! is.data.frame(emm))
+    emm <- as.data.frame(emm)
+  if(! is.data.frame(tuk))
+    tuk <- as.data.frame(tuk)
+  stopifnot(all(c(colEmmID, colEmmVal) %in% colnames(emm)),
+            all(c(colContrID, colContrVal, colPv) %in% colnames(tuk)))
+
+  n <- nrow(emm)
+  stopifnot(n >= 2,
+            nrow(tuk) == n * (n-1) / 2)
+
+  ## sort the levels of the explanatory factor w.r.t. their emmean
+  emmSort <- emm[order(emm[[colEmmVal]], decreasing=TRUE),]
+  (levSort <- as.character(emmSort[,colEmmID]))
+
+  ## flag significant test(s)
+  tuk$signif <- FALSE
+  tuk$signif[which(tuk[[colPv]] <= alpha)] <- TRUE
+
+  ## make a matrix with all pairwise differences
+  ## after sorting the levels
+  ## and stop at significant differences
+  mat <- matrix(NA, nrow=n, ncol=n,
+                dimnames=list(levSort, levSort))
+  tmp <- strsplit(tuk[[colContrID]], "-")
+  tmp <- lapply(tmp, trimws)
+  tuk[c("lev1","lev2")] <- do.call(rbind, tmp)
+  for(i in 1:nrow(tuk)){
+    if(tuk$signif[i])
+      next
+    lev1 <- tuk$lev1[i]
+    lev2 <- tuk$lev2[i]
+    mat[lev1,lev2] <- tuk[[colContrVal]][i]
+    mat[lev2,lev1] <- tuk[[colContrVal]][i]
+  }
+  stopifnot(isSymmetric(mat))
+  mat[lower.tri(mat)] <- NA
+
+  if(plot.it)
+    plotTukey(mat, title)
+
+  ## define all the intervals
+  allIntervals <- do.call(rbind, lapply(1:n, function(i){
+    idx <- which(! is.na(mat[i,]))
+    c("start"=min(i, idx),
+      "end"=max(i,idx))
+  }))
+  rownames(allIntervals) <- levSort
+  allIntervals <- as.data.frame(allIntervals)
+
+  ## find overlapping intervals
+  whichOverlaps <- function(query, db){
+    which((query[,1] <= db[,1] & query[,2] >= db[,1]) |
+          (query[,1] > db[,1] & query[,1] <= db[,2]))
+  }
+  tmp <- do.call(rbind, lapply(1:n, function(i){
+    idx <- whichOverlaps(allIntervals[i,,drop=F], allIntervals)
+    if(length(idx) > 0){
+      range(allIntervals[idx,])
+    } else
+      unlist(allIntervals[i,], use.names=FALSE)
+  }))
+  tmp2 <- do.call(rbind, lapply(1:n, function(i){
+    idx <- whichOverlaps(tmp[i,,drop=F], tmp)
+    if(length(idx) > 0){
+      range(tmp[idx,])
+    } else
+      unlist(tmp[i,], use.names=FALSE)
+  }))
+  rownames(tmp2) <- rownames(allIntervals)
+  colnames(tmp2) <- paste0(colnames(allIntervals), "_incl")
+  ## identify the smallest set of non-overlapping intervals
+  simplifIntervals <- tmp2[! duplicated(tmp2),]
+  simplifIntervals <- as.data.frame(simplifIntervals)
+  simplifIntervals$group <- letters[1:nrow(simplifIntervals)]
+  ## define simplified groups
+  allIntervals <- cbind(allIntervals, tmp2)
+  allIntervals$group_simplif <- NA
+  for(i in 1:nrow(simplifIntervals)){
+    idx <- which(allIntervals$start_incl == simplifIntervals$start[i] &
+                 allIntervals$end_incl == simplifIntervals$end[i])
+    allIntervals$group_simplif[idx] <- simplifIntervals$group[i]
+  }
+
+  ## add simplified groups to the input 'emm'
+  emm$group_simplif <- allIntervals[as.character(emm[[colEmmID]]), "group_simplif"]
+
+  return(emm)
+}
+
 ##' Log of weighted sum
 ##'
 ##' Performs the stable computation of \eqn{log_{10}(\sum_i w_i 10^x_i)}.
@@ -499,7 +697,7 @@ orthoRotate2D <- function(x, angle=90){
 ##' Choose the number of PCs
 ##'
 ##' Return the number of PCs that minimizes the average squared partial correlation, from Shriner (Heredity, 2011).
-##' @param X matrix (e.g. genotypes in {0,1,2} with SNPs in rows and individuals in columns)
+##' @param X matrix (e.g. genotypes in \{0,1,2\} with SNPs in rows and individuals in columns)
 ##' @return integer
 ##' @author Daniel Shriner [aut], Timothee Flutre [cre]
 ##' @export
@@ -534,9 +732,9 @@ getNbPCsMinimAvgSqPartCor <- function(X){
   return(max(1, which.min(fm) - 1))
 }
 
-##' Quantile-normalize a vector of numbers to a standard normal distribution.
+##' Quantile normalization
 ##'
-##' Bolstad et al, Bioinformatics, 2003
+##' Quantile-normalizes a vector of numbers to a standard normal distribution as described in \href{http://dx.doi.org/10.1093/bioinformatics/19.2.185}{Bolstad et al (2003)}.
 ##' @param x vector of numeric data
 ##' @param break.ties.rand break ties randomly (default=TRUE)
 ##' @param seed see for the pseudo-random number generator (default=1859)

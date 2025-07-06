@@ -46,21 +46,21 @@ simulAnimalModel(
 
 \item{V.G.A}{scalar (if T=1) or TxT matrix of additive genetic variance-covariance between traits (e.g. 15 when T=1)}
 
-\item{scale.hC.G.A}{scale of the half-Cauchy prior for sqrt{V_{G_A}} (e.g. 5; used if V.G.A=NULL and T=1)}
+\item{scale.hC.G.A}{scale of the half-Cauchy prior for \eqn{sqrt{V_{G_A}}} (e.g. 5; used if V.G.A=NULL and T=1)}
 
-\item{nu.G.A}{degrees of freedom of the Wishart prior for V_{G_A} (used if V.G.A=NULL and T>1)}
+\item{nu.G.A}{degrees of freedom of the Wishart prior for \eqn{V_{G_A}} (used if V.G.A=NULL and T>1)}
 
 \item{D}{IxI matrix of dominant genetic relationships between genotypes (see \code{\link{estimGenRel}} with Vitezica's estimator); if D is singular (i.e. has a large condition number), the Choleski decomposition will be performed with pivoting}
 
 \item{V.G.D}{scalar (if T=1) or TxT matrix of dominant genetic variance-covariance between traits (e.g. 3 when T=1; used if D!=NULL)}
 
-\item{scale.hC.G.D}{scale of the half-Cauchy prior for sqrt{V_{G_D}} (e.g. 5; used if D!=NULL, V.G.D=NULL and T=1)}
+\item{scale.hC.G.D}{scale of the half-Cauchy prior for \eqn{sqrt{V_{G_D}}} (e.g. 5; used if D!=NULL, V.G.D=NULL and T=1)}
 
-\item{nu.G.D}{degrees of freedom of the Wishart prior for V_{G_D} (used if D!=NULL, V.G.D=NULL and T>1)}
+\item{nu.G.D}{degrees of freedom of the Wishart prior for \eqn{V_{G_D}} (used if D!=NULL, V.G.D=NULL and T>1)}
 
 \item{V.E}{scalar (if T=1) or TxT matrix of error variance-covariance between traits (used if T=1 and err.df=Inf)}
 
-\item{scale.hC.E}{scale of the half-Cauchy prior for sqrt{V_E} (e.g. 5; used if V.E=NULL and T=1 and err.df=Inf)}
+\item{scale.hC.E}{scale of the half-Cauchy prior for \eqn{sqrt{V_E}} (e.g. 5; used if V.E=NULL and T=1 and err.df=Inf)}
 
 \item{nu.E}{degrees of freedom of the Wishart prior for V_E (used if V.E=NULL and T>1)}
 
@@ -84,7 +84,7 @@ simulAnimalModel(
 list
 }
 \description{
-Given T traits, I genotypes, Q covariates and N=I*Q phenotypes per trait, simulate phenotypes via the following "animal model": \eqn{Y = W C + Z G_A + Z G_D + E}, where Y is N x T; W is N x Q; Z is N x I; G_A ~ Normal_IxT(0, A, V_{G_A}) with A being IxI and V_{G_A} being TxT; G_D ~ Normal_IxT(0, D, V_{G_D}) with D being IxI and V_{G_D} being TxT; E ~ Normal_NxT(0, Id_N, V_E) with Id_N being NxN and V_E being TxT. Note that using the matrix Normal (MN) is equivalent to using the multivariate Normal (MVN) via the vec operator and Kronecker product: \eqn{Y ~ MN(M, U, V) <=> vec(Y) ~ MVN(vec(M), V \otimes U)}. Spatial heterogeneity can be add (see \href{http://dx.doi.org/10.1139/x02-111}{Dutkowski et al (2002)}).
+Given T traits, I genotypes, Q covariates and N=I*Q phenotypes per trait, simulate phenotypes via the following "animal model": \eqn{Y = W C + Z G_A + Z G_D + E}, where Y is N x T; W is N x Q; Z is N x I; \eqn{G_A ~ Normal_IxT(0, A, V_{G_A})} with A being IxI and \eqn{V_{G_A}} being TxT; \eqn{G_D ~ Normal_IxT(0, D, V_{G_D})} with D being IxI and \eqn{V_{G_D}} being TxT; \eqn{E ~ Normal_NxT(0, Id_N, V_E)} with Id_N being NxN and V_E being TxT. Note that using the matrix Normal (MN) is equivalent to using the multivariate Normal (MVN) via the vec operator and Kronecker product: \eqn{Y ~ MN(M, U, V) <=> vec(Y) ~ MVN(vec(M), V \otimes U)}. Spatial heterogeneity can be add (see \href{http://dx.doi.org/10.1139/x02-111}{Dutkowski et al (2002)}).
 }
 \examples{
 \dontrun{## simulate genotypes

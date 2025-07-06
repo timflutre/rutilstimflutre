@@ -34,7 +34,7 @@ writeInputsFimpute(
 \arguments{
 \item{ctl.file}{path to the control file in which FImpute's configuration will be saved}
 
-\item{X}{matrix of bi-allelic SNP genotypes encoded in number of copies of the 2nd allele, i.e. as allele doses in {0,1,2}, with genotypes in rows and SNPs in columns; missing values should be encoded as NA; the maximum length of genotypes identifiers is 30 characters; if not NULL, will be used in priority even if \code{vcf.file} is not NULL}
+\item{X}{matrix of bi-allelic SNP genotypes encoded in number of copies of the 2nd allele, i.e. as allele doses in \{0,1,2\}, with genotypes in rows and SNPs in columns; missing values should be encoded as NA; the maximum length of genotypes identifiers is 30 characters; if not NULL, will be used in priority even if \code{vcf.file} is not NULL}
 
 \item{genos.file}{path to the file in which genotypes will be saved}
 
@@ -70,7 +70,7 @@ writeInputsFimpute(
 
 \item{save.partial}{save partial calls}
 
-\item{save.genos}{save genotypes instead of haplotypes (encoded as {0,1,2,5/NA})}
+\item{save.genos}{save genotypes instead of haplotypes (encoded as \{0,1,2,5/NA\})}
 
 \item{save.hap.lib}{save the haplotype library built from reference individuals}
 

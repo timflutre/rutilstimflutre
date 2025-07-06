@@ -7,7 +7,7 @@
 getNbPCsMinimAvgSqPartCor(X)
 }
 \arguments{
-\item{X}{matrix (e.g. genotypes in {0,1,2} with SNPs in rows and individuals in columns)}
+\item{X}{matrix (e.g. genotypes in \{0,1,2\} with SNPs in rows and individuals in columns)}
 }
 \value{
 integer

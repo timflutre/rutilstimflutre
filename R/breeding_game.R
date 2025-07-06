@@ -258,7 +258,7 @@ simulSnpEffectsTraits12 <- function(snp.ids,
 ##' @param mu vector of global means, for each trait
 ##' @param sigma.alpha2 vector of variance for the "year" effects, for each trait (ignored if \code{Alpha} is not NULL)
 ##' @param Alpha matrix of "year" effects, for each trait, the years corresponding to those indicated in \code{dat} (if NULL, will be simulated using \code{sigma.alpha2})
-##' @param X matrix of bi-allelic SNP genotypes encoded in allele dose in {0,1,2}, with individuals in rows in the same order as the levels of \code{dat$ind}
+##' @param X matrix of bi-allelic SNP genotypes encoded in allele dose in \{0,1,2\}, with individuals in rows in the same order as the levels of \code{dat$ind}
 ##' @param afs vector of allele frequencies (to center X so that the genotypic values are also centered) which names are the SNPs
 ##' @param Beta matrix of additive SNP effects, for each trait
 ##' @param h2 vector of heritabilities, with the name of each trait, for instance \code{c(trait1=0.3, trait2=0.4)} (if NULL, \code{sigma2} will be used, but do not specify both)
@@ -470,7 +470,7 @@ simulTraits12 <- function(dat,
 ##'
 ##' Simulate phenotypes of trait 3.
 ##' @param dat data.frame specifying the structure of the initial data set of phenotypes
-##' @param X matrix of bi-allelic SNP genotypes encoded in allele dose in {0,1,2}
+##' @param X matrix of bi-allelic SNP genotypes encoded in allele dose in \{0,1,2\}
 ##' @param afs vector of allele frequencies (ignored if \code{qtn.id} is not NULL)
 ##' @param subset.snps vector of SNP identifiers to which the QTN should belong (ignored if \code{qtn.id} is not NULL)
 ##' @param qtn.id identifier of the causal SNP (QTN)

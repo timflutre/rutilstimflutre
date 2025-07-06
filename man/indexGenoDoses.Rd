@@ -7,7 +7,7 @@
 indexGenoDoses(X, boundaries = seq(from = 0, to = 2, length.out = 4))
 }
 \arguments{
-\item{X}{matrix of bi-allelic SNP genotypes encoded, for each SNP, in number of copies of its second allele, i.e. as allele doses in {0,1,2}, with genotypes in rows and SNPs in columns; the "second" allele is arbitrary, which can be the minor or the major allele}
+\item{X}{matrix of bi-allelic SNP genotypes encoded, for each SNP, in number of copies of its second allele, i.e. as allele doses in \{0,1,2\}, with genotypes in rows and SNPs in columns; the "second" allele is arbitrary, which can be the minor or the major allele}
 
 \item{boundaries}{vector with interval boundaries of allele dose}
 }
