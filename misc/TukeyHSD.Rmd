@@ -256,6 +256,8 @@ ggplot(tukey) +
 tukey2 <- tukey
 tukey2$geno <- factor(as.character(tukey2$geno),
                       levels=as.character(tukey2$geno)[order(tukey2$emmean)])
+tukey2$pairDiff <- "n.s."
+tukey2$pairDiff[nchar(tukey2$group) == 1] <- "s."
 
 ggplot(tukey2) +
   aes(x=emmean, y=geno, color=group,  xmin=lower.CL, xmax=upper.CL) +
@@ -273,8 +275,22 @@ ggplot(tukey2) +
                             label=tukey2$group),
             mapping=aes(x=x, y=y, label=label), inherit.aes=FALSE) +
   theme_bw()
+
+ggplot(tukey2) +
+  aes(x=emmean, y=geno, xmin=lower.CL, xmax=upper.CL, color=pairDiff) +
+  geom_point() +
+  geom_errorbar() +
+  scale_color_manual(values=c("s."="red", "n.s."="black")) +
+  labs(col="") +
+  coord_cartesian(xlim=c(0.9 * min(tukey2$emmean), max(tukey2$upper.CL))) +
+  geom_text(data=data.frame(x=0.9 * min(tukey2$emmean),
+                            y=tukey2$geno,
+                            label=tukey2$group),
+            mapping=aes(x=x, y=y, label=label), inherit.aes=FALSE) +
+  theme_bw()
 ```
 
+<!--
 ### From custom function
 
 TODO
@@ -302,6 +318,7 @@ TODO
 ##   labs(color="Piepho's\ngroups:") +
 ##   theme_bw()
 ```
+-->
 
 ## Take-out message
 
