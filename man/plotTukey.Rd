@@ -39,9 +39,6 @@ tab3_notSignif["D","E"] <- NA
 tab3_notSignif
 plotTukey(tab3_notSignif, title="Fig. I from Piepho (2018)")
 }
-\seealso{
-\code{\link{simplifTukey}}
-}
 \author{
 Timothee Flutre
 }

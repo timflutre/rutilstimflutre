@@ -299,7 +299,6 @@ binaryClassif <- function(known.nulls, called.nulls){
 ##' @param title optional title
 ##' @return nothing
 ##' @author Timothee Flutre
-##' @seealso \code{\link{simplifTukey}}
 ##' @examples
 ##' ## From Piepho (2018):
 ##' n <- 5
@@ -367,7 +366,6 @@ plotTukey <- function(mat, title=NULL){
 ##' @param title optional title
 ##' @return data frame \code{emm} with a new column \code{"group_simplif"}
 ##' @author Timothee Flutre
-##' @seealso \code{\link{plotTukey}}
 ##' @examples
 ##' ## From Piepho (2018):
 ##' n <- 5
@@ -395,7 +393,7 @@ plotTukey <- function(mat, title=NULL){
 ##' tuk
 ##' simplifTukey(tab1, tuk, colEmmID="farmID", colEmmVal="mlc", plot.it=TRUE,
 ##'              title="Fig. I from Piepho (2018)")
-##' @export
+##' @noRd
 simplifTukey <- function(emm, tuk,
                          colEmmID, colEmmVal="emmean",
                          colContrID="contrast", colContrVal="estimate", colPv="p.value",

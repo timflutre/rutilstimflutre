@@ -213,36 +213,94 @@ plot(tukey) + theme_bw()
 agricolae::HSD.test(tav1, trt="geno")
 ```
 
-## Piepho's simplification
+## Custom function
+
+TODO
 
 ```{r}
-(emm2 <- simplifTukey(emm, tuk, colEmmID="geno", plot.it=TRUE))
+## (emm2 <- simplifTukey(emm, tuk, colEmmID="geno", plot.it=TRUE))
 ```
 
 ## Plot
 
-### Factor levels sorted alphabetically
+### From the output of `cld`
 
 ```{r}
-ggplot(emm2) +
-  aes(x=emmean, y=geno, color=group_simplif, xmin=lower.CL, xmax=upper.CL) +
+tukey$group <- trimws(tukey$.group)
+```
+
+#### Factor levels sorted alphabetically
+
+```{r}
+ggplot(tukey) +
+  aes(x=emmean, y=geno, color=group,  xmin=lower.CL, xmax=upper.CL) +
   geom_point() +
   geom_errorbar() +
-  labs(color="Piepho's\ngroups:") +
+  theme_bw()
+
+ggplot(tukey) +
+  aes(x=emmean, y=geno, xmin=lower.CL, xmax=upper.CL) +
+  geom_point() +
+  geom_errorbar() +
+  coord_cartesian(xlim=c(0.9 * min(tukey$emmean), max(tukey$upper.CL))) +
+  geom_text(data=data.frame(x=0.9 * min(tukey$emmean),
+                            y=tukey$geno,
+                            label=tukey$group),
+            mapping=aes(x=x, y=y, label=label), inherit.aes=FALSE) +
   theme_bw()
 ```
 
-### Factor levels sorted w.r.t. their EMMs
+#### Factor levels sorted w.r.t. their EMMs
 
 ```{r}
-emm2$geno <- factor(as.character(emm2$geno),
-                    levels=as.character(emm2$geno)[order(emm2$emmean)])
-ggplot(emm2) +
-  aes(x=emmean, y=geno, color=group_simplif, xmin=lower.CL, xmax=upper.CL) +
+tukey2 <- tukey
+tukey2$geno <- factor(as.character(tukey2$geno),
+                      levels=as.character(tukey2$geno)[order(tukey2$emmean)])
+
+ggplot(tukey2) +
+  aes(x=emmean, y=geno, color=group,  xmin=lower.CL, xmax=upper.CL) +
   geom_point() +
   geom_errorbar() +
-  labs(color="Piepho's\ngroups:") +
   theme_bw()
+
+ggplot(tukey2) +
+  aes(x=emmean, y=geno, xmin=lower.CL, xmax=upper.CL) +
+  geom_point() +
+  geom_errorbar() +
+  coord_cartesian(xlim=c(0.9 * min(tukey2$emmean), max(tukey2$upper.CL))) +
+  geom_text(data=data.frame(x=0.9 * min(tukey2$emmean),
+                            y=tukey2$geno,
+                            label=tukey2$group),
+            mapping=aes(x=x, y=y, label=label), inherit.aes=FALSE) +
+  theme_bw()
+```
+
+### From custom function
+
+TODO
+
+#### Factor levels sorted alphabetically
+
+```{r}
+## ggplot(emm2) +
+##   aes(x=emmean, y=geno, color=group_simplif,  xmin=lower.CL, xmax=upper.CL) +
+##   geom_point() +
+##   geom_errorbar() +
+##   labs(color="Piepho's\ngroups:") +
+##   theme_bw()
+```
+
+#### Factor levels sorted w.r.t. their EMMs
+
+```{r}
+## emm2$geno <- factor(as.character(emm2$geno),
+##                     levels=as.character(emm2$geno)[order(emm2$emmean)])
+## ggplot(emm2) +
+##   aes(x=emmean, y=geno, color=group_simplif, xmin=lower.CL, xmax=upper.CL) +
+##   geom_point() +
+##   geom_errorbar() +
+##   labs(color="Piepho's\ngroups:") +
+##   theme_bw()
 ```
 
 ## Take-out message
@@ -258,7 +316,14 @@ Steps:
 3. Compute the EMMs of your factor of interest with `emmeans::emmeans()` taking `fit` as input
 
     * keep the output in a variable named `emm`
+    
+4. Perform Tukey's HSD tests with `multcomp::cld()` taking `emm` as inputs
 
+    * keep the output in a variable named `tuk`
+
+5. Plot the EMMs along with the groups using `tuk`
+
+<!--
 4. Perform Tukey's HSD tests with `emmeans::pairs()` taking `emm` as inputs
 
     * keep the output in a variable named `tuk`
@@ -268,7 +333,7 @@ Steps:
     * keep the output in a variable named `emm2`
 
 6. Plot the EMMs colored by simplified groups using `emm2`
-
+-->
 
 ## References
 
