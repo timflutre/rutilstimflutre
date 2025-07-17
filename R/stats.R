@@ -730,6 +730,144 @@ getNbPCsMinimAvgSqPartCor <- function(X){
   return(max(1, which.min(fm) - 1))
 }
 
+##' Coords of vcov as ellipsis
+##'
+##' Returns the coordinates of the ellipsis corresponding to a variance-covariance matrix.
+##' @param mat input square matrix
+##' @param center vector with the x and y coordinates of the center (population means)
+##' @return two-column matrix with x and y coordinates; see intermediary values in the attributes
+##' @seealso \code{plotEllipsis}
+##' @author Timothee Flutre
+##' @export
+getEllipsisCoords <- function(mat, center=c("x"=0,"y"=0)){
+  stopifnot(is.matrix(mat),
+            is.vector(center),
+            length(center) == 2)
+
+  ## Sources:
+  ## https://stat.ethz.ch/pipermail/r-help/2006-October/114652.html
+  ## https://stats.stackexchange.com/a/9900/3459
+  ## https://cookierobotics.com/007/
+  ## https://datascience.stackexchange.com/a/87224
+
+  ## Explanations: perform eigendecomp of vcov matrix C
+  ## C = Q Lambda Q^-1 (and Q^-1 = Q^T)
+  ## the eigenvector matrix Q corresponds to a rotation matrix R
+  ## the eigenvalue matrix sqrt(L) corresponds to a scaling matrix S (diagonal)
+  ## => C = R S S R^-1
+  ## transforming uncorrelated vector x into correlated vector x': x' = T x
+  ## where T = R S
+  ## to uncorrelate x': x = T^1 x' where T^-1 = S R^-1
+
+  ## eigenvalue decomposition
+  EVD <- eigen(mat)
+  if(any(EVD$values <= 0)){
+    msg <- "matrix is not positive definite"
+    stop(msg)
+  }
+  eigVals <- sqrt(EVD$values)
+  eigVecs <- EVD$vectors # 1st eigenvector = major axis, 2nd eigenvector = minor axis
+
+  ## angles to draw the whole ellipsis
+  theta <- seq(0, 2 * pi, length=1000)
+
+  ## major and minor radius
+  radius <- sqrt(eigVals)
+  ## rotation angle (in radians) btw positive x-axis and major axis in counterclockwise direction
+  rotAngle <- atan2(EVD$values[1] - mat[1,1], mat[1,2])
+
+  coords <- cbind("x"=radius[1] * cos(rotAngle) * cos(theta) -
+                    radius[2] * sin(rotAngle) * sin(theta) + center[1],
+                  "y"=radius[1] * sin(rotAngle) * cos(theta) +
+                    radius[2] * cos(rotAngle) * sin(theta) + center[2])
+
+  attr(coords, "eigVals") <- eigVals
+  attr(coords, "eigVecs") <- eigVecs
+  attr(coords, "rotAngle_rad") <- rotAngle
+  attr(coords, "rotAngle_deg") <- rotAngle * 180 / pi
+
+  return(coords)
+}
+
+##' Plot vcov as ellipsis
+##'
+##' Plots a variance-covariance matrix as an ellipsis.
+##' @param mat input square matrix
+##' @param center vector with the x and y coordinates of the center (population mean)
+##' @param main main title
+##' @param xlab label of the x-axis
+##' @param ylab label of the y-axis
+##' @param asp aspect ratio
+##' @param lwd line width for the ellipsis
+##' @param col color for the ellipsis
+##' @param axisType types of major and minor axes to be added to the plot (NULL/lines/arrows)
+##' @param axisCols colors for the axes (if they are plotted)
+##' @return invisible matrix with ellipsis coordinates and intermediary values in the attributes
+##' @seealso \code{getEllipsisCoords}
+##' @author Timothee Flutre
+##' @examples
+##' ## without correlation
+##' center <- c(0, 0)
+##' mat <- matrix(c(0.5,0,0,0.5), 2, 2)
+##' plotEllipsis(mat, center)
+##' plotEllipsis(mat, center, axisType="line")
+##'
+##' ## with positive correlation
+##' mat <- matrix(c(0.5,0.45,0.45,0.5), 2, 2)
+##' tmp <- plotEllipsis(mat, center)
+##' attr(tmp, "rotAngle_deg")
+##' plotEllipsis(mat, center=c(1,10))
+##' plotEllipsis(mat, center, axisType="line")
+##' plotEllipsis(mat, center, axisType="arrow")
+##' plotEllipsis(mat, center, lwd=2, col="darkblue", axisType="line",
+##'              axisCols=c("major"="blue","minor"="red"))
+##'
+##' ## with negative correlation
+##' mat <- matrix(c(2,-0.7,-0.7,0.5), 2, 2)
+##' tmp <- plotEllipsis(mat, center)
+##' attr(tmp, "rotAngle_deg")
+##' plotEllipsis(mat, center, axisType="arrow")
+##' @export
+plotEllipsis <- function(mat, center=c("x"=0,"y"=0), main="Variance-covariance",
+                         xlab="first dimension", ylab="second dimension",
+                         asp=1, lwd=1, col="black",
+                         axisType=NULL,
+                         axisCols=c("major"="black", "minor"="black")){
+  stopifnot(is.matrix(mat),
+            is.vector(center),
+            length(center) == 2)
+  if(! is.null(axisType))
+    stopifnot(axisType %in% c("line", "arrow"))
+  if(! is.null(axisCols)){
+    stopifnot(is.vector(axisCols),
+              all(c("major","minor") %in% names(axisCols)))
+  } else
+    axisCols <- c("major"="black", "minor"="black")
+
+  coords <- getEllipsisCoords(mat, center)
+  plot(coords[,"x"], coords[,"y"], type="l", asp=asp, lwd=lwd, col=col, las=1,
+       main=main, xlab=xlab, ylab=ylab)
+
+  if(! is.null(axisType)){
+    eigVals <- attr(coords, "eigVals")
+    eigVecs <- attr(coords, "eigVecs")
+    eigScl <- eigVecs %*% diag(sqrt(eigVals))
+    xMat <- rbind(center[1] + eigScl[1,],
+                  center[1] - eigScl[1,])
+    yMat <- rbind(center[2] + eigScl[2,],
+                  center[2] - eigScl[2,])
+    if(axisType == "line"){
+      lines(xMat[,1], yMat[,1], col=axisCols["major"])
+      lines(xMat[,2], yMat[,2], col=axisCols["minor"])
+    } else if(axisType == "arrow"){
+      arrows(center[1], center[2], xMat[1,1], yMat[1,1], col=axisCols["major"])
+      arrows(center[1], center[2], xMat[1,2], yMat[1,2], col=axisCols["minor"])
+    }
+  }
+
+  invisible(coords)
+}
+
 ##' Quantile normalization
 ##'
 ##' Quantile-normalizes a vector of numbers to a standard normal distribution as described in \href{http://dx.doi.org/10.1093/bioinformatics/19.2.185}{Bolstad et al (2003)}.

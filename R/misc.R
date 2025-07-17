@@ -1,5 +1,5 @@
 ##' @import data.table
-##' @importFrom graphics axis par segments
+##' @importFrom graphics arrows axis lines par segments
 ##' @importFrom grDevices rgb
 ##' @import lme4
 ##' @import Matrix
