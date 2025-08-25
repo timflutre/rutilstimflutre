@@ -829,7 +829,7 @@ getEllipsisCoords <- function(mat, center=c("x"=0,"y"=0)){
 ##' plotEllipsis(mat, center, axisType="arrow")
 ##' @export
 plotEllipsis <- function(mat, center=c("x"=0,"y"=0), main="Variance-covariance",
-                         xlab="first dimension", ylab="second dimension",
+                         xlab=NULL, ylab=NULL,
                          asp=1, lwd=1, col="black",
                          axisType=NULL,
                          axisCols=c("major"="black", "minor"="black")){
@@ -844,6 +844,18 @@ plotEllipsis <- function(mat, center=c("x"=0,"y"=0), main="Variance-covariance",
   } else
     axisCols <- c("major"="black", "minor"="black")
 
+  if(is.null(xlab)){
+    if(is.null(rownames(mat))){
+      xlab <- "first dimension"
+    } else
+      xlab <- rownames(mat)[1]
+  }
+  if(is.null(ylab)){
+    if(is.null(rownames(mat))){
+      ylab <- "second dimension"
+    } else
+      ylab <- rownames(mat)[2]
+  }
   coords <- getEllipsisCoords(mat, center)
   plot(coords[,"x"], coords[,"y"], type="l", asp=asp, lwd=lwd, col=col, las=1,
        main=main, xlab=xlab, ylab=ylab)
