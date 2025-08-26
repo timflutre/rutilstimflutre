@@ -797,7 +797,9 @@ getEllipsisCoords <- function(mat, center=c("x"=0,"y"=0)){
 ##' @param main main title
 ##' @param xlab label of the x-axis
 ##' @param ylab label of the y-axis
-##' @param asp aspect ratio
+##' @param asp the y/x aspect ratio
+##' @param xlim limits for the x-axis
+##' @param ylim limits for the y-axis
 ##' @param lwd line width for the ellipsis
 ##' @param col color for the ellipsis
 ##' @param axisType types of major and minor axes to be added to the plot (NULL/lines/arrows)
@@ -830,7 +832,7 @@ getEllipsisCoords <- function(mat, center=c("x"=0,"y"=0)){
 ##' @export
 plotEllipsis <- function(mat, center=c("x"=0,"y"=0), main="Variance-covariance",
                          xlab=NULL, ylab=NULL,
-                         asp=1, lwd=1, col="black",
+                         asp=1, xlim=NULL, ylim=NULL, lwd=1, col="black",
                          axisType=NULL,
                          axisCols=c("major"="black", "minor"="black")){
   stopifnot(is.matrix(mat),
@@ -857,7 +859,8 @@ plotEllipsis <- function(mat, center=c("x"=0,"y"=0), main="Variance-covariance",
       ylab <- rownames(mat)[2]
   }
   coords <- getEllipsisCoords(mat, center)
-  plot(coords[,"x"], coords[,"y"], type="l", asp=asp, lwd=lwd, col=col, las=1,
+  plot(coords[,"x"], coords[,"y"], type="l", asp=asp, xlim=xlim, ylim=ylim,
+       lwd=lwd, col=col, las=1,
        main=main, xlab=xlab, ylab=ylab)
 
   if(! is.null(axisType)){

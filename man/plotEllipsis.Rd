@@ -11,6 +11,8 @@ plotEllipsis(
   xlab = NULL,
   ylab = NULL,
   asp = 1,
+  xlim = NULL,
+  ylim = NULL,
   lwd = 1,
   col = "black",
   axisType = NULL,
@@ -28,7 +30,11 @@ plotEllipsis(
 
 \item{ylab}{label of the y-axis}
 
-\item{asp}{aspect ratio}
+\item{asp}{the y/x aspect ratio}
+
+\item{xlim}{limits for the x-axis}
+
+\item{ylim}{limits for the y-axis}
 
 \item{lwd}{line width for the ellipsis}
 
