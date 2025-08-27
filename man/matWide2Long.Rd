@@ -12,7 +12,7 @@ matWide2Long(
 )
 }
 \arguments{
-\item{mat}{matrix}
+\item{mat}{matrix (with row and column names)}
 
 \item{diag}{if FALSE, the diagonal entries will be ignored}
 

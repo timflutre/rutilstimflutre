@@ -107,7 +107,7 @@ inlineFctForm <- function(form, only.resp=TRUE){
 ##' Reformat
 ##'
 ##' Reformats the upper triangular part (and, optionally, the diagonal) of a matrix from the wide format into the long format.
-##' @param mat matrix
+##' @param mat matrix (with row and column names)
 ##' @param diag if FALSE, the diagonal entries will be ignored
 ##' @param outColNs names of the columns in the output
 ##' @param stringsAsFactors if TRUE, character vectors will be converted to factors
@@ -116,7 +116,8 @@ inlineFctForm <- function(form, only.resp=TRUE){
 ##' @export
 matWide2Long <- function(mat, diag=TRUE, outColNs=c("row","col","val"),
                          stringsAsFactors=FALSE){
-  stopifnot(length(outColNs) == 3,
+  stopifnot(! is.null(dimnames(mat)),
+            length(outColNs) == 3,
             all(is(outColNs, "character")))
 
   ind <- which(upper.tri(mat, diag=TRUE), arr.ind=TRUE)
