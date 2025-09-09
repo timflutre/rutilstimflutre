@@ -17,6 +17,13 @@ output:
 urlcolor: blue
 ---
 
+```{r, echo=FALSE}
+suppressPackageStartupMessages(library(knitr))
+opts_chunk$set(echo=TRUE, warning=TRUE, message=TRUE, cache=FALSE,
+               fig.align="center", collapse=TRUE)
+opts_knit$set(progress=TRUE, verbose=TRUE)
+```
+
 
 # Preamble
 
@@ -832,13 +839,164 @@ plot(tukey) + ggplot2::theme_bw()
 ```
 
 
+
+# Case with two factors
+
+The first factor is the genotype, the second is the fertilization, and all treatments (combinations of factors) are observed.
+
+## Without interaction
+
+### Set up the data frame
+
+```{r}
+G <- 3 # number of genotypes
+F <- 3 # number of types of nitrogen fertilization
+R <- 5 # number of replicates per treatment
+
+(lev.genos <- paste0("var", 1:G))
+(lev.nitros <- c("low", "med", "high"))
+(lev.reps <- LETTERS[1:R])
+
+tmp <- expand.grid(lev.reps, lev.nitros, lev.genos)
+dat <- data.frame(geno=tmp$Var3,
+                  nitro=tmp$Var2,
+                  rep=tmp$Var1,
+                  true_yield=NA,
+                  yield=NA)
+head(dat, 17)
+```
+
+### Simulate the data
+
+One way of doing it consists in choosing the grand mean, drawing an effect for each factor level and drawing residual errors.
+
+#### Draw the effects
+
+The effects of each factor should be centered:
+```{r}
+set.seed(12345)
+N <- nrow(dat)
+true.grand.mean <- 4
+(true.geno.effs <- setNames(as.vector(scale(c(2, -1.2, 0), center=TRUE, scale=FALSE)),
+                            lev.genos))
+(true.nitro.effs <- setNames(as.vector(scale(c(-2, 0.5, 2), center=TRUE, scale=FALSE)),
+                             lev.nitros))
+```
+
+The true means and contrasts can be deduced:
+```{r}
+(true.geno.means <- true.grand.mean + true.geno.effs)
+(true.nitro.means <- true.grand.mean + true.nitro.effs)
+
+Bstar.cs.geno <- contr.sum(levels(dat$geno))
+B.cs.geno <- cbind(intercept=1, Bstar.cs.geno)
+C.cs.geno <- solve(B.cs.geno)
+(true.geno.contrs <- C.cs.geno %*% true.geno.means)
+
+Bstar.cs.nitro <- contr.sum(levels(dat$nitro))
+B.cs.nitro <- cbind(intercept=1, Bstar.cs.nitro)
+C.cs.nitro <- solve(B.cs.nitro)
+(true.nitro.contrs <- C.cs.nitro %*% true.nitro.means)
+
+stopifnot(all.equal(true.geno.contrs["intercept",1], true.nitro.contrs["intercept",1]))
+```
+
+#### Compute the true yield
+
+With a for-loop using the true grand mean and effects:
+```{r}
+for(i in 1:N)
+  dat$true_yield[i] <- true.grand.mean +
+    true.geno.effs[dat$geno[i]] +
+    true.nitro.effs[dat$nitro[i]]
+```
+
+Check that it gives the same results as the design matrix with the true sum contrasts:
+```{r}
+X <- model.matrix(~ 1 + geno + nitro, dat,
+                  contrasts.arg = list(geno="contr.sum", nitro="contr.sum"))
+true.beta <- c(true.geno.contrs, true.nitro.contrs[-1])
+stopifnot(all.equal((X %*% true.beta)[,1], dat$true_yield, check.attributes=FALSE))
+```
+
+#### Add residual errors
+
+```{r}
+sd.error <- 0.8
+epsilons <- rnorm(n=N, mean=0, sd=sd.error)
+dat$yield <- dat$true_yield + epsilons
+```
+
+### Explore the data
+
+```{r}
+(obs.grand.mean <- mean(dat$yield))
+(obs.geno.means <- tapply(dat$yield, dat$geno, mean))
+(obs.nitro.means <- tapply(dat$yield, dat$nitro, mean))
+
+boxplot(yield ~ geno + nitro, data=dat, las=2, varwidth=TRUE,
+        main="Boxplots of dat$yield", xlab="")
+abline(h=obs.grand.mean, lty=2)
+legend("topleft", legend="grand mean", lty=2, bty="n")
+
+boxplot(yield ~ geno, data=dat, las=2, varwidth=TRUE,
+        main="Boxplots of dat$yield", xlab="")
+abline(h=obs.geno.means, lty=2, lwd=2)
+legend("topright", legend="geno means", lty=2, lwd=2, bty="n")
+
+boxplot(yield ~ nitro, data=dat, las=2, varwidth=TRUE,
+        main="Boxplots of dat$yield", xlab="")
+abline(h=obs.nitro.means, lty=2, lwd=2)
+legend("topleft", legend="nitro means", lty=2, lwd=2, bty="n")
+```
+
+### Fit the model
+
+```{r}
+fit.cs <- lm(yield ~ geno + nitro, data=dat,
+             contrasts=list(geno="contr.sum", nitro="contr.sum"))
+summary(fit.cs)
+(alpha.cs.hat <- coef(fit.cs))
+```
+
+### Retrieve the contrast estimates from the data means
+
+The accuracy of the estimated contrasts returned by lm can be assessed by comparing them with the true contrasts obtained above:
+```{r}
+alpha.cs.hat[c("(Intercept)", "geno1", "geno2")]
+data.frame(true=C.cs.geno %*% true.geno.means,
+           estim=C.cs.geno %*% obs.geno.means)
+
+alpha.cs.hat[c("(Intercept)", "nitro1", "nitro2")]
+data.frame(true=C.cs.nitro %*% true.nitro.means,
+           estim=C.cs.nitro %*% obs.nitro.means)
+
+stopifnot(all.equal(fitted(fit.cs), (X %*% alpha.cs.hat)[,1], check.attributes=FALSE))
+```
+
+### Retrieve the data means from the contrast estimates
+
+```{r}
+B.cs.geno %*% alpha.cs.hat[c("(Intercept)", "geno1", "geno2")]
+cbind(true.geno.means, obs.geno.means)
+
+B.cs.nitro %*% alpha.cs.hat[c("(Intercept)", "nitro1", "nitro2")]
+cbind(true.nitro.means, obs.nitro.means)
+```
+
+## With interactions
+
+TODO
+
+
+
+
+
 # Perspectives
 
 - ANOVA table (`aov`) and types of sum of squares
 
 - other contrasts: `contr.helmert`, etc
-
-- two-way ANOVA with interactions
 
 
 # References
