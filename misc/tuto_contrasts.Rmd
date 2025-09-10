@@ -34,7 +34,7 @@ The source file is versioned [online](https://github.com/timflutre/rutilstimflut
 
 # Overview
 
-This tutorial aims at explaining contrasts in R using the one-way ANOVA in a completely balanced setting.
+This tutorial aims at explaining contrasts in R using the one-way ANOVA in a completely balanced setting (but there is an example with a two-way ANOVA at the end).
 It draws heavily on the references listed at the end of the document.
 
 In an example, `yield` as the response variable is regressed on an unordered factor, `genotype`.
@@ -982,6 +982,15 @@ cbind(true.geno.means, obs.geno.means)
 
 B.cs.nitro %*% alpha.cs.hat[c("(Intercept)", "nitro1", "nitro2")]
 cbind(true.nitro.means, obs.nitro.means)
+```
+
+Similarly, the effects can be obtained:
+```{r}
+obs.geno.effs <- obs.geno.means - obs.grand.mean
+cbind(true.geno.effs, obs.geno.effs)
+
+obs.nitro.effs <- obs.nitro.means - obs.grand.mean
+cbind(true.nitro.effs, obs.nitro.effs)
 ```
 
 ## With interactions
