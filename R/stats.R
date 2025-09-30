@@ -642,6 +642,7 @@ pca <- function(X=NULL, S=NULL, ct=TRUE, sc=FALSE, plot=NULL, main="PCA",
     sgl.values <- svd.X$d
     eigen.values <- sgl.values^2
     rot.dat <- X %*% svd.X$v
+    rownames(rot.dat) <- rownames(X)
   } else if(! is.null(S)){
     sgl.values <- NULL
     evd.S <- eigen(S)
