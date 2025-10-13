@@ -1,6 +1,6 @@
 ---
-title: "Simulations of population structure using the coalescent with recombination"
-author: "Timothée Flutre (INRA)"
+title: "Simulations of population structure"
+author: "T. Flutre (INRAE)"
 date: "`r format(Sys.time(), '%d/%m/%Y %H:%M:%S')`"
 output:
   html_document:
@@ -16,14 +16,162 @@ urlcolor: blue
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+suppressPackageStartupMessages(library(knitr))
+opts_chunk$set(echo=TRUE, warning=TRUE, message=TRUE, cache=FALSE,
+               fig.align="center", collapse=TRUE)
+opts_knit$set(progress=TRUE, verbose=TRUE)
+```
+
+
+# Preamble
+
+Dependencies:
+```{r}
+suppressPackageStartupMessages(library(bnpsd))
+suppressPackageStartupMessages(library(popkin))
+suppressPackageStartupMessages(library(scrm))
+suppressPackageStartupMessages(library(adegenet))
+suppressPackageStartupMessages(library(parallel))
+suppressPackageStartupMessages(library(rutilstimflutre))
+```
+
+Execution time (see the appendix):
+```{r time_0}
+t0 <- proc.time()
+```
+
+
+
+# Simulation with base R only
+
+```{r}
+nbGenos <- c(100, 120, 80) # per pop
+nbSnps <- 1000
+levSnps <- sprintf(fmt=paste0("s%0", floor(log10(nbSnps))+1, "i"),
+                   1:nbSnps)
+
+weak.div.pops <- diag(3)
+weak.div.pops[upper.tri(weak.div.pops)] <- 0.9
+weak.div.pops[lower.tri(weak.div.pops)] <- weak.div.pops[upper.tri(weak.div.pops)]
+weak.div.pops
+X <- simulGenosDoseStruct(nb.genos=nbGenos, nb.snps=nbSnps, div.pops=weak.div.pops,
+                          snp.ids=levSnps)
+K <- estimGenRel(X)
+imageWithScale(K, "Weak divergence")
+
+strong.div.pops <- diag(3)
+strong.div.pops[upper.tri(strong.div.pops)] <- 0.5
+strong.div.pops[lower.tri(strong.div.pops)] <- strong.div.pops[upper.tri(strong.div.pops)]
+strong.div.pops
+X <- simulGenosDoseStruct(nb.genos=nbGenos, nb.snps=nbSnps, div.pops=strong.div.pops,
+                          snp.ids=levSnps)
+K <- estimGenRel(X)
+imageWithScale(K, "Strong divergence")
+```
+
+
+
+# Simulation with `bnpsd` and `popkin`
+
+See the [vignette](https://cran.r-project.org/web/packages/bnpsd/vignettes/bnpsd.html) of the `bnpsd` package.
+
+```{r}
+nbGenos <- 300
+levGenos <- sprintf(fmt=paste0("g%0", floor(log10(nbGenos))+1, "i"),
+                    1:nbGenos)
+nbSnps <- 1000
+levSnps <- sprintf(fmt=paste0("s%0", floor(log10(nbSnps))+1, "i"),
+                   1:nbSnps)
+nbSubPops <- 10
+Fst <- 0.1
+bias_coeff <- 0.5
+```
+
+## Admixture proportions
+
+From 1D geography.
+
+```{r}
+admixprops <- admix_prop_1d_linear(
+    n_ind = nbGenos,
+    k_subpops = nbSubPops,
+    bias_coeff = bias_coeff,
+    coanc_subpops = 1:nbSubPops,
+    fst = Fst)
+```
+
+## Pop structure
+
+Parameters of the admixed individuals.
+
+```{r}
+coancestries <- coanc_admix(
+    admixprops$admix_proportions,
+    admixprops$coanc_subpops)
+```
+
+```{r, fig.width=12}
+## visualize the admixture proportions
+op <- par(mar = c(1, 4, 3, 0) + 0.2)
+barplot(
+    t(admixprops$admix_proportions),
+    ## col = col_subpops,
+    border = NA,
+    space = 0,
+    ylab = 'Admixture prop.')
+mtext('Genotypes', 1)
+par(op)
 ```
 
 ```{r}
-suppressPackageStartupMessages(library(parallel))
-suppressPackageStartupMessages(library(adegenet))
-suppressPackageStartupMessages(library(rutilstimflutre)) # https://github.com/timflutre/rutilstimflutre
+## visualize the coancestry matrix
+plot_popkin(
+    coancestries,
+    mar = c(1, 4, 3, 0) + 0.2,
+    ## mar = 0, # zero inner margin (plus padding) because we have no labels
+    leg_title = 'Coancestry')
 ```
+
+## SNP genotypes
+
+```{r}
+## draw ancestral AFs
+p_anc <- draw_p_anc(nbSnps, beta=0.2)
+## draw intermediate independent subpopulations AFs
+p_subpops <- draw_p_subpops(p_anc, admixprops$coanc_subpops)
+## draw individual-specific AFs
+p_ind <- make_p_ind_admix(p_subpops, admixprops$admix_proportions)
+## draw genotypes
+X <- draw_genotypes_admix(p_ind)
+colnames(X) <- levGenos
+rownames(X) <- levSnps
+X <- t(X)
+
+dim(X)
+X[1:3,1:4]
+table(X)
+```
+
+## AFs and MAFs
+
+```{r, fig.width=10}
+snpAFs <- estimSnpAf(X)
+plotHistAllelFreq(afs=snpAFs)
+
+snpMAFs <- estimSnpMaf(X)
+plotHistMinAllelFreq(mafs=snpMAFs)
+```
+
+## Genomic relationships
+
+```{r}
+K <- estimGenRel(X)
+imageWithScale(K)
+```
+
+
+
+# Simulation with `srcm`
 
 Set up the parallel computations:
 ```{r}
@@ -142,3 +290,12 @@ tmp <- lapply(names(dapc), function(x){
 stopCluster(cl)
 ```
 
+
+
+# Appendix
+
+```{r info}
+t1 <- proc.time()
+t1 - t0
+print(sessionInfo(), locale=FALSE)
+```
