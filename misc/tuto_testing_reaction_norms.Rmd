@@ -1,0 +1,293 @@
+---
+title: "Tutorial on statistical tests of reaction norms"
+author: "T. Flutre (INRAE)"
+date: "`r format(Sys.time(), '%d/%m/%Y %H:%M:%S')`"
+colorlinks: true
+output:
+  html_document:
+    toc: true
+    toc_depth: 5
+    toc_float: true
+    number_sections: TRUE
+    code_folding: show
+  pdf_document:
+    toc: true
+    toc_depth: 5
+    number_sections: TRUE
+urlcolor: blue
+---
+
+```{r, echo=FALSE}
+suppressPackageStartupMessages(library(knitr))
+opts_chunk$set(echo=TRUE, warning=TRUE, message=TRUE, cache=FALSE,
+               fig.align="center", collapse=TRUE)
+opts_knit$set(progress=TRUE, verbose=TRUE)
+```
+
+
+# Preamble
+
+Dependencies:
+```{r}
+suppressPackageStartupMessages(library(ggplot2))
+suppressPackageStartupMessages(library(car))
+suppressPackageStartupMessages(library(emmeans))
+```
+
+
+
+# Simulate the data
+
+The framework here will be the ANOVA at two factors with interactions.
+The first factor is the genotype, the second is the environment (with a number of levels fixed at 2 here).
+To keep things simple, all treatments (combinations of factors) are observed, with replicates; the design will be complete.
+
+## Set up the data frame
+
+```{r}
+nbEnvts <- 2  # number of environments
+nbGenos <- 10 # number of genotypes
+nbReps <- 5   # number of replicates per treatment
+nbGxEs <- nbGenos * nbEnvts
+
+(levEnvts <- paste0("env", 1:nbEnvts))
+(levGenos <- sprintf(paste0("g%02i"), 1:nbGenos))
+(levReps <- LETTERS[1:nbReps])
+(levGxEs <- paste0(rep(levGenos, each=nbEnvts), "_", levEnvts))
+
+tmp <- expand.grid(levReps, levEnvts, levGenos)
+dat <- data.frame(G=tmp$Var3,
+                  E=tmp$Var2,
+                  rep=tmp$Var1,
+                  GxE=paste0(tmp$Var3, "_", tmp$Var2),
+                  true_yield=NA,
+                  yield=NA,
+                  stringsAsFactors=TRUE)
+stopifnot(all(levels(dat$GxE) == levGxEs))
+str(dat)
+head(dat)
+```
+
+## Set the magnitude of the effects
+
+The higher the std.dev., the higher the effects can be:
+```{r}
+true_envt_diff <- 10
+sd_G <- 3
+sd_GxE <- 3 # 0
+sd_err <- 2 # 0.8
+```
+
+Play with the values and see the changes on the last plots below.
+
+## Draw the effects
+
+The effects of each factor should be centered:
+```{r}
+set.seed(12345)
+N <- nrow(dat)
+true_grand_mean <- 40
+(true_geno_effs <- setNames(as.vector(scale(rnorm(nbGenos, sd=sd_G), center=TRUE, scale=FALSE)),
+                            levGenos))
+(true_envt_effs <- setNames(c(true_envt_diff/2, -true_envt_diff/2),
+                            levEnvts))
+(true_gxe_effs <- setNames(as.vector(scale(rnorm(nbGxEs, sd=sd_GxE), center=TRUE, scale=FALSE)),
+                           levGxEs))
+```
+
+The true means and contrasts (with `contr.sum`) can be deduced:
+```{r}
+(true_geno_means <- true_grand_mean + true_geno_effs)
+(true_envt_means <- true_grand_mean + true_envt_effs)
+
+Bstar.cs.geno <- contr.sum(levels(dat$G))
+B.cs.geno <- cbind(intercept=1, Bstar.cs.geno)
+C.cs.geno <- solve(B.cs.geno)
+(true_geno_contrs <- C.cs.geno %*% true_geno_means)
+
+Bstar.cs.envt <- contr.sum(levels(dat$E))
+B.cs.envt <- cbind(intercept=1, Bstar.cs.envt)
+C.cs.envt <- solve(B.cs.envt)
+(true_envt_contrs <- C.cs.envt %*% true_envt_means)
+
+stopifnot(all.equal(true_geno_contrs["intercept",1], true_envt_contrs["intercept",1]))
+```
+
+## Compute the true yield
+
+With a for-loop using the true grand mean and effects:
+```{r}
+for(i in 1:N)
+  dat$true_yield[i] <- true_grand_mean +
+    true_geno_effs[dat$G[i]] +
+    true_envt_effs[dat$E[i]] +
+    true_gxe_effs[dat$GxE[i]]
+```
+
+Check that it gives the same results as the design matrix with the true sum contrasts:
+```{r}
+X <- model.matrix(~ 1 + G + E + G:E, dat,
+                  contrasts.arg = list(G="contr.sum", E="contr.sum"))
+true_beta <- c(true_geno_contrs, true_envt_contrs[-1])
+#stopifnot(all.equal((X %*% true_beta)[,1], dat$true_yield, check.attributes=FALSE))
+```
+
+## Add residual errors
+
+```{r}
+epsilons <- rnorm(n=N, mean=0, sd=sd_err)
+dat$yield <- dat$true_yield + epsilons
+```
+
+
+
+# Explore the data
+
+```{r}
+(obs_grand_mean <- mean(dat$yield))
+(obs_geno_means <- tapply(dat$yield, dat$G, mean))
+(obs_envt_means <- tapply(dat$yield, dat$E, mean))
+```
+
+```{r}
+ggplot(dat) +
+  aes(x=E, y=yield, color=G) +
+  geom_point() +
+  labs(title="Raw data (with all replicates)") +
+  theme_bw()
+```
+
+```{r}
+obsMeansW <- tapply(dat$yield, list(dat$G, dat$E), mean)
+obsMeansL <- data.frame(G=rownames(obsMeansW),
+                        E=rep(colnames(obsMeansW), each=nrow(obsMeansW)),
+                        mean_yield=c(obsMeansW))
+ggplot(obsMeansL) +
+  aes(x=E, y=mean_yield, color=G) +
+  geom_point() +
+  labs(title="Raw data (averaged over replicates)") +
+  theme_bw()
+```
+
+```{r}
+tmp <- data.frame(x=1,
+                  y=obsMeansW[,"env1"],
+                  xend=2,
+                  yend=obsMeansW[,"env2"],
+                  G=rownames(obsMeansW))
+ggplot() +
+  geom_point(aes(x=E, y=mean_yield, color=G), obsMeansL) +
+  geom_segment(aes(x=x, y=y, xend=xend, yend=yend, color=G), data=tmp) +
+  labs(title="Raw data (averaged over replicates)") +
+  theme_bw()
+```
+
+
+
+
+# Analyze the data
+
+## Model fit
+
+```{r}
+fit <- lm(yield ~ 1 + G + E + G:E, data=dat,
+          contrasts=list(G="contr.sum", E="contr.sum"))
+summary(fit)
+## (alpha_hat <- coef(fit))
+
+(tav <- car::Anova(fit, type="III"))
+```
+
+## Environmental means
+
+```{r}
+emms_envt <- emmeans(fit, ~ E)
+(sry_emms_envt <- summary(emms_envt, level=0.95))
+ggplot(sry_emms_envt) +
+  aes(x=E, y=emmean) +
+  geom_point(size=4) +
+  geom_errorbar(aes(x=E, ymin=lower.CL, ymax=upper.CL), width=0.2) +
+  labs(title="Estimates of the 'environment' effects") +
+  theme_bw()
+```
+
+## Genotypic means per environment
+
+```{r}
+emms_geno_byE <- emmeans(fit, ~ G | E)
+(sry_emms_geno_byE <- summary(emms_geno_byE, level=0.95))
+ggplot(sry_emms_geno_byE) +
+  aes(x=E, y=emmean, color=G) +
+  geom_point(size=2) +
+  geom_errorbar(aes(x=E, ymin=lower.CL, ymax=upper.CL), width=0.2) +
+  labs(title="Estimates of the 'genotype' effects per environment") +
+  theme_bw()
+```
+
+## Slopes of reaction norms
+
+### Compared to zero
+
+```{r}
+(contr_envt <- contrast(emms_envt, "pairwise"))
+contr_envt <- as.data.frame(contr_envt)
+meanRNlinetype <- "dotted"
+if(contr_envt$p.value < 0.05)
+  meanRNlinetype <- "solid"
+
+emms_gxe <- emmeans(fit, ~ G * E)
+(sry_emms_gxe <- summary(emms_gxe, level=0.95))
+head(tmp <- as.data.frame(pairs(emms_gxe, simple="E")))
+
+tmpE <- data.frame(x=1,
+                   y=sry_emms_envt$emmean[1],
+                   xend=2,
+                   yend=sry_emms_envt$emmean[2])
+tmpGbyE <- data.frame(x=1,
+                      y=sry_emms_geno_byE$emmean[sry_emms_geno_byE$E == "env1"],
+                      xend=2,
+                      yend=sry_emms_geno_byE$emmean[sry_emms_geno_byE$E == "env2"],
+                      G=levels(sry_emms_geno_byE$G),
+                      signif=ifelse(tmp$p.value <= 0.05, TRUE, FALSE))
+tmpGbyE$signif <- factor(tmpGbyE$signif, levels=c("TRUE","FALSE"))
+
+ggplot() +
+  geom_point(aes(x=E, y=emmean, color=G), sry_emms_geno_byE, size=2) +
+  geom_errorbar(aes(x=E, ymin=lower.CL, ymax=upper.CL, color=G), sry_emms_geno_byE, width=0.2) +
+  geom_point(aes(x=E, y=emmean), sry_emms_envt, size=4) +
+  geom_errorbar(aes(x=E, ymin=lower.CL, ymax=upper.CL), sry_emms_envt, width=0.2) +
+  geom_segment(aes(x=x, y=y, xend=xend, yend=yend), tmpE, linewidth=2, linetype=meanRNlinetype) +
+  geom_segment(aes(x=x, y=y, xend=xend, yend=yend, color=G, linetype=signif), tmpGbyE) +
+  scale_linetype_manual(values=c("TRUE"="solid", "FALSE"="dashed")) +
+  labs(title="Estimates of reaction norms",
+       subtitle="H0 of genotypic slopes: \"no slope\"") +
+  theme_bw()
+```
+
+### Compared to the mean trend
+
+```{r}
+tmpGbyE$signif <- NA
+(tmp <- as.data.frame(test(pairs(emms_gxe, by="G"), null=contr_envt$estimate)))
+tmpGbyE$signif <- ifelse(tmp$p.value <= 0.05, TRUE, FALSE)
+tmpGbyE$signif <- factor(tmpGbyE$signif, levels=c("TRUE","FALSE"))
+
+ggplot() +
+  geom_point(aes(x=E, y=emmean, color=G), sry_emms_geno_byE, size=2) +
+  geom_errorbar(aes(x=E, ymin=lower.CL, ymax=upper.CL, color=G), sry_emms_geno_byE, width=0.2) +
+  geom_point(aes(x=E, y=emmean), sry_emms_envt, size=4) +
+  geom_errorbar(aes(x=E, ymin=lower.CL, ymax=upper.CL), sry_emms_envt, width=0.2) +
+  geom_segment(aes(x=x, y=y, xend=xend, yend=yend), tmpE, linewidth=2, linetype=meanRNlinetype) +
+  geom_segment(aes(x=x, y=y, xend=xend, yend=yend, color=G, linetype=signif), tmpGbyE) +
+  scale_linetype_manual(values=c("TRUE"="solid", "FALSE"="dashed")) +
+  labs(title="Estimates of reaction norms",
+       subtitle="H0 of genotypic slopes: \"mean trend\"") +
+  theme_bw()
+```
+
+
+# Appendix
+
+```{r info}
+print(sessionInfo(), locale=FALSE)
+```
