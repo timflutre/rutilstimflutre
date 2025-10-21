@@ -113,6 +113,8 @@ C.cs.envt <- solve(B.cs.envt)
 stopifnot(all.equal(true_geno_contrs["intercept",1], true_envt_contrs["intercept",1]))
 ```
 
+TODO: retrieve the true interaction contrasts
+
 ## Compute the true yield
 
 With a for-loop using the true grand mean and effects:
@@ -124,12 +126,13 @@ for(i in 1:N)
     true_gxe_effs[dat$GxE[i]]
 ```
 
-Check that it gives the same results as the design matrix with the true sum contrasts:
+Check that it gives the same results as the design matrix with the true contrasts:
 ```{r}
 X <- model.matrix(~ 1 + G + E + G:E, dat,
                   contrasts.arg = list(G="contr.sum", E="contr.sum"))
 true_beta <- c(true_geno_contrs, true_envt_contrs[-1])
-#stopifnot(all.equal((X %*% true_beta)[,1], dat$true_yield, check.attributes=FALSE))
+## stopifnot(all.equal((X %*% true_beta)[,1], dat$true_yield, check.attributes=FALSE))
+## TODO: add the interaction contrasts in beta
 ```
 
 ## Add residual errors
