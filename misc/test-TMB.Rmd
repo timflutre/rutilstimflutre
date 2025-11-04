@@ -251,6 +251,23 @@ sdrep_v1 <- sdreport(f_v1)
 rm(f_v1)
 ```
 
+#### Try `tmbstan`
+
+```{r}
+if(FALSE){
+  suppressPackageStartupMessages(library(tmbstan))
+
+  f <- MakeADFun(data=list(x=x),
+                 parameters=list(mu=0, log_sigma=log(1)),
+                 hessian=TRUE, DLL=dllID)
+  fit <- nlminb(f$par, f$fn, f$gr)
+  cbind("truth"=c("mu"=mu, "log(sigma)"=log(sigma)), "estim"=fit$par)
+  out <- tmbstan(f, chains=1)
+  pairs(out, pars=names(f$par))
+  traceplot(out, pars=names(f$par), inc_warmup=TRUE)
+}
+```
+
 ### v2
 
 #### Implementation
