@@ -263,8 +263,9 @@ if(FALSE){
   fit <- nlminb(f$par, f$fn, f$gr)
   cbind("truth"=c("mu"=mu, "log(sigma)"=log(sigma)), "estim"=fit$par)
   out <- tmbstan(f, chains=1)
-  pairs(out, pars=names(f$par))
   traceplot(out, pars=names(f$par), inc_warmup=TRUE)
+  pairs(out, pars=names(f$par))
+  plot(out, pars=names(f$par))
 }
 ```
 
@@ -1306,6 +1307,24 @@ sdrep_v3$sd
 rm(f_v3)
 ```
 
+###### Try `tmbstan`
+
+```{r}
+if(FALSE){
+  suppressPackageStartupMessages(library(tmbstan))
+
+  f <- MakeADFun(data=list(y=y, X=X, Z=Z, A=A, Id_n=Id_n, nbReps=nbBlocks),
+                 parameters=list(beta=rep(0, p), u=rep(0, q),
+                                 log_sigma_u=log(1), log_sigma_e=log(1)),
+                 random="u", DLL=dllID)
+  fit <- nlminb(f$par, f$fn, f$gr)
+  out <- tmbstan(f, chains=1)
+  traceplot(out, pars=names(f$par), inc_warmup=TRUE)
+  pairs(out, pars=names(f$par))
+  plot(out, pars=names(f$par))
+}
+```
+
 ### Check
 
 ```{r}
@@ -1840,6 +1859,31 @@ fits <- tmp$fits
 sts <- tmp$sts
 sdrep <- sdreport(f)
 repCor <- f$report()
+```
+
+###### Try `tmbstan`
+
+```{r}
+if(FALSE){
+  suppressPackageStartupMessages(library(tmbstan))
+
+  f <- MakeADFun(data=list(Y=Y, X_1=X_1, Z_1=Z_1, A=A, Id_n1=diag(n_1)),
+                 parameters=list(
+                     B=matrix(0,p,d),
+                     U=matrix(0,q,d),
+                     log_sd_U=rep(log(1),d),
+                     unconstr_cor_U=rep(0, 1),
+                     log_sd_E=rep(log(1),d),
+                     unconstr_cor_E=rep(0, 1)
+                 ),
+                 random="U", DLL=dllID)
+  fit <- nlminb(f$par, f$fn, f$gr)
+  out <- tmbstan(f, chains=1)
+  traceplot(out, pars=names(f$par), inc_warmup=TRUE)
+  pairs(out, pars=names(f$par))
+  plot(out, pars=names(f$par))
+  print(out, pars=c("unconstr_cor_U","unconstr_cor_E"))
+}
 ```
 
 ## Check
