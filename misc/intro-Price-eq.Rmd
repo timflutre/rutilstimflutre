@@ -313,6 +313,8 @@ R = i \, \rho \, \sigma_{g_a}
 
 where $\rho$ is the correlation between the estimated and the true breeding values.
 
+TODO: see Heywood (2005)
+
 <br>
 
 
