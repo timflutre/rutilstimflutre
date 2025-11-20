@@ -10531,7 +10531,7 @@ calcL10ApproximateBayesFactorWen <- function(Y, Xg, Xc,
 ##'                     show.points=TRUE)
 ##' fit <- lm(modelA$Y[,1] ~ X[,snp])
 ##' abline(fit, col="red")
-##' abline(a=fit.u$global.mean["beta.hat"] - mean(X[snp]) * fit.u$tests[snp,"beta"],
+##' abline(a=fit.u$global.mean["beta.hat"] - mean(X[,snp]) * fit.u$tests[snp,"beta"],
 ##'        b=fit.u$tests[snp,"beta"])
 ##' legend("topright", legend=c("lm","gemma"), col=c("red","black"), lty=1, bty="n")
 ##' }
