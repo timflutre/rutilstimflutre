@@ -207,6 +207,7 @@ Reminder: in the simple linear regression $y_i = \mu + \beta x_i + \epsilon_i$ w
 
 Gardner also recalls that if fitness $w$ is linearly dependent on $z$ with slope $\beta_{wz}$, then $Cov(w, z) = \beta_{wz} \, Var(z)$, which "captures Darwin's basic argument that selection occurs when there is variation in a character of interest that is correlated with fitness".
 
+Importantly, Zhang and Hill (2010) highlight that the Price equation holds only if the character value changes after the selection, i.e., it is valid only when the two processes (selection and transmission) occur independently such that their effects are additive.
 
 <br>
 
@@ -346,6 +347,12 @@ R_2
 
 in the case of two traits, with the (in)famous **$G$ matrix**.
 
+<br>
+
+
+# Further
+
+Zhang and Hill (2010) show that the Price equation can be used to derive the change, not only in trait mean ($\mu$) but also in *variance*, both genetic ($V_{Am}$) and environmental ($V_E$; also called "residual variance", i.e., variance of phenotypic value given genotype).
 
 
 <br>
@@ -371,6 +378,8 @@ in the case of two traits, with the (in)famous **$G$ matrix**.
 - Frank SA. 1997. The Price Equation, Fisher’s Fundamental Theorem, Kin Selection, and Causal Analysis. Evolution. 51(6):1712–1729. doi:10.2307/2410995.
 
 - Bijma P. 2010. Fisher’s fundamental theorem of inclusive fitness and the change in fitness due to natural selection when conspecifics interact. Journal of Evolutionary Biology. 23(1):194–206. doi:10.1111/j.1420-9101.2009.01895.x.
+
+- Zhang X-S, Hill WG. 2010. Change and maintenance of variation in quantitative traits in the context of the Price equation. Theoretical Population Biology. 77(1):14–22. doi:10.1016/j.tpb.2009.10.004
 
 - Frank SA. 2012. Natural selection. IV. The Price equation. Journal of Evolutionary Biology. 25(6):1002–1019. doi:10.1111/j.1420-9101.2012.02498.x.
 
