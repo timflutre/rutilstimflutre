@@ -34,6 +34,7 @@ suppressPackageStartupMessages(library(MixMatrix))
 suppressPackageStartupMessages(library(lme4))
 suppressPackageStartupMessages(library(TMB))
 suppressPackageStartupMessages(library(glmmTMB))
+suppressPackageStartupMessages(library(ggplot2))
 ```
 
 Execution time (see the appendix):
@@ -1198,6 +1199,18 @@ Type objective_function<Type>::operator() ()
   Type h2 = exp(2 * log_sigma_u) / (exp(2 * log_sigma_u) + exp(2 * log_sigma_e) / nbReps);
   ADREPORT(h2);
 
+  SIMULATE {
+    vector<Type> y_sim(n);
+    vector<Type> u_sim(q);
+    vector<Type> e_sim(n);
+    VECSCALE_t<MVNORM_t<Type>> f_u_sim = VECSCALE(mvn_u_cor, vec_sigma_u);
+    f_u_sim.simulate(u_sim);
+    VECSCALE_t<MVNORM_t<Type>> f_e_sim = VECSCALE(mvn_y_cor, vec_sigma_e);
+    f_e_sim.simulate(e_sim);
+    y_sim = X * beta + Z * u_sim + e_sim;
+    REPORT(y_sim);
+  }
+
   return nll;
 }
 "
@@ -1214,8 +1227,8 @@ dyn.load(dynlib(dllID))
 ```{r}
 system.time(
     f_v2 <- MakeADFun(data=list(y=y, X=X, Z=Z, A=A, Id_n=Id_n, nbReps=nbBlocks),
-                      parameters=list(beta=rep(0, p), u=rep(0, q), log_sigma_u=log(1),
-                                      log_sigma_e=log(1)),
+                      parameters=list(beta=rep(0, p), u=rep(0, q),
+                                      log_sigma_u=log(1), log_sigma_e=log(1)),
                       random="u",
                       hessian=TRUE, DLL=dllID))
 tmp <- computFits(f_v2, lower=c(rep(-10.0,p),rep(-10.0,q),-10.0,-10.0),
@@ -1227,6 +1240,56 @@ Matrix::image(f_v2$env$spHess(random=TRUE))
 sdrep_v2$value
 sdrep_v2$sd
 rm(f_v2)
+```
+
+###### Try `simulate`
+
+```{r}
+f <- MakeADFun(data=list(y=y, X=X, Z=Z, A=A, Id_n=Id_n, nbReps=nbBlocks),
+               parameters=list(beta=rep(0, p), u=rep(0, q),
+                               log_sigma_u=log(1), log_sigma_e=log(1)),
+               random="u", DLL=dllID)
+fit <- nlminb(f$par, f$fn, f$gr)
+allPars_estim <- f$env$last.par.best
+length(allPars_estim) # includes beta, u and the variances
+
+## test with one simulation:
+new_sim <- f$simulate(par=allPars_estim, complete=TRUE)
+names(new_sim) # y, X, Z, A, Id_n, nbReps and y_sim
+summary(y)
+summary(new_sim$y_sim)
+op <- par(mfrow=c(1,2))
+hist(y, breaks=20); hist(new_sim$y_sim, breaks=20)
+par(op)
+
+## https://kaskr.github.io/adcomp/Simulation.html
+## several simulations:
+list_allPars_estim <- list()
+for(param in c("beta", "u", "log_sigma_u", "log_sigma_e")){
+  idx <- grep(paste0("^",param,"$"), names(allPars_estim))
+  list_allPars_estim[[param]] <- allPars_estim[idx]
+}
+system.time(
+    sim <- replicate(50, {
+      simdata <- f$simulate(par=allPars_estim, complete=TRUE)
+      simdata$y <- simdata$y_sim
+      simdata$y_sim <- NULL
+      f2 <- MakeADFun(data=simdata, parameters=list_allPars_estim,
+                      random="u", DLL=dllID, silent=TRUE)
+      nlminb(f2$par, f2$fn, f2$gr)$par
+    })
+)
+rowMeans(sim)
+allPars_estim[c(1,2,3, 54,55)]
+apply(sim, 1, summary)
+
+df <- data.frame(estimate=c(sim),
+                 parameter=c("beta1","beta2","beta3","log_sigma_u","log_sigma_e"))
+ggplot(df) +
+  aes(x=estimate) +
+  geom_histogram() +
+  theme_bw() +
+  facet_wrap(~ parameter)
 ```
 
 ##### v3
@@ -1276,6 +1339,19 @@ Type objective_function<Type>::operator() ()
   Type h2 = exp(2 * log_sigma_u) / (exp(2 * log_sigma_u) + exp(2 * log_sigma_e) / nbReps);
   ADREPORT(h2);
 
+  SIMULATE {
+    vector<Type> y_sim(n);
+    vector<Type> u_sim(q);
+    vector<Type> e_sim(n);
+    VECSCALE_t<MVNORM_t<Type>> f_u_sim = VECSCALE(mvn_u_cor, vec_sigma_u);
+    f_u_sim.simulate(u_sim);
+    GMRF_t f_e_sim(Rinv);
+//    GMRF_t<SparseMatrix<Type>> f_e_sim(Rinv);
+    f_e_sim.simulate(e_sim);
+    y_sim = X * beta + Z * u_sim + e_sim;
+    REPORT(y_sim);
+  }
+
   return nll;
 }
 "
@@ -1305,6 +1381,58 @@ Matrix::image(f_v3$env$spHess(random=TRUE))
 sdrep_v3$value
 sdrep_v3$sd
 rm(f_v3)
+```
+
+###### Try `simulate`
+
+```{r}
+if(FALSE){
+  f <- MakeADFun(data=list(y=y, X=X, Z=Z, A=A, Id_n=Id_n, nbReps=nbBlocks),
+                 parameters=list(beta=rep(0, p), u=rep(0, q),
+                                 log_sigma_u=log(1), log_sigma_e=log(1)),
+                 random="u", DLL=dllID)
+  fit <- nlminb(f$par, f$fn, f$gr)
+  allPars_estim <- f$env$last.par.best
+  length(allPars_estim) # includes beta, u and the variances
+  
+  ## test with one simulation:
+  new_sim <- f$simulate(par=allPars_estim, complete=TRUE)
+  names(new_sim) # y, X, Z, A, Id_n, nbReps and y_sim
+  summary(y)
+  summary(new_sim$y_sim)
+  op <- par(mfrow=c(1,2))
+  hist(y, breaks=20); hist(new_sim$y_sim, breaks=20)
+  par(op)
+}
+
+## https://kaskr.github.io/adcomp/Simulation.html
+## several simulations:
+list_allPars_estim <- list()
+for(param in c("beta", "u", "log_sigma_u", "log_sigma_e")){
+  idx <- grep(paste0("^",param,"$"), names(allPars_estim))
+  list_allPars_estim[[param]] <- allPars_estim[idx]
+}
+system.time(
+    sim <- replicate(50, {
+      simdata <- f$simulate(par=allPars_estim, complete=TRUE)
+      simdata$y <- simdata$y_sim
+      simdata$y_sim <- NULL
+      f2 <- MakeADFun(data=simdata, parameters=list_allPars_estim,
+                      random="u", DLL=dllID, silent=TRUE)
+      nlminb(f2$par, f2$fn, f2$gr)$par
+    })
+)
+rowMeans(sim)
+allPars_estim[c(1,2,3, 54,55)]
+apply(sim, 1, summary)
+
+df <- data.frame(estimate=c(sim),
+                 parameter=c("beta1","beta2","beta3","log_sigma_u","log_sigma_e"))
+ggplot(df) +
+  aes(x=estimate) +
+  geom_histogram() +
+  theme_bw() +
+  facet_wrap(~ parameter)
 ```
 
 ###### Try `tmbstan`
@@ -1547,7 +1675,7 @@ rm(f_v1)
 
 Using `GMRF` (sparse precision matrix).
 
-Using the explicit formula of the lilelihood with sparse covariance matrices (eq 26 of Zhu and Wathen, 2018).
+Using the explicit formula of the likelihood with sparse covariance matrices (eq 26 of Zhu and Wathen, 2018).
 
 ###### Implementation
 
