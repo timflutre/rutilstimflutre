@@ -1386,24 +1386,22 @@ rm(f_v3)
 ###### Try `simulate`
 
 ```{r}
-if(FALSE){
-  f <- MakeADFun(data=list(y=y, X=X, Z=Z, A=A, Id_n=Id_n, nbReps=nbBlocks),
-                 parameters=list(beta=rep(0, p), u=rep(0, q),
-                                 log_sigma_u=log(1), log_sigma_e=log(1)),
-                 random="u", DLL=dllID)
-  fit <- nlminb(f$par, f$fn, f$gr)
-  allPars_estim <- f$env$last.par.best
-  length(allPars_estim) # includes beta, u and the variances
+f <- MakeADFun(data=list(y=y, X=X, Z=Z, A=A, Id_n=Id_n, nbReps=nbBlocks),
+               parameters=list(beta=rep(0, p), u=rep(0, q),
+                               log_sigma_u=log(1), log_sigma_e=log(1)),
+               random="u", DLL=dllID)
+fit <- nlminb(f$par, f$fn, f$gr)
+allPars_estim <- f$env$last.par.best
+length(allPars_estim) # includes beta, u and the variances
   
-  ## test with one simulation:
-  new_sim <- f$simulate(par=allPars_estim, complete=TRUE)
-  names(new_sim) # y, X, Z, A, Id_n, nbReps and y_sim
-  summary(y)
-  summary(new_sim$y_sim)
-  op <- par(mfrow=c(1,2))
-  hist(y, breaks=20); hist(new_sim$y_sim, breaks=20)
-  par(op)
-}
+## test with one simulation:
+new_sim <- f$simulate(par=allPars_estim, complete=TRUE)
+names(new_sim) # y, X, Z, A, Id_n, nbReps and y_sim
+summary(y)
+summary(new_sim$y_sim)
+op <- par(mfrow=c(1,2))
+hist(y, breaks=20); hist(new_sim$y_sim, breaks=20)
+par(op)
 
 ## https://kaskr.github.io/adcomp/Simulation.html
 ## several simulations:
