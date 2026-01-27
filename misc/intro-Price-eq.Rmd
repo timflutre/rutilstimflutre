@@ -211,9 +211,28 @@ Importantly, Zhang and Hill (2010) highlight that the Price equation holds only 
 
 <br>
 
+# Robertson-Price identity
+
+A very simple case consists in applying the Price equation to a single episode of selection within a generation, e.g., due to survival only, so that the second term of the equation can be ignored.
+Let us hence assume that the ancestral set consists of all individuals in the population and the descendant set consists only in the survived individuals.
+Moreover, let $z$ denote the phenotypic values of the trait of interest in the ancestral set.
+
+In this case, the Robertson-Price identity simply is:
+
+\[
+S = cov(w, z)
+\]
+
+where $S$ corresponds to the **selection differential** (see below).
+
+As explained in Stinchcombe et al (2014), it can be generalized to multivariate form.
+Moreover, it includes the net effects of direct and indirect selection on the traits of interest, whether correlated traits were measured or even included in the analysis, which is not the case of the (multivariate) breeder's equation (see below).
+
+<br>
+
 # Robertson's secondary theorem
 
-Let us assume that the ancestral set consists in potential parents and the descendant set consists in their offsprings.
+Let us now assume that the ancestral set consists in potential parents and the descendant set consists in their offsprings.
 In quantitative genetics since Fisher, the parental phenotype $z$ is classically decomposed into a transmissible part noted $g_a$ (called the **breeding** value, equal to the additive genotypic value when additive-additive epistasis is ignored) and a non-transmissible part noted $\epsilon$, with $z = g_a + \epsilon$ and $\text{E}(\epsilon) = 0$ so that $z' = g_a$.
 As a result, Price's equation applied to this mapping expresses the response to selection, $R$:
 
@@ -259,7 +278,7 @@ In the framework of Price's mapping, let us define two sets, before and after se
 
 Importantly, because individuals are the same between both sets, their phenotype remains the same: $\Delta z = 0$.
 
-As a result, Price's equation applied to this mapping expresses the **selection differential**:
+As a result, Price's equation applied to this mapping expresses the **selection differential** (also known as the Robertson-Price identity, see above):
 
 \begin{align}
 S &= \bar{z}_{\text{selected parents}} - \bar{z}_{\text{potential parents}} \\
@@ -359,6 +378,8 @@ Zhang and Hill (2010) show that the Price equation can be used to derive the cha
 
 # References
 
+- Robertson A. 1966. A mathematical model of the culling process in dairy cattle. Animal Science. 8(1):95–108. doi:10.1017/S0003356100037752.
+
 - Price G. 1970. Selection and covariance. Nature. 227(5257):520–521. doi:10.1038/227520a0.
 
 - Price G. 1972. Extension of covariance selection mathematics. Annals of Human Genetics. 35(4):485–490. doi:10.1111/j.1469-1809.1957.tb01874.x.
@@ -382,6 +403,8 @@ Zhang and Hill (2010) show that the Price equation can be used to derive the cha
 - Zhang X-S, Hill WG. 2010. Change and maintenance of variation in quantitative traits in the context of the Price equation. Theoretical Population Biology. 77(1):14–22. doi:10.1016/j.tpb.2009.10.004
 
 - Frank SA. 2012. Natural selection. IV. The Price equation. Journal of Evolutionary Biology. 25(6):1002–1019. doi:10.1111/j.1420-9101.2012.02498.x.
+
+- Stinchcombe JR, Simonsen AK, Blows MarkW. 2014. Estimating uncertainty in multivariate responses to selection: brief communication. Evolution. 68(4):1188–1196. doi:10.1111/evo.12321.
 
 - Queller DC. 2017. Fundamental Theorems of Evolution. The American Naturalist. 189(4). doi:10.1086/690937.
 
