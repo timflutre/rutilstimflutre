@@ -1846,6 +1846,8 @@ if(FALSE){
   u <- rmvnorm(1, m_u, G)[1,]
   u
 }
+u <- c(U)
+head(u)
 
 Z_1 <- model.matrix(~ 0 + U, dat1)
 stopifnot(all(dim(Z_1) == c(n_1, q)))
@@ -1872,12 +1874,17 @@ R <- Sigma_E %x% diag(n_1)
 if(FALSE){
   e <- rmvnorm(1, rep(0, n), R)[1,]
 }
+e <- c(E)
 
 ## Responses:
 Y <- X_1 %*% B + Z_1 %*% U + E
 y <- c(Y)
 if(FALSE){
   y <- X_2 %*% b + Z_2 %*% u + e
+
+  Y_v2 <- invvec(X_2 %*% b, 2) + invvec(Z_2 %*% u, 2) + invvec(e, 2)
+  stopifnot(all(Y_v2[,1] == Y[,1]),
+            all(Y_v2[,2] == Y[,2]))
 }
 dat2$y <- y
 ```
@@ -1905,6 +1912,10 @@ cbind("truth"=c(diag(truth$Sigma_U)[2], diag(truth$Sigma_E)[2]),
 ```
 
 ### `TMB`
+
+#### v1
+
+Passing a matrix $Y$.
 
 ##### Implementation
 
@@ -1960,7 +1971,7 @@ Type objective_function<Type>::operator() ()
 }
 "
 
-dllID <- "test_TMB_lmm_cor_U_E"
+dllID <- "test_TMB_lmm_cor_U_E_v1"
 cat(cppTxt, file=paste0(dllID, ".cpp"))
 if(! file.exists(paste0(dllID, ".so")))
   compile(paste0(dllID, ".cpp"))
@@ -1971,22 +1982,22 @@ dyn.load(dynlib(dllID))
 
 ```{r}
 system.time(
-    f <- MakeADFun(data=list(Y=Y, X_1=X_1, Z_1=Z_1, A=A, Id_n1=diag(n_1)),
-                   parameters=list(
-                       B=matrix(0,p,d),
-                       U=matrix(0,q,d),
-                       log_sd_U=rep(log(1),d),
-                       unconstr_cor_U=rep(0, 1),
-                       log_sd_E=rep(log(1),d),
-                       unconstr_cor_E=rep(0, 1)
-                   ),
-                   random="U",
-                   hessian=FALSE, DLL=dllID))
-tmp <- computFits(f, lower=NULL, upper=NULL, which=1:4)
-fits <- tmp$fits
-sts <- tmp$sts
-sdrep <- sdreport(f)
-repCor <- f$report()
+    f_v1 <- MakeADFun(data=list(Y=Y, X_1=X_1, Z_1=Z_1, A=A, Id_n1=diag(n_1)),
+                      parameters=list(
+                          B=matrix(0,p,d),
+                          U=matrix(0,q,d),
+                          log_sd_U=rep(log(1),d),
+                          unconstr_cor_U=rep(0, 1),
+                          log_sd_E=rep(log(1),d),
+                          unconstr_cor_E=rep(0, 1)
+                      ),
+                      random="U",
+                      hessian=FALSE, DLL=dllID))
+tmp <- computFits(f_v1, lower=NULL, upper=NULL, which=1:4)
+fits_v1 <- tmp$fits
+sts_v1 <- tmp$sts
+sdrep_v1 <- sdreport(f_v1)
+repCor_v1 <- f_v1$report()
 ```
 
 ###### Try `tmbstan`
@@ -2014,41 +2025,157 @@ if(FALSE){
 }
 ```
 
+#### v2
+
+Passing a vector $y$.
+
+##### Implementation
+
+```{r}
+cppTxt <- "
+#include <TMB.hpp>
+using namespace density;
+
+template<class Type>
+void invvec(const vector<Type>& x, int ncol, matrix<Type>& mat)
+{
+  int nrow = (int) x.size() / ncol;
+  int idx = 0;
+  for (int idx_col = 0; idx_col < ncol; ++idx_col) {
+    mat.col(idx_col) = x.segment(idx, nrow);
+    idx = idx + nrow;
+  }
+}
+
+template<class Type>
+Type objective_function<Type>::operator() ()
+{
+  DATA_VECTOR(y);                    //   n_2   x    1
+  DATA_MATRIX(X_2);                  //   n_2   x    dp
+  DATA_MATRIX(Z_1);                  //   n_1   x    q
+  DATA_MATRIX(A);                    //    q    x    q
+  DATA_MATRIX(Id_n1);                //   n_1   x   n_1
+  PARAMETER_VECTOR(b);               //    dp   x    1
+  PARAMETER_ARRAY(U);                //    q    x    d
+  PARAMETER_VECTOR(log_sd_U);        //    d    x    1
+  PARAMETER_VECTOR(unconstr_cor_U);  // lower triangle, filled row-wise
+  PARAMETER_VECTOR(log_sd_E);        //    d    x    1
+  PARAMETER_VECTOR(unconstr_cor_E);  // lower triangle, filled row-wise
+
+  Type nll = Type(0.0);
+  int d = U.cols();
+  int n_1 = Id_n1.rows();
+
+  // U
+  UNSTRUCTURED_CORR_t<Type> mvn_u_u(unconstr_cor_U); // d x d; unscaled
+  vector<Type> sd_U = exp(log_sd_U); // d x 1
+  VECSCALE_t<UNSTRUCTURED_CORR_t<Type> > f_u = VECSCALE(mvn_u_u, sd_U); // d x d
+  MVNORM_t<Type> g_u(A);             //    q    x    q
+  SEPARABLE_t< VECSCALE_t<UNSTRUCTURED_CORR_t<Type> > , MVNORM_t<Type> > h_U(f_u, g_u);
+  nll += h_U(U);
+
+  // Y | U
+  UNSTRUCTURED_CORR_t<Type> mvn_y_u(unconstr_cor_E); // d x d; unscaled
+  vector<Type> sd_E = exp(log_sd_E); // d x 1
+  VECSCALE_t<UNSTRUCTURED_CORR_t<Type> > f_y = VECSCALE(mvn_y_u, sd_E); // d x d
+  MVNORM_t<Type> g_y(Id_n1);         //   n_1   x   n_1
+  SEPARABLE_t< VECSCALE_t<UNSTRUCTURED_CORR_t<Type> > , MVNORM_t<Type> > h_Y(f_y, g_y);
+  matrix<Type> Y_mat(n_1, d);
+  invvec(y, d, Y_mat);
+  array<Type> Y(n_1, d);
+  Y = Y_mat;
+  matrix<Type> X_1B(n_1, d);
+  vector<Type> X_2b = (X_2 * b).col(0);
+  invvec(X_2b, d, X_1B);
+  matrix<Type> M(Y.rows(), d);
+  M = X_1B + Z_1 * U.matrix();
+  nll += h_Y(Y - M.vec());
+
+  // report correlation matrices
+  matrix<Type> Cor_U(d,d);
+  Cor_U = mvn_u_u.cov();
+  REPORT(Cor_U);
+  matrix<Type> Cor_E(d,d);
+  Cor_E = mvn_y_u.cov();
+  REPORT(Cor_E);
+
+  return nll;
+}
+"
+
+dllID <- "test_TMB_lmm_cor_U_E_v2"
+cat(cppTxt, file=paste0(dllID, ".cpp"))
+if(! file.exists(paste0(dllID, ".so")))
+  compile(paste0(dllID, ".cpp"))
+dyn.load(dynlib(dllID))
+```
+
+##### Usage
+
+```{r}
+system.time(
+    f_v2 <- MakeADFun(data=list(y=y, X_2=X_2, Z_1=Z_1, A=A, Id_n1=diag(n_1)),
+                      parameters=list(
+                          b=rep(0,d*p),
+                          U=matrix(0,q,d),
+                          log_sd_U=rep(log(1),d),
+                          unconstr_cor_U=rep(0, 1),
+                          log_sd_E=rep(log(1),d),
+                          unconstr_cor_E=rep(0, 1)
+                      ),
+                      random="U",
+                      hessian=FALSE, DLL=dllID))
+tmp <- computFits(f_v2, lower=NULL, upper=NULL, which=1:4)
+fits_v2 <- tmp$fits
+sts_v2 <- tmp$sts
+sdrep_v2 <- sdreport(f_v2)
+repCor_v2 <- f_v2$report()
+rm(f_v2)
+```
+
 ## Check
 
 ```{r}
 rbind("truth"=b,
       "lmer"=c(fixef(fit_lmer1), fixef(fit_lmer2)),
-      "TMB"=fits$gr$par[grep("B", names(fits$gr$par))])
+      "TMB_v1"=fits_v1$gr$par[grep("B", names(fits_v1$gr$par))],
+      "TMB_v2"=fits_v2$gr$par[grep("b", names(fits_v2$gr$par))])
 
 rbind("truth"=c(setNames(c(var_U1, cor_U, var_U2),
                          c("var_U_1", "cor_U", "var_U_2")),
                 setNames(c(var_E1, cor_E, var_E2),
                          c("var_E_1", "cor_E", "var_E_2"))),
-      "TMB"=c(exp(fits$gr$par[grep("log_sd_U", names(fits$gr$par))[1]])^2,
-              repCor$Cor_U[1,2],
-              exp(fits$gr$par[grep("log_sd_U", names(fits$gr$par))[2]])^2,
-              exp(fits$gr$par[grep("log_sd_E", names(fits$gr$par))[1]])^2,
-              repCor$Cor_E[1,2],
-              exp(fits$gr$par[grep("log_sd_E", names(fits$gr$par))[2]])^2))
+      "TMB_v1"=c(exp(fits_v1$gr$par[grep("log_sd_U", names(fits_v1$gr$par))[1]])^2,
+                 repCor$Cor_U[1,2],
+                 exp(fits_v1$gr$par[grep("log_sd_U", names(fits_v1$gr$par))[2]])^2,
+                 exp(fits_v1$gr$par[grep("log_sd_E", names(fits_v1$gr$par))[1]])^2,
+                 repCor$Cor_E[1,2],
+                 exp(fits_v1$gr$par[grep("log_sd_E", names(fits_v1$gr$par))[2]])^2),
+      "TMB_v2"=c(exp(fits_v2$gr$par[grep("log_sd_U", names(fits_v2$gr$par))[1]])^2,
+                 repCor$Cor_U[1,2],
+                 exp(fits_v2$gr$par[grep("log_sd_U", names(fits_v2$gr$par))[2]])^2,
+                 exp(fits_v2$gr$par[grep("log_sd_E", names(fits_v2$gr$par))[1]])^2,
+                 repCor$Cor_E[1,2],
+                 exp(fits_v2$gr$par[grep("log_sd_E", names(fits_v2$gr$par))[2]])^2))
 ```
 
 ```{r}
-compComputFits(fits, sts)
+compComputFits(fits_v1, sts_v1)
+compComputFits(fits_v2, sts_v2)
 ```
 
 ```{r}
-plot(summary(sdrep, select="random")[1:q,1], U[,1],
+plot(summary(sdrep_v1, select="random")[1:q,1], U[,1],
      xlab="predicted u", ylab="true u", las=1,
      main="Random effects U[,1]")
 abline(h=0, v=0, a=0, b=1, lty=2)
-abline(lm(U[,1] ~ summary(sdrep, select="random")[1:q,1]), col="red")
+abline(lm(U[,1] ~ summary(sdrep_v1, select="random")[1:q,1]), col="red")
 
-plot(summary(sdrep, select="random")[-(1:q),1], U[,2],
+plot(summary(sdrep_v2, select="random")[-(1:q),1], U[,2],
      xlab="predicted u", ylab="true u", las=1,
      main="Random effects U[,2]")
 abline(h=0, v=0, a=0, b=1, lty=2)
-abline(lm(U[,2] ~ summary(sdrep, select="random")[-(1:q),1]), col="red")
+abline(lm(U[,2] ~ summary(sdrep_v2, select="random")[-(1:q),1]), col="red")
 ```
 
 
