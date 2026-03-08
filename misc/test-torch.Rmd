@@ -1,0 +1,179 @@
+---
+title: "Test of torch"
+author: "T. Flutre"
+date: "`r format(Sys.time(), '%d/%m/%Y %H:%M:%S')`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    toc_depth: 6
+    number_sections: TRUE
+  pdf_document:
+    toc: true
+    toc_depth: 4
+    number_sections: TRUE
+editor_options: 
+  chunk_output_type: console
+abstract: |
+    This document tests the torch package.
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo=TRUE)
+```
+
+
+# Preamble
+
+Dependencies:
+```{r}
+suppressPackageStartupMessages(library(torch))
+suppressPackageStartupMessages(library(ggplot2))
+```
+
+Execution time (see the appendix):
+```{r time_0}
+t0 <- proc.time()
+```
+
+
+
+# Non-stat example
+
+https://0byte.io/articles/pytorch_introduction.html#autograd_code
+
+```{r}
+## Define three tensors with gradient tracking:
+x <- torch_tensor(1.0, requires_grad=TRUE)
+y <- torch_tensor(2.0, requires_grad=TRUE)
+z <- torch_tensor(0.5, requires_grad=TRUE)
+
+## Define the function: f(x,y,z) = sin(x)·y² + e^z
+f <- torch_sin(x) * y^2 + torch_exp(z)
+
+## Compute the gradients by AD:
+f$backward()
+
+## Check:
+print(x$grad)  # cos(1) * 4   ≈ 2.16
+print(y$grad)  # sin(1) * 2*2 ≈ 3.37
+print(z$grad)  # e^0.5  ≈ 1.65
+```
+
+
+
+# Univariate Normal
+
+## Simulation
+
+```{r}
+set.seed(1729)
+truth <- list("mean" = 2, "var" = 16)
+dat <- rnorm(n = 1000, mean = truth$mean, sd = sqrt(truth$var))
+```
+
+## Implementation
+
+### With R's `optim`
+
+```{r}
+##' @param pars vector with the mean and the variance
+negloglik <- function(pars, dat) {
+  - sum(-0.5 * log(pars["var"]) - 0.5*(dat - pars["mean"])^2/pars["var"])
+}
+
+pars0 <- c("mean" = 0, "var" = 1)
+negloglik(pars0, dat)
+
+fit <- optim(par = pars0,
+             fn = negloglik,
+             gr = NULL,
+             dat = dat,
+             method = "L-BFGS-B")
+fit$counts
+cbind(truth,
+      "estim" = fit$par)
+```
+
+### With torch's `optim_lbfgs`
+
+https://www.ellessenne.xyz/blog/2022/04/28/
+
+```{r}
+negloglik_t <- function(p, d){
+  mean <- p[1]
+  var <- torch_exp(p[2])
+  - torch_sum(-0.5 * torch_log(var) - 0.5 * (d - mean)^2 / var)
+}
+
+dat_t <- torch_tensor(dat)
+pars_t <- torch_tensor(c(0, 0), requires_grad = TRUE)
+negloglik_t(pars_t, dat_t)
+
+optimizer <- optim_lbfgs(pars_t)
+
+calc_loss <- function() {
+  optimizer$zero_grad()
+  value <- negloglik_t(pars_t, dat_t)
+  value$backward(retain_graph = TRUE)
+  value
+}
+
+eps <- 1e-6
+converged <- FALSE
+last_val <- Inf
+i <- 0
+while (!converged) {
+  i <- i + 1
+  obj_val <- optimizer$step(calc_loss)
+  stopifnot(!any(as_array(torch_isnan(obj_val))))
+  if (as.logical(torch_less_equal(torch_abs(obj_val - last_val), eps))) {
+    print(i)
+    converged <- TRUE
+    break
+  }
+  if (i >= 1000) {
+    stop("Did not converge after 1000 iterations", call. = FALSE)
+  }
+  last_val <- obj_val
+}
+
+cbind(truth,
+      "estim" = c(as.numeric(pars_t[1]),
+                  as.numeric(torch_exp(pars_t[2]))))
+```
+
+
+
+# Polynomial regression
+
+## Simulation
+
+TODO
+
+## Implementation
+
+### With R's `optim`
+
+TODO
+
+### With torch's `optim_lbfgs`
+
+https://machinelearningmastery.com/using-autograd-in-pytorch-to-solve-a-regression-problem/
+
+TODO
+
+
+
+# Other links
+
+* https://torch.mlverse.org/
+
+
+
+# Appendix
+
+```{r info}
+t1 <- proc.time(); t1 - t0
+print(sessionInfo(), locale=FALSE)
+```
