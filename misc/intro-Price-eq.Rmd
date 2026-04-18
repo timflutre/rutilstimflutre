@@ -33,9 +33,12 @@ Most importantly, what is meant by the "part of total change due to selection" c
 
 ## Definitions and notations
 
+Following the vocabulary most often used in the references at the end of this document, a **set** is made of **entities**, each entity has a **type** and a **property**, and several entities can have the same type and property.
+The focus is on types, hence the references below do not index entities, and I follow this here.
+
 **In the ancestral set:** (i.e., before selection)
 
-- each entity has a **type**, indexed by $i \in \{1,\ldots,I\}$, and a **property**, noted $z_i$
+- each entity has a **type**, indexed by $i \in \{1,\ldots,I\}$, and a **property**, noted $z_i$ so that it is the average property over all entities of type $i$ <!-- (if entities of type $i$ were indexed by $j \in \{1,\ldots,n_i\}$ with $n_i$ being the number of entities of type $i$ in this set, one would write $z_i := (1/n_i) \sum_{j=1}^{n_i} z_{ij}$) -->
 
 - $q_i$ is the **frequency** of the $i$th type, where $\forall i, 0 < q_i \le 1$ and $\sum_i q_i = 1$
 
@@ -142,6 +145,8 @@ illustratePriceEq <- function(step=3){
   }
 }
 ```
+
+In the scheme below, each disk is an entity, the numbers indicate the types and the color refer to the property.
 
 ```{r, echo=FALSE, fig.width=9, fig.height=4}
 message ("Before selection:")
