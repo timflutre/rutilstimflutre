@@ -466,6 +466,7 @@ Type objective_function<Type>::operator() ()
   }
 
   REPORT(Sigma);
+  ADREPORT(Sigma);
 
   return nll;
 }
@@ -473,6 +474,7 @@ Type objective_function<Type>::operator() ()
 
 dllID <- "test_TMB_multivNorm_v1"
 cat(cppTxt, file=paste0(dllID, ".cpp"))
+## file.remove(paste0(dllID, ".so"))
 if(! file.exists(paste0(dllID, ".so")))
   compile(paste0(dllID, ".cpp"))
 dyn.load(dynlib(dllID))
@@ -487,9 +489,17 @@ system.time(
                                       log_sd=rep(log(1),p),
                                       transf_rho=0),
                       hessian=TRUE, DLL=dllID))
-tmp <- computFits(f_v1, lower=NULL, upper=NULL, which=1:4)
-fits_v1 <- tmp$fits
-sts_v1 <- tmp$sts
+if(FALSE){
+  obj <- f_v1
+  fit <- nlminb(obj$par, obj$fn, obj$gr)
+  sdr <- sdreport(obj)
+  summary(sdr)
+  summary(sdr, "report")
+} else{
+  tmp <- computFits(f_v1, lower=NULL, upper=NULL, which=1:4)
+  fits_v1 <- tmp$fits
+  sts_v1 <- tmp$sts
+}
 sdrep_v1 <- sdreport(f_v1)
 rm(f_v1)
 ```

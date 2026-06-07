@@ -16,6 +16,15 @@ abstract: "This document shows with a simulated example how to correct for spati
 ---
 
 
+```{r setup, include=FALSE}
+suppressPackageStartupMessages(library(knitr))
+opts_chunk$set(echo=TRUE, warning=TRUE, message=TRUE, cache=FALSE,
+               fig.align="center", collapse=TRUE)
+opts_knit$set(progress=TRUE, verbose=TRUE)
+```
+
+
+
 # Preamble
 
 License: [CC BY-SA 4.0](http://creativecommons.org/licenses/by-sa/4.0/)
@@ -373,8 +382,8 @@ stopifnot(all(names(g) == colnames(Z_g)))
 #### Spatial
 
 ```{r}
-rhoX <- 0.8
-rhoY <- 0.5
+rhoX <- 0.9
+rhoY <- 0.9
 corrMat_spat <- corrMatAR1(platformDims["X"], rhoX) %x% 
   corrMatAR1(platformDims["Y"], rhoY)
 dim(corrMat_spat)
@@ -525,6 +534,19 @@ abline(fitg, col="red")
 ```
 
 ## Extract spatial trend
+
+Explore `obtain.spatialtrend`:
+```{r}
+tmp <- obtain.spatialtrend(fit, grid=c(100, 50)) # by default, grid=c(100,100)
+names(tmp)
+str(tmp$col.p)
+range(tmp$col.p) # the x's
+str(tmp$row.p)
+range(tmp$row.p) # the y's
+str(tmp$fit)
+fields::image.plot(tmp$col.p, tmp$row.p, t(tmp$fit),
+                   col=topo.colors(100), xlab="x", ylab="y", las=1)
+```
 
 ```{r}
 (minX <- min(map$x[! map$border]))
