@@ -7468,12 +7468,13 @@ estimH2means <- function(dat, colname.resp, colname.trial="year", vc,
 ##' Animal model
 ##'
 ##' Given I genotypes, Q covariates and N=I*Q phenotypes for the trait, fit an "animal model" with the lme4 package via the following likelihood: y = W c + Z g_A + Z g_D + epsilon, where y is Nx1; W is NxQ; Z is NxI; g_A ~ Normal_I(0, sigma_A^2 A) with A the known matrix of additive genetic relationships; g_D ~ Normal_I(0, sigma_D^2 D) with D the known matrix of dominant genetic relationships; epsilon ~ Normal_N(0, sigma^2 Id_N); Cov(g_A,g_D)=0; Cov(g_A,e)=0; Cov(g_D,e)=0.
-##' Works also for an incomplete design, i.e., when nrow(data) < N (thanks to N. Rode).
+##' Works also for an incomplete design, i.e., when the number of replicates per genotype is unbalanced across genotypes and nrow(data) < N (thanks to N.O. Rode).
 ##' @param formula formula (see \code{\link[lme4]{lmer}})
 ##' @param data data.frame containing the data corresponding to formula and relmat (see \code{\link[lme4]{lmer}}); the additive genotypic effect should be named "geno.add" and the dominance genotypic effect, if any, should be named "geno.dom"
 ##' @param relmat list containing the matrices of genetic relationships (A is compulsory but D is optional); the list should use the same names as the colnames in data (i.e., \code{"geno.add"} and \code{"geno.dom"}) to compute heritability properly; the matrices can be in the "matrix" class (base) or the "dsCMatrix" class (Matrix package); see \code{\link{estimGenRel}}
 ##' @param REML default is TRUE (use FALSE to compare models with different fixed effects)
-##' @param na.action a function that indicates what should happen when the data contain \code{NA}s (see \code{\link[lme4]{lmer}})
+##' @param na.action a function that indicates what should happen when the data contain \code{NA}s (e.g. to compute the BLUp of unobserved genotype, use na.action=NULL, see \code{\link[lme4]{lmer}})
+##' @param nrep a number or a vector that indicates the number of replicates per genotype if line phenotypic means are provided in data (used to compute individual-level heritability, default = NULL)
 ##' @param ci.meth method to compute confidence intervals (profile/boot)
 ##' @param ci.lev level to compute confidence intervals
 ##' @param nb.boots number of bootstrap replicates; used only if \code{ci.meth="boot"}
@@ -7546,6 +7547,7 @@ estimH2means <- function(dat, colname.resp, colname.trial="year", vc,
 ##' }
 ##' @export
 lmerAM <- function(formula, data, relmat, REML=TRUE, na.action=stats::na.exclude,
+		   nrep=NULL,
                    ci.meth=NULL, ci.lev=0.95, nb.boots=10^3,
                    parallel="no", ncpus=1, cl=NULL, verbose=1){
   requireNamespaces(c("lme4", "Matrix"))
@@ -7562,7 +7564,8 @@ lmerAM <- function(formula, data, relmat, REML=TRUE, na.action=stats::na.exclude
               ! is.null(rownames(relmat[[i]])),
               ! is.null(colnames(relmat[[i]])),
               rownames(relmat[[i]]) == colnames(relmat[[i]]),
-              all(rownames(relmat[[i]]) %in% data[,names(relmat)[i]]))
+	      !is.data.frame(data[,names(relmat)[i]]),
+	      all(data[,names(relmat)[i]] %in% rownames(relmat[[i]])))
   if(! is.null(ci.meth)){
     stopifnot(ci.meth %in% c("profile", "boot"))
     if(ci.meth == "boot"){
@@ -7587,6 +7590,7 @@ lmerAM <- function(formula, data, relmat, REML=TRUE, na.action=stats::na.exclude
     write(paste0("structure the design and covariance matrices",
                  " of the random effects ..."),
           stdout())
+
   relfac <- relmat
   flist <- parsedFormula$reTrms[["flist"]] # list of grouping factors
   asgn <- attr(flist, "assign")
@@ -7626,6 +7630,15 @@ lmerAM <- function(formula, data, relmat, REML=TRUE, na.action=stats::na.exclude
   if("geno.dom" %in% names(vc))
     denom <- denom + vc["geno.dom"]
   h2 <- num / denom
+  names(h2) <- "h2"
+  ## point estimate of h2 at the individual level
+  if(!is.null(nrep)){
+	  denom_ind <- vc["geno.add"] + nrep * vc["Residual"]
+	  if("geno.dom" %in% names(vc))
+	     denom_ind <- denom_ind + vc["geno.dom"]
+	  h2_ind <- num / denom_ind
+	  names(h2_ind) <- paste0("h2_ind(nrep=", nrep, ")")
+	  }
 
   out.prof <- NULL
   out.boot <- NULL
@@ -7649,14 +7662,18 @@ lmerAM <- function(formula, data, relmat, REML=TRUE, na.action=stats::na.exclude
         fit.boot <- lmerAM(formula=inputs$formula, data=inputs$data,
                            relmat=inputs$relmat, REML=inputs$REML,
                            na.action=inputs$na.action, ci.meth=NULL,
-                           verbose=0)
+                           verbose=0, nrep=inputs$nrep)
         stats.boot <- stats::setNames(
                                  c(lme4::fixef(fit.boot$merMod),
                                    sqrt(fit.boot$vc["geno.add"]),
-                                   sqrt(fit.boot$vc["Residual"])),
+                                   sqrt(fit.boot$vc["Residual"]),
+				   variance=unlist(lme4::VarCorr(fit.boot$merMod)),
+				   residual=sigma(fit.boot$merMod)^2),
                                  c(names(lme4::fixef(fit.boot$merMod)),
                                    "sd.geno.add",
-                                   "sd.err"))
+                                   "sd.err",
+				   names(lme4::VarCorr(fit.boot$merMod)),
+				  "ResidualVar"))
         if("geno.dom" %in% names(fit.boot$vc)){
           stats.boot <- c(stats.boot,
                           sqrt(fit.boot$vc["geno.dom"]))
@@ -7664,7 +7681,12 @@ lmerAM <- function(formula, data, relmat, REML=TRUE, na.action=stats::na.exclude
         }
         stats.boot <- c(stats.boot,
                         fit.boot$h2)
-        names(stats.boot)[length(stats.boot)] <- "h2"
+	names(stats.boot)[length(stats.boot)] <- "h2"
+	if(!is.null(nrep)){
+		stats.boot <- c(stats.boot,
+                        fit.boot$h2_ind)
+		names(stats.boot)[(length(stats.boot)-length(nrep)+1):length(stats.boot)] <- paste0("h2_ind(nrep=", nrep, ")") 
+		} 
         return(stats.boot)
       }
       .bootRanGen <- function(inputs, params){
@@ -7710,11 +7732,11 @@ lmerAM <- function(formula, data, relmat, REML=TRUE, na.action=stats::na.exclude
         ## draw random variables and generate responses
         e <- stats::rnorm(n=nrow(outputs$data), mean=0, sd=params$sd.err)
         g.a <- MASS::mvrnorm(n=1, mu=rep(0, I),
-                             Sigma=params$sd.geno.add * relmat$geno.add)
+                             Sigma=params$sd.geno.add^2 * relmat$geno.add)
         y <- X %*% params$fix.eff + Z %*% g.a + e
         if(! is.null(idx.geno.dom)){
           g.d <- MASS::mvrnorm(n=1, mu=rep(0, I),
-                               Sigma=params$sd.geno.dom * relmat$geno.dom)
+                               Sigma=params$sd.geno.dom^2 * relmat$geno.dom)
           y <- y + g.d
         }
         outputs$data[,response] <- y
@@ -7722,7 +7744,7 @@ lmerAM <- function(formula, data, relmat, REML=TRUE, na.action=stats::na.exclude
         return(outputs)
       }
       inputs <- list(formula=formula, data=data, relmat=relmat,
-                     REML=REML, na.action=na.action)
+                     REML=REML, na.action=na.action, nrep=nrep)
       ## .bootStat(inputs) # to debug
       params <- list(sd.err=sqrt(as.numeric(vc["Residual"])),
                      sd.geno.add=sqrt(as.numeric(vc["geno.add"])),
@@ -7748,8 +7770,12 @@ lmerAM <- function(formula, data, relmat, REML=TRUE, na.action=stats::na.exclude
       }
     }
   }
-
-  return(list(merMod=fit, vc=vc, h2=h2, prof=out.prof, boot=out.boot, ci=ci))
+  if(is.null(nrep)){
+	  return(list(merMod=fit, vc=vc, h2=h2, prof=out.prof, boot=out.boot, ci=ci))
+	  }else{
+	  return(list(merMod=fit, vc=vc, h2=h2, h2_ind=h2_ind, prof=out.prof, boot=out.boot, ci=ci))
+	  }
+ 
 }
 
 ##' Animal model
