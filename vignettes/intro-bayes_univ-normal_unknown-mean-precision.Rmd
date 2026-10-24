@@ -128,58 +128,86 @@ truth <- c()
 
 ```{r simul_tau}
 a.0 <- 3
-truth <- append(x=truth,
-                values=setNames(object=a.0, nm="a.0"))
+truth <- append(
+  x = truth,
+  values = setNames(object = a.0, nm = "a.0")
+)
 b.0 <- 2
-truth <- append(x=truth,
-                values=setNames(object=b.0, nm="b.0"))
-truth <- append(x=truth,
-                values=setNames(object=a.0 / b.0, nm="prior.mean.tau"))
-truth <- append(x=truth,
-                values=setNames(object=a.0 / b.0^2, nm="prior.var.tau"))
-plot(x=seq(0,11,0.1),
-     y=dgamma(x=seq(0,11,0.1), shape=a.0, rate=b.0),
-     main=paste0("Gamma(shape=", a.0, ", rate=", b.0, ")"),
-     xlab="x", ylab="pdf", type="l")
-(tau <- rgamma(n=1, shape=a.0, rate=b.0))
-truth <- append(x=truth,
-                values=setNames(object=tau, nm="tau"))
-truth <- append(x=truth,
-                values=setNames(object=1 / tau, nm="sigma2"))
-truth <- append(x=truth,
-                values=setNames(object=sqrt(1 / tau), nm="sigma"))
+truth <- append(
+  x = truth,
+  values = setNames(object = b.0, nm = "b.0")
+)
+truth <- append(
+  x = truth,
+  values = setNames(object = a.0 / b.0, nm = "prior.mean.tau")
+)
+truth <- append(
+  x = truth,
+  values = setNames(object = a.0 / b.0^2, nm = "prior.var.tau")
+)
+plot(
+  x = seq(0, 11, 0.1),
+  y = dgamma(x = seq(0, 11, 0.1), shape = a.0, rate = b.0),
+  main = paste0("Gamma(shape=", a.0, ", rate=", b.0, ")"),
+  xlab = "x", ylab = "pdf", type = "l"
+)
+(tau <- rgamma(n = 1, shape = a.0, rate = b.0))
+truth <- append(
+  x = truth,
+  values = setNames(object = tau, nm = "tau")
+)
+truth <- append(
+  x = truth,
+  values = setNames(object = 1 / tau, nm = "sigma2")
+)
+truth <- append(
+  x = truth,
+  values = setNames(object = sqrt(1 / tau), nm = "sigma")
+)
 ```
 
 ## $\mu$
 
 ```{r simul_mu}
 m.0 <- 73
-truth <- append(x=truth,
-                values=setNames(object=m.0, nm="prior.mean.mu"))
+truth <- append(
+  x = truth,
+  values = setNames(object = m.0, nm = "prior.mean.mu")
+)
 t.0 <- 10^(-1)
-truth <- append(x=truth,
-                values=setNames(object=1 / (tau * t.0), nm="prior.var.mu"))
-plot(x=seq(60,86,0.1),
-     y=dnorm(x=seq(60,86,0.1), mean=m.0, sd=sqrt(1/(tau*t.0))),
-     main=paste0("Normal(mean=", m.0, ", sd=",
-                 format(sqrt(1/(tau*t.0)), digits=3), ")"),
-     xlab="x", ylab="pdf", type="l")
-(mu <- rnorm(n=1, mean=m.0, sd=sqrt(1/(tau * t.0))))
-truth <- append(x=truth,
-                values=setNames(object=mu, nm="mu"))
+truth <- append(
+  x = truth,
+  values = setNames(object = 1 / (tau * t.0), nm = "prior.var.mu")
+)
+plot(
+  x = seq(60, 86, 0.1),
+  y = dnorm(x = seq(60, 86, 0.1), mean = m.0, sd = sqrt(1 / (tau * t.0))),
+  main = paste0(
+    "Normal(mean=", m.0, ", sd=",
+    format(sqrt(1 / (tau * t.0)), digits = 3), ")"
+  ),
+  xlab = "x", ylab = "pdf", type = "l"
+)
+(mu <- rnorm(n = 1, mean = m.0, sd = sqrt(1 / (tau * t.0))))
+truth <- append(
+  x = truth,
+  values = setNames(object = mu, nm = "mu")
+)
 ```
 
 ## Data
 
 ```{r simul_data}
-N <- 5*10^1
-y <- rnorm(n=N, mean=mu, sd=sqrt(1/tau))
+N <- 5 * 10^1
+y <- rnorm(n = N, mean = mu, sd = sqrt(1 / tau))
 summary(y)
-hist(y, breaks="FD", freq=FALSE, col="grey", border="white",
-     main="Simulated data",
-     ylim=c(0, dnorm(x=mu, mean=mu, sd=sqrt(1/tau))))
-abline(v=mu, col="red")
-curve(dnorm(x=x, mean=mu, sd=sqrt(1/tau)), add=TRUE, col="red")
+hist(y,
+  breaks = "FD", freq = FALSE, col = "grey", border = "white",
+  main = "Simulated data",
+  ylim = c(0, dnorm(x = mu, mean = mu, sd = sqrt(1 / tau)))
+)
+abline(v = mu, col = "red")
+curve(dnorm(x = x, mean = mu, sd = sqrt(1 / tau)), add = TRUE, col = "red")
 ```
 
 
@@ -188,14 +216,22 @@ curve(dnorm(x=x, mean=mu, sd=sqrt(1/tau)), add=TRUE, col="red")
 ## Maximum likelihood estimates
 
 ```{r infer_mle}
-truth <- append(x=truth,
-                values=setNames(object=mean(y), nm="mle.mu"))
-truth <- append(x=truth,
-                values=setNames(object=1 / var(y), nm="mle.tau"))
-truth <- append(x=truth,
-                values=setNames(object=var(y), nm="mle.sigma2"))
-truth <- append(x=truth,
-                values=setNames(object=sd(y), nm="mle.sigma"))
+truth <- append(
+  x = truth,
+  values = setNames(object = mean(y), nm = "mle.mu")
+)
+truth <- append(
+  x = truth,
+  values = setNames(object = 1 / var(y), nm = "mle.tau")
+)
+truth <- append(
+  x = truth,
+  values = setNames(object = var(y), nm = "mle.sigma2")
+)
+truth <- append(
+  x = truth,
+  values = setNames(object = sd(y), nm = "mle.sigma")
+)
 truth[grep("mle", names(truth))]
 ```
 
@@ -204,27 +240,45 @@ truth[grep("mle", names(truth))]
 
 ```{r posteriors}
 a.N <- a.0 + N / 2
-truth <- append(x=truth,
-                values=setNames(object=a.N, nm="a.N"))
-b.N <- b.0 + (1/2) * sum((y - mean(y))^2) +
+truth <- append(
+  x = truth,
+  values = setNames(object = a.N, nm = "a.N")
+)
+b.N <- b.0 + (1 / 2) * sum((y - mean(y))^2) +
   (t.0 * N * (mean(y) - m.0)^2) / (2 * (t.0 + N))
-truth <- append(x=truth,
-                values=setNames(object=b.N, nm="b.N"))
-truth <- append(x=truth,
-                values=setNames(object=a.N / b.N, nm="post.mean.tau"))
-truth <- append(x=truth,
-                values=setNames(object=a.N / b.N^2, nm="post.var.tau"))
-truth <- append(x=truth,
-                values=setNames(object=b.N / (a.N - 1), nm="post.mean.sigma2"))
-truth <- append(x=truth,
-                values=setNames(object=b.N^2 / ((a.N - 1)^2 * (a.N - 2)),
-                                nm="post.var.sigma2"))
+truth <- append(
+  x = truth,
+  values = setNames(object = b.N, nm = "b.N")
+)
+truth <- append(
+  x = truth,
+  values = setNames(object = a.N / b.N, nm = "post.mean.tau")
+)
+truth <- append(
+  x = truth,
+  values = setNames(object = a.N / b.N^2, nm = "post.var.tau")
+)
+truth <- append(
+  x = truth,
+  values = setNames(object = b.N / (a.N - 1), nm = "post.mean.sigma2")
+)
+truth <- append(
+  x = truth,
+  values = setNames(
+    object = b.N^2 / ((a.N - 1)^2 * (a.N - 2)),
+    nm = "post.var.sigma2"
+  )
+)
 m.N <- (t.0 * m.0 + N * mean(y)) / (t.0 + N)
-truth <- append(x=truth,
-                values=setNames(object=m.N, nm="post.mean.mu.cond"))
+truth <- append(
+  x = truth,
+  values = setNames(object = m.N, nm = "post.mean.mu.cond")
+)
 t.N <- (a.N / b.N) * (t.0 + N)
-truth <- append(x=truth,
-                values=setNames(object=1 / t.N, nm="post.var.mu.cond"))
+truth <- append(
+  x = truth,
+  values = setNames(object = 1 / t.N, nm = "post.var.mu.cond")
+)
 ```
 
 
@@ -235,28 +289,41 @@ truth
 ```
 
 ```{r infer_graphics, fig.width=7, fig.height=5}
-plot(x=0, y=0, type="n",
-     xlim=c(truth["prior.mean.mu"] - 2 * sqrt(truth["prior.var.mu"]),
-            truth["prior.mean.mu"] + 2 * sqrt(truth["prior.var.mu"])),
-     ylim=c(0,2),
-     xlab="x", ylab="density",
-     main="Bayesian inference of a Normal with unknown mean and variance")
-abline(v=truth["mu"], lwd=2, lty=2)
-curve(dnorm(x=x, mean=truth["prior.mean.mu"], sd=sqrt(truth["prior.var.mu"])),
-      add=TRUE, col="green", lwd=2)
-curve(dnorm(x=x, mean=mu, sd=sqrt(1/tau)), add=TRUE, col="black", lwd=2)
-curve(dnorm(x=x, mean=truth["post.mean.mu.cond"],
-            sd=sqrt(truth["post.var.mu.cond"])),
-      add=TRUE, col="red", lwd=2, n=10^3+1)
-legend(x="topright", legend=c("true mu|tau", "prior(mu|tau)",
-                              "likelihood(y;mu,tau)",
-                              "posterior(mu|y,tau)"),
-       col=c("black", "green","black","red"), lwd=2, lty=c(2,1,1,1), bty="n")
+plot(
+  x = 0, y = 0, type = "n",
+  xlim = c(
+    truth["prior.mean.mu"] - 2 * sqrt(truth["prior.var.mu"]),
+    truth["prior.mean.mu"] + 2 * sqrt(truth["prior.var.mu"])
+  ),
+  ylim = c(0, 2),
+  xlab = "x", ylab = "density",
+  main = "Bayesian inference of a Normal with unknown mean and variance"
+)
+abline(v = truth["mu"], lwd = 2, lty = 2)
+curve(dnorm(x = x, mean = truth["prior.mean.mu"], sd = sqrt(truth["prior.var.mu"])),
+  add = TRUE, col = "green", lwd = 2
+)
+curve(dnorm(x = x, mean = mu, sd = sqrt(1 / tau)), add = TRUE, col = "black", lwd = 2)
+curve(
+  dnorm(
+    x = x, mean = truth["post.mean.mu.cond"],
+    sd = sqrt(truth["post.var.mu.cond"])
+  ),
+  add = TRUE, col = "red", lwd = 2, n = 10^3 + 1
+)
+legend(
+  x = "topright", legend = c(
+    "true mu|tau", "prior(mu|tau)",
+    "likelihood(y;mu,tau)",
+    "posterior(mu|y,tau)"
+  ),
+  col = c("black", "green", "black", "red"), lwd = 2, lty = c(2, 1, 1, 1), bty = "n"
+)
 ```
 
 
 # Appendix
 
 ```{r info}
-print(sessionInfo(), locale=FALSE)
+print(sessionInfo(), locale = FALSE)
 ```

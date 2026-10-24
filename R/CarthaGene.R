@@ -10,57 +10,66 @@
 ##' @return list
 ##' @author Matthieu Falque [aut], Timothee Flutre [ctb]
 ##' @export
-openCarthagene <- function(file=NULL, task.id=NULL){
+openCarthagene <- function(file = NULL, task.id = NULL) {
   exe.name <- "carthagene"
-  stopifnot(file.exists(Sys.which(exe.name)),
-            capabilities()["fifo"])
-  if(! is.null(file)){
+  stopifnot(
+    file.exists(Sys.which(exe.name)),
+    capabilities()["fifo"]
+  )
+  if (!is.null(file)) {
     stopifnot(file.exists(file))
     file.2pt <- paste0(file, ".2pt")
-    if(file.exists(file.2pt)){
-      msg <- paste0("file '", file.2pt, "' created by CarthaGene",
-                    " already exists\nyou may want to remove it first",
-                    " to let CarthaGene recreate it")
+    if (file.exists(file.2pt)) {
+      msg <- paste0(
+        "file '", file.2pt, "' created by CarthaGene",
+        " already exists\nyou may want to remove it first",
+        " to let CarthaGene recreate it"
+      )
       warning(msg)
     }
   }
-  if(! is.null(task.id))
+  if (!is.null(task.id)) {
     stopifnot(is.character(task.id))
+  }
 
   out <- list()
 
   name.fifo.in <- "CGfifoIn"
-  if(! is.null(task.id))
+  if (!is.null(task.id)) {
     name.fifo.in <- paste0(name.fifo.in, "_", task.id)
+  }
   name.fifo.out <- "CGfifoOut"
-  if(! is.null(task.id))
+  if (!is.null(task.id)) {
     name.fifo.out <- paste0(name.fifo.out, "_", task.id)
-  if(file.exists(name.fifo.in))
+  }
+  if (file.exists(name.fifo.in)) {
     file.remove(name.fifo.in)
-  if(file.exists(name.fifo.out))
+  }
+  if (file.exists(name.fifo.out)) {
     file.remove(name.fifo.out)
+  }
   out$name.fifo.in <- name.fifo.in
   out$name.fifo.out <- name.fifo.out
 
   ## input FIFO to send commands to CG
-  fifo.in <- fifo(name.fifo.in, "w+", blocking=FALSE)
+  fifo.in <- fifo(name.fifo.in, "w+", blocking = FALSE)
   out$fifo.in <- fifo.in
 
   ## output FIFO to get results from CG
   cmd <- paste0("mkfifo ", name.fifo.out)
-  system(cmd, intern=FALSE, ignore.stderr=FALSE, wait=TRUE, input=NULL)
-  fifo.out <- fifo(name.fifo.out, "r+", blocking=FALSE)
+  system(cmd, intern = FALSE, ignore.stderr = FALSE, wait = TRUE, input = NULL)
+  fifo.out <- fifo(name.fifo.out, "r+", blocking = FALSE)
   out$fifo.out <- fifo.out
 
   ## launch CG in the background
   cmd <- paste0(exe.name, " <", name.fifo.in, " >", name.fifo.out)
-  system(cmd, intern=FALSE, ignore.stderr=FALSE, wait=FALSE, input=NULL)
+  system(cmd, intern = FALSE, ignore.stderr = FALSE, wait = FALSE, input = NULL)
 
   ## load the dataset
-  if(! is.null(file)){
-    cmd <- paste0("dsload ",file)
+  if (!is.null(file)) {
+    cmd <- paste0("dsload ", file)
     tmp <- runCarthagene(out, cmd)
-    tmp <- readLines(fifo.out, n=-1) # empty the buffer
+    tmp <- readLines(fifo.out, n = -1) # empty the buffer
   }
 
   return(out)
@@ -74,11 +83,13 @@ openCarthagene <- function(file=NULL, task.id=NULL){
 ##' @return invisible vector of lines corresponding to the output from CarthaGene
 ##' @author Matthieu Falque [aut], Timothee Flutre [ctb]
 ##' @export
-runCarthagene <- function(cg, cmd){
-  stopifnot(is.list(cg),
-            length(cg) >= 4,
-            all(c("fifo.in", "fifo.out") %in% names(cg)),
-            is.character(cmd))
+runCarthagene <- function(cg, cmd) {
+  stopifnot(
+    is.list(cg),
+    length(cg) >= 4,
+    all(c("fifo.in", "fifo.out") %in% names(cg)),
+    is.character(cmd)
+  )
 
   writeLines(cmd, cg$fifo.in)
 
@@ -87,15 +98,15 @@ runCarthagene <- function(cg, cmd){
   writeLines(dmy.cmd, cg$fifo.in)
 
   ## wait for answer
-  out <- readLines(cg$fifo.out, n=1)
+  out <- readLines(cg$fifo.out, n = 1)
   idx <- grep("group DistThres LODThres", out)
-  while(length(idx) == 0){
-    out <- c(out, readLines(cg$fifo.out, n=1))
+  while (length(idx) == 0) {
+    out <- c(out, readLines(cg$fifo.out, n = 1))
     idx <- grep("group DistThres LODThres", out)
   }
 
   ## remove the lines corresponding to the dummy command
-  out <- out[-((length(out)-1):length(out))]
+  out <- out[-((length(out) - 1):length(out))]
 
   invisible(out)
 }
@@ -108,38 +119,44 @@ runCarthagene <- function(cg, cmd){
 ##' @return data frame with one row per marker and columns "id", "name", etc
 ##' @author Timothee Flutre
 ##' @export
-parseCgMrkinfo <- function(out.mrkinfo, verbose=1){
+parseCgMrkinfo <- function(out.mrkinfo, verbose = 1) {
   stopifnot(is.character(out.mrkinfo))
 
-  if(verbose > 0){
+  if (verbose > 0) {
     msg <- "parse the output of 'mrkinfo'..."
     write(msg, stdout())
     utils::flush.console()
   }
 
   idx <- grep("Num                Names : Sets Merges", out.mrkinfo)
-  if(length(idx) == 0){
-    msg <- paste0("can't parse CarthaGene's output;",
-                  " does it correspond to the 'mrkinfo' command?")
+  if (length(idx) == 0) {
+    msg <- paste0(
+      "can't parse CarthaGene's output;",
+      " does it correspond to the 'mrkinfo' command?"
+    )
     stop(msg)
   }
 
   tmp <- strsplit(out.mrkinfo[-c(1:idx)], " ")
-  tmp <- lapply(tmp, function(x){
-    x[! x %in% c("", ":")]
+  tmp <- lapply(tmp, function(x) {
+    x[!x %in% c("", ":")]
   })
-  if(unique(sapply(tmp, length)) != 3){
-    msg <- paste0("can't parse CarthaGene's output;",
-                  " does it correspond to the 'mrkinfo' command?")
+  if (unique(sapply(tmp, length)) != 3) {
+    msg <- paste0(
+      "can't parse CarthaGene's output;",
+      " does it correspond to the 'mrkinfo' command?"
+    )
     stop(msg)
   }
-  out <- as.data.frame(do.call(rbind, tmp), stringsAsFactors=FALSE)
+  out <- as.data.frame(do.call(rbind, tmp), stringsAsFactors = FALSE)
   colnames(out) <- c("id", "name", "dataset")
   out$id <- as.integer(out$id)
 
-  if(verbose > 0){
-    msg <- paste0("nb of data set(s): ", length(unique(out$dataset)),
-                  "\ntotal nb of markers: ", nrow(out))
+  if (verbose > 0) {
+    msg <- paste0(
+      "nb of data set(s): ", length(unique(out$dataset)),
+      "\ntotal nb of markers: ", nrow(out)
+    )
     write(msg, stdout())
   }
 
@@ -156,15 +173,20 @@ parseCgMrkinfo <- function(out.mrkinfo, verbose=1){
 ##' @param verbose verbosity level (0/1)
 ##' @author Timothee Flutre
 ##' @export
-parseCgPwMatrix <- function(out, cmd="mrkfr2p", mrk.info=NULL, verbose=1){
-  stopifnot(is.character(out),
-            cmd %in% c("mrkfr2p", "mrklod2p", "mrkdist2p"))
-  if(! is.null(mrk.info))
-    stopifnot(is.data.frame(mrk.info),
-              ncol(mrk.info) >= 2,
-              all(c("id", "name") %in% colnames(mrk.info)))
+parseCgPwMatrix <- function(out, cmd = "mrkfr2p", mrk.info = NULL, verbose = 1) {
+  stopifnot(
+    is.character(out),
+    cmd %in% c("mrkfr2p", "mrklod2p", "mrkdist2p")
+  )
+  if (!is.null(mrk.info)) {
+    stopifnot(
+      is.data.frame(mrk.info),
+      ncol(mrk.info) >= 2,
+      all(c("id", "name") %in% colnames(mrk.info))
+    )
+  }
 
-  if(verbose > 0){
+  if (verbose > 0) {
     msg <- paste0("parse the output of '", cmd, "'...")
     write(msg, stdout())
     utils::flush.console()
@@ -172,69 +194,78 @@ parseCgPwMatrix <- function(out, cmd="mrkfr2p", mrk.info=NULL, verbose=1){
 
   ## find the first row of the matrix
   ptn <- "^[ a-zA-Z0-9]+ \\|[-]+"
-  idx <- grep(pattern=ptn, x=out, perl=TRUE)
-  if(length(idx) > 1){
-    if(cmd == "mrkdist2p"){
+  idx <- grep(pattern = ptn, x = out, perl = TRUE)
+  if (length(idx) > 1) {
+    if (cmd == "mrkdist2p") {
       warning("with the 'mrkdist2p' command, only the first data set is parsed")
       idx <- idx[1]
     }
   }
-  if(length(idx) == 0 || length(idx) > 1){
-    msg <- paste0("can't parse CarthaGene's output (first row);",
-                  " does it correspond to the '", cmd, "' command?")
+  if (length(idx) == 0 || length(idx) > 1) {
+    msg <- paste0(
+      "can't parse CarthaGene's output (first row);",
+      " does it correspond to the '", cmd, "' command?"
+    )
     stop(msg)
   }
 
   ## check the last row
   tmp <- tail(out, 1)
   tmp <- rev(strsplit(tmp, "")[[1]])
-  if(! all(tmp[1] == "-", tmp[2] == "-", tmp[3] == "-")){
-    msg <- paste0("can't parse CarthaGene's output (last row);",
-                  " does it correspond to the '", cmd, "' command?")
+  if (!all(tmp[1] == "-", tmp[2] == "-", tmp[3] == "-")) {
+    msg <- paste0(
+      "can't parse CarthaGene's output (last row);",
+      " does it correspond to the '", cmd, "' command?"
+    )
     stop(msg)
   }
 
   ## reformat the whole matrix
   nb.snps <- length(idx:length(out))
   dat <- strsplit(out[idx:length(out)], "\\s")
-  dat <- lapply(dat, function(x){
-    x <- x[! x %in% c("", "|")]
+  dat <- lapply(dat, function(x) {
+    x <- x[!x %in% c("", "|")]
     x <- gsub("\\|", "", x)
-    if("------" %in% x){
+    if ("------" %in% x) {
       x2 <- x
-    } else{
+    } else {
       idx <- grep("------", x)
-      if(length(idx) != 1){
+      if (length(idx) != 1) {
         x2 <- x
-      } else{
-        x2 <- c(x[1:(idx-1)], "------", gsub("------", "", x[idx]))
-        if(idx < nb.snps)
-          x2 <- c(x2, x[(idx+1):length(x)])
+      } else {
+        x2 <- c(x[1:(idx - 1)], "------", gsub("------", "", x[idx]))
+        if (idx < nb.snps) {
+          x2 <- c(x2, x[(idx + 1):length(x)])
+        }
       }
     }
     x2
   })
   table(sapply(dat, length))
-  if(! all(sapply(dat, length) == nb.snps + 1)){
-    msg <- paste0("can't parse CarthaGene's output (row lengths);",
-                  " does it correspond to the '", cmd, "' command?")
+  if (!all(sapply(dat, length) == nb.snps + 1)) {
+    msg <- paste0(
+      "can't parse CarthaGene's output (row lengths);",
+      " does it correspond to the '", cmd, "' command?"
+    )
     stop(msg)
   }
   dat <- do.call(rbind, dat)
   ## if(! anyDuplicated(dat[,1]))
   ##   rownames(dat) <- dat[,1]
-  dat <- dat[,-1]
+  dat <- dat[, -1]
   ## if(! anyDuplicated(rownames(dat)))
   ##   colnames(dat) <- rownames(dat)
-  if(! is.null(mrk.info)){
-    if(nrow(dat) == nrow(mrk.info)){
-      mrk.info <- mrk.info[order(mrk.info$id),]
+  if (!is.null(mrk.info)) {
+    if (nrow(dat) == nrow(mrk.info)) {
+      mrk.info <- mrk.info[order(mrk.info$id), ]
       dimnames(dat) <- list(mrk.info$name, mrk.info$name)
     }
   }
-  if(! all(grepl("------", diag(dat)))){
-    msg <- paste0("can't parse CarthaGene's output (diagonal);",
-                  " does it correspond to the '", cmd, "' command?")
+  if (!all(grepl("------", diag(dat)))) {
+    msg <- paste0(
+      "can't parse CarthaGene's output (diagonal);",
+      " does it correspond to the '", cmd, "' command?"
+    )
     stop(msg)
   }
   diag(dat) <- 0
@@ -253,84 +284,105 @@ parseCgPwMatrix <- function(out, cmd="mrkfr2p", mrk.info=NULL, verbose=1){
 ##' @return data frame with at least two columns, "linkage.group" and "id", another column, "locus", if mrk.info is provided, and another column, "chr", if mrk2chr is provided
 ##' @author Timothee Flutre
 ##' @export
-parseCgGroup <- function(out.group, mrk.info=NULL, mrk2chr=NULL, verbose=1){
+parseCgGroup <- function(out.group, mrk.info = NULL, mrk2chr = NULL, verbose = 1) {
   stopifnot(is.character(out.group))
-  if(! is.null(mrk.info))
-    stopifnot(is.data.frame(mrk.info),
-              ncol(mrk.info) >= 2,
-              all(c("id", "name") %in% colnames(mrk.info)))
-  if(! is.null(mrk2chr))
-    stopifnot(is.character(mrk2chr),
-              ! is.null(names(mrk2chr)))
+  if (!is.null(mrk.info)) {
+    stopifnot(
+      is.data.frame(mrk.info),
+      ncol(mrk.info) >= 2,
+      all(c("id", "name") %in% colnames(mrk.info))
+    )
+  }
+  if (!is.null(mrk2chr)) {
+    stopifnot(
+      is.character(mrk2chr),
+      !is.null(names(mrk2chr))
+    )
+  }
 
-  if(verbose > 0){
+  if (verbose > 0) {
     msg <- "parse the output of 'group'..."
     write(msg, stdout())
     utils::flush.console()
   }
 
   idx <- grep("Group ID : Marker ID List ..", out.group)
-  if(length(idx) == 0){
-    msg <- paste0("can't parse CarthaGene's output;",
-                  " does it correspond to the 'group' command?")
+  if (length(idx) == 0) {
+    msg <- paste0(
+      "can't parse CarthaGene's output;",
+      " does it correspond to the 'group' command?"
+    )
     stop(msg)
   }
 
   out <- list()
   nb.linkgroups <- as.integer(out.group[length(out.group)])
-  for(lg in 1:nb.linkgroups){
+  for (lg in 1:nb.linkgroups) {
     tmp <- strsplit(out.group[idx + lg], ":")[[1]]
-    if(length(tmp) != 2){
+    if (length(tmp) != 2) {
       msg <- paste0("can't parse data for linkage group '", lg, "'")
       stop(msg)
     }
-    out[[lg]] <- data.frame(id=as.integer(strsplit(tmp[2], " ")[[1]][-1]),
-                            stringsAsFactors=FALSE)
+    out[[lg]] <- data.frame(
+      id = as.integer(strsplit(tmp[2], " ")[[1]][-1]),
+      stringsAsFactors = FALSE
+    )
   }
 
-  out <- cbind(linkage.group=rep(1:nb.linkgroups,
-                                 sapply(out, nrow)),
-               do.call(rbind, out))
+  out <- cbind(
+    linkage.group = rep(
+      1:nb.linkgroups,
+      sapply(out, nrow)
+    ),
+    do.call(rbind, out)
+  )
 
-  if(verbose > 0){
-    msg <- paste0("nb of linkage groups: ", length(unique(out$linkage.group)),
-                  "\nnb of markers per linkage group:")
+  if (verbose > 0) {
+    msg <- paste0(
+      "nb of linkage groups: ", length(unique(out$linkage.group)),
+      "\nnb of markers per linkage group:"
+    )
     write(msg, stdout())
     print(table(out$linkage.group))
   }
 
-  if(! is.null(mrk.info))
+  if (!is.null(mrk.info)) {
     out$locus <- mrk.info$name[match(out$id, mrk.info$id)]
+  }
 
-  if(! is.null(mrk2chr)){
+  if (!is.null(mrk2chr)) {
     out$chr <- NA
     out.locus <- gsub("_m$", "", out$locus)
     idx <- which(out.locus %in% names(mrk2chr))
     out$chr[idx] <- mrk2chr[out.locus[idx]]
-    if(any(is.na(out$chr))){
-      msg <- paste0("nb of markers with no chromosome information: ",
-                    sum(is.na(out$chr)))
+    if (any(is.na(out$chr))) {
+      msg <- paste0(
+        "nb of markers with no chromosome information: ",
+        sum(is.na(out$chr))
+      )
       warning(msg)
     }
-    if(verbose > 0){
+    if (verbose > 0) {
       msg <- "nb of markers per chromosome in each linkage group:"
       write(msg, stdout())
-      lg2chr <- tapply(1:nrow(out), factor(out$linkage.group), function(idx){
+      lg2chr <- tapply(1:nrow(out), factor(out$linkage.group), function(idx) {
         stats::setNames(out$chr[idx], out$locus[idx])
       })
-      table.lg2chr <- lapply(lg2chr, table, useNA="always")
+      table.lg2chr <- lapply(lg2chr, table, useNA = "always")
       print(table.lg2chr)
 
       msg <- "nb of markers per linkage group for each chromosome:"
       write(msg, stdout())
       chr2lg <- list()
       chr.names <- unique(out$chr)
-      for(chr in chr.names){
+      for (chr in chr.names) {
         idx <- which(out$chr == chr)
-        chr2lg[[chr]] <- stats::setNames(out$linkage.group[idx],
-                                         out$locus[idx])
+        chr2lg[[chr]] <- stats::setNames(
+          out$linkage.group[idx],
+          out$locus[idx]
+        )
       }
-      table.chr2lg <- lapply(chr2lg, table, useNA="always")
+      table.chr2lg <- lapply(chr2lg, table, useNA = "always")
       print(table.chr2lg)
     }
   }
@@ -345,29 +397,37 @@ parseCgGroup <- function(out.group, mrk.info=NULL, mrk2chr=NULL, verbose=1){
 ##' @return data frame with one row per map in the heap
 ##' @author Timothee Flutre
 ##' @export
-parseCgHeaprint <- function(out.heaprint){
+parseCgHeaprint <- function(out.heaprint) {
   stopifnot(is.character(out.heaprint))
 
   out <- NULL
 
   ptn <- "^Map[ -]+[0-9] : log10-likelihood ="
-  idx <- grep(pattern=ptn, x=out.heaprint, perl=TRUE)
-  if(length(idx) == 0){
-    msg <- paste0("can't parse CarthaGene's output;",
-                  " does it correspond to the 'heaprint' command?")
+  idx <- grep(pattern = ptn, x = out.heaprint, perl = TRUE)
+  if (length(idx) == 0) {
+    msg <- paste0(
+      "can't parse CarthaGene's output;",
+      " does it correspond to the 'heaprint' command?"
+    )
     stop(msg)
   }
 
   lines.log10lik <- out.heaprint[idx]
-  out <- data.frame(id=rep(NA, length(lines.log10lik)),
-                    log10.lik=NA,
-                    stringsAsFactors=FALSE)
+  out <- data.frame(
+    id = rep(NA, length(lines.log10lik)),
+    log10.lik = NA,
+    stringsAsFactors = FALSE
+  )
   ptn <- "^Map[ ]+([-]?[0-9]+).*$"
-  out$id <- as.numeric(gsub(pattern=ptn, replacement="\\1",
-                            lines.log10lik))
+  out$id <- as.numeric(gsub(
+    pattern = ptn, replacement = "\\1",
+    lines.log10lik
+  ))
   ptn <- "^.*=[ ]+([-]?[0-9]+[\\.]]?[0-9]+)$"
-  out$log10.lik <- as.numeric(gsub(pattern=ptn, replacement="\\1",
-                                   lines.log10lik))
+  out$log10.lik <- as.numeric(gsub(
+    pattern = ptn, replacement = "\\1",
+    lines.log10lik
+  ))
 
   return(out)
 }
@@ -379,30 +439,34 @@ parseCgHeaprint <- function(out.heaprint){
 ##' @return data frame corresponding to the given linkage group
 ##' @author Timothee Flutre
 ##' @export
-parseCgMaprintd <- function(out.maprintd){
+parseCgMaprintd <- function(out.maprintd) {
   stopifnot(is.character(out.maprintd))
 
   out <- NULL
 
   ## remove empty lines
-  out.maprintd <- out.maprintd[- which(out.maprintd == "")]
+  out.maprintd <- out.maprintd[-which(out.maprintd == "")]
 
   ## find the index of the first row of the table
   ptn <- "^Pos[ ]+Id[ ]+name"
-  idx <- grep(pattern=ptn, x=out.maprintd, perl=TRUE)
-  if(length(idx) == 0){
-    msg <- paste0("can't parse CarthaGene's output;",
-                  " does it correspond to the 'maprintd' command?")
+  idx <- grep(pattern = ptn, x = out.maprintd, perl = TRUE)
+  if (length(idx) == 0) {
+    msg <- paste0(
+      "can't parse CarthaGene's output;",
+      " does it correspond to the 'maprintd' command?"
+    )
     stop(msg)
   }
   idx.first <- idx + 1
 
   ## find the index of the last two rows of the table
   ptn <- "^[ ]+[0-9]+[ ]markers, log10-likelihood ="
-  idx <- grep(pattern=ptn, x=out.maprintd, perl=TRUE)
-  if(length(idx) == 0){
-    msg <- paste0("can't parse CarthaGene's output;",
-                  " does it correspond to the 'maprintd' command?")
+  idx <- grep(pattern = ptn, x = out.maprintd, perl = TRUE)
+  if (length(idx) == 0) {
+    msg <- paste0(
+      "can't parse CarthaGene's output;",
+      " does it correspond to the 'maprintd' command?"
+    )
     stop(msg)
   }
   idx.last <- idx - 1
@@ -410,26 +474,28 @@ parseCgMaprintd <- function(out.maprintd){
 
   ## parse each row of the table
   tmp <- strsplit(out.maprintd[idx.last + 1], " ")[[1]]
-  tmp <- tmp[- which(tmp == "")]
+  tmp <- tmp[-which(tmp == "")]
   nb.markers <- as.numeric(tmp[1])
-  out <- data.frame(id=rep(NA, nb.markers),
-                    locus=NA,
-                    dist.haldane=NA,
-                    cum.dist.haldane=NA,
-                    dist.kosambi=NA,
-                    rec.ratio=NA,
-                    lod.2pt=NA,
-                    stringsAsFactors=FALSE)
-  for(i in idx.first:(idx.last - 2)){
+  out <- data.frame(
+    id = rep(NA, nb.markers),
+    locus = NA,
+    dist.haldane = NA,
+    cum.dist.haldane = NA,
+    dist.kosambi = NA,
+    rec.ratio = NA,
+    lod.2pt = NA,
+    stringsAsFactors = FALSE
+  )
+  for (i in idx.first:(idx.last - 2)) {
     tokens <- strsplit(out.maprintd[i], "\\s")[[1]]
-    tokens <- tokens[- which(tokens == "")]
-    out[i - idx.first + 1,] <- tokens[c(2, 3, 4, 6, 8, 10, 12)]
+    tokens <- tokens[-which(tokens == "")]
+    out[i - idx.first + 1, ] <- tokens[c(2, 3, 4, 6, 8, 10, 12)]
   }
   tokens <- strsplit(out.maprintd[idx.last - 1], "\\s")[[1]]
-  tokens <- tokens[- which(tokens == "")]
+  tokens <- tokens[-which(tokens == "")]
   out[nb.markers, 1:2] <- tokens[2:3]
   tokens <- strsplit(out.maprintd[idx.last], "\\s")[[1]]
-  tokens <- tokens[- which(tokens == "")]
+  tokens <- tokens[-which(tokens == "")]
   out[nb.markers, 4] <- tokens[1]
 
   ## convert to int/num when appropriate
@@ -444,7 +510,7 @@ parseCgMaprintd <- function(out.maprintd){
   out$cum.dist.kosambi <- NA
   out$cum.dist.kosambi[1] <- 0.0
   out$cum.dist.kosambi[2:nrow(out)] <- cumsum(out$dist.kosambi[-nrow(out)])
-  out <- out[, c(1,2,3,4,5,8,6,7)] # re-order columns
+  out <- out[, c(1, 2, 3, 4, 5, 8, 6, 7)] # re-order columns
 
   return(out)
 }
@@ -457,13 +523,16 @@ parseCgMaprintd <- function(out.maprintd){
 ##' @return nothing
 ##' @author Matthieu Falque [aut], Timothee Flutre [ctb]
 ##' @export
-closeCarthagene <- function(cg, file=NULL){
-  stopifnot(is.list(cg),
-            length(cg) >= 4,
-            all(c("fifo.in", "fifo.out") %in% names(cg)),
-            all(c("name.fifo.in", "name.fifo.out") %in% names(cg)))
-  if(! is.null(file))
+closeCarthagene <- function(cg, file = NULL) {
+  stopifnot(
+    is.list(cg),
+    length(cg) >= 4,
+    all(c("fifo.in", "fifo.out") %in% names(cg)),
+    all(c("name.fifo.in", "name.fifo.out") %in% names(cg))
+  )
+  if (!is.null(file)) {
     stopifnot(is.character(file))
+  }
 
   ## close CG
   cmd <- "exit"
@@ -475,24 +544,24 @@ closeCarthagene <- function(cg, file=NULL){
 
   ## remove them
   success <- file.remove(cg$name.fifo.in)
-  if(! success){
+  if (!success) {
     msg <- paste0("can't remove input FIFO '", cg$name.fifo.in, "'")
-    warning(msg, call.=FALSE, immediate.=TRUE)
+    warning(msg, call. = FALSE, immediate. = TRUE)
   }
   success <- file.remove(cg$name.fifo.out)
-  if(! success){
+  if (!success) {
     msg <- paste0("can't remove output FIFO '", cg$name.fifo.out, "'")
-    warning(msg, call.=FALSE, immediate.=TRUE)
+    warning(msg, call. = FALSE, immediate. = TRUE)
   }
 
   ## remove the temporary file ".2pt"
-  if(! is.null(file)){
+  if (!is.null(file)) {
     tmp.file <- paste0(file, ".2pt")
-    if(file.exists(tmp.file)){
+    if (file.exists(tmp.file)) {
       success <- file.remove(tmp.file)
-      if(! success){
+      if (!success) {
         msg <- paste0("can't remove temporary file '", tmp.file, "'")
-        warning(msg, call.=FALSE, immediate.=TRUE)
+        warning(msg, call. = FALSE, immediate. = TRUE)
       }
     }
   }
@@ -514,17 +583,20 @@ closeCarthagene <- function(cg, file=NULL){
 ##' @author Timothee Flutre
 ##' @seealso \code{\link{openCarthagene}}, \code{\link{runCarthagene}}, \code{\link{parseCgMrkinfo}}, \code{\link{parseCgGroup}}, \code{\link{closeCarthagene}}
 ##' @export
-defLinkgroupsWithCarthagene <- function(file=NULL, task.id=NULL, cg=NULL,
-                                        dist.thresh=0.3, lod.thresh=3,
-                                        mrk2chr=NULL,
-                                        close.cg=FALSE, verbose=1){
-  stopifnot(xor(all(is.null(file), is.null(task.id)), is.null(cg)),
-            is.numeric(dist.thresh),
-            is.numeric(lod.thresh))
+defLinkgroupsWithCarthagene <- function(file = NULL, task.id = NULL, cg = NULL,
+                                        dist.thresh = 0.3, lod.thresh = 3,
+                                        mrk2chr = NULL,
+                                        close.cg = FALSE, verbose = 1) {
+  stopifnot(
+    xor(all(is.null(file), is.null(task.id)), is.null(cg)),
+    is.numeric(dist.thresh),
+    is.numeric(lod.thresh)
+  )
 
-  if(is.null(cg))
-    cg <- openCarthagene(file=file, task.id=task.id)
-  if(FALSE){ # for debugging purposes
+  if (is.null(cg)) {
+    cg <- openCarthagene(file = file, task.id = task.id)
+  }
+  if (FALSE) { # for debugging purposes
     out <- runCarthagene(cg, "cgversion")
     out <- runCarthagene(cg, "dsinfo")
   }
@@ -533,19 +605,22 @@ defLinkgroupsWithCarthagene <- function(file=NULL, task.id=NULL, cg=NULL,
   mrk.info <- parseCgMrkinfo(out.mrkinfo, verbose)
 
   cmd <- paste("group", dist.thresh, lod.thresh)
-  if(verbose > 0){
+  if (verbose > 0) {
     msg <- paste0("execute '", cmd, "'...")
     write(msg, stdout())
     utils::flush.console()
   }
   st <- system.time(
-      out.group <- runCarthagene(cg, cmd))
-  if(verbose > 0)
+    out.group <- runCarthagene(cg, cmd)
+  )
+  if (verbose > 0) {
     print(st)
+  }
   linkgroups <- parseCgGroup(out.group, mrk.info, mrk2chr, verbose)
 
-  if(close.cg)
+  if (close.cg) {
     closeCarthagene(cg, file)
+  }
 
   return(linkgroups)
 }
@@ -571,112 +646,133 @@ defLinkgroupsWithCarthagene <- function(file=NULL, task.id=NULL, cg=NULL,
 ##' @seealso \code{\link{openCarthagene}}, \code{\link{runCarthagene}}, \code{\link{defLinkgroupsWithCarthagene}}, \code{\link{parseCgMaprintd}}, \code{\link{closeCarthagene}}
 ##' @export
 estMrkOrderGenDistsWithCarthagene <- function(cg, linkgroups, lg.id,
-                                              keep.thresh=3, add.thresh=3,
-                                              init.order=NULL, postprocessing=1,
-                                              flips.size=4, flips.lod.thresh=3,
-                                              flips.iter=1, squeeze.thresh=20,
-                                              mrk2phy=NULL, verbose=1){
-  stopifnot(is.list(cg),
-            is.data.frame(linkgroups),
-            all(c("linkage.group", "id", "locus") %in% colnames(linkgroups)),
-            lg.id %in% linkgroups$linkage.group,
-            is.numeric(keep.thresh),
-            is.numeric(add.thresh),
-            is.numeric(flips.size),
-            flips.size <= 9,
-            is.numeric(flips.lod.thresh),
-            flips.iter %in% c(0,1),
-            is.numeric(squeeze.thresh))
-  if("todel" %in% colnames(linkgroups))
+                                              keep.thresh = 3, add.thresh = 3,
+                                              init.order = NULL, postprocessing = 1,
+                                              flips.size = 4, flips.lod.thresh = 3,
+                                              flips.iter = 1, squeeze.thresh = 20,
+                                              mrk2phy = NULL, verbose = 1) {
+  stopifnot(
+    is.list(cg),
+    is.data.frame(linkgroups),
+    all(c("linkage.group", "id", "locus") %in% colnames(linkgroups)),
+    lg.id %in% linkgroups$linkage.group,
+    is.numeric(keep.thresh),
+    is.numeric(add.thresh),
+    is.numeric(flips.size),
+    flips.size <= 9,
+    is.numeric(flips.lod.thresh),
+    flips.iter %in% c(0, 1),
+    is.numeric(squeeze.thresh)
+  )
+  if ("todel" %in% colnames(linkgroups)) {
     stopifnot(is.logical(linkgroups$todel))
-  if(! is.null(init.order))
-    stopifnot(is.vector(init.order),
-              length(init.order) >= 3,
-              all(init.order %in% linkgroups$id))
-  if(! is.null(mrk2phy))
-    stopifnot(is.vector(mrk2phy),
-              is.numeric(mrk2phy),
-              ! is.null(names(mrk2phy)))
+  }
+  if (!is.null(init.order)) {
+    stopifnot(
+      is.vector(init.order),
+      length(init.order) >= 3,
+      all(init.order %in% linkgroups$id)
+    )
+  }
+  if (!is.null(mrk2phy)) {
+    stopifnot(
+      is.vector(mrk2phy),
+      is.numeric(mrk2phy),
+      !is.null(names(mrk2phy))
+    )
+  }
 
   cmd <- paste0("mrkselset [groupget ", lg.id, "]")
   runCarthagene(cg, cmd)
   is.lg.todel <- FALSE
-  if("todel" %in% colnames(linkgroups))
+  if ("todel" %in% colnames(linkgroups)) {
     is.lg.todel <- linkgroups$linkage.group == lg.id & linkgroups$todel
-  if(any(is.lg.todel)){
-    for(mrk.name in linkgroups$locus[is.lg.todel])
-      runCarthagene(cg, paste0("mrkdel ", mrk.name))
   }
-  if(is.null(init.order)){
+  if (any(is.lg.todel)) {
+    for (mrk.name in linkgroups$locus[is.lg.todel]) {
+      runCarthagene(cg, paste0("mrkdel ", mrk.name))
+    }
+  }
+  if (is.null(init.order)) {
     init.order <- "{}"
-  } else
-    init.order <- paste("{", paste(init.order, collapse=" "), "}")
+  } else {
+    init.order <- paste("{", paste(init.order, collapse = " "), "}")
+  }
   cmd <- paste("buildfw", keep.thresh, add.thresh, init.order, postprocessing)
-  if(verbose > 0){
+  if (verbose > 0) {
     msg <- paste0("execute '", cmd, "'...")
     write(msg, stdout())
     utils::flush.console()
   }
   st <- system.time(
-      out.buildfw <- runCarthagene(cg, cmd))
-  if(verbose > 0)
+    out.buildfw <- runCarthagene(cg, cmd)
+  )
+  if (verbose > 0) {
     print(st)
+  }
 
-  if(verbose > 0){
+  if (verbose > 0) {
     out.heaprint <- runCarthagene(cg, "heaprint")
     print(maps.info <- parseCgHeaprint(out.heaprint))
   }
 
   cmd <- paste("flips", flips.size, flips.lod.thresh, flips.iter)
-  if(verbose > 0){
+  if (verbose > 0) {
     msg <- paste0("execute '", cmd, "'...")
     write(msg, stdout())
     utils::flush.console()
   }
   st <- system.time(
-      out.flips <- runCarthagene(cg, cmd))
-  if(verbose > 0)
+    out.flips <- runCarthagene(cg, cmd)
+  )
+  if (verbose > 0) {
     print(st)
+  }
 
-  if(verbose > 0){
+  if (verbose > 0) {
     msg <- "execute 'polish'..."
     write(msg, stdout())
     utils::flush.console()
   }
   st <- system.time(
-      out.polish <- runCarthagene(cg, "polish"))
-  if(verbose > 0)
+    out.polish <- runCarthagene(cg, "polish")
+  )
+  if (verbose > 0) {
     print(st)
+  }
 
   cmd <- paste("squeeze", squeeze.thresh)
-  if(verbose > 0){
+  if (verbose > 0) {
     msg <- paste0("execute '", cmd, "'...")
     write(msg, stdout())
     utils::flush.console()
   }
   st <- system.time(
-      out.squeeze <- runCarthagene(cg, cmd))
-  if(verbose > 0)
+    out.squeeze <- runCarthagene(cg, cmd)
+  )
+  if (verbose > 0) {
     print(st)
+  }
 
-  if(verbose > 0){
+  if (verbose > 0) {
     out.heaprint <- runCarthagene(cg, "heaprint")
     print(maps.info <- parseCgHeaprint(out.heaprint))
   }
 
-  if(verbose > 0){
+  if (verbose > 0) {
     msg <- "execute 'bestprintd'..."
     write(msg, stdout())
     utils::flush.console()
   }
   out.bestprintd <- runCarthagene(cg, "bestprintd")
   bestmap <- parseCgMaprintd(out.bestprintd)
-  if(! is.null(mrk2phy)){
+  if (!is.null(mrk2phy)) {
     bestmap$physical.distance <- NA
     locus.init <- gsub("_m$", "", bestmap$locus)
     has.phy <- locus.init %in% names(mrk2phy)
-    if(any(has.phy))
+    if (any(has.phy)) {
       bestmap$physical.distance[has.phy] <- mrk2phy[locus.init[has.phy]]
+    }
   }
 
   return(bestmap)

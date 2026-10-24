@@ -17,29 +17,34 @@
 ##' cat(kml, file=out.file, sep="\n")
 ##' }
 ##' @export
-gps2kml <- function(x){
-  stopifnot(is.data.frame(x),
-            ncol(x) >= 3,
-            all(c("name", "longitude", "latitude") %in% colnames(x)))
+gps2kml <- function(x) {
+  stopifnot(
+    is.data.frame(x),
+    ncol(x) >= 3,
+    all(c("name", "longitude", "latitude") %in% colnames(x))
+  )
 
-  if(! "altitude" %in% colnames(x))
+  if (!"altitude" %in% colnames(x)) {
     x$altitude <- NA
+  }
 
   out <- c("<?xml version=\"1.0\" encoding=\"UTF-8\"?>")
   out <- c(out, "<kml xmlns=\"http://www.opengis.net/kml/2.2\">")
   out <- c(out, "<Document>")
 
-  for(i in 1:nrow(x)){
+  for (i in 1:nrow(x)) {
     out <- c(out, "<Placemark>")
     txt <- paste0("<name>", x$name[i], "</name>")
     out <- c(out, txt)
-    if("description" %in% colnames(x)){
+    if ("description" %in% colnames(x)) {
       txt <- paste0("<description>", x$description[i], "</description>")
       out <- c(out, txt)
     }
     out <- c(out, "<Point>")
-    txt <- paste0("<coordinates>", x$longitude[i], ",", x$latitude[i], ",",
-                  x$altitude[i], "</coordinates>")
+    txt <- paste0(
+      "<coordinates>", x$longitude[i], ",", x$latitude[i], ",",
+      x$altitude[i], "</coordinates>"
+    )
     out <- c(out, txt)
     out <- c(out, "</Point>")
     out <- c(out, "</Placemark>")

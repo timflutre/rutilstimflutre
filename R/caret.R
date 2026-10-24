@@ -25,17 +25,19 @@
 ##' (out2 <- caretSummary(data=d, plot=TRUE))
 ##' }
 ##' @export
-caretSummary <- function(data, lev=NULL, model=NULL, plot=FALSE){
-  stopifnot(is.data.frame(data),
-            all(c("obs", "pred") %in% colnames(data)))
+caretSummary <- function(data, lev = NULL, model = NULL, plot = FALSE) {
+  stopifnot(
+    is.data.frame(data),
+    all(c("obs", "pred") %in% colnames(data))
+  )
 
-  data <- data[order(data$obs, decreasing=TRUE),] # sort best -> worse
+  data <- data[order(data$obs, decreasing = TRUE), ] # sort best -> worse
   is.pred.constant <- ifelse(stats::sd(data$pred) == 0, TRUE, FALSE)
   nb.inds <- nrow(data)
   MSE <- mean((data$pred - data$obs)^2)
   idx.best50p <- floor(0.50 * nb.inds)
   idx.best25p <- floor(0.25 * nb.inds)
-  fit <- stats::lm(obs ~ pred, data=data)
+  fit <- stats::lm(obs ~ pred, data = data)
   coefOls <- as.numeric(stats::coef(fit))
   R2 <- summary(fit)$r.squared
   R2.adj <- summary(fit)$adj.r.squared
@@ -45,56 +47,79 @@ caretSummary <- function(data, lev=NULL, model=NULL, plot=FALSE){
   y.minus.m1 <- sum((data$obs - stats::fitted(fit))^2)
   stat.nobias <- (m2.minus.m1 / 2) /
     (y.minus.m1 / (nb.inds - 2))
-  pval.nobias <- stats::pf(q=stat.nobias, df1=2, df2=nb.inds - 2,
-                           lower.tail=FALSE)
+  pval.nobias <- stats::pf(
+    q = stat.nobias, df1 = 2, df2 = nb.inds - 2,
+    lower.tail = FALSE
+  )
   mod.eff <- 1 - sum((data$obs - data$pred)^2) /
     sum((data$obs - mean(data$obs))^2)
 
-  if(plot){
-    graphics::plot(x=data$pred, y=data$obs,
-                   main="Assessment of prediction accuracy",
-                   xlab="Predictions", ylab="Observations",
-                   asp=1, las=1, pch=20)
-    graphics::abline(a=0, b=1, lty=2)
-    if(! is.pred.constant)
-      graphics::abline(fit, lty=1)
-    graphics::legend("topleft", bty="n",
-                     legend=sapply(c(bquote("Adjusted"~R^2==.(round(R2,2))),
-                                     bquote(y==.(round(coefOls[1],2))+.(round(coefOls[2],2))~"x")),
-                                   as.expression))
+  if (plot) {
+    graphics::plot(
+      x = data$pred, y = data$obs,
+      main = "Assessment of prediction accuracy",
+      xlab = "Predictions", ylab = "Observations",
+      asp = 1, las = 1, pch = 20
+    )
+    graphics::abline(a = 0, b = 1, lty = 2)
+    if (!is.pred.constant) {
+      graphics::abline(fit, lty = 1)
+    }
+    graphics::legend("topleft",
+      bty = "n",
+      legend = sapply(
+        c(
+          bquote("Adjusted" ~ R^2 == .(round(R2, 2))),
+          bquote(y == .(round(coefOls[1], 2)) + .(round(coefOls[2], 2)) ~ "x")
+        ),
+        as.expression
+      )
+    )
   }
 
-  out <- c(rmse=sqrt(MSE),
-           rrmse=100 * sqrt(MSE) / mean(data$obs),
-           var.obs=stats::var(data$obs),
-           var.pred=stats::var(data$pred),
-           corP=ifelse(is.pred.constant, NA,
-                       stats::cor(data$obs, data$pred, method="pearson")),
-           corS=ifelse(is.pred.constant, NA,
-                       stats::cor(data$obs, data$pred, method="spearman")),
-           corP.best50p=ifelse(is.pred.constant, NA,
-                               stats::cor(data$obs[1:idx.best50p],
-                                          data$pred[1:idx.best50p],
-                                          method="pearson")),
-           corS.best50p=ifelse(is.pred.constant, NA,
-                               stats::cor(data$obs[1:idx.best50p],
-                                          data$pred[1:idx.best50p],
-                                          method="spearman")),
-           corP.best25p=ifelse(is.pred.constant, NA,
-                               stats::cor(data$obs[1:idx.best25p],
-                                          data$pred[1:idx.best25p],
-                                          method="pearson")),
-           corS.best25p=ifelse(is.pred.constant, NA,
-                               stats::cor(data$obs[1:idx.best25p],
-                                          data$pred[1:idx.best25p],
-                                          method="spearman")),
-           reg.intercept=coefOls[1],
-           reg.slope=coefOls[2],
-           reg.R2=R2,
-           reg.R2.adj=R2.adj,
-           stat.nobias=stat.nobias,
-           pval.nobias=pval.nobias,
-           mod.eff=mod.eff)
+  out <- c(
+    rmse = sqrt(MSE),
+    rrmse = 100 * sqrt(MSE) / mean(data$obs),
+    var.obs = stats::var(data$obs),
+    var.pred = stats::var(data$pred),
+    corP = ifelse(is.pred.constant, NA,
+      stats::cor(data$obs, data$pred, method = "pearson")
+    ),
+    corS = ifelse(is.pred.constant, NA,
+      stats::cor(data$obs, data$pred, method = "spearman")
+    ),
+    corP.best50p = ifelse(is.pred.constant, NA,
+      stats::cor(data$obs[1:idx.best50p],
+        data$pred[1:idx.best50p],
+        method = "pearson"
+      )
+    ),
+    corS.best50p = ifelse(is.pred.constant, NA,
+      stats::cor(data$obs[1:idx.best50p],
+        data$pred[1:idx.best50p],
+        method = "spearman"
+      )
+    ),
+    corP.best25p = ifelse(is.pred.constant, NA,
+      stats::cor(data$obs[1:idx.best25p],
+        data$pred[1:idx.best25p],
+        method = "pearson"
+      )
+    ),
+    corS.best25p = ifelse(is.pred.constant, NA,
+      stats::cor(data$obs[1:idx.best25p],
+        data$pred[1:idx.best25p],
+        method = "spearman"
+      )
+    ),
+    reg.intercept = coefOls[1],
+    reg.slope = coefOls[2],
+    reg.R2 = R2,
+    reg.R2.adj = R2.adj,
+    stat.nobias = stat.nobias,
+    pval.nobias = pval.nobias,
+    mod.eff = mod.eff
+  )
 
   return(out)
 }
@@ -113,8 +138,8 @@ caretSummary <- function(data, lev=NULL, model=NULL, plot=FALSE){
 ##' @return output of \code{rrBLUP::mixed.solve}
 ##' @author Timothee Flutre
 ##' @export
-caretFitRrblup <- function(x, y, wts, param, lev, last, weights, classProbs, ...){
-  rrBLUP::mixed.solve(y=y, Z=x, K=NULL, ...)
+caretFitRrblup <- function(x, y, wts, param, lev, last, weights, classProbs, ...) {
+  rrBLUP::mixed.solve(y = y, Z = x, K = NULL, ...)
 }
 
 ##' Predict with rrBLUP for caret
@@ -125,7 +150,7 @@ caretFitRrblup <- function(x, y, wts, param, lev, last, weights, classProbs, ...
 ##' @return vector
 ##' @author Timothee Flutre
 ##' @export
-caretPredictRrblup <- function(modelFit, newdata, submodels=NULL){
+caretPredictRrblup <- function(modelFit, newdata, submodels = NULL) {
   newdata %*% modelFit$u
 }
 
@@ -138,8 +163,8 @@ caretPredictRrblup <- function(modelFit, newdata, submodels=NULL){
 ##' @return data frame of tuning parameter combinations with a column for each parameter
 ##' @author Timothee Flutre
 ##' @export
-caretGridRrblup <- function(x, y, len=NULL, search="grid"){
-  data.frame(intercept=TRUE)
+caretGridRrblup <- function(x, y, len = NULL, search = "grid") {
+  data.frame(intercept = TRUE)
 }
 
 ##' Fit with varbvs for caret
@@ -156,8 +181,8 @@ caretGridRrblup <- function(x, y, len=NULL, search="grid"){
 ##' @return output of \code{varbvs::varbvs}
 ##' @author Timothee Flutre
 ##' @export
-caretFitVarbvs <- function(x, y, wts, param, lev, last, weights, classProbs, ...){
-  varbvs::varbvs(X=x, y=y, weights=wts, ...)
+caretFitVarbvs <- function(x, y, wts, param, lev, last, weights, classProbs, ...) {
+  varbvs::varbvs(X = x, y = y, weights = wts, ...)
 }
 
 ##' Predict with varbvs for caret
@@ -168,8 +193,8 @@ caretFitVarbvs <- function(x, y, wts, param, lev, last, weights, classProbs, ...
 ##' @return vector
 ##' @author Timothee Flutre
 ##' @export
-caretPredictVarbvs <- function(modelFit, newdata, submodels=NULL){
-  stats::predict(object=modelFit, X=newdata, Z=NULL)
+caretPredictVarbvs <- function(modelFit, newdata, submodels = NULL) {
+  stats::predict(object = modelFit, X = newdata, Z = NULL)
 }
 
 ##' Grid with varbvs for caret
@@ -181,8 +206,8 @@ caretPredictVarbvs <- function(modelFit, newdata, submodels=NULL){
 ##' @return data frame of tuning parameter combinations with a column for each parameter
 ##' @author Timothee Flutre
 ##' @export
-caretGridVarbvs <- function(x, y, len=NULL, search="grid"){
-  data.frame(intercept=TRUE)
+caretGridVarbvs <- function(x, y, len = NULL, search = "grid") {
+  data.frame(intercept = TRUE)
 }
 
 ##' Fit with BGLR for caret
@@ -210,33 +235,48 @@ caretGridVarbvs <- function(x, y, len=NULL, search="grid"){
 ##' @author Timothee Flutre
 ##' @export
 caretFitBglr <- function(x, y, wts, param, lev, last, weights, classProbs,
-                         ETA, saveAt, nIter, burnIn, thin, keep.samples=FALSE,
-                         ...){
+                         ETA, saveAt, nIter, burnIn, thin, keep.samples = FALSE,
+                         ...) {
   ETA[[1]]$X <- x
-  if(missing(wts))
+  if (missing(wts)) {
     wts <- NULL
+  }
 
-  out <- BGLR::BGLR(y=y, ETA=ETA, saveAt=saveAt, weights=wts, nIter=nIter,
-                    burnIn=burnIn, thin=thin, ...)
+  out <- BGLR::BGLR(
+    y = y, ETA = ETA, saveAt = saveAt, weights = wts, nIter = nIter,
+    burnIn = burnIn, thin = thin, ...
+  )
 
-  if(keep.samples){
-    out$post.samples <- cbind(mu=utils::read.table(paste0(saveAt, "mu.dat"))[,1],
-                              varE=utils::read.table(paste0(saveAt, "varE.dat"))[,1],
-                              pi=utils::read.table(paste0(saveAt, "ETA_1_par",
-                                                   ETA[[1]]$model, ".dat"))[,1],
-                              varB=utils::read.table(paste0(saveAt, "ETA_1_par",
-                                                            ETA[[1]]$model, ".dat"))[,2])
-    out$post.samples <- coda::mcmc.list(coda::mcmc(out$post.samples, start=thin,
-                                       end=nIter, thin=thin))
-    out$post.samples <- stats::window(out$post.samples, start=burnIn+1)
+  if (keep.samples) {
+    out$post.samples <- cbind(
+      mu = utils::read.table(paste0(saveAt, "mu.dat"))[, 1],
+      varE = utils::read.table(paste0(saveAt, "varE.dat"))[, 1],
+      pi = utils::read.table(paste0(
+        saveAt, "ETA_1_par",
+        ETA[[1]]$model, ".dat"
+      ))[, 1],
+      varB = utils::read.table(paste0(
+        saveAt, "ETA_1_par",
+        ETA[[1]]$model, ".dat"
+      ))[, 2]
+    )
+    out$post.samples <- coda::mcmc.list(coda::mcmc(out$post.samples,
+      start = thin,
+      end = nIter, thin = thin
+    ))
+    out$post.samples <- stats::window(out$post.samples, start = burnIn + 1)
     out$ess <- coda::effectiveSize(out$post.samples)
   }
 
-  for(f in c(paste0(saveAt, c("mu.dat", "varE.dat",
-                               paste0("ETA_1_par", ETA[[1]]$model, ".dat"),
-                               "ETA_1_b.bin"))))
-    if(file.exists(f))
+  for (f in c(paste0(saveAt, c(
+    "mu.dat", "varE.dat",
+    paste0("ETA_1_par", ETA[[1]]$model, ".dat"),
+    "ETA_1_b.bin"
+  )))) {
+    if (file.exists(f)) {
       file.remove(f)
+    }
+  }
 
   out
 }
@@ -249,9 +289,9 @@ caretFitBglr <- function(x, y, wts, param, lev, last, weights, classProbs,
 ##' @return vector
 ##' @author Timothee Flutre
 ##' @export
-caretPredictBglr <- function(modelFit, newdata, submodels=NULL){
+caretPredictBglr <- function(modelFit, newdata, submodels = NULL) {
   out <- newdata %*% modelFit$ETA[[1]]$b
-  out[,1]
+  out[, 1]
 }
 
 ##' Grid with BGLR for caret
@@ -263,8 +303,8 @@ caretPredictBglr <- function(modelFit, newdata, submodels=NULL){
 ##' @return data frame of tuning parameter combinations with a column for each parameter
 ##' @author Timothee Flutre
 ##' @export
-caretGridBglr <- function(x, y, len=NULL, search="grid"){
-  data.frame(intercept=TRUE)
+caretGridBglr <- function(x, y, len = NULL, search = "grid") {
+  data.frame(intercept = TRUE)
 }
 
 ##' Fit with qtl for caret
@@ -301,23 +341,25 @@ caretGridBglr <- function(x, y, len=NULL, search="grid"){
 ##' @return output of \code{\link{SIMQTL}} or \code{\link{MIMQTL}}
 ##' @author Timothee Flutre
 ##' @export
-caretFitQtl <- function (x, y, wts, param, lev, last, weights, classProbs,
-                         genmap,cross.geno.prob = NULL,phase,
-                         tuneThreshold=TRUE, alpha = c(0.05, NA),nperm = 10,
-                         pop.type = "CP", QTLmethod = "SIM", p2d = "",
-                         plot = FALSE,  QTL_position = NULL,
-                         nb.cores =parallel::detectCores()-2, verbose = 0) {
+caretFitQtl <- function(x, y, wts, param, lev, last, weights, classProbs,
+                        genmap, cross.geno.prob = NULL, phase,
+                        tuneThreshold = TRUE, alpha = c(0.05, NA), nperm = 10,
+                        pop.type = "CP", QTLmethod = "SIM", p2d = "",
+                        plot = FALSE, QTL_position = NULL,
+                        nb.cores = parallel::detectCores() - 2, verbose = 0) {
   requireNamespace("qtl")
   stopifnot(pop.type == "CP", QTLmethod %in% c("SIM", "MIM"))
-  stopifnot(xor(QTLmethod == "MIM", length(plot) == 1),
-            xor(QTLmethod == "SIM", length(plot) == 2),
-            length(y) == dim(x)[1],
-            length(phase) ==
-            dim(x)[2], dim(genmap)[1] == dim(x)[2],
-            methods::is(y, "numeric"),
-            methods::is(x, "matrix"),
-            methods::is(plot, "logical"),
-            methods::is(nperm, "numeric"))
+  stopifnot(
+    xor(QTLmethod == "MIM", length(plot) == 1),
+    xor(QTLmethod == "SIM", length(plot) == 2),
+    length(y) == dim(x)[1],
+    length(phase) ==
+      dim(x)[2], dim(genmap)[1] == dim(x)[2],
+    methods::is(y, "numeric"),
+    methods::is(x, "matrix"),
+    methods::is(plot, "logical"),
+    methods::is(nperm, "numeric")
+  )
   Genotypes <- rownames(x)
   Genotypes <- make.names(Genotypes)
   Locus <- colnames(x)
@@ -326,80 +368,99 @@ caretFitQtl <- function (x, y, wts, param, lev, last, weights, classProbs,
   x <- as.data.frame(x)
   colnames(x) <- NULL
   tmpf <- tempfile(pattern = "genos_joinmap", fileext = ".loc")
-  writeSegregJoinMap(pop.name = "caretFitQtl", pop.type = pop.type,
-                     locus = rownames(x), segregs = getJoinMapSegregs(x),
-                     genos = as.data.frame(x), phases = phase, file = tmpf,
-                     verbose = verbose)
+  writeSegregJoinMap(
+    pop.name = "caretFitQtl", pop.type = pop.type,
+    locus = rownames(x), segregs = getJoinMapSegregs(x),
+    genos = as.data.frame(x), phases = phase, file = tmpf,
+    verbose = verbose
+  )
   gendat <- qtl:::read.cross.mq.loc(tmpf)
   gendat <- as.matrix(gendat$genotypes)
   rownames(gendat) <- Genotypes
   stopifnot(dim(gendat)[1] == dim(x)[2], dim(gendat)[2] ==
-              dim(x)[1])
+    dim(x)[1])
   is.rm <- file.remove(tmpf)
   phenos <- data.frame(Genotype = Genotypes, y = y)
   phenos$Genotype <- as.character(phenos$Genotype)
   stopifnot(dim(phenos)[1] == dim(x)[2])
-  if (pop.type == "CP")
+  if (pop.type == "CP") {
     cross.type <- "4way"
-  cross <- setupQtlCrossObject(gendat = gendat, cross.type = "4way",
-                               genmap = genmap, phenos = phenos)
+  }
+  cross <- setupQtlCrossObject(
+    gendat = gendat, cross.type = "4way",
+    genmap = genmap, phenos = phenos
+  )
   for (i in 1:length(cross$geno)) {
-    cross$geno[[i]]$map <- matrix(data = rep(cross$geno[[i]]$map,
-                                             2), nrow = 2, byrow = TRUE)
+    cross$geno[[i]]$map <- matrix(data = rep(
+      cross$geno[[i]]$map,
+      2
+    ), nrow = 2, byrow = TRUE)
     colnames(cross$geno[[i]]$map) <- colnames(cross$geno[[i]]$data)
   }
-  stopifnot(methods::is(cross, "4way"),
-            methods::is(cross, "cross"))
+  stopifnot(
+    methods::is(cross, "4way"),
+    methods::is(cross, "cross")
+  )
   colnames(cross$pheno)[1] <- "indiv"
   if (QTLmethod == "SIM") {
-    fit.qtl <- SIMQTL(cross, response.in.cross = TRUE, numeric.chr.format = TRUE,
-                      pheno.col = "y", geno.joinmap = x,
-                      threshold = ifelse(tuneThreshold, param$threshold, NA),
-                      alpha=alpha,
-                      nperm = nperm, method = "em", phase = phase, plot = plot,
-                      QTL_position = QTL_position, verbose = verbose)
-  }
-  else if (QTLmethod == "MIM") {
-    fit.qtl <- MIMQTL(cross, response.in.cross = TRUE, pheno.col = "y",
-                      geno.joinmap = x,
-                      threshold = ifelse(tuneThreshold, param$threshold, NA),
-                      alpha = alpha,
-                      range_nb_qtl_max = seq(1:4), response = NULL,
-                      numeric.chr.format = TRUE, nrun = 10, nperm = nperm,
-                      additive.only = TRUE, method = "hk", phase = phase,
-                      p2d = p2d, scan2file = "", type.CI = "LOD-1",
-                      QTL_position = QTL_position, nb.cores = nb.cores,
-                      verbose = verbose)
+    fit.qtl <- SIMQTL(cross,
+      response.in.cross = TRUE, numeric.chr.format = TRUE,
+      pheno.col = "y", geno.joinmap = x,
+      threshold = ifelse(tuneThreshold, param$threshold, NA),
+      alpha = alpha,
+      nperm = nperm, method = "em", phase = phase, plot = plot,
+      QTL_position = QTL_position, verbose = verbose
+    )
+  } else if (QTLmethod == "MIM") {
+    fit.qtl <- MIMQTL(cross,
+      response.in.cross = TRUE, pheno.col = "y",
+      geno.joinmap = x,
+      threshold = ifelse(tuneThreshold, param$threshold, NA),
+      alpha = alpha,
+      range_nb_qtl_max = seq(1:4), response = NULL,
+      numeric.chr.format = TRUE, nrun = 10, nperm = nperm,
+      additive.only = TRUE, method = "hk", phase = phase,
+      p2d = p2d, scan2file = "", type.CI = "LOD-1",
+      QTL_position = QTL_position, nb.cores = nb.cores,
+      verbose = verbose
+    )
   }
   if (!is.null(cross.geno.prob)) {
-    chr_names <- names(lapply(lapply(cross$geno, names),
-                              names))
+    chr_names <- names(lapply(
+      lapply(cross$geno, names),
+      names
+    ))
     list_locus <- 0
     for (chr in chr_names) {
-      tmp <- names(attr(cross.geno.prob[[chr]], "map")[1,
-                                                       ])
+      tmp <- names(attr(cross.geno.prob[[chr]], "map")[1, ])
       tmp <- paste0(chr, "@", tmp)
       list_locus <- append(list_locus, tmp)
     }
     list_locus <- list_locus[-1]
     list_locus_clgeno <- 0
     for (i in 1:length(list_locus)) {
-      tmp <- c(paste0(list_locus[i], "@AC"), paste0(list_locus[i],"@AD"),
-               paste0(list_locus[i], "@BC"), paste0(list_locus[i],"@BD"))
+      tmp <- c(
+        paste0(list_locus[i], "@AC"), paste0(list_locus[i], "@AD"),
+        paste0(list_locus[i], "@BC"), paste0(list_locus[i], "@BD")
+      )
       list_locus_clgeno <- append(list_locus_clgeno, tmp)
     }
     list_locus_clgeno <- list_locus_clgeno[-1]
     stopifnot(length(list_locus) * 4 == length(list_locus_clgeno))
-    geno_prob <- matrix(nrow = length(Genotypes), ncol = length(list_locus_clgeno),
-                        dimnames = list(Genotypes, list_locus_clgeno))
+    geno_prob <- matrix(
+      nrow = length(Genotypes), ncol = length(list_locus_clgeno),
+      dimnames = list(Genotypes, list_locus_clgeno)
+    )
     for (i in 1:ncol(geno_prob)) {
       name <- colnames(geno_prob)[i]
       chr <- strsplit(name, "@", fixed = TRUE)[[1]][1]
       loc <- strsplit(name, "@", fixed = TRUE)[[1]][2]
       clgeno <- strsplit(name, "@", fixed = TRUE)[[1]][3]
       rownames(cross.geno.prob[[chr]]) <- make.names(rownames(cross.geno.prob[[chr]]))
-      geno_prob[, i] <- cross.geno.prob[[chr]][Genotypes,
-                                               loc, clgeno]
+      geno_prob[, i] <- cross.geno.prob[[chr]][
+        Genotypes,
+        loc, clgeno
+      ]
     }
     qtl.df <- fit.qtl$qtl.df
     select_names <- list()
@@ -408,13 +469,17 @@ caretFitQtl <- function (x, y, wts, param, lev, last, weights, classProbs,
         print(paste(nrow(qtl.df), " QTLs found"))
       }
       for (i in 1:nrow(qtl.df)) {
-        map <- (attr(cross.geno.prob[[qtl.df$linkage.group[i]]],
-                     "map")[1, ])
+        map <- (attr(
+          cross.geno.prob[[qtl.df$linkage.group[i]]],
+          "map"
+        )[1, ])
         loc <- names(map[map == qtl.df$position[i]])
-        select_names[[i]] <- c(paste0(qtl.df$linkage.group[i],"@", loc, "@AC"),
-                               paste0(qtl.df$linkage.group[i],"@", loc, "@BC"),
-                               paste0(qtl.df$linkage.group[i],"@", loc, "@AD"),
-                               paste0(qtl.df$linkage.group[i],"@", loc, "@BD"))
+        select_names[[i]] <- c(
+          paste0(qtl.df$linkage.group[i], "@", loc, "@AC"),
+          paste0(qtl.df$linkage.group[i], "@", loc, "@BC"),
+          paste0(qtl.df$linkage.group[i], "@", loc, "@AD"),
+          paste0(qtl.df$linkage.group[i], "@", loc, "@BD")
+        )
       }
       stopifnot(all(unlist(select_names) %in% colnames(geno_prob)))
       if (verbose > 1) {
@@ -423,30 +488,30 @@ caretFitQtl <- function (x, y, wts, param, lev, last, weights, classProbs,
       X.loc <- geno_prob[, unlist(select_names)]
       fit.lm <- stats::lm(y ~ X.loc)
       coeff <- as.matrix(fit.lm$coefficients[-1])
-      rownames(coeff) <- substr(rownames(coeff), start=6, stop=nchar(rownames(coeff)))
-      if(!is.na(alpha[2])){
+      rownames(coeff) <- substr(rownames(coeff), start = 6, stop = nchar(rownames(coeff)))
+      if (!is.na(alpha[2])) {
         summary.fit <- summary(fit.lm)$coefficient
-        rownames(summary.fit)[-1] <- substr(rownames(summary.fit)[-1], start=6, stop=nchar(rownames(summary.fit)[-1]))
-        coeff <- as.matrix(summary.fit[,1][summary.fit[,4] < alpha[2]])
+        rownames(summary.fit)[-1] <- substr(rownames(summary.fit)[-1], start = 6, stop = nchar(rownames(summary.fit)[-1]))
+        coeff <- as.matrix(summary.fit[, 1][summary.fit[, 4] < alpha[2]])
       }
       stopifnot(!is.null(rownames(coeff)))
       geno.effects <- data.frame(predictor = colnames(geno_prob), effect = 0)
       for (i in 1:length(coeff)) {
         geno.effects[geno.effects$predictor %in% rownames(coeff)[i], "effect"] <- ifelse(is.na(coeff[i]), 0, coeff[i])
       }
-    }
-    else {
+    } else {
       geno.effects <- data.frame(predictor = colnames(geno_prob), effect = 0)
       if (verbose > 0) {
         print("No QTL found")
       }
     }
-  }
-  else {
+  } else {
     geno.effects <- fit.qtl$allelic.effects
   }
-  return(list(geno.effects = geno.effects, qtl.df = fit.qtl$qtl.df,
-              cross.geno.prob = cross.geno.prob))
+  return(list(
+    geno.effects = geno.effects, qtl.df = fit.qtl$qtl.df,
+    cross.geno.prob = cross.geno.prob
+  ))
 }
 
 
@@ -458,22 +523,25 @@ caretFitQtl <- function (x, y, wts, param, lev, last, weights, classProbs,
 ##' @return vector
 ##' @author Charlotte Brault [aut], Timothee Flutre [ctb]
 ##' @export
-caretPredictQtl <- function(modelFit, newdata, submodels = NULL){
-  stopifnot(is.list(modelFit),
-            all(c("geno.effects","cross.geno.prob") %in% names(modelFit)))
+caretPredictQtl <- function(modelFit, newdata, submodels = NULL) {
+  stopifnot(
+    is.list(modelFit),
+    all(c("geno.effects", "cross.geno.prob") %in% names(modelFit))
+  )
 
   newdata <- as.data.frame(t(newdata))
-  Genotypes <- colnames(newdata) ; Genotypes <- make.names(Genotypes)
+  Genotypes <- colnames(newdata)
+  Genotypes <- make.names(Genotypes)
 
-  if(!is.null(modelFit$cross.geno.prob)){
+  if (!is.null(modelFit$cross.geno.prob)) {
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Construct geno_prob matrix for newdata (VS)
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     cross.geno.prob <- modelFit$cross.geno.prob
     # For each chromosome, extract each locus name and paste the chromosome name
     list_locus <- 0
-    for(chr in names(cross.geno.prob)){
-      tmp <-  names(attr(cross.geno.prob[[chr]], "map")[1,])
+    for (chr in names(cross.geno.prob)) {
+      tmp <- names(attr(cross.geno.prob[[chr]], "map")[1, ])
       tmp <- paste0(chr, "@", tmp)
       list_locus <- append(list_locus, tmp)
     }
@@ -481,40 +549,48 @@ caretPredictQtl <- function(modelFit, newdata, submodels = NULL){
 
     # Add genotypic classes
     list_locus_clgeno <- 0
-    for (i in 1:length(list_locus)){
-      tmp <- c(paste0(list_locus[i], "@AC"),
-               paste0(list_locus[i], "@AD"),
-               paste0(list_locus[i], "@BC"),
-               paste0(list_locus[i], "@BD"))
+    for (i in 1:length(list_locus)) {
+      tmp <- c(
+        paste0(list_locus[i], "@AC"),
+        paste0(list_locus[i], "@AD"),
+        paste0(list_locus[i], "@BC"),
+        paste0(list_locus[i], "@BD")
+      )
       list_locus_clgeno <- append(list_locus_clgeno, tmp)
     }
     list_locus_clgeno <- list_locus_clgeno[-1]
-    stopifnot(length(list_locus)*4 ==  length(list_locus_clgeno))
+    stopifnot(length(list_locus) * 4 == length(list_locus_clgeno))
 
     # Save names of genotypes to create the final matrix geno_prob
-    geno_prob <- matrix(nrow=length(Genotypes), ncol=length(list_locus_clgeno),
-                        dimnames=list(Genotypes, list_locus_clgeno))
+    geno_prob <- matrix(
+      nrow = length(Genotypes), ncol = length(list_locus_clgeno),
+      dimnames = list(Genotypes, list_locus_clgeno)
+    )
     stopifnot(all(colnames(geno_prob) %in% modelFit$geno.effects$predictor))
 
     # Extract genotypes probabilities for genotypes in VS only
-    for(i in 1:ncol(geno_prob)){
+    for (i in 1:ncol(geno_prob)) {
       name <- colnames(geno_prob)[i]
-      chr <- strsplit(name, "@", fixed=TRUE)[[1]][1]
-      loc <- strsplit(name, "@", fixed=TRUE)[[1]][2]
-      clgeno <- strsplit(name, "@", fixed=TRUE)[[1]][3]
+      chr <- strsplit(name, "@", fixed = TRUE)[[1]][1]
+      loc <- strsplit(name, "@", fixed = TRUE)[[1]][2]
+      clgeno <- strsplit(name, "@", fixed = TRUE)[[1]][3]
       rownames(cross.geno.prob[[chr]]) <- make.names(rownames(cross.geno.prob[[chr]]))
-      geno_prob[,i] <- cross.geno.prob[[chr]][Genotypes, loc, clgeno]
+      geno_prob[, i] <- cross.geno.prob[[chr]][Genotypes, loc, clgeno]
     }
     predictions <- geno_prob %*% modelFit$geno.effects$effect
     ### Use allelic effects at marker position
   } else {
-    pred <- loc.seg.phase.clas <- data.frame(locus = rownames(newdata),
-                                             seg = getJoinMapSegregs(newdata),
-                                             phase = NA, clas = NA,
-                                             stringsAsFactors = FALSE)
+    pred <- loc.seg.phase.clas <- data.frame(
+      locus = rownames(newdata),
+      seg = getJoinMapSegregs(newdata),
+      phase = NA, clas = NA,
+      stringsAsFactors = FALSE
+    )
     jm <- cbind(loc.seg.phase.clas, newdata)
-    X <- joinMap2designMatrix(jm = jm, use.phase = FALSE, rm.col.zeros = FALSE,
-                              verbose = 0)
+    X <- joinMap2designMatrix(
+      jm = jm, use.phase = FALSE, rm.col.zeros = FALSE,
+      verbose = 0
+    )
     X <- X[, -1]
     allelic.effects <- as.matrix(modelFit$geno.effects$effect)
     rownames(allelic.effects) <- modelFit$geno.effects$predictor
@@ -522,7 +598,7 @@ caretPredictQtl <- function(modelFit, newdata, submodels = NULL){
     stopifnot(dim(X)[2] == nrow(allelic.effects))
     predictions <- X %*% allelic.effects
   }
-  return(predictions)[,1]
+  return(predictions)[, 1]
 }
 
 ##' Grid with qtl for caret
@@ -534,6 +610,6 @@ caretPredictQtl <- function(modelFit, newdata, submodels = NULL){
 ##' @return data frame of tuning parameter combinations with a column for each parameter
 ##' @author Timothee Flutre
 ##' @export
-caretGridQtl <- function(x, y, len=NULL, search="grid"){
-  data.frame(intercept=TRUE)
+caretGridQtl <- function(x, y, len = NULL, search = "grid") {
+  data.frame(intercept = TRUE)
 }

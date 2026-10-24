@@ -10,14 +10,17 @@
 ##' @return list of matrices, one per plate, in the "wide" format
 ##' @author Timothee Flutre
 ##' @export
-initPlates <- function(n, nrow, ncol, names){
+initPlates <- function(n, nrow, ncol, names) {
   plates <- list()
 
-  for(i in 1:n)
+  for (i in 1:n) {
     plates[[names[i]]] <-
-      matrix(data=NA, nrow=nrow[i],
-             ncol=ncol[i],
-             dimnames=list(LETTERS[1:nrow[i]], 1:ncol[i]))
+      matrix(
+        data = NA, nrow = nrow[i],
+        ncol = ncol[i],
+        dimnames = list(LETTERS[1:nrow[i]], 1:ncol[i])
+      )
+  }
 
   return(plates)
 }
@@ -31,22 +34,29 @@ initPlates <- function(n, nrow, ncol, names){
 ##' @return invisible named vector
 ##' @author Timothee Flutre
 ##' @export
-descPlate <- function(plate, plate.name, verbose=1){
-  out <- stats::setNames(object=rep(NA, 3),
-                  nm=c("nb.wells", "nb.empty.wells", "nb.samples"))
+descPlate <- function(plate, plate.name, verbose = 1) {
+  out <- stats::setNames(
+    object = rep(NA, 3),
+    nm = c("nb.wells", "nb.empty.wells", "nb.samples")
+  )
 
   out["nb.wells"] <- nrow(plate) * ncol(plate)
   out["nb.empty.wells"] <- sum(is.na(plate))
   samples <- c(plate)
-  samples <- unique(samples[! is.na(samples)])
+  samples <- unique(samples[!is.na(samples)])
   out["nb.samples"] <- length(samples)
 
-  if(verbose > 0)
-    write(paste0(plate.name,
-                 " ", out["nb.wells"],
-                 " ", out["nb.empty.wells"],
-                 " ", out["nb.samples"]),
-          stdout())
+  if (verbose > 0) {
+    write(
+      paste0(
+        plate.name,
+        " ", out["nb.wells"],
+        " ", out["nb.empty.wells"],
+        " ", out["nb.samples"]
+      ),
+      stdout()
+    )
+  }
 
   invisible(out)
 }
@@ -60,38 +70,51 @@ descPlate <- function(plate, plate.name, verbose=1){
 ##' @return list of matrices, one per plate, in the "wide" format
 ##' @author Timothee Flutre
 ##' @export
-loadPlates <- function(files, sep=NULL, verbose=1){
+loadPlates <- function(files, sep = NULL, verbose = 1) {
   plates <- list()
 
-  for(i in seq_along(files)){
+  for (i in seq_along(files)) {
     plate <- NULL
-    plate.name <- strsplit(x=basename(files[i]), split="\\.")[[1]][1]
-    file.ext <- rev(strsplit(x=basename(files[i]), split="\\.")[[1]])[1]
-    if(verbose > 0)
+    plate.name <- strsplit(x = basename(files[i]), split = "\\.")[[1]][1]
+    file.ext <- rev(strsplit(x = basename(files[i]), split = "\\.")[[1]])[1]
+    if (verbose > 0) {
       write(paste0("load '", plate.name, "'"), stdout())
-    if(is.null(sep)){
-      plate <- utils::read.csv(file=files[i], stringsAsFactors=FALSE,
-                        row.names=1)
-      if(ncol(plate) == 0)
-        plate <- utils::read.csv2(file=files[i], stringsAsFactors=FALSE,
-                           row.names=1)
-    } else
-      plate <- utils::read.table(file=files[i], header=TRUE, sep=sep,
-                                 row.names=1, stringsAsFactors=FALSE)
-    if(ncol(plate) == 0)
-      stop(paste0("no column detected for '", plate.name, "'",
-                  "\nif 'csv', column separator should be ',' or ';'",
-                  "\nelse, column separator should be '\\t'"))
+    }
+    if (is.null(sep)) {
+      plate <- utils::read.csv(
+        file = files[i], stringsAsFactors = FALSE,
+        row.names = 1
+      )
+      if (ncol(plate) == 0) {
+        plate <- utils::read.csv2(
+          file = files[i], stringsAsFactors = FALSE,
+          row.names = 1
+        )
+      }
+    } else {
+      plate <- utils::read.table(
+        file = files[i], header = TRUE, sep = sep,
+        row.names = 1, stringsAsFactors = FALSE
+      )
+    }
+    if (ncol(plate) == 0) {
+      stop(paste0(
+        "no column detected for '", plate.name, "'",
+        "\nif 'csv', column separator should be ',' or ';'",
+        "\nelse, column separator should be '\\t'"
+      ))
+    }
     plate <- as.matrix(plate)
     colnames(plate) <- as.character(1:ncol(plate))
     plate[plate == ""] <- NA
     plates[[plate.name]] <- plate
   }
 
-  if(verbose > 0){
+  if (verbose > 0) {
     write("plate nb.wells nb.empty.wells nb.samples", stdout())
-    for(i in seq_along(plates))
-      descPlate(plate=plates[[i]], plate.name=names(plates)[i], verbose=1)
+    for (i in seq_along(plates)) {
+      descPlate(plate = plates[[i]], plate.name = names(plates)[i], verbose = 1)
+    }
   }
 
   return(plates)
@@ -105,21 +128,25 @@ loadPlates <- function(files, sep=NULL, verbose=1){
 ##' @return nothing
 ##' @author Timothee Flutre
 ##' @export
-plotPlate <- function(plate, main="Plate"){
+plotPlate <- function(plate, main = "Plate") {
   stopifnot(is.matrix(plate))
 
-  graphics::par(mar=c(3, 3, 5, 1) + 0.1)
-  graphics::plot(x=0, y=0, type="n",
-       xlim=c(0.7, ncol(plate)+0.3),
-       ylim=c(0.7, nrow(plate)+0.3),
-       main="", xlab="", ylab="", xaxt="n", yaxt="n")
-  graphics::mtext(text=main, side=3, line=3, cex=2, font=2)
-  graphics::axis(side=3, at=1:ncol(plate), labels=colnames(plate))
-  graphics::axis(side=2, at=1:nrow(plate), labels=rev(rownames(plate)), las=1)
+  graphics::par(mar = c(3, 3, 5, 1) + 0.1)
+  graphics::plot(
+    x = 0, y = 0, type = "n",
+    xlim = c(0.7, ncol(plate) + 0.3),
+    ylim = c(0.7, nrow(plate) + 0.3),
+    main = "", xlab = "", ylab = "", xaxt = "n", yaxt = "n"
+  )
+  graphics::mtext(text = main, side = 3, line = 3, cex = 2, font = 2)
+  graphics::axis(side = 3, at = 1:ncol(plate), labels = colnames(plate))
+  graphics::axis(side = 2, at = 1:nrow(plate), labels = rev(rownames(plate)), las = 1)
 
-  graphics::text(x=rep(1:ncol(plate), each=nrow(plate)),
-       y=rep(nrow(plate):1, ncol(plate)),
-       c(plate))
+  graphics::text(
+    x = rep(1:ncol(plate), each = nrow(plate)),
+    y = rep(nrow(plate):1, ncol(plate)),
+    c(plate)
+  )
 }
 
 ##' Lengthen plate
@@ -129,20 +156,24 @@ plotPlate <- function(plate, main="Plate"){
 ##' @return data.frame of a plate in the "long" format (1 well per row)
 ##' @author Timothee Flutre
 ##' @export
-lengthenPlate <- function(plate.w){
-  stopifnot(is.matrix(plate.w),
-            ! is.null(rownames(plate.w)),
-            ! is.null(colnames(plate.w)))
+lengthenPlate <- function(plate.w) {
+  stopifnot(
+    is.matrix(plate.w),
+    !is.null(rownames(plate.w)),
+    !is.null(colnames(plate.w))
+  )
 
   nb.samples <- nrow(plate.w) * ncol(plate.w)
-  plate.l <- data.frame(sample=rep(NA, nb.samples),
-                        row=rep(NA, nb.samples),
-                        col=rep(NA, nb.samples))
+  plate.l <- data.frame(
+    sample = rep(NA, nb.samples),
+    row = rep(NA, nb.samples),
+    col = rep(NA, nb.samples)
+  )
 
   sample.id <- 1
-  for(i in 1:nrow(plate.w)){
-    for(j in 1:ncol(plate.w)){
-      plate.l$sample[sample.id] <- plate.w[i,j]
+  for (i in 1:nrow(plate.w)) {
+    for (j in 1:ncol(plate.w)) {
+      plate.l$sample[sample.id] <- plate.w[i, j]
       plate.l$row[sample.id] <- rownames(plate.w)[i]
       plate.l$col[sample.id] <- colnames(plate.w)[j]
       sample.id <- sample.id + 1
@@ -159,7 +190,7 @@ lengthenPlate <- function(plate.w){
 ##' @return 2 column data.frame (row;col) corresponding to empty wells
 ##' @author Timothee Flutre
 ##' @export
-emptyWells <- function(plate.w){
+emptyWells <- function(plate.w) {
   plate.l <- lengthenPlate(plate.w)
   empty.idx <- is.na(plate.l$sample)
   return(plate.l[empty.idx, c("row", "col")])
@@ -175,37 +206,46 @@ emptyWells <- function(plate.w){
 ##' @return matrix
 ##' @author Timothee Flutre
 ##' @export
-randPlate <- function(plate, rand.scheme="1x96", seed=NULL, file=NULL){
-  stopifnot(is.matrix(plate),
-            ! is.null(dimnames(plate)),
-            nrow(plate) * ncol(plate) == 96,
-            rand.scheme %in% c("1x96", "2x48"))
+randPlate <- function(plate, rand.scheme = "1x96", seed = NULL, file = NULL) {
+  stopifnot(
+    is.matrix(plate),
+    !is.null(dimnames(plate)),
+    nrow(plate) * ncol(plate) == 96,
+    rand.scheme %in% c("1x96", "2x48")
+  )
 
-  if(! is.null(seed))
+  if (!is.null(seed)) {
     set.seed(seed)
+  }
 
-  out <- matrix(data=NA, nrow=nrow(plate), ncol=ncol(plate), byrow=FALSE,
-                dimnames=dimnames(plate))
+  out <- matrix(
+    data = NA, nrow = nrow(plate), ncol = ncol(plate), byrow = FALSE,
+    dimnames = dimnames(plate)
+  )
 
-  if(rand.scheme == "1x96"){
-    indices <- seq(from=1, to=96, by=1)
-    rand.indices <- sample(x=indices, size=length(indices), replace=FALSE)
+  if (rand.scheme == "1x96") {
+    indices <- seq(from = 1, to = 96, by = 1)
+    rand.indices <- sample(x = indices, size = length(indices), replace = FALSE)
     out[indices] <- plate[rand.indices]
-  } else if(rand.scheme == "2x48"){
-    indices1 <- seq(from=1, to=48, by=1)
-    rand.indices1 <- sample(x=indices1, size=length(indices1), replace=FALSE)
+  } else if (rand.scheme == "2x48") {
+    indices1 <- seq(from = 1, to = 48, by = 1)
+    rand.indices1 <- sample(x = indices1, size = length(indices1), replace = FALSE)
     out[indices1] <- plate[rand.indices1]
-    indices2 <- seq(from=49, to=96, by=1)
-    rand.indices2 <- sample(x=indices2, size=length(indices2), replace=FALSE)
+    indices2 <- seq(from = 49, to = 96, by = 1)
+    rand.indices2 <- sample(x = indices2, size = length(indices2), replace = FALSE)
     out[indices2] <- plate[rand.indices2]
   }
 
-  if(! is.null(file)){
-    write(x=paste0("#seed=", seed), file=file, append=FALSE)
-    utils::write.table(x=t(c("", colnames(out))), file=file, append=TRUE,
-                quote=FALSE, sep="\t", row.names=FALSE, col.names=FALSE)
-    utils::write.table(x=out, file=file, append=TRUE, quote=FALSE, sep="\t",
-                row.names=TRUE, col.names=FALSE)
+  if (!is.null(file)) {
+    write(x = paste0("#seed=", seed), file = file, append = FALSE)
+    utils::write.table(
+      x = t(c("", colnames(out))), file = file, append = TRUE,
+      quote = FALSE, sep = "\t", row.names = FALSE, col.names = FALSE
+    )
+    utils::write.table(
+      x = out, file = file, append = TRUE, quote = FALSE, sep = "\t",
+      row.names = TRUE, col.names = FALSE
+    )
   }
 
   return(out)

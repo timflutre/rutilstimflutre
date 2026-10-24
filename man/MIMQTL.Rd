@@ -49,7 +49,7 @@ MIMQTL(
 
 \item{nperm}{number of permutations to be done in \code{qtl::scantwo}, default is 100}
 
-\item{alpha}{vector of length 1 or 2 (optional) with thresholds for (1) the significance of QTL presence (based on permutations) and 
+\item{alpha}{vector of length 1 or 2 (optional) with thresholds for (1) the significance of QTL presence (based on permutations) and
 (2) the significance of linear regression on QTL effect, if NA, no threshold is applied and all allelic effects are kept.}
 
 \item{plot}{logical, default is FALSE.}
@@ -73,7 +73,7 @@ MIMQTL(
 \item{verbose}{verbosity level (0/1/2)}
 }
 \value{
-list of 3 elements: qtl.df is a data frame with QTL informations (linkage.group, position, LOD, interval.inf and interval.sup) / 
+list of 3 elements: qtl.df is a data frame with QTL informations (linkage.group, position, LOD, interval.inf and interval.sup) /
 selected markers is a character vector for markers inside confidence interval /allelic effetcs is a data frame with a column predictor and a column effect with estimated allelic effects.
 }
 \description{

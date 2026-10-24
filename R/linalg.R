@@ -31,9 +31,11 @@
 ##' prod(decompL$vecD)
 ##' }
 ##' @export
-LDLT <- function(x, returnFormat="matrix"){
-  stopifnot(nrow(x) == ncol(x),
-            returnFormat %in% c("matrix","list"))
+LDLT <- function(x, returnFormat = "matrix") {
+  stopifnot(
+    nrow(x) == ncol(x),
+    returnFormat %in% c("matrix", "list")
+  )
 
   ## chol() returns the upper triangular factor of the Cholesky decomposition
   ## i.e., R such that R^T R = x
@@ -47,11 +49,12 @@ LDLT <- function(x, returnFormat="matrix"){
   L <- L_c %*% diag(1 / diag_L_c)
   vecD <- diag_L_c^2
 
-  if(returnFormat == "matrix"){
+  if (returnFormat == "matrix") {
     out <- L
     diag(out) <- vecD
-  } else if(returnFormat == "list")
-    out <- list(L=L, vecD=vecD)
+  } else if (returnFormat == "list") {
+    out <- list(L = L, vecD = vecD)
+  }
 
   return(out)
 }
@@ -88,100 +91,113 @@ LDLT <- function(x, returnFormat="matrix"){
 ##' getSparseInv(decomp$vecD, decomp$L, "T")
 ##' }
 ##' @export
-getSparseInv <- function(vecD, L, reprSparse=NULL, verbose=FALSE){
-  stopifnot(is.vector(vecD),
-            is.matrix(L))
-  if(! is.null(reprSparse))
-    stopifnot(reprSparse %in% c("C","R","T"))
+getSparseInv <- function(vecD, L, reprSparse = NULL, verbose = FALSE) {
+  stopifnot(
+    is.vector(vecD),
+    is.matrix(L)
+  )
+  if (!is.null(reprSparse)) {
+    stopifnot(reprSparse %in% c("C", "R", "T"))
+  }
 
   U <- t(L)
   n <- nrow(U)
-  if(! is.null(reprSparse)){
+  if (!is.null(reprSparse)) {
     vec_i <- vector("integer")
     vec_j <- vector("integer")
     vec_x <- vector("numeric")
-  } else
-    C <- matrix(NA, nrow=n, ncol=n)
+  } else {
+    C <- matrix(NA, nrow = n, ncol = n)
+  }
 
-  for(j in n:1){
-    if(verbose) cat(paste0("j=",j,"\n"))
+  for (j in n:1) {
+    if (verbose) cat(paste0("j=", j, "\n"))
 
     ## diagonal value:
     i <- j
-    if(verbose) cat(paste0("i=",i, " -> C_ii\n"))
-    tmp <- rep(0, n-(i+1)+1)
-    if(i < n){
-      for(k in (i+1):n){
-        if(U[i,k] != 0){
-          if(! is.null(reprSparse)){
+    if (verbose) cat(paste0("i=", i, " -> C_ii\n"))
+    tmp <- rep(0, n - (i + 1) + 1)
+    if (i < n) {
+      for (k in (i + 1):n) {
+        if (U[i, k] != 0) {
+          if (!is.null(reprSparse)) {
             idx <- which(vec_i == i & vec_j == k)
             stopifnot(length(idx) == 1)
             C_ik <- vec_x[idx]
-          } else
-            C_ik <- C[i,k]
-          tmp[k-i] <- U[i,k] * C_ik
+          } else {
+            C_ik <- C[i, k]
+          }
+          tmp[k - i] <- U[i, k] * C_ik
         }
       }
     }
-    if(verbose > 1) print(tmp)
+    if (verbose > 1) print(tmp)
     C_ii <- 1 / vecD[i] - sum(tmp)
-    if(! is.null(reprSparse)){
+    if (!is.null(reprSparse)) {
       vec_i <- c(vec_i, i)
       vec_j <- c(vec_j, j)
       vec_x <- c(vec_x, C_ii)
-    } else
-      C[i,i] <- C_ii
+    } else {
+      C[i, i] <- C_ii
+    }
 
     ## upper-triangular values:
-    for(i in (j-1):1){
-      if(i == 0)
+    for (i in (j - 1):1) {
+      if (i == 0) {
         break
-      if(verbose) cat(paste0("i=",i))
-      if(i < j){
-        if(U[i,j] == 0){
-          if(verbose) cat(paste0(" -> U[",i,",",j,"]=0\n"))
-        } else{
-          if(verbose) cat(" -> C_ij\n")
-          tmp <- rep(0, n-(i+1)+1)
-          for(k in n:(i+1)){
-            if(k <= j){
-              if(U[k,j] != 0){
-                if(! is.null(reprSparse)){
+      }
+      if (verbose) cat(paste0("i=", i))
+      if (i < j) {
+        if (U[i, j] == 0) {
+          if (verbose) cat(paste0(" -> U[", i, ",", j, "]=0\n"))
+        } else {
+          if (verbose) cat(" -> C_ij\n")
+          tmp <- rep(0, n - (i + 1) + 1)
+          for (k in n:(i + 1)) {
+            if (k <= j) {
+              if (U[k, j] != 0) {
+                if (!is.null(reprSparse)) {
                   idx <- which(vec_i == k & vec_j == j)
                   stopifnot(length(idx) == 1)
                   C_kj <- vec_x[idx]
-                } else
-                  C_kj <- C[k,j]
-                tmp[n-k+1] <- U[i,k] * C_kj # see Duff et al (2017), eq.15.7.5
+                } else {
+                  C_kj <- C[k, j]
+                }
+                tmp[n - k + 1] <- U[i, k] * C_kj # see Duff et al (2017), eq.15.7.5
               }
-            } else{
-              if(U[j,k] != 0){
-                if(! is.null(reprSparse)){
+            } else {
+              if (U[j, k] != 0) {
+                if (!is.null(reprSparse)) {
                   idx <- which(vec_i == j & vec_j == k)
                   stopifnot(length(idx) == 1)
                   C_jk <- vec_x[idx]
-                } else
-                  C_jk <- C[j,k]
-                tmp[n-k+1] <- U[i,k] * C_jk
+                } else {
+                  C_jk <- C[j, k]
+                }
+                tmp[n - k + 1] <- U[i, k] * C_jk
               }
             }
           }
-          if(verbose > 1) print(tmp)
-          C_ij <- - sum(tmp)
-          if(! is.null(reprSparse)){
+          if (verbose > 1) print(tmp)
+          C_ij <- -sum(tmp)
+          if (!is.null(reprSparse)) {
             vec_i <- c(vec_i, i)
             vec_j <- c(vec_j, j)
             vec_x <- c(vec_x, C_ij)
-          } else
-            C[i,j] <- C_ij
+          } else {
+            C[i, j] <- C_ij
+          }
         }
       }
     }
   }
 
-  if(! is.null(reprSparse))
-    C <- Matrix::sparseMatrix(i=vec_i, j=vec_j, x=vec_x, dims=c(n, n),
-                              symmetric=TRUE, index1=TRUE, repr=reprSparse)
+  if (!is.null(reprSparse)) {
+    C <- Matrix::sparseMatrix(
+      i = vec_i, j = vec_j, x = vec_x, dims = c(n, n),
+      symmetric = TRUE, index1 = TRUE, repr = reprSparse
+    )
+  }
 
   return(C)
 }

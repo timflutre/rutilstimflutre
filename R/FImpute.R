@@ -8,15 +8,19 @@
 ##' @return nothing
 ##' @author Timothee Flutre
 ##' @export
-writePedFileFimpute <- function(ped, ped.file){
-  stopifnot(is.data.frame(ped),
-            ncol(ped) == 4,
-            is.character(ped.file))
+writePedFileFimpute <- function(ped, ped.file) {
+  stopifnot(
+    is.data.frame(ped),
+    ncol(ped) == 4,
+    is.character(ped.file)
+  )
 
   colnames(ped) <- c("ID", "Sire", "Dam", "Sex")
 
-  utils::write.table(x=ped, file=ped.file, quote=FALSE, sep="\t",
-                     row.names=FALSE, col.names=TRUE, na="0")
+  utils::write.table(
+    x = ped, file = ped.file, quote = FALSE, sep = "\t",
+    row.names = FALSE, col.names = TRUE, na = "0"
+  )
 }
 
 ##' Write SNP information for FImpute
@@ -27,23 +31,27 @@ writePedFileFimpute <- function(ped, ped.file){
 ##' @return nothing
 ##' @author Timothee Flutre
 ##' @export
-writeSnpInfoFimpute <- function(snp.coords, snp.info.file){
-  stopifnot(is.data.frame(snp.coords),
-            ! is.null(rownames(snp.coords)),
-            all(nchar(rownames(snp.coords)) <= 50),
-            ncol(snp.coords) >= 2,
-            is.numeric(snp.coords[,1]),
-            ! is.null(snp.info.file))
+writeSnpInfoFimpute <- function(snp.coords, snp.info.file) {
+  stopifnot(
+    is.data.frame(snp.coords),
+    !is.null(rownames(snp.coords)),
+    all(nchar(rownames(snp.coords)) <= 50),
+    ncol(snp.coords) >= 2,
+    is.numeric(snp.coords[, 1]),
+    !is.null(snp.info.file)
+  )
 
   snp.coords <- cbind(rownames(snp.coords), snp.coords)
   rownames(snp.coords) <- NULL
   colnames(snp.coords) <- c("SNP_ID", "Chr", "Pos")
-  if(ncol(snp.coords) == 3){
+  if (ncol(snp.coords) == 3) {
     snp.coords$Chip1 <- 1:nrow(snp.coords)
   }
 
-  utils::write.table(x=snp.coords, file=snp.info.file, quote=FALSE, sep="\t",
-                     row.names=FALSE, col.names=TRUE)
+  utils::write.table(
+    x = snp.coords, file = snp.info.file, quote = FALSE, sep = "\t",
+    row.names = FALSE, col.names = TRUE
+  )
 }
 
 ##' Write SNP genotypes for FImpute
@@ -55,28 +63,38 @@ writeSnpInfoFimpute <- function(snp.coords, snp.info.file){
 ##' @return nothing
 ##' @author Timothee Flutre
 ##' @export
-writeGenosFimpute <- function(X, genos.file, chips=NULL){
-  stopIfNotValidGenosDose(X, check.noNA=FALSE)
-  stopifnot(all(nchar(rownames(X)) <= 30),
-            ! is.null(genos.file))
-  if(! is.null(chips))
-    stopifnot(is.vector(chips),
-              length(chips) == nrow(X),
-              ! is.null(names(chips)),
-              all(sort(names(chips)) == sort(rownames(X))))
+writeGenosFimpute <- function(X, genos.file, chips = NULL) {
+  stopIfNotValidGenosDose(X, check.noNA = FALSE)
+  stopifnot(
+    all(nchar(rownames(X)) <= 30),
+    !is.null(genos.file)
+  )
+  if (!is.null(chips)) {
+    stopifnot(
+      is.vector(chips),
+      length(chips) == nrow(X),
+      !is.null(names(chips)),
+      all(sort(names(chips)) == sort(rownames(X)))
+    )
+  }
 
-  if(is.null(chips))
+  if (is.null(chips)) {
     chips <- stats::setNames(rep(1, nrow(X)), rownames(X))
+  }
 
   X[is.na(X)] <- 5
 
-  tmp <- cbind(rownames(X), chips,
-               apply(X, 1, paste, collapse=""))
+  tmp <- cbind(
+    rownames(X), chips,
+    apply(X, 1, paste, collapse = "")
+  )
   rownames(tmp) <- NULL
   colnames(tmp) <- c("ID", "Chip", "Call...")
 
-  utils::write.table(x=tmp, file=genos.file, quote=FALSE, sep="\t",
-                     row.names=FALSE, col.names=TRUE)
+  utils::write.table(
+    x = tmp, file = genos.file, quote = FALSE, sep = "\t",
+    row.names = FALSE, col.names = TRUE
+  )
 }
 
 ##' Write inputs for FImpute
@@ -110,126 +128,153 @@ writeGenosFimpute <- function(X, genos.file, chips=NULL){
 ##' @author Timothee Flutre
 ##' @export
 writeInputsFimpute <- function(ctl.file,
-															 X=NULL, genos.file, chips=NULL,
-															 snp.coords=NULL, snp.info.file,
-															 vcf.file=NULL, yieldSize=10000,
-															 ped=NULL, ped.file=NULL,
-															 title="FImpute",
-															 out.dir,
-															 hap.lib.file=NULL, add.ungen=NULL,
-															 parentage.test=NULL, ped.depth=NULL,
-															 turn.off.fam=FALSE, turn.off.pop=FALSE,
-															 save.partial=FALSE, save.genos=FALSE,
-															 save.hap.lib=FALSE, random.fill=FALSE,
-															 nb.jobs=1, verbose=1){
-  stopifnot(! all(is.null(X), is.null(vcf.file)))
-	if(is.null(X)){
-		file.prefix <- paste0(dirname(vcf.file), "/tmpfile-for-FImpute")
-		vcf2dosage(vcf.file=vcf.file, yieldSize=yieldSize,
-							 gdose.file=paste0(file.prefix, "_gdose.txt.gz"),
-							 ca.file=paste0(file.prefix, "_ca.txt.gz"),
-							 verbose=verbose - 1)
-		X <- t(as.matrix(
-				utils::read.table(file=paste0(file.prefix, "_gdose.txt.gz"),
-													check.names=FALSE)))
-		snp.coords <- utils::read.table(file=paste0(file.prefix, "_ca.txt.gz"),
-																		header=TRUE, stringsAsFactors=FALSE)
-		snp.coords <- snp.coords[,1:2]
-		if(! is.numeric(snp.coords$chr))
-			snp.coords$chr <- chromNames2integers(x=snp.coords$chr)$renamed
-		## file.remove(paste0(file.prefix, c("_gdose", "_ca"), ".txt.gz"))
-	} else{
-		stopifnot(! is.null(snp.coords))
-	}
-	geno.ids <- rownames(X)
-	snp.ids <- colnames(X)
+                               X = NULL, genos.file, chips = NULL,
+                               snp.coords = NULL, snp.info.file,
+                               vcf.file = NULL, yieldSize = 10000,
+                               ped = NULL, ped.file = NULL,
+                               title = "FImpute",
+                               out.dir,
+                               hap.lib.file = NULL, add.ungen = NULL,
+                               parentage.test = NULL, ped.depth = NULL,
+                               turn.off.fam = FALSE, turn.off.pop = FALSE,
+                               save.partial = FALSE, save.genos = FALSE,
+                               save.hap.lib = FALSE, random.fill = FALSE,
+                               nb.jobs = 1, verbose = 1) {
+  stopifnot(!all(is.null(X), is.null(vcf.file)))
+  if (is.null(X)) {
+    file.prefix <- paste0(dirname(vcf.file), "/tmpfile-for-FImpute")
+    vcf2dosage(
+      vcf.file = vcf.file, yieldSize = yieldSize,
+      gdose.file = paste0(file.prefix, "_gdose.txt.gz"),
+      ca.file = paste0(file.prefix, "_ca.txt.gz"),
+      verbose = verbose - 1
+    )
+    X <- t(as.matrix(
+      utils::read.table(
+        file = paste0(file.prefix, "_gdose.txt.gz"),
+        check.names = FALSE
+      )
+    ))
+    snp.coords <- utils::read.table(
+      file = paste0(file.prefix, "_ca.txt.gz"),
+      header = TRUE, stringsAsFactors = FALSE
+    )
+    snp.coords <- snp.coords[, 1:2]
+    if (!is.numeric(snp.coords$chr)) {
+      snp.coords$chr <- chromNames2integers(x = snp.coords$chr)$renamed
+    }
+    ## file.remove(paste0(file.prefix, c("_gdose", "_ca"), ".txt.gz"))
+  } else {
+    stopifnot(!is.null(snp.coords))
+  }
+  geno.ids <- rownames(X)
+  snp.ids <- colnames(X)
 
-  stopIfNotValidGenosDose(X, check.noNA=FALSE)
-  stopifnot(all(nchar(geno.ids) <= 30),
-            ! is.null(genos.file),
-            is.data.frame(snp.coords),
-            all(snp.ids %in% rownames(snp.coords)),
-            all(nchar(rownames(snp.coords)) <= 50),
-            ncol(snp.coords) >= 2,
-            is.numeric(snp.coords[,1]),
-            ! is.null(snp.info.file),
-            is.character(title),
-            length(title) == 1,
-            is.character(out.dir),
-            length(out.dir) == 1,
-            is.logical(turn.off.fam),
-            is.logical(turn.off.pop),
-            is.logical(save.partial),
-            is.logical(save.genos),
-            is.logical(save.hap.lib),
-            is.logical(random.fill),
-            is.numeric(nb.jobs),
-            nb.jobs > 0)
-  if(! is.null(chips))
-    stopifnot(is.vector(chips),
-              length(chips) == length(geno.ids),
-              ! is.null(names(chips)),
-              all(sort(names(chips)) == sort(geno.ids)))
-  if(! is.null(ped))
-    stopifnot(is.data.frame(ped),
-              ncol(ped) == 4,
-              all(geno.ids %in% ped[,1]),
-              ! is.null(ped.file))
-  if(! is.null(hap.lib.file))
+  stopIfNotValidGenosDose(X, check.noNA = FALSE)
+  stopifnot(
+    all(nchar(geno.ids) <= 30),
+    !is.null(genos.file),
+    is.data.frame(snp.coords),
+    all(snp.ids %in% rownames(snp.coords)),
+    all(nchar(rownames(snp.coords)) <= 50),
+    ncol(snp.coords) >= 2,
+    is.numeric(snp.coords[, 1]),
+    !is.null(snp.info.file),
+    is.character(title),
+    length(title) == 1,
+    is.character(out.dir),
+    length(out.dir) == 1,
+    is.logical(turn.off.fam),
+    is.logical(turn.off.pop),
+    is.logical(save.partial),
+    is.logical(save.genos),
+    is.logical(save.hap.lib),
+    is.logical(random.fill),
+    is.numeric(nb.jobs),
+    nb.jobs > 0
+  )
+  if (!is.null(chips)) {
+    stopifnot(
+      is.vector(chips),
+      length(chips) == length(geno.ids),
+      !is.null(names(chips)),
+      all(sort(names(chips)) == sort(geno.ids))
+    )
+  }
+  if (!is.null(ped)) {
+    stopifnot(
+      is.data.frame(ped),
+      ncol(ped) == 4,
+      all(geno.ids %in% ped[, 1]),
+      !is.null(ped.file)
+    )
+  }
+  if (!is.null(hap.lib.file)) {
     stop("support for 'hap.lib.file' not yet implemented")
-  if(! is.null(add.ungen))
-    stopifnot(is.list(add.ungen),
-              ! is.null(names(add.ungen)),
-              all(c("min.fsize", "output.min.fsize", "output.min.call.rate")
-                  %in% names(add.ungen)))
-  if(! is.null(parentage.test))
+  }
+  if (!is.null(add.ungen)) {
+    stopifnot(
+      is.list(add.ungen),
+      !is.null(names(add.ungen)),
+      all(c("min.fsize", "output.min.fsize", "output.min.call.rate")
+      %in% names(add.ungen))
+    )
+  }
+  if (!is.null(parentage.test)) {
     stop("support for 'parentage.test' not yet implemented")
-  if(! is.null(ped.depth))
+  }
+  if (!is.null(ped.depth)) {
     stopifnot(is.numeric(ped.depth))
+  }
 
-  if(verbose > 0){
-    msg <- paste0("nb of genotypes: ", nrow(X),
-                  "\nnb of SNPs: ", ncol(X),
-                  "\nmissing SNP genotypes: ",
-                  format(100 * sum(is.na(X)) / length(X), digits=3),
-                  "%")
+  if (verbose > 0) {
+    msg <- paste0(
+      "nb of genotypes: ", nrow(X),
+      "\nnb of SNPs: ", ncol(X),
+      "\nmissing SNP genotypes: ",
+      format(100 * sum(is.na(X)) / length(X), digits = 3),
+      "%"
+    )
     write(msg, stdout())
   }
 
   txt <- paste0("title=\"", title, "\";\n")
-  cat(txt, file=ctl.file)
+  cat(txt, file = ctl.file)
 
   writeGenosFimpute(X, genos.file)
   txt <- paste0("genotype_file=\"", genos.file, "\";\n")
-  cat(txt, file=ctl.file, append=TRUE)
+  cat(txt, file = ctl.file, append = TRUE)
 
-  snp.coords <- snp.coords[snp.ids,]
+  snp.coords <- snp.coords[snp.ids, ]
   writeSnpInfoFimpute(snp.coords, snp.info.file)
   txt <- paste0("snp_info_file=\"", snp.info.file, "\";\n")
-  cat(txt, file=ctl.file, append=TRUE)
+  cat(txt, file = ctl.file, append = TRUE)
 
-  if(! is.null(ped)){
-		## ped <- ped[ped$id %in% geno.ids,]
+  if (!is.null(ped)) {
+    ## ped <- ped[ped$id %in% geno.ids,]
     writePedFileFimpute(ped, ped.file)
     txt <- paste0("ped_file=\"", ped.file, "\";\n")
-    cat(txt, file=ctl.file, append=TRUE)
+    cat(txt, file = ctl.file, append = TRUE)
   }
 
   ## txt <- paste0("hap_lib_file=\"", , "\";\n")
   ## cat(txt, file=ctl.file, append=TRUE)
 
-  if(dir.exists(out.dir))
-    unlink(out.dir, recursive=TRUE)
+  if (dir.exists(out.dir)) {
+    unlink(out.dir, recursive = TRUE)
+  }
   txt <- paste0("output_folder=\"", out.dir, "\";\n")
-  cat(txt, file=ctl.file, append=TRUE)
+  cat(txt, file = ctl.file, append = TRUE)
 
-  if(! is.null(add.ungen)){
-    txt <- paste0("add_ungen",
-                  " /min_fsize=", add.ungen[["min.fsize"]],
-                  " /output_min_fsize=", add.ungen[["output.min.fsize"]],
-                  " /output_min_call_rate=", add.ungen[["output.min.call.rate"]],
-                  ";\n")
-    cat(txt, file=ctl.file, append=TRUE)
+  if (!is.null(add.ungen)) {
+    txt <- paste0(
+      "add_ungen",
+      " /min_fsize=", add.ungen[["min.fsize"]],
+      " /output_min_fsize=", add.ungen[["output.min.fsize"]],
+      " /output_min_call_rate=", add.ungen[["output.min.call.rate"]],
+      ";\n"
+    )
+    cat(txt, file = ctl.file, append = TRUE)
   }
 
   ## txt <- paste0("parentage_test", " /off", ";\n")
@@ -245,14 +290,14 @@ writeInputsFimpute <- function(ctl.file,
   ## cat(txt, file=ctl.file, append=TRUE)
 
   txt <- paste0("njob=", nb.jobs, ";\n")
-  cat(txt, file=ctl.file, append=TRUE)
+  cat(txt, file = ctl.file, append = TRUE)
 
   ## txt <- paste0("chmod=\"", , "\";\n")
   ## cat(txt, file=ctl.file, append=TRUE)
 
-  if(! is.null(ped.depth)){
+  if (!is.null(ped.depth)) {
     txt <- paste0("ped_depth=", ped.depth, ";\n")
-    cat(txt, file=ctl.file, append=TRUE)
+    cat(txt, file = ctl.file, append = TRUE)
   }
 
   ## txt <- paste0("min_nprg_imp=\"", , "\";\n")
@@ -288,34 +333,34 @@ writeInputsFimpute <- function(ctl.file,
   ## txt <- paste0("trim_segm_pop=\"", , "\";\n")
   ## cat(txt, file=ctl.file, append=TRUE)
 
-  if(turn.off.fam){
+  if (turn.off.fam) {
     txt <- paste0("turnoff_fam;\n")
-    cat(txt, file=ctl.file, append=TRUE)
+    cat(txt, file = ctl.file, append = TRUE)
   }
 
-  if(turn.off.pop){
+  if (turn.off.pop) {
     txt <- paste0("turnoff_pop;\n")
-    cat(txt, file=ctl.file, append=TRUE)
+    cat(txt, file = ctl.file, append = TRUE)
   }
 
-  if(save.partial){
+  if (save.partial) {
     txt <- paste0("save_partial;\n")
-    cat(txt, file=ctl.file, append=TRUE)
+    cat(txt, file = ctl.file, append = TRUE)
   }
 
-  if(save.genos){
+  if (save.genos) {
     txt <- paste0("save_genotype;\n")
-    cat(txt, file=ctl.file, append=TRUE)
+    cat(txt, file = ctl.file, append = TRUE)
   }
 
-  if(save.hap.lib){
+  if (save.hap.lib) {
     txt <- paste0("save_hap_lib", " /diplotype", ";\n")
-    cat(txt, file=ctl.file, append=TRUE)
+    cat(txt, file = ctl.file, append = TRUE)
   }
 
-  if(random.fill){
+  if (random.fill) {
     txt <- paste0("random_fill;\n")
-    cat(txt, file=ctl.file, append=TRUE)
+    cat(txt, file = ctl.file, append = TRUE)
   }
 
   ## TODO: gzip the output?
@@ -333,38 +378,53 @@ writeInputsFimpute <- function(ctl.file,
 ##' @return matrix
 ##' @author Timothee Flutre
 ##' @export
-readGenosFimpute <- function(file, snp.ids, input.haplos=TRUE,
-                             output.genos=TRUE){
-  stopifnot(file.exists(file),
-            is.vector(snp.ids))
-  if(! input.haplos)
+readGenosFimpute <- function(file, snp.ids, input.haplos = TRUE,
+                             output.genos = TRUE) {
+  stopifnot(
+    file.exists(file),
+    is.vector(snp.ids)
+  )
+  if (!input.haplos) {
     stop("support for genotype input not yet implemented")
-  if(! output.genos)
+  }
+  if (!output.genos) {
     stop("support for haplotype output not yet implemented")
+  }
 
-  tmp <- utils::read.table(file=file, header=TRUE, sep="",
-                           stringsAsFactors=FALSE,
-                           colClasses=c("character", "numeric",
-                                        "character"))
-  if(length(unique(nchar(tmp[,3]))) > 1)
+  tmp <- utils::read.table(
+    file = file, header = TRUE, sep = "",
+    stringsAsFactors = FALSE,
+    colClasses = c(
+      "character", "numeric",
+      "character"
+    )
+  )
+  if (length(unique(nchar(tmp[, 3]))) > 1) {
     stop("badly formatted file (different numbers of calls among individuals")
-  if(unique(nchar(tmp[,3])) != length(snp.ids))
+  }
+  if (unique(nchar(tmp[, 3])) != length(snp.ids)) {
     stop("number of SNP identifiers != number of SNP calls")
+  }
 
-  out <- matrix(data=do.call(rbind, lapply(strsplit(tmp[,3], ""), as.numeric)),
-                nrow=nrow(tmp), ncol=length(snp.ids),
-                dimnames=list(tmp[,1], snp.ids))
+  out <- matrix(
+    data = do.call(rbind, lapply(strsplit(tmp[, 3], ""), as.numeric)),
+    nrow = nrow(tmp), ncol = length(snp.ids),
+    dimnames = list(tmp[, 1], snp.ids)
+  )
   idx <- which(out == 5)
-  if(length(idx) > 0)
+  if (length(idx) > 0) {
     out[idx] <- NA
+  }
 
-  if(output.genos){
-    idx <- which(out %in% c(3,4))
-    if(length(idx) > 0)
+  if (output.genos) {
+    idx <- which(out %in% c(3, 4))
+    if (length(idx) > 0) {
       out[idx] <- 1
-    idx <- which(out %in% c(6,7,8,9))
-    if(length(idx) > 0)
+    }
+    idx <- which(out %in% c(6, 7, 8, 9))
+    if (length(idx) > 0) {
       out[idx] <- NA
+    }
   }
 
   return(out)
@@ -377,42 +437,51 @@ readGenosFimpute <- function(file, snp.ids, input.haplos=TRUE,
 ##' @return list
 ##' @author Timothee Flutre
 ##' @export
-readOutputsFimpute <- function(out.dir){
+readOutputsFimpute <- function(out.dir) {
   out <- list()
 
   f <- paste0(out.dir, "/stat_snp.txt")
-  out$stats.snps <- utils::read.table(file=f, header=TRUE, sep="", skip=1,
-                                      stringsAsFactors=FALSE)
+  out$stats.snps <- utils::read.table(
+    file = f, header = TRUE, sep = "", skip = 1,
+    stringsAsFactors = FALSE
+  )
 
   f <- paste0(out.dir, "/stat_snp_imp.txt")
-  out$stats.snps.imp <- utils::read.table(file=f, header=TRUE, sep="", skip=1,
-                                          stringsAsFactors=FALSE)
+  out$stats.snps.imp <- utils::read.table(
+    file = f, header = TRUE, sep = "", skip = 1,
+    stringsAsFactors = FALSE
+  )
 
   f <- paste0(out.dir, "/stat_anim.txt")
-  out$stats.inds <- utils::read.table(file=f, header=TRUE, sep="", skip=1,
-                                      stringsAsFactors=FALSE)
+  out$stats.inds <- utils::read.table(
+    file = f, header = TRUE, sep = "", skip = 1,
+    stringsAsFactors = FALSE
+  )
 
   f <- paste0(out.dir, "/stat_anim_imp.txt")
-  out$stats.inds.imp <- utils::read.table(file=f, header=TRUE, sep="", skip=1,
-                                          stringsAsFactors=FALSE)
+  out$stats.inds.imp <- utils::read.table(
+    file = f, header = TRUE, sep = "", skip = 1,
+    stringsAsFactors = FALSE
+  )
 
   f <- paste0(out.dir, "/genotypes_imp.txt")
-  out$genos.imp <- readGenosFimpute(file=f, snp.ids=out$stats.snps.imp[,1])
+  out$genos.imp <- readGenosFimpute(file = f, snp.ids = out$stats.snps.imp[, 1])
 
   f <- paste0(out.dir, "/genotypes_imp_chip0.txt")
-  if(file.exists(f)){
-    out$genos.imp.ungen <- readGenosFimpute(file=f,
-                                            snp.ids=out$stats.snps.imp[,1])
+  if (file.exists(f)) {
+    out$genos.imp.ungen <- readGenosFimpute(
+      file = f,
+      snp.ids = out$stats.snps.imp[, 1]
+    )
   }
 
   f <- paste0(out.dir, "/parentage_test.txt")
-  if(file.exists(f)){
+  if (file.exists(f)) {
     out$parentage.test <- readLines(f)
   }
 
   f <- paste0(out.dir, "/ref_pop.txt")
-  if(file.exists(f)){
-  }
+  if (file.exists(f)) {}
 
   return(out)
 }
@@ -484,21 +553,24 @@ readOutputsFimpute <- function(out.dir){
 ##' 100 * sum(X.imp.FI != X) / sum(is.na(X.na))
 ##' }
 ##' @export
-runFimpute <- function(X=NULL, chips=NULL, snp.coords=NULL,
-                       vcf.file=NULL, yieldSize=10000,
-                       ped=NULL, exe=Sys.which("FImpute"),
-                       work.dir=getwd(), task.id="fimpute",
-                       params.fimpute=NULL,
-                       clean="none", verbose=1){
+runFimpute <- function(X = NULL, chips = NULL, snp.coords = NULL,
+                       vcf.file = NULL, yieldSize = 10000,
+                       ped = NULL, exe = Sys.which("FImpute"),
+                       work.dir = getwd(), task.id = "fimpute",
+                       params.fimpute = NULL,
+                       clean = "none", verbose = 1) {
   exe <- path.expand(exe)
   stopifnot(file.exists(exe))
-  stopifnot(! all(is.null(X), is.null(vcf.file)))
-  stopifnot(is.character(task.id),
-            length(task.id) == 1,
-            all(! grepl(" ", task.id)),
-            clean %in% c("none", "some", "all"))
-  if(! is.null(params.fimpute))
+  stopifnot(!all(is.null(X), is.null(vcf.file)))
+  stopifnot(
+    is.character(task.id),
+    length(task.id) == 1,
+    all(!grepl(" ", task.id)),
+    clean %in% c("none", "some", "all")
+  )
+  if (!is.null(params.fimpute)) {
     stopifnot(is.list(params.fimpute))
+  }
 
   out <- list()
 
@@ -506,7 +578,7 @@ runFimpute <- function(X=NULL, chips=NULL, snp.coords=NULL,
   task.id <- paste0(work.dir, "/", task.id)
   out.dir <- paste0(task.id, "_outputs")
 
-  if(verbose > 0){
+  if (verbose > 0) {
     msg <- "prepare input files..."
     write(msg, stdout())
   }
@@ -515,71 +587,87 @@ runFimpute <- function(X=NULL, chips=NULL, snp.coords=NULL,
   tmp.files["genos"] <- paste0(task.id, "_input-genos.txt")
   tmp.files["snp.info"] <- paste0(task.id, "_input-snp-info.txt")
   tmp.files["ped"] <- paste0(task.id, "_input-ped.txt")
-  if(is.null(params.fimpute))
+  if (is.null(params.fimpute)) {
     params.fimpute <- list()
-  for(x in c("turn.off.fam", "turn.off.pop", "save.partial", "save.genos",
-             "save.hap.lib", "random.fill"))
-    if(! x %in% names(params.fimpute))
+  }
+  for (x in c(
+    "turn.off.fam", "turn.off.pop", "save.partial", "save.genos",
+    "save.hap.lib", "random.fill"
+  )) {
+    if (!x %in% names(params.fimpute)) {
       params.fimpute[[x]] <- FALSE
-  if(! "nb.jobs" %in% names(params.fimpute))
+    }
+  }
+  if (!"nb.jobs" %in% names(params.fimpute)) {
     params.fimpute$nb.jobs <- 1
+  }
 
-  writeInputsFimpute(ctl.file=tmp.files["ctl"],
-                     X=X, genos.file=tmp.files["genos"], chips=chips,
-                     snp.coords=snp.coords,
-										 vcf.file=vcf.file, yieldSize=yieldSize,
-                     snp.info.file=tmp.files["snp.info"],
-                     ped=ped, ped.file=tmp.files["ped"],
-                     out.dir=out.dir,
-                     hap.lib.file=params.fimpute$hap.lib.file,
-                     add.ungen=params.fimpute$add.ungen,
-                     turn.off.fam=params.fimpute$turn.off.fam,
-                     turn.off.pop=params.fimpute$turn.off.pop,
-                     save.partial=params.fimpute$save.partial,
-                     save.genos=params.fimpute$save.genos,
-                     save.hap.lib=params.fimpute$save.hap.lib,
-                     random.fill=params.fimpute$random.fill,
-                     nb.jobs=params.fimpute$nb.jobs,
-                     verbose=verbose)
+  writeInputsFimpute(
+    ctl.file = tmp.files["ctl"],
+    X = X, genos.file = tmp.files["genos"], chips = chips,
+    snp.coords = snp.coords,
+    vcf.file = vcf.file, yieldSize = yieldSize,
+    snp.info.file = tmp.files["snp.info"],
+    ped = ped, ped.file = tmp.files["ped"],
+    out.dir = out.dir,
+    hap.lib.file = params.fimpute$hap.lib.file,
+    add.ungen = params.fimpute$add.ungen,
+    turn.off.fam = params.fimpute$turn.off.fam,
+    turn.off.pop = params.fimpute$turn.off.pop,
+    save.partial = params.fimpute$save.partial,
+    save.genos = params.fimpute$save.genos,
+    save.hap.lib = params.fimpute$save.hap.lib,
+    random.fill = params.fimpute$random.fill,
+    nb.jobs = params.fimpute$nb.jobs,
+    verbose = verbose
+  )
 
-  if(verbose > 0){
+  if (verbose > 0) {
     msg <- paste0("run ", exe, "...")
     write(msg, stdout())
   }
   args <- paste(tmp.files["ctl"], "-o")
-  if(verbose > 0){
+  if (verbose > 0) {
     msg <- paste(exe, args)
     write(msg, stdout())
   }
   tmp.files["stdouterr"] <- paste0(task.id, "_stdouterr.txt")
-  ret <- system2(command=exe, args=args,
-                 stdout=tmp.files["stdouterr"], stderr=tmp.files["stdouterr"],
-                 wait=TRUE)
+  ret <- system2(
+    command = exe, args = args,
+    stdout = tmp.files["stdouterr"], stderr = tmp.files["stdouterr"],
+    wait = TRUE
+  )
 
-  if(ret != 0){
+  if (ret != 0) {
     msg <- paste0("command '", exe, "' returned '", ret, "'")
     warning(msg)
-  } else{
-    if(verbose > 0){
+  } else {
+    if (verbose > 0) {
       msg <- "load files..."
       write(msg, stdout())
     }
     out <- readOutputsFimpute(out.dir)
-    if(verbose > 0){
-      msg <- paste0("nb of SNPs with no Mendelian errors after imputation: ",
-                    sum(out$stats.snps.imp$MendelianErr == 0))
+    if (verbose > 0) {
+      msg <- paste0(
+        "nb of SNPs with no Mendelian errors after imputation: ",
+        sum(out$stats.snps.imp$MendelianErr == 0)
+      )
       write(msg, stdout())
     }
-	}
+  }
 
-	if(file.exists(tmp.files["stdouterr"]))
-		out$stdouterr <- readLines(tmp.files["stdouterr"])
-	if(clean != "none"){
-		for(f in tmp.files)
-			if(file.exists(f))
-				file.remove(f)
-    if(clean == "all")
-      unlink(out.dir, recursive=TRUE)
+  if (file.exists(tmp.files["stdouterr"])) {
+    out$stdouterr <- readLines(tmp.files["stdouterr"])
+  }
+  if (clean != "none") {
+    for (f in tmp.files) {
+      if (file.exists(f)) {
+        file.remove(f)
+      }
+    }
+    if (clean == "all") {
+      unlink(out.dir, recursive = TRUE)
+    }
   }
 
   return(out)

@@ -9,15 +9,19 @@
 ##' @return nothing
 ##' @author Timothee Flutre
 ##' @export
-writePedFileFindhap <- function(ped, ped.file){
-  stopifnot(is.data.frame(ped),
-            ncol(ped) == 4,
-            is.character(ped.file))
+writePedFileFindhap <- function(ped, ped.file) {
+  stopifnot(
+    is.data.frame(ped),
+    ncol(ped) == 4,
+    is.character(ped.file)
+  )
 
   colnames(ped) <- c("ID", "Sire", "Dam", "Sex")
 
-  utils::write.table(x=ped, file=ped.file, quote=FALSE, sep="\t",
-                     row.names=FALSE, col.names=TRUE, na="0")
+  utils::write.table(
+    x = ped, file = ped.file, quote = FALSE, sep = "\t",
+    row.names = FALSE, col.names = TRUE, na = "0"
+  )
 }
 
 ##' Write SNP information for findhap
@@ -28,40 +32,57 @@ writePedFileFindhap <- function(ped, ped.file){
 ##' @return nothing
 ##' @author Timothee Flutre
 ##' @export
-writeSnpInfoFindhap <- function(snp.coords, snp.info.file){
-  stopifnot(is.data.frame(snp.coords),
-            ! is.null(rownames(snp.coords)),
-            ncol(snp.coords) >= 2,
-            is.numeric(snp.coords[,1]),
-            is.numeric(snp.coords[,2]),
-            ! is.null(snp.info.file))
-  if(! is.null(colnames(snp.coords)))
-    stopifnot(! "within" %in% colnames(snp.coords),
-              ! "overall" %in% colnames(snp.coords))
+writeSnpInfoFindhap <- function(snp.coords, snp.info.file) {
+  stopifnot(
+    is.data.frame(snp.coords),
+    !is.null(rownames(snp.coords)),
+    ncol(snp.coords) >= 2,
+    is.numeric(snp.coords[, 1]),
+    is.numeric(snp.coords[, 2]),
+    !is.null(snp.info.file)
+  )
+  if (!is.null(colnames(snp.coords))) {
+    stopifnot(
+      !"within" %in% colnames(snp.coords),
+      !"overall" %in% colnames(snp.coords)
+    )
+  }
 
   snp.coords <- cbind(rownames(snp.coords), snp.coords)
   rownames(snp.coords) <- NULL
   colnames(snp.coords)[1:3] <- c("SNPname", "chrome", "location")
-  last.colnames <- colnames(snp.coords)[seq(3,ncol(snp.coords))]
-  tmp <- data.frame(overall=1:nrow(snp.coords),
-                    within=NA)
-  tmp$within <- tapply(snp.coords$location,
-                       list(as.factor(snp.coords$chrome)),
-                       function(x){1:length(x)})[[1]]
-  snp.coords <- cbind(snp.coords[, c("SNPname","chrome")],
-                      tmp[, c("within","overall")],
-                      snp.coords[, seq(3,ncol(snp.coords))])
-  colnames(snp.coords)[seq(5,ncol(snp.coords))] <- last.colnames
-  if(ncol(snp.coords) == 5){
+  last.colnames <- colnames(snp.coords)[seq(3, ncol(snp.coords))]
+  tmp <- data.frame(
+    overall = 1:nrow(snp.coords),
+    within = NA
+  )
+  tmp$within <- tapply(
+    snp.coords$location,
+    list(as.factor(snp.coords$chrome)),
+    function(x) {
+      1:length(x)
+    }
+  )[[1]]
+  snp.coords <- cbind(
+    snp.coords[, c("SNPname", "chrome")],
+    tmp[, c("within", "overall")],
+    snp.coords[, seq(3, ncol(snp.coords))]
+  )
+  colnames(snp.coords)[seq(5, ncol(snp.coords))] <- last.colnames
+  if (ncol(snp.coords) == 5) {
     snp.coords$n_chips <- rep(1, nrow(snp.coords))
     snp.coords$chip1 <- 1:nrow(snp.coords)
   }
 
-  snp.coords <- snp.coords[order(snp.coords$chrome,
-                                 snp.coords$location),]
+  snp.coords <- snp.coords[order(
+    snp.coords$chrome,
+    snp.coords$location
+  ), ]
 
-  utils::write.table(x=snp.coords, file=snp.info.file, quote=FALSE, sep="\t",
-                     row.names=FALSE, col.names=TRUE)
+  utils::write.table(
+    x = snp.coords, file = snp.info.file, quote = FALSE, sep = "\t",
+    row.names = FALSE, col.names = TRUE
+  )
 }
 
 ##' Write SNP genotypes for findhap
@@ -84,24 +105,30 @@ writeSnpInfoFindhap <- function(snp.coords, snp.info.file){
 ##' out <- writeGenosFindhap(X, f)
 ##' }
 ##' @export
-writeGenosFindhap <- function(X, genos.file){
-  stopIfNotValidGenosDose(X, check.noNA=FALSE)
-  stopifnot(all(nchar(rownames(X)) <= 10),
-            ! is.null(genos.file))
+writeGenosFindhap <- function(X, genos.file) {
+  stopIfNotValidGenosDose(X, check.noNA = FALSE)
+  stopifnot(
+    all(nchar(rownames(X)) <= 10),
+    !is.null(genos.file)
+  )
 
   X[is.na(X)] <- 5
 
-  tmp <- cbind(sprintf("%10s", rownames(X)),
-               sprintf("%10i", rep(1, nrow(X))),
-               sprintf("%10i ", rep(ncol(X), nrow(X))),
-               apply(X, 1, paste, collapse=""))
+  tmp <- cbind(
+    sprintf("%10s", rownames(X)),
+    sprintf("%10i", rep(1, nrow(X))),
+    sprintf("%10i ", rep(ncol(X), nrow(X))),
+    apply(X, 1, paste, collapse = "")
+  )
   rownames(tmp) <- NULL
   colnames(tmp) <- c("animal.id", "chip.id", "nb.snps", "snp.genotypes")
 
-  tmp <- tmp[order(tmp[,"animal.id"]),]
+  tmp <- tmp[order(tmp[, "animal.id"]), ]
 
-  utils::write.table(x=tmp, file=genos.file, quote=FALSE, sep="",
-                     row.names=FALSE, col.names=FALSE)
+  utils::write.table(
+    x = tmp, file = genos.file, quote = FALSE, sep = "",
+    row.names = FALSE, col.names = FALSE
+  )
 
   invisible(tmp)
 }
@@ -135,87 +162,105 @@ writeGenosFindhap <- function(X, genos.file){
 ##' @author Timothee Flutre
 ##' @export
 writeInputsFindhap <- function(opt.file,
-															 X=NULL, genos.file, chips=NULL,
-															 snp.coords=NULL, snp.info.file,
-															 vcf.file=NULL, yieldSize=10000,
-															 ped=NULL, ped.file=NULL,
-                               iters=4, Xchrom=0,
-                               maxlen=1000, minlen=100, steps=3,
-                               maxhap=5000, hapout=1, genout=1,
-                               damout=1, listout=-1, errate=0.003,
-															 verbose=1){
-  stopifnot(! all(is.null(X), is.null(vcf.file)))
-	if(is.null(X)){
-		file.prefix <- paste0(dirname(vcf.file), "/tmpfile-for-findhap")
-		vcf2dosage(vcf.file=vcf.file, yieldSize=yieldSize,
-							 gdose.file=paste0(file.prefix, "_gdose.txt.gz"),
-							 ca.file=paste0(file.prefix, "_ca.txt.gz"),
-							 verbose=verbose - 1)
-		X <- t(as.matrix(
-				utils::read.table(file=paste0(file.prefix, "_gdose.txt.gz"),
-													check.names=FALSE)))
-		snp.coords <- utils::read.table(file=paste0(file.prefix, "_ca.txt.gz"),
-																		header=TRUE, stringsAsFactors=FALSE)
-		snp.coords <- snp.coords[,1:2]
-		if(! is.numeric(snp.coords$chr))
-			snp.coords$chr <- chromNames2integers(x=snp.coords$chr)$renamed
-		## file.remove(paste0(file.prefix, c("_gdose", "_ca"), ".txt.gz"))
-	} else{
-		stopifnot(! is.null(snp.coords))
-	}
-	geno.ids <- rownames(X)
-	snp.ids <- colnames(X)
+                               X = NULL, genos.file, chips = NULL,
+                               snp.coords = NULL, snp.info.file,
+                               vcf.file = NULL, yieldSize = 10000,
+                               ped = NULL, ped.file = NULL,
+                               iters = 4, Xchrom = 0,
+                               maxlen = 1000, minlen = 100, steps = 3,
+                               maxhap = 5000, hapout = 1, genout = 1,
+                               damout = 1, listout = -1, errate = 0.003,
+                               verbose = 1) {
+  stopifnot(!all(is.null(X), is.null(vcf.file)))
+  if (is.null(X)) {
+    file.prefix <- paste0(dirname(vcf.file), "/tmpfile-for-findhap")
+    vcf2dosage(
+      vcf.file = vcf.file, yieldSize = yieldSize,
+      gdose.file = paste0(file.prefix, "_gdose.txt.gz"),
+      ca.file = paste0(file.prefix, "_ca.txt.gz"),
+      verbose = verbose - 1
+    )
+    X <- t(as.matrix(
+      utils::read.table(
+        file = paste0(file.prefix, "_gdose.txt.gz"),
+        check.names = FALSE
+      )
+    ))
+    snp.coords <- utils::read.table(
+      file = paste0(file.prefix, "_ca.txt.gz"),
+      header = TRUE, stringsAsFactors = FALSE
+    )
+    snp.coords <- snp.coords[, 1:2]
+    if (!is.numeric(snp.coords$chr)) {
+      snp.coords$chr <- chromNames2integers(x = snp.coords$chr)$renamed
+    }
+    ## file.remove(paste0(file.prefix, c("_gdose", "_ca"), ".txt.gz"))
+  } else {
+    stopifnot(!is.null(snp.coords))
+  }
+  geno.ids <- rownames(X)
+  snp.ids <- colnames(X)
 
-  stopIfNotValidGenosDose(X, check.noNA=FALSE)
-  stopifnot(! is.null(genos.file),
-            is.data.frame(snp.coords),
-            all(snp.ids %in% rownames(snp.coords)),
-            ncol(snp.coords) >= 2,
-            is.numeric(snp.coords[,1]),
-            ! is.null(snp.info.file))
-  if(! is.null(chips))
-    stopifnot(is.vector(chips),
-              length(chips) == length(geno.ids),
-              ! is.null(names(chips)),
-              all(sort(names(chips)) == sort(geno.ids)))
-  if(! is.null(ped))
-    stopifnot(is.data.frame(ped),
-              ncol(ped) == 4,
-              all(geno.ids %in% ped[,1]),
-              ! is.null(ped.file))
+  stopIfNotValidGenosDose(X, check.noNA = FALSE)
+  stopifnot(
+    !is.null(genos.file),
+    is.data.frame(snp.coords),
+    all(snp.ids %in% rownames(snp.coords)),
+    ncol(snp.coords) >= 2,
+    is.numeric(snp.coords[, 1]),
+    !is.null(snp.info.file)
+  )
+  if (!is.null(chips)) {
+    stopifnot(
+      is.vector(chips),
+      length(chips) == length(geno.ids),
+      !is.null(names(chips)),
+      all(sort(names(chips)) == sort(geno.ids))
+    )
+  }
+  if (!is.null(ped)) {
+    stopifnot(
+      is.data.frame(ped),
+      ncol(ped) == 4,
+      all(geno.ids %in% ped[, 1]),
+      !is.null(ped.file)
+    )
+  }
 
-  if(verbose > 0){
-    msg <- paste0("nb of genotypes: ", nrow(X),
-                  "\nnb of SNPs: ", ncol(X),
-                  "\nmissing SNP genotypes: ",
-                  format(100 * sum(is.na(X)) / length(X), digits=3),
-                  "%")
+  if (verbose > 0) {
+    msg <- paste0(
+      "nb of genotypes: ", nrow(X),
+      "\nnb of SNPs: ", ncol(X),
+      "\nmissing SNP genotypes: ",
+      format(100 * sum(is.na(X)) / length(X), digits = 3),
+      "%"
+    )
     write(msg, stdout())
   }
 
-  cat(sprintf(fmt="%3i", iters), file=opt.file, sep="", append=FALSE)
-  cat(sprintf(fmt="%8i", Xchrom), file=opt.file, sep="", append=TRUE)
-  cat(sprintf(fmt="%8i", maxlen), file=opt.file, sep="", append=TRUE)
-  cat(sprintf(fmt="%8i", minlen), file=opt.file, sep="", append=TRUE)
-  cat(sprintf(fmt="%8i", steps), file=opt.file, sep="", append=TRUE)
-  cat(sprintf(fmt="%8i", maxhap), file=opt.file, sep="", append=TRUE)
-  cat(sprintf(fmt="%8i", hapout), file=opt.file, sep="", append=TRUE)
-  cat(sprintf(fmt="%8i", genout), file=opt.file, sep="", append=TRUE)
-  cat(sprintf(fmt="%8i", damout), file=opt.file, sep="", append=TRUE)
-  cat(sprintf(fmt="%8i", listout), file=opt.file, sep="", append=TRUE)
+  cat(sprintf(fmt = "%3i", iters), file = opt.file, sep = "", append = FALSE)
+  cat(sprintf(fmt = "%8i", Xchrom), file = opt.file, sep = "", append = TRUE)
+  cat(sprintf(fmt = "%8i", maxlen), file = opt.file, sep = "", append = TRUE)
+  cat(sprintf(fmt = "%8i", minlen), file = opt.file, sep = "", append = TRUE)
+  cat(sprintf(fmt = "%8i", steps), file = opt.file, sep = "", append = TRUE)
+  cat(sprintf(fmt = "%8i", maxhap), file = opt.file, sep = "", append = TRUE)
+  cat(sprintf(fmt = "%8i", hapout), file = opt.file, sep = "", append = TRUE)
+  cat(sprintf(fmt = "%8i", genout), file = opt.file, sep = "", append = TRUE)
+  cat(sprintf(fmt = "%8i", damout), file = opt.file, sep = "", append = TRUE)
+  cat(sprintf(fmt = "%8i", listout), file = opt.file, sep = "", append = TRUE)
   tmp <- "\niters  Xchrom  maxlen  minlen  steps  maxhap  hapout  genout  damout  listout\n\n"
-  cat(tmp, file=opt.file, sep="", append=TRUE)
-  cat(sprintf(fmt="%9.6f", errate), file=opt.file, sep="", append=TRUE)
+  cat(tmp, file = opt.file, sep = "", append = TRUE)
+  cat(sprintf(fmt = "%9.6f", errate), file = opt.file, sep = "", append = TRUE)
   tmp <- "\nerrate\n"
-  cat(tmp, file=opt.file, sep="", append=TRUE)
+  cat(tmp, file = opt.file, sep = "", append = TRUE)
 
   writeGenosFindhap(X, genos.file)
 
-  snp.coords <- snp.coords[snp.ids,]
+  snp.coords <- snp.coords[snp.ids, ]
   writeSnpInfoFindhap(snp.coords, snp.info.file)
 
-  if(! is.null(ped)){
-		## ped <- ped[ped$id %in% geno.ids,]
+  if (!is.null(ped)) {
+    ## ped <- ped[ped$id %in% geno.ids,]
     writePedFileFindhap(ped, ped.file)
   }
 }
@@ -230,38 +275,53 @@ writeInputsFindhap <- function(opt.file,
 ##' @return matrix
 ##' @author Timothee Flutre
 ##' @export
-readGenosFindhap <- function(file, snp.ids, input.haplos=TRUE,
-                             output.genos=TRUE){
-  stopifnot(file.exists(file),
-            is.vector(snp.ids))
-  if(! input.haplos)
+readGenosFindhap <- function(file, snp.ids, input.haplos = TRUE,
+                             output.genos = TRUE) {
+  stopifnot(
+    file.exists(file),
+    is.vector(snp.ids)
+  )
+  if (!input.haplos) {
     stop("support for genotype input not yet implemented")
-  if(! output.genos)
+  }
+  if (!output.genos) {
     stop("support for haplotype output not yet implemented")
+  }
 
-  tmp <- utils::read.table(file=file, header=TRUE, sep="",
-                           stringsAsFactors=FALSE,
-                           colClasses=c("character", "numeric",
-                                        "character"))
-  if(length(unique(nchar(tmp[,3]))) > 1)
+  tmp <- utils::read.table(
+    file = file, header = TRUE, sep = "",
+    stringsAsFactors = FALSE,
+    colClasses = c(
+      "character", "numeric",
+      "character"
+    )
+  )
+  if (length(unique(nchar(tmp[, 3]))) > 1) {
     stop("badly formatted file (different numbers of calls among individuals")
-  if(unique(nchar(tmp[,3])) != length(snp.ids))
+  }
+  if (unique(nchar(tmp[, 3])) != length(snp.ids)) {
     stop("number of SNP identifiers != number of SNP calls")
+  }
 
-  out <- matrix(data=do.call(rbind, lapply(strsplit(tmp[,3], ""), as.numeric)),
-                nrow=nrow(tmp), ncol=length(snp.ids),
-                dimnames=list(tmp[,1], snp.ids))
+  out <- matrix(
+    data = do.call(rbind, lapply(strsplit(tmp[, 3], ""), as.numeric)),
+    nrow = nrow(tmp), ncol = length(snp.ids),
+    dimnames = list(tmp[, 1], snp.ids)
+  )
   idx <- which(out == 5)
-  if(length(idx) > 0)
+  if (length(idx) > 0) {
     out[idx] <- NA
+  }
 
-  if(output.genos){
-    idx <- which(out %in% c(3,4))
-    if(length(idx) > 0)
+  if (output.genos) {
+    idx <- which(out %in% c(3, 4))
+    if (length(idx) > 0) {
       out[idx] <- 1
-    idx <- which(out %in% c(6,7,8,9))
-    if(length(idx) > 0)
+    }
+    idx <- which(out %in% c(6, 7, 8, 9))
+    if (length(idx) > 0) {
       out[idx] <- NA
+    }
   }
 
   return(out)
@@ -274,42 +334,51 @@ readGenosFindhap <- function(file, snp.ids, input.haplos=TRUE,
 ##' @return list
 ##' @author Timothee Flutre
 ##' @export
-readOutputsFindhap <- function(out.dir){
+readOutputsFindhap <- function(out.dir) {
   out <- list()
 
   f <- paste0(out.dir, "/stat_snp.txt")
-  out$stats.snps <- utils::read.table(file=f, header=TRUE, sep="", skip=1,
-                                      stringsAsFactors=FALSE)
+  out$stats.snps <- utils::read.table(
+    file = f, header = TRUE, sep = "", skip = 1,
+    stringsAsFactors = FALSE
+  )
 
   f <- paste0(out.dir, "/stat_snp_imp.txt")
-  out$stats.snps.imp <- utils::read.table(file=f, header=TRUE, sep="", skip=1,
-                                          stringsAsFactors=FALSE)
+  out$stats.snps.imp <- utils::read.table(
+    file = f, header = TRUE, sep = "", skip = 1,
+    stringsAsFactors = FALSE
+  )
 
   f <- paste0(out.dir, "/stat_anim.txt")
-  out$stats.inds <- utils::read.table(file=f, header=TRUE, sep="", skip=1,
-                                      stringsAsFactors=FALSE)
+  out$stats.inds <- utils::read.table(
+    file = f, header = TRUE, sep = "", skip = 1,
+    stringsAsFactors = FALSE
+  )
 
   f <- paste0(out.dir, "/stat_anim_imp.txt")
-  out$stats.inds.imp <- utils::read.table(file=f, header=TRUE, sep="", skip=1,
-                                          stringsAsFactors=FALSE)
+  out$stats.inds.imp <- utils::read.table(
+    file = f, header = TRUE, sep = "", skip = 1,
+    stringsAsFactors = FALSE
+  )
 
   f <- paste0(out.dir, "/genotypes_imp.txt")
-  out$genos.imp <- readGenosFindhap(file=f, snp.ids=out$stats.snps.imp[,1])
+  out$genos.imp <- readGenosFindhap(file = f, snp.ids = out$stats.snps.imp[, 1])
 
   f <- paste0(out.dir, "/genotypes_imp_chip0.txt")
-  if(file.exists(f)){
-    out$genos.imp.ungen <- readGenosFindhap(file=f,
-                                            snp.ids=out$stats.snps.imp[,1])
+  if (file.exists(f)) {
+    out$genos.imp.ungen <- readGenosFindhap(
+      file = f,
+      snp.ids = out$stats.snps.imp[, 1]
+    )
   }
 
   f <- paste0(out.dir, "/parentage_test.txt")
-  if(file.exists(f)){
+  if (file.exists(f)) {
     out$parentage.test <- readLines(f)
   }
 
   f <- paste0(out.dir, "/ref_pop.txt")
-  if(file.exists(f)){
-  }
+  if (file.exists(f)) {}
 
   return(out)
 }
@@ -381,35 +450,39 @@ readOutputsFindhap <- function(out.dir){
 ##' 100 * sum(X.impfh != X) / sum(is.na(X.na))
 ##' }
 ##' @export
-runFindhap <- function(X=NULL, chips=NULL, snp.coords=NULL,
-                       vcf.file=NULL, yieldSize=10000,
-                       ped=NULL,
-                       work.dir=getwd(), task.id="findhap",
-                       params.findhap=NULL, nb.threads=1,
-                       clean="none", verbose=1){
+runFindhap <- function(X = NULL, chips = NULL, snp.coords = NULL,
+                       vcf.file = NULL, yieldSize = 10000,
+                       ped = NULL,
+                       work.dir = getwd(), task.id = "findhap",
+                       params.findhap = NULL, nb.threads = 1,
+                       clean = "none", verbose = 1) {
   exe.name <- "findhap"
   stopifnot(file.exists(Sys.which(exe.name)))
-  stopifnot(! all(is.null(X), is.null(vcf.file)))
-  stopifnot(is.character(task.id),
-            length(task.id) == 1,
-            all(! grepl(" ", task.id)),
-            clean %in% c("none", "some", "all"))
-  if(! is.null(params.findhap))
+  stopifnot(!all(is.null(X), is.null(vcf.file)))
+  stopifnot(
+    is.character(task.id),
+    length(task.id) == 1,
+    all(!grepl(" ", task.id)),
+    clean %in% c("none", "some", "all")
+  )
+  if (!is.null(params.findhap)) {
     stopifnot(is.list(params.findhap))
+  }
 
   out <- list()
 
   current.dir <- getwd()
   work.dir <- path.expand(work.dir)
   tmp.dir <- paste0(work.dir, "/", task.id, "_runFindhap")
-  if(dir.exists(tmp.dir)){
+  if (dir.exists(tmp.dir)) {
     msg <- paste0("temporary directory ", tmp.dir, " already exists")
     stop(msg)
-  } else
+  } else {
     dir.create(tmp.dir)
+  }
   setwd(tmp.dir)
 
-  if(verbose > 0){
+  if (verbose > 0) {
     msg <- "prepare input files..."
     write(msg, stdout())
   }
@@ -418,65 +491,81 @@ runFindhap <- function(X=NULL, chips=NULL, snp.coords=NULL,
   tmp.files["snp.info"] <- "chromosome.data"
   tmp.files["ped"] <- "pedigree.file"
   tmp.files["opt"] <- "findhap.options"
-  if(is.null(params.findhap))
+  if (is.null(params.findhap)) {
     params.findhap <- list()
-  if(! "iters" %in% names(params.findhap))
+  }
+  if (!"iters" %in% names(params.findhap)) {
     params.findhap$iters <- 4
-  if(! "Xchrom" %in% names(params.findhap))
+  }
+  if (!"Xchrom" %in% names(params.findhap)) {
     params.findhap$Xchrom <- 0
-  if(! "maxlen" %in% names(params.findhap))
+  }
+  if (!"maxlen" %in% names(params.findhap)) {
     params.findhap$maxlen <- 1000
-  if(! "minlen" %in% names(params.findhap))
+  }
+  if (!"minlen" %in% names(params.findhap)) {
     params.findhap$minlen <- 100
-  if(! "steps" %in% names(params.findhap))
+  }
+  if (!"steps" %in% names(params.findhap)) {
     params.findhap$steps <- 3
-  if(! "maxhap" %in% names(params.findhap))
+  }
+  if (!"maxhap" %in% names(params.findhap)) {
     params.findhap$maxhap <- 5000
-  if(! "hapout" %in% names(params.findhap))
+  }
+  if (!"hapout" %in% names(params.findhap)) {
     params.findhap$hapout <- 1
-  if(! "genout" %in% names(params.findhap))
+  }
+  if (!"genout" %in% names(params.findhap)) {
     params.findhap$genout <- 1
-  if(! "damout" %in% names(params.findhap))
+  }
+  if (!"damout" %in% names(params.findhap)) {
     params.findhap$damout <- 1
-  if(! "listout" %in% names(params.findhap))
+  }
+  if (!"listout" %in% names(params.findhap)) {
     params.findhap$listout <- -1
-  if(! "errate" %in% names(params.findhap))
+  }
+  if (!"errate" %in% names(params.findhap)) {
     params.findhap$errate <- 0.003
+  }
 
   ## TODO: use temporary IDs for the genotypes because of the limit of length 10
 
-  writeInputsFindhap(opt.file=tmp.files["opt"],
-                     X=X, genos.file=tmp.files["genos"], chips=chips,
-                     snp.coords=snp.coords,
-										 vcf.file=vcf.file, yieldSize=yieldSize,
-                     snp.info.file=tmp.files["snp.info"],
-                     ped=ped, ped.file=tmp.files["ped"],
-                     iters=params.findhap$iters,
-                     Xchrom=params.findhap$Xchrom,
-                     maxlen=params.findhap$maxlen,
-                     minlen=params.findhap$minlen,
-                     steps=params.findhap$steps,
-                     maxhap=params.findhap$maxhap,
-                     hapout=params.findhap$hapout,
-                     genout=params.findhap$genout,
-                     damout=params.findhap$damout,
-                     listout=params.findhap$listout,
-                     errate=params.findhap$errate,
-                     verbose=verbose)
+  writeInputsFindhap(
+    opt.file = tmp.files["opt"],
+    X = X, genos.file = tmp.files["genos"], chips = chips,
+    snp.coords = snp.coords,
+    vcf.file = vcf.file, yieldSize = yieldSize,
+    snp.info.file = tmp.files["snp.info"],
+    ped = ped, ped.file = tmp.files["ped"],
+    iters = params.findhap$iters,
+    Xchrom = params.findhap$Xchrom,
+    maxlen = params.findhap$maxlen,
+    minlen = params.findhap$minlen,
+    steps = params.findhap$steps,
+    maxhap = params.findhap$maxhap,
+    hapout = params.findhap$hapout,
+    genout = params.findhap$genout,
+    damout = params.findhap$damout,
+    listout = params.findhap$listout,
+    errate = params.findhap$errate,
+    verbose = verbose
+  )
 
-  if(verbose > 0){
+  if (verbose > 0) {
     msg <- paste0("run ", exe.name, "...")
     write(msg, stdout())
   }
   args <- nb.threads
-  if(verbose > 0){
+  if (verbose > 0) {
     msg <- paste(exe.name, args)
     write(msg, stdout())
   }
   tmp.files["stdouterr"] <- paste0(task.id, "_stdouterr.txt")
-  ret <- system2(command=exe.name, args=args,
-                 stdout=tmp.files["stdouterr"], stderr=tmp.files["stdouterr"],
-                 wait=TRUE)
+  ret <- system2(
+    command = exe.name, args = args,
+    stdout = tmp.files["stdouterr"], stderr = tmp.files["stdouterr"],
+    wait = TRUE
+  )
 
   ## if(ret != 0){
   ##   msg <- paste0("command '", exe.name, "' returned '", ret, "'")
@@ -492,14 +581,14 @@ runFindhap <- function(X=NULL, chips=NULL, snp.coords=NULL,
   ##                   sum(out$stats.snps.imp$MendelianErr == 0))
   ##     write(msg, stdout())
   ##   }
-	## }
+  ## }
 
-	## if(file.exists(tmp.files["stdouterr"]))
-	## 	out$stdouterr <- readLines(tmp.files["stdouterr"])
-	## if(clean != "none"){
-	## 	for(f in tmp.files)
-	## 		if(file.exists(f))
-	## 			file.remove(f)
+  ## if(file.exists(tmp.files["stdouterr"]))
+  ## 	out$stdouterr <- readLines(tmp.files["stdouterr"])
+  ## if(clean != "none"){
+  ## 	for(f in tmp.files)
+  ## 		if(file.exists(f))
+  ## 			file.remove(f)
   ##   if(clean == "all")
   ##     unlink(tmp.dir, recursive=TRUE)
   ## }

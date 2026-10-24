@@ -8,32 +8,38 @@
 ##' @author Timothee Flutre
 ##' @seealso \code{\link{prettyPrintBetterSummary}}
 ##' @export
-betterSummary <- function(x){
-  if(is.matrix(x)){
+betterSummary <- function(x) {
+  if (is.matrix(x)) {
     stopifnot(ncol(x) == 1)
-    x <- as.vector(x[,1])
+    x <- as.vector(x[, 1])
   }
-  stopifnot(is.vector(x),
-            is.numeric(x))
+  stopifnot(
+    is.vector(x),
+    is.numeric(x)
+  )
 
-  out <- stats::setNames(rep(NA, 12),
-                         c("n", "num.na", "perc.na",
-                           "mean", "var", "sd", "cv",
-                           "min", "q1", "med", "q3", "max"))
+  out <- stats::setNames(
+    rep(NA, 12),
+    c(
+      "n", "num.na", "perc.na",
+      "mean", "var", "sd", "cv",
+      "min", "q1", "med", "q3", "max"
+    )
+  )
 
   out["n"] <- length(x)
   isNa <- is.na(x)
   out["num.na"] <- sum(isNa)
   out["perc.na"] <- 100 * out["num.na"] / out["n"]
-  out["mean"] <- mean(x, na.rm=TRUE)
-  out["var"] <- stats::var(x, na.rm=TRUE)
-  out["sd"] <- stats::sd(x, na.rm=TRUE)
+  out["mean"] <- mean(x, na.rm = TRUE)
+  out["var"] <- stats::var(x, na.rm = TRUE)
+  out["sd"] <- stats::sd(x, na.rm = TRUE)
   out["cv"] <- out["sd"] / out["mean"]
-  out["min"] <- min(x, na.rm=TRUE)
-  out["q1"] <- stats::quantile(x, probs=0.25, na.rm=TRUE)
-  out["med"] <- stats::median(x, na.rm=TRUE)
-  out["q3"] <- stats::quantile(x, probs=0.75, na.rm=TRUE)
-  out["max"] <- max(x, na.rm=TRUE)
+  out["min"] <- min(x, na.rm = TRUE)
+  out["q1"] <- stats::quantile(x, probs = 0.25, na.rm = TRUE)
+  out["med"] <- stats::median(x, na.rm = TRUE)
+  out["q3"] <- stats::quantile(x, probs = 0.75, na.rm = TRUE)
+  out["max"] <- max(x, na.rm = TRUE)
 
   return(out)
 }
@@ -48,30 +54,42 @@ betterSummary <- function(x){
 ##' @return invisible summary
 ##' @author Timothee Flutre
 ##' @export
-prettyPrintBetterSummary <- function(x=NULL, smy=NULL, spec="%.2f", header=NULL){
-  stopifnot(xor(is.null(x), is.null(smy)),
-            ifelse(is.null(header), TRUE, is.character(header)))
+prettyPrintBetterSummary <- function(x = NULL, smy = NULL, spec = "%.2f", header = NULL) {
+  stopifnot(
+    xor(is.null(x), is.null(smy)),
+    ifelse(is.null(header), TRUE, is.character(header))
+  )
 
-  if(is.null(smy))
+  if (is.null(smy)) {
     smy <- betterSummary(x)
-  else if(is.data.frame(smy))
+  } else if (is.data.frame(smy)) {
     smy <- unlist(smy)
+  }
 
   txt <- ""
-  if(! is.null(header))
+  if (!is.null(header)) {
     txt <- paste0(txt, header)
+  }
 
-  fmt <- paste(paste0(c("n","num.na"), "=", "%i"), collapse=" ")
-  txt <- paste(txt,
-               sprintf(fmt=fmt,
-                       smy["n"], smy["num.na"]))
-  fmt <- paste(paste0(names(smy)[-c(1,2)], "=", spec), collapse=" ")
-  txt <- paste(txt,
-               sprintf(fmt=fmt,
-                       smy["perc.na"],
-                       smy["mean"], smy["var"], smy["sd"], smy["cv"],
-                       smy["min"], smy["q1"], smy["med"],
-                       smy["q3"], smy["max"]))
+  fmt <- paste(paste0(c("n", "num.na"), "=", "%i"), collapse = " ")
+  txt <- paste(
+    txt,
+    sprintf(
+      fmt = fmt,
+      smy["n"], smy["num.na"]
+    )
+  )
+  fmt <- paste(paste0(names(smy)[-c(1, 2)], "=", spec), collapse = " ")
+  txt <- paste(
+    txt,
+    sprintf(
+      fmt = fmt,
+      smy["perc.na"],
+      smy["mean"], smy["var"], smy["sd"], smy["cv"],
+      smy["min"], smy["q1"], smy["med"],
+      smy["q3"], smy["max"]
+    )
+  )
   print(txt)
 
   invisible(smy)
@@ -85,7 +103,7 @@ prettyPrintBetterSummary <- function(x=NULL, smy=NULL, spec="%.2f", header=NULL)
 ##' @author Timothee Flutre
 ##' @seealso \code{\link{rmsre}}, \code{\link{rrmse}}, \code{\link{mae}}
 ##' @export
-rmse <- function(error){
+rmse <- function(error) {
   sqrt(mean(error^2))
 }
 
@@ -97,7 +115,7 @@ rmse <- function(error){
 ##' @author Timothee Flutre
 ##' @seealso \code{\link{rmse}}, \code{\link{rrmse}}, \code{\link{mae}}
 ##' @export
-rmsre <- function(rel_error){
+rmsre <- function(rel_error) {
   sqrt(mean(rel_error^2))
 }
 
@@ -111,9 +129,9 @@ rmsre <- function(rel_error){
 ##' @author Timothee Flutre
 ##' @seealso \code{\link{rmse}}, \code{\link{rmsre}}
 ##' @export
-rrmse <- function(error, theta, perc=TRUE){
+rrmse <- function(error, theta, perc = TRUE) {
   out <- rmse(error) / mean(theta)
-  if(perc) out <- out * 100
+  if (perc) out <- out * 100
   return(out)
 }
 
@@ -126,7 +144,7 @@ rrmse <- function(error, theta, perc=TRUE){
 ##' @author Timothee Flutre
 ##' @seealso \code{\link{rmse}}
 ##' @export
-mae <- function(error){
+mae <- function(error) {
   mean(abs(error))
 }
 
@@ -138,7 +156,7 @@ mae <- function(error){
 ##' @author Timothee Flutre
 ##' @seealso \code{\link{mbe}}, \code{\link{rmse}}, \code{\link{mae}}
 ##' @export
-msd <- function(error){
+msd <- function(error) {
   mean(error)
 }
 
@@ -150,7 +168,7 @@ msd <- function(error){
 ##' @author Timothee Flutre
 ##' @seealso \code{\link{msd}}, \code{\link{rmse}}, \code{\link{mae}}
 ##' @export
-mbe <- function(error){
+mbe <- function(error) {
   mean(error)
 }
 
@@ -164,17 +182,19 @@ mbe <- function(error){
 ##' @return pseudo R squared
 ##' @author Timothee Flutre
 ##' @export
-pseudoR2 <- function(dat, res, pred, method="Efron"){
-  stopifnot(length(res) == length(dat),
-            length(pred) == length(dat))
-  if(! method %in% c("Efron")){
+pseudoR2 <- function(dat, res, pred, method = "Efron") {
+  stopifnot(
+    length(res) == length(dat),
+    length(pred) == length(dat)
+  )
+  if (!method %in% c("Efron")) {
     msg <- "method should be 'Efron'"
     warning(msg)
   }
 
   pseudo.R2 <- NA
 
-  if(method == "Efron"){
+  if (method == "Efron") {
     SS.residuals <- sum(res^2)
     SS.total <- sum((dat - mean(dat))^2)
     pseudo.R2 <- 1 - (SS.residuals^2 / SS.total^2)
@@ -198,16 +218,18 @@ pseudoR2 <- function(dat, res, pred, method="Efron"){
 ##' var(x)
 ##' }
 ##' @export
-getParamsBetaDist <- function(m, v){
-  stopifnot(all(is.numeric(m), is.numeric(v)),
-            all(m >= 0, m <= 1),
-            v > 0)
+getParamsBetaDist <- function(m, v) {
+  stopifnot(
+    all(is.numeric(m), is.numeric(v)),
+    all(m >= 0, m <= 1),
+    v > 0
+  )
 
-  alpha <- ((1 - m) / v - 1 / m) * m ^ 2
+  alpha <- ((1 - m) / v - 1 / m) * m^2
 
   beta <- alpha * (1 / m - 1)
 
-  return(c(alpha=alpha, beta=beta))
+  return(c(alpha = alpha, beta = beta))
 }
 
 ##' Beta distribution
@@ -218,15 +240,17 @@ getParamsBetaDist <- function(m, v){
 ##' @return vector
 ##' @author Timothee Flutre
 ##' @export
-getMeanVarBetaDist <- function(alpha, beta){
-  stopifnot(all(is.numeric(alpha), is.numeric(beta)),
-            all(alpha > 0, beta > 0))
+getMeanVarBetaDist <- function(alpha, beta) {
+  stopifnot(
+    all(is.numeric(alpha), is.numeric(beta)),
+    all(alpha > 0, beta > 0)
+  )
 
   m <- alpha / (alpha + beta)
 
   v <- (alpha * beta) / ((alpha + beta)^2 * (alpha + beta + 1))
 
-  return(c(mean=m, var=v))
+  return(c(mean = m, var = v))
 }
 
 ##' Hypothesis testing
@@ -242,7 +266,7 @@ getMeanVarBetaDist <- function(alpha, beta){
 ##' @return vector with names
 ##' @author Timothee Flutre
 ##' @export
-binaryClassif <- function(known.nulls, called.nulls){
+binaryClassif <- function(known.nulls, called.nulls) {
   ## http://en.wikipedia.org/wiki/Sensitivity_and_specificity
   ##
   ##                                  CALLED
@@ -253,43 +277,47 @@ binaryClassif <- function(known.nulls, called.nulls){
   ##       false null        FN (T)            TP (S)          n1
   ##
   ##                         a                 r               n
-  stopifnot(is.vector(known.nulls), is.vector(called.nulls),
-            length(known.nulls) == length(called.nulls),
-            sum(! is.logical(known.nulls)) == 0,
-            sum(! is.logical(called.nulls)) == 0)
+  stopifnot(
+    is.vector(known.nulls), is.vector(called.nulls),
+    length(known.nulls) == length(called.nulls),
+    sum(!is.logical(known.nulls)) == 0,
+    sum(!is.logical(called.nulls)) == 0
+  )
 
   n <- length(known.nulls) # total number of tests
-  n0 <- sum(known.nulls)   # nb of true nulls
-  n1 <- n - n0             # nb of "false nulls" (i.e. "true alternatives")
-  a <- sum(called.nulls)   # nb of accepted nulls ("called not significant")
-  r <- n - a               # nb of rejected nulls ("called significant", "discoveries")
+  n0 <- sum(known.nulls) # nb of true nulls
+  n1 <- n - n0 # nb of "false nulls" (i.e. "true alternatives")
+  a <- sum(called.nulls) # nb of accepted nulls ("called not significant")
+  r <- n - a # nb of rejected nulls ("called significant", "discoveries")
 
   ## true positive = reject a false null
-  tp <- sum(which(! called.nulls) %in% which(! known.nulls))
+  tp <- sum(which(!called.nulls) %in% which(!known.nulls))
 
   ## false positive = reject a true null (type I error, "false alarm")
-  fp <- sum(which(! called.nulls) %in% which(known.nulls))
+  fp <- sum(which(!called.nulls) %in% which(known.nulls))
 
   ## true negatives = accept a true null
   tn <- sum(which(called.nulls) %in% which(known.nulls))
 
   ## false negatives = accept a false null (type II error, "miss")
-  fn <- sum(which(called.nulls) %in% which(! known.nulls))
+  fn <- sum(which(called.nulls) %in% which(!known.nulls))
 
-  tpp <- tp / n1        # true positive prop (sensitivity)
-  fnp <- fn / n1        # false negative prop
-  tnp <- tn / n0        # true negative prop (specificity) = 1 - fpp
-  fpp <- fp / n0        # false positive prop
-  fdp <- fp / r         # false discovery prop
-  ppv <- tp / r         # positive predictive value (precision)
-  acc <- (tp + tn) / n  # accuracy
+  tpp <- tp / n1 # true positive prop (sensitivity)
+  fnp <- fn / n1 # false negative prop
+  tnp <- tn / n0 # true negative prop (specificity) = 1 - fpp
+  fpp <- fp / n0 # false positive prop
+  fdp <- fp / r # false discovery prop
+  ppv <- tp / r # positive predictive value (precision)
+  acc <- (tp + tn) / n # accuracy
   mcc <- (tp * tn - fp * fn) / sqrt((tp + fp) * (tp + fn) * (tn + fp) * (tn + fn))
 
-  return(c(n=n, n0=n0, n1=n1,
-           r=r, tp=tp, fp=fp,
-           a=a, tn=tn, fn=fn,
-           tpp=tpp, fnp=fnp, tnp=tnp, fpp=fpp, fdp=fdp, ppv=ppv, acc=acc,
-           mcc=mcc))
+  return(c(
+    n = n, n0 = n0, n1 = n1,
+    r = r, tp = tp, fp = fp,
+    a = a, tn = tn, fn = fn,
+    tpp = tpp, fnp = fnp, tnp = tnp, fpp = fpp, fdp = fdp, ppv = ppv, acc = acc,
+    mcc = mcc
+  ))
 }
 
 ##' Tukey plot
@@ -321,32 +349,38 @@ binaryClassif <- function(known.nulls, called.nulls){
 ##' tab3_notSignif
 ##' plotTukey(tab3_notSignif, title="Fig. I from Piepho (2018)")
 ##' @export
-plotTukey <- function(mat, title=NULL){
-  stopifnot(is.matrix(mat),
-            nrow(mat) == ncol(mat))
-  if(! is.null(title))
+plotTukey <- function(mat, title = NULL) {
+  stopifnot(
+    is.matrix(mat),
+    nrow(mat) == ncol(mat)
+  )
+  if (!is.null(title)) {
     stopifnot(is.character(title))
+  }
 
   n <- nrow(mat)
 
-  op <- par(mar=c(1, 1, ifelse(is.null(title), 2, 5), 1))
+  op <- par(mar = c(1, 1, ifelse(is.null(title), 2, 5), 1))
 
   off <- 0.3
-  plot(0, 0, type="n", axes=FALSE,
-       xlim=c(1-off, n+off), ylim=c(1, n+0.5),
-       xlab="", ylab="", main=title)
-  axis(side=3, at=1:n, labels=colnames(mat), line=-1)
-  segments(x0=1:n, y0=n+off, x1=1:n, y1=1-off, col="grey", lty=2)
+  plot(0, 0,
+    type = "n", axes = FALSE,
+    xlim = c(1 - off, n + off), ylim = c(1, n + 0.5),
+    xlab = "", ylab = "", main = title
+  )
+  axis(side = 3, at = 1:n, labels = colnames(mat), line = -1)
+  segments(x0 = 1:n, y0 = n + off, x1 = 1:n, y1 = 1 - off, col = "grey", lty = 2)
 
-  for(i in n:2){ # row index for the plot (y axis)
+  for (i in n:2) { # row index for the plot (y axis)
     j <- rev(1:n)[i] # col/row index for the square matrix
-    isNA <- is.na(mat[j,])
-    if(all(isNA))
+    isNA <- is.na(mat[j, ])
+    if (all(isNA)) {
       next
-    idxNotNA <- which(! isNA)
-    segments(x0=min(j,idxNotNA)-off, y0=i, x1=max(idxNotNA)+off, y1=i)
+    }
+    idxNotNA <- which(!isNA)
+    segments(x0 = min(j, idxNotNA) - off, y0 = i, x1 = max(idxNotNA) + off, y1 = i)
   }
-  segments(x0=n-off, y0=1, x1=n+off, y1=1)
+  segments(x0 = n - off, y0 = 1, x1 = n + off, y1 = 1)
 
   par(op)
 }
@@ -395,23 +429,29 @@ plotTukey <- function(mat, title=NULL){
 ##'              title="Fig. I from Piepho (2018)")
 ##' @noRd
 simplifTukey <- function(emm, tuk,
-                         colEmmID, colEmmVal="emmean",
-                         colContrID="contrast", colContrVal="estimate", colPv="p.value",
-                         alpha=0.05, plot.it=FALSE, title=NULL){
-  if(! is.data.frame(emm))
+                         colEmmID, colEmmVal = "emmean",
+                         colContrID = "contrast", colContrVal = "estimate", colPv = "p.value",
+                         alpha = 0.05, plot.it = FALSE, title = NULL) {
+  if (!is.data.frame(emm)) {
     emm <- as.data.frame(emm)
-  if(! is.data.frame(tuk))
+  }
+  if (!is.data.frame(tuk)) {
     tuk <- as.data.frame(tuk)
-  stopifnot(all(c(colEmmID, colEmmVal) %in% colnames(emm)),
-            all(c(colContrID, colContrVal, colPv) %in% colnames(tuk)))
+  }
+  stopifnot(
+    all(c(colEmmID, colEmmVal) %in% colnames(emm)),
+    all(c(colContrID, colContrVal, colPv) %in% colnames(tuk))
+  )
 
   n <- nrow(emm)
-  stopifnot(n >= 2,
-            nrow(tuk) == n * (n-1) / 2)
+  stopifnot(
+    n >= 2,
+    nrow(tuk) == n * (n - 1) / 2
+  )
 
   ## sort the levels of the explanatory factor w.r.t. their emmean
-  emmSort <- emm[order(emm[[colEmmVal]], decreasing=TRUE),]
-  (levSort <- as.character(emmSort[,colEmmID]))
+  emmSort <- emm[order(emm[[colEmmVal]], decreasing = TRUE), ]
+  (levSort <- as.character(emmSort[, colEmmID]))
 
   ## flag significant test(s)
   tuk$signif <- FALSE
@@ -420,65 +460,73 @@ simplifTukey <- function(emm, tuk,
   ## make a matrix with all pairwise differences
   ## after sorting the levels
   ## and stop at significant differences
-  mat <- matrix(NA, nrow=n, ncol=n,
-                dimnames=list(levSort, levSort))
+  mat <- matrix(NA,
+    nrow = n, ncol = n,
+    dimnames = list(levSort, levSort)
+  )
   tmp <- strsplit(tuk[[colContrID]], "-")
   tmp <- lapply(tmp, trimws)
-  tuk[c("lev1","lev2")] <- do.call(rbind, tmp)
-  for(i in 1:nrow(tuk)){
-    if(tuk$signif[i])
+  tuk[c("lev1", "lev2")] <- do.call(rbind, tmp)
+  for (i in 1:nrow(tuk)) {
+    if (tuk$signif[i]) {
       next
+    }
     lev1 <- tuk$lev1[i]
     lev2 <- tuk$lev2[i]
-    mat[lev1,lev2] <- tuk[[colContrVal]][i]
-    mat[lev2,lev1] <- tuk[[colContrVal]][i]
+    mat[lev1, lev2] <- tuk[[colContrVal]][i]
+    mat[lev2, lev1] <- tuk[[colContrVal]][i]
   }
   stopifnot(isSymmetric(mat))
   mat[lower.tri(mat)] <- NA
 
-  if(plot.it)
+  if (plot.it) {
     plotTukey(mat, title)
+  }
 
   ## define all the intervals
-  allIntervals <- do.call(rbind, lapply(1:n, function(i){
-    idx <- which(! is.na(mat[i,]))
-    c("start"=min(i, idx),
-      "end"=max(i,idx))
+  allIntervals <- do.call(rbind, lapply(1:n, function(i) {
+    idx <- which(!is.na(mat[i, ]))
+    c(
+      "start" = min(i, idx),
+      "end" = max(i, idx)
+    )
   }))
   rownames(allIntervals) <- levSort
   allIntervals <- as.data.frame(allIntervals)
 
   ## find overlapping intervals
-  whichOverlaps <- function(query, db){
-    which((query[,1] <= db[,1] & query[,2] >= db[,1]) |
-          (query[,1] > db[,1] & query[,1] <= db[,2]))
+  whichOverlaps <- function(query, db) {
+    which((query[, 1] <= db[, 1] & query[, 2] >= db[, 1]) |
+      (query[, 1] > db[, 1] & query[, 1] <= db[, 2]))
   }
-  tmp <- do.call(rbind, lapply(1:n, function(i){
-    idx <- whichOverlaps(allIntervals[i,,drop=F], allIntervals)
-    if(length(idx) > 0){
-      range(allIntervals[idx,])
-    } else
-      unlist(allIntervals[i,], use.names=FALSE)
+  tmp <- do.call(rbind, lapply(1:n, function(i) {
+    idx <- whichOverlaps(allIntervals[i, , drop = F], allIntervals)
+    if (length(idx) > 0) {
+      range(allIntervals[idx, ])
+    } else {
+      unlist(allIntervals[i, ], use.names = FALSE)
+    }
   }))
-  tmp2 <- do.call(rbind, lapply(1:n, function(i){
-    idx <- whichOverlaps(tmp[i,,drop=F], tmp)
-    if(length(idx) > 0){
-      range(tmp[idx,])
-    } else
-      unlist(tmp[i,], use.names=FALSE)
+  tmp2 <- do.call(rbind, lapply(1:n, function(i) {
+    idx <- whichOverlaps(tmp[i, , drop = F], tmp)
+    if (length(idx) > 0) {
+      range(tmp[idx, ])
+    } else {
+      unlist(tmp[i, ], use.names = FALSE)
+    }
   }))
   rownames(tmp2) <- rownames(allIntervals)
   colnames(tmp2) <- paste0(colnames(allIntervals), "_incl")
   ## identify the smallest set of non-overlapping intervals
-  simplifIntervals <- tmp2[! duplicated(tmp2),]
+  simplifIntervals <- tmp2[!duplicated(tmp2), ]
   simplifIntervals <- as.data.frame(simplifIntervals)
   simplifIntervals$group <- letters[1:nrow(simplifIntervals)]
   ## define simplified groups
   allIntervals <- cbind(allIntervals, tmp2)
   allIntervals$group_simplif <- NA
-  for(i in 1:nrow(simplifIntervals)){
+  for (i in 1:nrow(simplifIntervals)) {
     idx <- which(allIntervals$start_incl == simplifIntervals$start[i] &
-                 allIntervals$end_incl == simplifIntervals$end[i])
+      allIntervals$end_incl == simplifIntervals$end[i])
     allIntervals$group_simplif[idx] <- simplifIntervals$group[i]
   }
 
@@ -496,13 +544,16 @@ simplifTukey <- function(emm, tuk,
 ##' @return numeric
 ##' @author Timothee Flutre
 ##' @export
-log10WeightedSum <- function(x, weights=NULL){
+log10WeightedSum <- function(x, weights = NULL) {
   stopifnot(is.numeric(x), is.vector(x))
-  if(! is.null(weights)){
-    stopifnot(is.vector(weights),
-              length(weights) == length(x))
-  } else
-    weights <- rep(1/length(x), length(x))
+  if (!is.null(weights)) {
+    stopifnot(
+      is.vector(weights),
+      length(weights) == length(x)
+    )
+  } else {
+    weights <- rep(1 / length(x), length(x))
+  }
   m <- max(x)
   m + log10(sum(weights * 10^(x - m)))
 }
@@ -515,16 +566,16 @@ log10WeightedSum <- function(x, weights=NULL){
 ##' @return matrix
 ##' @author Timothee Flutre
 ##' @export
-mpInv <- function(x){
+mpInv <- function(x) {
   out <- NULL
 
-  requireNamespace("MASS", quietly=TRUE)
-  if("MASS" %in% loadedNamespaces()){
-    out <- MASS::ginv(X=x)
-  } else{
+  requireNamespace("MASS", quietly = TRUE)
+  if ("MASS" %in% loadedNamespaces()) {
+    out <- MASS::ginv(X = x)
+  } else {
     stopifnot(is.matrix(x))
     mat.svd <- svd(x)
-    out <- mat.svd$v %*% diag(1/mat.svd$d) %*% t(mat.svd$u)
+    out <- mat.svd$v %*% diag(1 / mat.svd$d) %*% t(mat.svd$u)
   }
 
   dimnames(out) <- dimnames(x)
@@ -539,11 +590,12 @@ mpInv <- function(x){
 ##' @return numeric
 ##' @author Timothee Flutre
 ##' @export
-matrixTrace <- function(x=NULL, l=NULL){
+matrixTrace <- function(x = NULL, l = NULL) {
   stopifnot(xor(is.null(x), is.null(l)))
 
-  if(is.null(l))
-    l <- eigen(x=x, only.values=TRUE)$values
+  if (is.null(l)) {
+    l <- eigen(x = x, only.values = TRUE)$values
+  }
 
   trace <- sum(l)
 
@@ -602,48 +654,60 @@ matrixTrace <- function(x=NULL, l=NULL){
 ##' head(out.pca.S$rot.dat[, 1:4]) # rotated data
 ##' }
 ##' @export
-pca <- function(X=NULL, S=NULL, ct=TRUE, sc=FALSE, plot=NULL, main="PCA",
-                cols=NULL, pchs=NULL, ES10=FALSE){
-  stopifnot(xor(! is.null(X), ! is.null(S)))
-  if(! is.null(X)){
-    if(! is.matrix(X))
+pca <- function(X = NULL, S = NULL, ct = TRUE, sc = FALSE, plot = NULL, main = "PCA",
+                cols = NULL, pchs = NULL, ES10 = FALSE) {
+  stopifnot(xor(!is.null(X), !is.null(S)))
+  if (!is.null(X)) {
+    if (!is.matrix(X)) {
       X <- as.matrix(X)
-    stopifnot(is.matrix(X),
-              ! isSymmetric(X),
-              all(! is.na(X)),
-              is.logical(ct),
-              is.logical(sc),
-              is.logical(ES10))
-  } else if(! is.null(S)){
-    if(! is.matrix(S))
+    }
+    stopifnot(
+      is.matrix(X),
+      !isSymmetric(X),
+      all(!is.na(X)),
+      is.logical(ct),
+      is.logical(sc),
+      is.logical(ES10)
+    )
+  } else if (!is.null(S)) {
+    if (!is.matrix(S)) {
       S <- as.matrix(S)
-    stopifnot(is.matrix(S),
-              isSymmetric(S))
+    }
+    stopifnot(
+      is.matrix(S),
+      isSymmetric(S)
+    )
   }
-  if(! is.null(plot)){
-    if(is.null(cols))
+  if (!is.null(plot)) {
+    if (is.null(cols)) {
       cols <- rep("black", ifelse(is.null(S), nrow(X), nrow(S)))
-    if(is.null(pchs))
+    }
+    if (is.null(pchs)) {
       pchs <- rep(20, ifelse(is.null(S), nrow(X), nrow(S)))
-    stopifnot(plot %in% c("points", "text"),
-              is.vector(cols),
-              ifelse(is.null(S), length(cols) == nrow(X),
-                     length(cols) == nrow(S)),
-              is.vector(pchs),
-              ifelse(is.null(S), length(pchs) == nrow(X),
-                     length(pchs) == nrow(S)))
+    }
+    stopifnot(
+      plot %in% c("points", "text"),
+      is.vector(cols),
+      ifelse(is.null(S), length(cols) == nrow(X),
+        length(cols) == nrow(S)
+      ),
+      is.vector(pchs),
+      ifelse(is.null(S), length(pchs) == nrow(X),
+        length(pchs) == nrow(S)
+      )
+    )
   }
 
   output <- list()
 
-  if(! is.null(X)){
-    X <- scale(x=X, center=ct, scale=sc)
-    svd.X <- svd(x=X)
+  if (!is.null(X)) {
+    X <- scale(x = X, center = ct, scale = sc)
+    svd.X <- svd(x = X)
     sgl.values <- svd.X$d
     eigen.values <- sgl.values^2
     rot.dat <- X %*% svd.X$v
     rownames(rot.dat) <- rownames(X)
-  } else if(! is.null(S)){
+  } else if (!is.null(S)) {
     sgl.values <- NULL
     evd.S <- eigen(S)
     eigen.values <- evd.S$values
@@ -660,11 +724,14 @@ pca <- function(X=NULL, S=NULL, ct=TRUE, sc=FALSE, plot=NULL, main="PCA",
   output$prop.vars <- prop.vars
   output$rot.dat <- rot.dat
 
-  if(! is.null(plot))
-    plotPca(rotation=rot.dat, prop.vars=prop.vars, plot=plot, main=main,
-            cols=cols, pchs=pchs)
+  if (!is.null(plot)) {
+    plotPca(
+      rotation = rot.dat, prop.vars = prop.vars, plot = plot, main = main,
+      cols = cols, pchs = pchs
+    )
+  }
 
-  if(! is.null(X) & ES10){
+  if (!is.null(X) & ES10) {
     ## Lambda = U
     ## F = D V' and is N x P
     output$Lambda <- svd.X$u
@@ -685,11 +752,15 @@ pca <- function(X=NULL, S=NULL, ct=TRUE, sc=FALSE, plot=NULL, main="PCA",
 ##' @seealso \code{\link{pca}}, \code{\link{plotPca}}
 ##' @author Timothee Flutre
 ##' @export
-orthoRotate2D <- function(x, angle=90){
+orthoRotate2D <- function(x, angle = 90) {
   stopifnot(ncol(x) == 2)
-  rotmat <- matrix(c(cos(angle), -sin(angle),
-                     sin(angle), cos(angle)),
-                   nrow=2, ncol=2, byrow=TRUE)
+  rotmat <- matrix(
+    c(
+      cos(angle), -sin(angle),
+      sin(angle), cos(angle)
+    ),
+    nrow = 2, ncol = 2, byrow = TRUE
+  )
   x %*% rotmat
 }
 
@@ -700,26 +771,26 @@ orthoRotate2D <- function(x, angle=90){
 ##' @return integer
 ##' @author Daniel Shriner [aut], Timothee Flutre [cre]
 ##' @export
-getNbPCsMinimAvgSqPartCor <- function(X){
+getNbPCsMinimAvgSqPartCor <- function(X) {
   stopifnot(is.matrix(X))
 
-  mu <- apply(X, 1, mean, na.rm=TRUE)
+  mu <- apply(X, 1, mean, na.rm = TRUE)
   X <- X - mu
-  X2 <- stats::cor(X, use="complete.obs")
+  X2 <- stats::cor(X, use = "complete.obs")
   a <- eigen(X2)
   a$values[a$values < 0] <- 0
-  b <- diag(a$values, nrow=length(a$values))
+  b <- diag(a$values, nrow = length(a$values))
   loadings <- a$vectors %*% sqrt(b)
 
-  partial <- function(x){
+  partial <- function(x) {
     c <- loadings[, 1:x]
     partcov <- X2 - (c %*% t(c))
     d <- diag(partcov)
-    if(any(is.element(NaN,d), is.element(0,d), length(d[d<0])!=0)) {
+    if (any(is.element(NaN, d), is.element(0, d), length(d[d < 0]) != 0)) {
       map <- 1
     } else {
       d <- 1 / sqrt(d)
-      e <- diag(d, nrow=length(d))
+      e <- diag(d, nrow = length(d))
       pr <- e %*% partcov %*% e
       map <- (sum(pr^2) - ncol(X2)) / (ncol(X2) * (ncol(X2) - 1))
     }
@@ -740,10 +811,12 @@ getNbPCsMinimAvgSqPartCor <- function(X){
 ##' @seealso \code{plotEllipsis}
 ##' @author Timothee Flutre
 ##' @export
-getEllipsisCoords <- function(mat, center=c("x"=0,"y"=0)){
-  stopifnot(is.matrix(mat),
-            is.vector(center),
-            length(center) == 2)
+getEllipsisCoords <- function(mat, center = c("x" = 0, "y" = 0)) {
+  stopifnot(
+    is.matrix(mat),
+    is.vector(center),
+    length(center) == 2
+  )
 
   ## Sources:
   ## https://stat.ethz.ch/pipermail/r-help/2006-October/114652.html
@@ -762,7 +835,7 @@ getEllipsisCoords <- function(mat, center=c("x"=0,"y"=0)){
 
   ## eigenvalue decomposition
   EVD <- eigen(mat)
-  if(any(EVD$values <= 0)){
+  if (any(EVD$values <= 0)) {
     msg <- "matrix is not positive definite"
     stop(msg)
   }
@@ -770,17 +843,19 @@ getEllipsisCoords <- function(mat, center=c("x"=0,"y"=0)){
   eigVecs <- EVD$vectors # 1st eigenvector = major axis, 2nd eigenvector = minor axis
 
   ## angles to draw the whole ellipsis
-  theta <- seq(0, 2 * pi, length=1000)
+  theta <- seq(0, 2 * pi, length = 1000)
 
   ## major and minor radius
   radius <- sqrt(eigVals)
   ## rotation angle (in radians) btw positive x-axis and major axis in counterclockwise direction
-  rotAngle <- atan2(EVD$values[1] - mat[1,1], mat[1,2])
+  rotAngle <- atan2(EVD$values[1] - mat[1, 1], mat[1, 2])
 
-  coords <- cbind("x"=radius[1] * cos(rotAngle) * cos(theta) -
-                    radius[2] * sin(rotAngle) * sin(theta) + center[1],
-                  "y"=radius[1] * sin(rotAngle) * cos(theta) +
-                    radius[2] * cos(rotAngle) * sin(theta) + center[2])
+  coords <- cbind(
+    "x" = radius[1] * cos(rotAngle) * cos(theta) -
+      radius[2] * sin(rotAngle) * sin(theta) + center[1],
+    "y" = radius[1] * sin(rotAngle) * cos(theta) +
+      radius[2] * cos(rotAngle) * sin(theta) + center[2]
+  )
 
   attr(coords, "eigVals") <- eigVals
   attr(coords, "eigVecs") <- eigVecs
@@ -831,53 +906,67 @@ getEllipsisCoords <- function(mat, center=c("x"=0,"y"=0)){
 ##' attr(tmp, "rotAngle_deg")
 ##' plotEllipsis(mat, center, axisType="arrow")
 ##' @export
-plotEllipsis <- function(mat, center=c("x"=0,"y"=0), main="Variance-covariance",
-                         xlab=NULL, ylab=NULL,
-                         asp=1, xlim=NULL, ylim=NULL, lwd=1, col="black",
-                         axisType=NULL,
-                         axisCols=c("major"="black", "minor"="black")){
-  stopifnot(is.matrix(mat),
-            is.vector(center),
-            length(center) == 2)
-  if(! is.null(axisType))
+plotEllipsis <- function(mat, center = c("x" = 0, "y" = 0), main = "Variance-covariance",
+                         xlab = NULL, ylab = NULL,
+                         asp = 1, xlim = NULL, ylim = NULL, lwd = 1, col = "black",
+                         axisType = NULL,
+                         axisCols = c("major" = "black", "minor" = "black")) {
+  stopifnot(
+    is.matrix(mat),
+    is.vector(center),
+    length(center) == 2
+  )
+  if (!is.null(axisType)) {
     stopifnot(axisType %in% c("line", "arrow"))
-  if(! is.null(axisCols)){
-    stopifnot(is.vector(axisCols),
-              all(c("major","minor") %in% names(axisCols)))
-  } else
-    axisCols <- c("major"="black", "minor"="black")
-
-  if(is.null(xlab)){
-    if(is.null(rownames(mat))){
-      xlab <- "first dimension"
-    } else
-      xlab <- rownames(mat)[1]
   }
-  if(is.null(ylab)){
-    if(is.null(rownames(mat))){
+  if (!is.null(axisCols)) {
+    stopifnot(
+      is.vector(axisCols),
+      all(c("major", "minor") %in% names(axisCols))
+    )
+  } else {
+    axisCols <- c("major" = "black", "minor" = "black")
+  }
+
+  if (is.null(xlab)) {
+    if (is.null(rownames(mat))) {
+      xlab <- "first dimension"
+    } else {
+      xlab <- rownames(mat)[1]
+    }
+  }
+  if (is.null(ylab)) {
+    if (is.null(rownames(mat))) {
       ylab <- "second dimension"
-    } else
+    } else {
       ylab <- rownames(mat)[2]
+    }
   }
   coords <- getEllipsisCoords(mat, center)
-  plot(coords[,"x"], coords[,"y"], type="l", asp=asp, xlim=xlim, ylim=ylim,
-       lwd=lwd, col=col, las=1,
-       main=main, xlab=xlab, ylab=ylab)
+  plot(coords[, "x"], coords[, "y"],
+    type = "l", asp = asp, xlim = xlim, ylim = ylim,
+    lwd = lwd, col = col, las = 1,
+    main = main, xlab = xlab, ylab = ylab
+  )
 
-  if(! is.null(axisType)){
+  if (!is.null(axisType)) {
     eigVals <- attr(coords, "eigVals")
     eigVecs <- attr(coords, "eigVecs")
     eigScl <- eigVecs %*% diag(sqrt(eigVals))
-    xMat <- rbind(center[1] + eigScl[1,],
-                  center[1] - eigScl[1,])
-    yMat <- rbind(center[2] + eigScl[2,],
-                  center[2] - eigScl[2,])
-    if(axisType == "line"){
-      lines(xMat[,1], yMat[,1], col=axisCols["major"])
-      lines(xMat[,2], yMat[,2], col=axisCols["minor"])
-    } else if(axisType == "arrow"){
-      arrows(center[1], center[2], xMat[1,1], yMat[1,1], col=axisCols["major"])
-      arrows(center[1], center[2], xMat[1,2], yMat[1,2], col=axisCols["minor"])
+    xMat <- rbind(
+      center[1] + eigScl[1, ],
+      center[1] - eigScl[1, ]
+    )
+    yMat <- rbind(
+      center[2] + eigScl[2, ],
+      center[2] - eigScl[2, ]
+    )
+    if (axisType == "line") {
+      lines(xMat[, 1], yMat[, 1], col = axisCols["major"])
+      lines(xMat[, 2], yMat[, 2], col = axisCols["minor"])
+    } else if (axisType == "arrow") {
+      arrows(center[1], center[2], xMat[1, 1], yMat[1, 1], col = axisCols["major"])
+      arrows(center[1], center[2], xMat[1, 2], yMat[1, 2], col = axisCols["minor"])
     }
   }
 
@@ -893,20 +982,24 @@ plotEllipsis <- function(mat, center=c("x"=0,"y"=0), main="Variance-covariance",
 ##' @return vector
 ##' @author Timothee Flutre
 ##' @export
-quantNorm <- function(x, break.ties.rand=TRUE, seed=1859){
-  stopifnot(is.vector(x), is.numeric(x), is.logical(break.ties.rand),
-            is.numeric(seed))
+quantNorm <- function(x, break.ties.rand = TRUE, seed = 1859) {
+  stopifnot(
+    is.vector(x), is.numeric(x), is.logical(break.ties.rand),
+    is.numeric(seed)
+  )
 
-  out <- stats::setNames(object=rep(NA, length(x)), nm=names(x))
+  out <- stats::setNames(object = rep(NA, length(x)), nm = names(x))
 
-  if(break.ties.rand){
-    if(! is.null(seed))
+  if (break.ties.rand) {
+    if (!is.null(seed)) {
       set.seed(seed)
-    idx <- sample.int(n=length(x))
-    tmp <- stats::qqnorm(y=x[idx], plot.it=FALSE)$x
-    out <- tmp[sort(idx, index.return=TRUE)$ix]
-  } else
-    out <- stats::qqnorm(y=x, plot.it=FALSE)$x
+    }
+    idx <- sample.int(n = length(x))
+    tmp <- stats::qqnorm(y = x[idx], plot.it = FALSE)$x
+    out <- tmp[sort(idx, index.return = TRUE)$ix]
+  } else {
+    out <- stats::qqnorm(y = x, plot.it = FALSE)$x
+  }
 
   return(out)
 }
@@ -920,7 +1013,7 @@ quantNorm <- function(x, break.ties.rand=TRUE, seed=1859){
 ##' @return matrix
 ##' @author Timothee Flutre
 ##' @export
-cor2cov <- function(x, sd){
+cor2cov <- function(x, sd) {
   ## D <- diag(sd); return(D %*% x %*% D)
   return(sweep(sweep(x, 1, sd, "*"), 2, sd, "*"))
 }
@@ -933,7 +1026,7 @@ cor2cov <- function(x, sd){
 ##' @return logical
 ##' @author Timothee Flutre
 ##' @export
-isSingular <- function(x){
+isSingular <- function(x) {
   return(1 / kappa(x) <= 100 * .Machine$double.eps)
 }
 
@@ -960,50 +1053,64 @@ isSingular <- function(x){
 ##' summary(tmp) # corresponds well to Sigma
 ##' }
 ##' @export
-rmatnorm <- function(n=1, M, U, V, pivot=c(U="auto", V="auto")){
-  stopifnot(is.matrix(M),
-            is.matrix(U),
-            is.matrix(V),
-            nrow(M) == nrow(U),
-            ncol(M) == nrow(V),
-            nrow(U) == ncol(U),
-            nrow(V) == ncol(V),
-            is.vector(pivot),
-            all(c("U","V") %in% names(pivot)),
-            all(pivot %in% c(TRUE, FALSE, "auto")))
-  if(! is.null(colnames(M))){
-    if(! is.null(colnames(V)))
+rmatnorm <- function(n = 1, M, U, V, pivot = c(U = "auto", V = "auto")) {
+  stopifnot(
+    is.matrix(M),
+    is.matrix(U),
+    is.matrix(V),
+    nrow(M) == nrow(U),
+    ncol(M) == nrow(V),
+    nrow(U) == ncol(U),
+    nrow(V) == ncol(V),
+    is.vector(pivot),
+    all(c("U", "V") %in% names(pivot)),
+    all(pivot %in% c(TRUE, FALSE, "auto"))
+  )
+  if (!is.null(colnames(M))) {
+    if (!is.null(colnames(V))) {
       stopifnot(all(colnames(M) == colnames(V)))
-    if(! is.null(rownames(V)))
+    }
+    if (!is.null(rownames(V))) {
       stopifnot(all(colnames(M) == rownames(V)))
+    }
   }
-  if(! is.null(rownames(M))){
-    if(! is.null(colnames(U)))
+  if (!is.null(rownames(M))) {
+    if (!is.null(colnames(U))) {
       stopifnot(all(rownames(M) == colnames(U)))
-    if(! is.null(rownames(U)))
+    }
+    if (!is.null(rownames(U))) {
       stopifnot(all(rownames(M) == rownames(U)))
+    }
   }
 
   ## chol() returns upper triangular factor of Cholesky decomp
-  if(pivot["U"] == "auto"){
-    chol.tU <- chol(t(U), pivot=isSingular(U)) # A
-  } else
-    chol.tU <- chol(t(U), pivot=pivot["U"]) # A
-  if(pivot["V"] == "auto"){
-    chol.V <- chol(V, pivot=isSingular(V)) # B
-  } else
-    chol.V <- chol(V, pivot=pivot["V"]) # B
+  if (pivot["U"] == "auto") {
+    chol.tU <- chol(t(U), pivot = isSingular(U)) # A
+  } else {
+    chol.tU <- chol(t(U), pivot = pivot["U"])
+  } # A
+  if (pivot["V"] == "auto") {
+    chol.V <- chol(V, pivot = isSingular(V)) # B
+  } else {
+    chol.V <- chol(V, pivot = pivot["V"])
+  } # B
 
   ## for X ~ MN(M, AA', B'B): draw Z ~ MN(0, I, I), then X = M + A Z B
-  tmp <- lapply(1:n, function(i){
-    Z <- matrix(data=stats::rnorm(n=nrow(M) * ncol(M), mean=0, sd=1),
-                nrow=nrow(M), ncol=ncol(M))
-    matrix(data=M + chol.tU %*% Z %*% chol.V,
-           nrow=nrow(M), ncol=ncol(M))
+  tmp <- lapply(1:n, function(i) {
+    Z <- matrix(
+      data = stats::rnorm(n = nrow(M) * ncol(M), mean = 0, sd = 1),
+      nrow = nrow(M), ncol = ncol(M)
+    )
+    matrix(
+      data = M + chol.tU %*% Z %*% chol.V,
+      nrow = nrow(M), ncol = ncol(M)
+    )
   })
 
-  out <- array(data=do.call(c, tmp),
-               dim=c(nrow(M), ncol(M), n))
+  out <- array(
+    data = do.call(c, tmp),
+    dim = c(nrow(M), ncol(M), n)
+  )
   dimnames(out) <- list(rownames(M), colnames(M), NULL)
 
   return(out)
@@ -1029,30 +1136,36 @@ rmatnorm <- function(n=1, M, U, V, pivot=c(U="auto", V="auto")){
 ##' tridiag(main, upper, lower)
 ##' }
 ##' @export
-tridiag <- function(main, upper, lower, as.covar=FALSE){
-  stopifnot(is.vector(main),
-            is.vector(upper),
-            length(upper) == length(main) - 1)
-  if(! as.covar)
-    stopifnot(is.vector(lower),
-              length(lower) == length(main) - 1)
+tridiag <- function(main, upper, lower, as.covar = FALSE) {
+  stopifnot(
+    is.vector(main),
+    is.vector(upper),
+    length(upper) == length(main) - 1
+  )
+  if (!as.covar) {
+    stopifnot(
+      is.vector(lower),
+      length(lower) == length(main) - 1
+    )
+  }
 
   n <- length(main)
-  out <- matrix(data=0, nrow=n, ncol=n)
+  out <- matrix(data = 0, nrow = n, ncol = n)
 
   diag(out) <- main
 
   idx <- seq.int(length(upper))
   out[cbind(idx, idx + 1)] <- upper
 
-  if(! as.covar){
+  if (!as.covar) {
     out[cbind(idx + 1, idx)] <- lower
-  } else{
+  } else {
     ## cov.12 = cor.12 * sqrt(var.1 * var.2)
     out[1, 2] <- upper[1] * sqrt(main[1] * main[2])
-    for(i in 2:(n-1))
-      out[i, i+1] <- upper[i] * sqrt(main[i] * main[i+1])
-    out[lower.tri(out)] = t(out)[lower.tri(out)]
+    for (i in 2:(n - 1)) {
+      out[i, i + 1] <- upper[i] * sqrt(main[i] * main[i + 1])
+    }
+    out[lower.tri(out)] <- t(out)[lower.tri(out)]
   }
 
   return(out)
@@ -1066,11 +1179,13 @@ tridiag <- function(main, upper, lower, as.covar=FALSE){
 ##' @return matrix
 ##' @author Timothee Flutre
 ##' @export
-corrMatAR1 <- function(n, rho){
-  stopifnot(is.numeric(n),
-            n >= 0,
-            is.numeric(rho),
-            abs(rho) <= 1)
+corrMatAR1 <- function(n, rho) {
+  stopifnot(
+    is.numeric(n),
+    n >= 0,
+    is.numeric(rho),
+    abs(rho) <= 1
+  )
 
   M <- diag(n)
   M <- row(M) - col(M)
@@ -1088,15 +1203,17 @@ corrMatAR1 <- function(n, rho){
 ##' @return matrix
 ##' @author Timothee Flutre
 ##' @export
-covMatAR1 <- function(n, rho, sigma2){
-  stopifnot(is.numeric(n),
-            n >= 0,
-            is.numeric(rho),
-            abs(rho) <= 1,
-            is.numeric(sigma2),
-            sigma2 > 0)
+covMatAR1 <- function(n, rho, sigma2) {
+  stopifnot(
+    is.numeric(n),
+    n >= 0,
+    is.numeric(rho),
+    abs(rho) <= 1,
+    is.numeric(sigma2),
+    sigma2 > 0
+  )
 
-  corrMat <- corrMatAR1(n=n, rho=rho)
+  corrMat <- corrMatAR1(n = n, rho = rho)
 
   Sigma <- (sigma2 / (1 - rho^2)) * corrMat
 
@@ -1112,21 +1229,27 @@ covMatAR1 <- function(n, rho, sigma2){
 ##' @return sparse matrix
 ##' @author Timothee Flutre
 ##' @export
-precMatAR1 <- function(n, rho, sigma2){
+precMatAR1 <- function(n, rho, sigma2) {
   requireNamespace("Matrix")
-  stopifnot(is.numeric(n),
-            n >= 0,
-            is.numeric(rho),
-            abs(rho) <= 1,
-            is.numeric(sigma2),
-            sigma2 > 0)
+  stopifnot(
+    is.numeric(n),
+    n >= 0,
+    is.numeric(rho),
+    abs(rho) <= 1,
+    is.numeric(sigma2),
+    sigma2 > 0
+  )
 
-  tmp <- Matrix::bandSparse(n=n, m=n, k=c(1, -1),
-                            diagonals=list(rep(- rho, n - 1),
-                                           rep(- rho, n - 1)))
+  tmp <- Matrix::bandSparse(
+    n = n, m = n, k = c(1, -1),
+    diagonals = list(
+      rep(-rho, n - 1),
+      rep(-rho, n - 1)
+    )
+  )
 
-  Q <- (1 / sigma2) * (Matrix::Diagonal(x=c(1, rep(1 + rho^2, n - 2), 1)) +
-                       tmp)
+  Q <- (1 / sigma2) * (Matrix::Diagonal(x = c(1, rep(1 + rho^2, n - 2), 1)) +
+    tmp)
 
   return(Q)
 }
@@ -1141,8 +1264,8 @@ precMatAR1 <- function(n, rho, sigma2){
 ##' @return numeric
 ##' @author Jon White
 ##' @export
-n0WX2019 <- function(lambda=1, eigvalues){
-  return((lambda+1) * sum(1 / (eigvalues*lambda+1)))
+n0WX2019 <- function(lambda = 1, eigvalues) {
+  return((lambda + 1) * sum(1 / (eigvalues * lambda + 1)))
 }
 
 ##' GWAS power analysis
@@ -1156,13 +1279,13 @@ n0WX2019 <- function(lambda=1, eigvalues){
 ##' @return numeric
 ##' @author Jon White
 ##' @export
-rhoWX2019 <- function(n=500,lambda=1,n0=500){
+rhoWX2019 <- function(n = 500, lambda = 1, n0 = 500) {
   y <- n0
-  fn <- function(x,y){
-    f <- (lambda+1) * ( (n-1)/((1-x)*lambda+1) + 1/( (1+n*x-x)*lambda + 1)) - y
+  fn <- function(x, y) {
+    f <- (lambda + 1) * ((n - 1) / ((1 - x) * lambda + 1) + 1 / ((1 + n * x - x) * lambda + 1)) - y
     return(f)
   }
-  myrho <- uniroot(f=fn, y=y, lower=0, upper=1)
+  myrho <- uniroot(f = fn, y = y, lower = 0, upper = 1)
   return(myrho$root)
 }
 
@@ -1179,13 +1302,13 @@ rhoWX2019 <- function(n=500,lambda=1,n0=500){
 ##' @return numeric
 ##' @author Jon White
 ##' @export
-powerWX2019 <- function(n=500, h2=0.05, lambda=1, rho=0.5, m=1e5, alpha=0.05){
-  alpha <- alpha/m
-  x <- qchisq(1-alpha,1)
-  n0 <- (n-1)/((1-rho)*lambda+1) + 1/((1+n*rho-rho)*lambda+1)
-  delta <- h2/(1-h2)*(lambda+1)*n0
-  beta <- pchisq(x,1,delta)
-  power <- 1-beta
+powerWX2019 <- function(n = 500, h2 = 0.05, lambda = 1, rho = 0.5, m = 1e5, alpha = 0.05) {
+  alpha <- alpha / m
+  x <- qchisq(1 - alpha, 1)
+  n0 <- (n - 1) / ((1 - rho) * lambda + 1) + 1 / ((1 + n * rho - rho) * lambda + 1)
+  delta <- h2 / (1 - h2) * (lambda + 1) * n0
+  beta <- pchisq(x, 1, delta)
+  power <- 1 - beta
   return(power)
 }
 
@@ -1202,12 +1325,12 @@ powerWX2019 <- function(n=500, h2=0.05, lambda=1, rho=0.5, m=1e5, alpha=0.05){
 ##' @return numeric
 ##' @author Jon White
 ##' @export
-h2v1WX2019 <- function(lambda=1,n0=2000,power=0.85,m=1e5,alpha=0.05){
-   alpha <- alpha/m
-   x <- qchisq(1-alpha,1)
-   delta <- (qnorm(1-alpha/2)+qnorm(power))^2
-   h2 <- delta/(n0+delta)
-   return(h2)
+h2v1WX2019 <- function(lambda = 1, n0 = 2000, power = 0.85, m = 1e5, alpha = 0.05) {
+  alpha <- alpha / m
+  x <- qchisq(1 - alpha, 1)
+  delta <- (qnorm(1 - alpha / 2) + qnorm(power))^2
+  h2 <- delta / (n0 + delta)
+  return(h2)
 }
 
 ##' GWAS power analysis
@@ -1224,13 +1347,13 @@ h2v1WX2019 <- function(lambda=1,n0=2000,power=0.85,m=1e5,alpha=0.05){
 ##' @return numeric
 ##' @author Jon White
 ##' @export
-h2v2WX2019 <- function(n=2000,lambda=1,rho=0.5,power=0.85,m=1e5,alpha=0.05){
-   alpha <- alpha/m
-   x <- qchisq(1-alpha,1)
-   delta <- (qnorm(1-alpha/2)+qnorm(power))^2
-   n0 <- (lambda+1)*((n-1)/((1-rho)*lambda+1) + 1/((1+n*rho-rho)*lambda+1))
-   h2 <- delta/(n0+delta)
-   return(h2)
+h2v2WX2019 <- function(n = 2000, lambda = 1, rho = 0.5, power = 0.85, m = 1e5, alpha = 0.05) {
+  alpha <- alpha / m
+  x <- qchisq(1 - alpha, 1)
+  delta <- (qnorm(1 - alpha / 2) + qnorm(power))^2
+  n0 <- (lambda + 1) * ((n - 1) / ((1 - rho) * lambda + 1) + 1 / ((1 + n * rho - rho) * lambda + 1))
+  h2 <- delta / (n0 + delta)
+  return(h2)
 }
 
 ##' GWAS power analysis
@@ -1247,16 +1370,16 @@ h2v2WX2019 <- function(n=2000,lambda=1,rho=0.5,power=0.85,m=1e5,alpha=0.05){
 ##' @return numeric
 ##' @author Jon White
 ##' @export
-sampleWX2019 <- function(h2=0.05,lambda=1,rho=0.5,power=0.85,m=1e5,alpha=0.05){
-   alpha <- alpha/m
-   y <- (qnorm(1-alpha/2)+qnorm(power))^2
-   fn <- function(x,y){
-      n0 <- (x-1)/((1-rho)*lambda+1) + 1/((1+x*rho-rho)*lambda+1)
-      f <- h2*(lambda+1)/(1-h2)*n0-y
-      return(f)
-   }
-   myh2 <- uniroot(f=fn,y=y,lower=0,upper=1e8)
-   return(myh2$root)
+sampleWX2019 <- function(h2 = 0.05, lambda = 1, rho = 0.5, power = 0.85, m = 1e5, alpha = 0.05) {
+  alpha <- alpha / m
+  y <- (qnorm(1 - alpha / 2) + qnorm(power))^2
+  fn <- function(x, y) {
+    n0 <- (x - 1) / ((1 - rho) * lambda + 1) + 1 / ((1 + x * rho - rho) * lambda + 1)
+    f <- h2 * (lambda + 1) / (1 - h2) * n0 - y
+    return(f)
+  }
+  myh2 <- uniroot(f = fn, y = y, lower = 0, upper = 1e8)
+  return(myh2$root)
 }
 
 
@@ -1300,63 +1423,80 @@ sampleWX2019 <- function(h2=0.05,lambda=1,rho=0.5,power=0.85,m=1e5,alpha=0.05){
 ##' }
 ##' }
 ##' @export
-plotHistPval <- function(pvalues, breaks=seq(0, 1, 0.05), freq=FALSE,
-                         main=NULL, col="grey", border="white", pi0=NULL,
-                         ylim=NULL, legend.x="topright", verbose=1){
-  stopifnot(is.numeric(pvalues),
-            is.vector(pvalues),
-            is.vector(breaks))
-  if(! is.null(ylim))
-    stopifnot(is.vector(ylim),
-              length(ylim) == 2)
+plotHistPval <- function(pvalues, breaks = seq(0, 1, 0.05), freq = FALSE,
+                         main = NULL, col = "grey", border = "white", pi0 = NULL,
+                         ylim = NULL, legend.x = "topright", verbose = 1) {
+  stopifnot(
+    is.numeric(pvalues),
+    is.vector(pvalues),
+    is.vector(breaks)
+  )
+  if (!is.null(ylim)) {
+    stopifnot(
+      is.vector(ylim),
+      length(ylim) == 2
+    )
+  }
 
   isna <- is.na(pvalues)
-  if(any(isna)){
-    if(verbose > 0){
+  if (any(isna)) {
+    if (verbose > 0) {
       msg <- paste0(sum(isna), " NA are discarded")
       write(msg, stdout())
     }
-    pvalues <- pvalues[! is.na(pvalues)]
+    pvalues <- pvalues[!is.na(pvalues)]
   }
 
-  if(is.null(main))
+  if (is.null(main)) {
     main <- paste0("Histogram of ", length(pvalues), " p values")
+  }
 
-  out <- graphics::hist(pvalues, breaks=breaks,
-                        xlim=c(0,1), ylim=ylim,
-                        freq=freq, las=1,
-                        xlab=expression(italic(p)~values), main=main,
-                        ## ylab=ifelse(freq, "Frequency", "Density"),
-                        col=col, border=border)
+  out <- graphics::hist(pvalues,
+    breaks = breaks,
+    xlim = c(0, 1), ylim = ylim,
+    freq = freq, las = 1,
+    xlab = expression(italic(p) ~ values), main = main,
+    ## ylab=ifelse(freq, "Frequency", "Density"),
+    col = col, border = border
+  )
 
   ## height one would expect if all tested hypotheses were null
-  if(freq){
-    graphics::abline(h=length(pvalues) / length(breaks), lty=2)
-  } else
-    graphics::abline(h=1, lty=2)
+  if (freq) {
+    graphics::abline(h = length(pvalues) / length(breaks), lty = 2)
+  } else {
+    graphics::abline(h = 1, lty = 2)
+  }
 
-  legs <- paste0("expected ", ifelse(freq, "frequency", "density"),
-                 " if all hypotheses are null")
+  legs <- paste0(
+    "expected ", ifelse(freq, "frequency", "density"),
+    " if all hypotheses are null"
+  )
   cols <- "black"
   ltys <- 2
   lwds <- 1
 
   ## height of the estimate of the proportion of null hypotheses
-  if(! is.null(pi0)){
-    if(freq){
-      graphics::abline(h=pi0 * length(pvalues) / length(breaks), lty=3)
-    } else
-      graphics::abline(h=pi0, lty=3)
-    legs <- c(legs, paste0("estimated ", ifelse(freq, "frequency", "density"),
-                           " of null hypotheses"))
+  if (!is.null(pi0)) {
+    if (freq) {
+      graphics::abline(h = pi0 * length(pvalues) / length(breaks), lty = 3)
+    } else {
+      graphics::abline(h = pi0, lty = 3)
+    }
+    legs <- c(legs, paste0(
+      "estimated ", ifelse(freq, "frequency", "density"),
+      " of null hypotheses"
+    ))
     cols <- c(cols, "black")
     ltys <- c(ltys, 3)
     lwds <- c(lwds, 1)
   }
 
-  if(! is.null(legend.x))
-    graphics::legend(legend.x, legend=legs, col=cols, lty=ltys, lwd=lwds,
-                     bty="n")
+  if (!is.null(legend.x)) {
+    graphics::legend(legend.x,
+      legend = legs, col = cols, lty = ltys, lwd = lwds,
+      bty = "n"
+    )
+  }
 
   invisible(out)
 }
@@ -1409,213 +1549,264 @@ plotHistPval <- function(pvalues, breaks=seq(0, 1, 0.05), freq=FALSE,
 ##' sum(out$pv.bh <= thresh)
 ##' }
 ##' @export
-qqplotPval <- function(pvalues, use.density=FALSE, nrpoints=1000, pch=1,
-                       plot.conf.int=TRUE,
-                       xlab=expression(Expected~~-log[10](italic(p)~values)),
-                       ylab=expression(Observed~~-log[10](italic(p)~values)),
-                       thresh=0.05, ctl.fwer.bonf=FALSE, ctl.fwer.sidak=FALSE,
-                       ctl.fdr.bh=FALSE, ctl.fdr.storey=FALSE, pfdr=TRUE,
-                       lim.custom, lty.custom, lgd.custom, plot.signif=FALSE,
-                       main=NULL, col=NULL, verbose=1){
-  stopifnot(is.numeric(pvalues),
-            is.vector(pvalues),
-            is.logical(plot.conf.int),
-            is.logical(ctl.fwer.bonf),
-            is.logical(ctl.fwer.sidak),
-            is.logical(ctl.fdr.bh),
-            is.logical(ctl.fdr.storey),
-            is.logical(plot.signif))
-  if(ctl.fdr.storey)
+qqplotPval <- function(pvalues, use.density = FALSE, nrpoints = 1000, pch = 1,
+                       plot.conf.int = TRUE,
+                       xlab = expression(Expected ~ ~ -log[10](italic(p) ~ values)),
+                       ylab = expression(Observed ~ ~ -log[10](italic(p) ~ values)),
+                       thresh = 0.05, ctl.fwer.bonf = FALSE, ctl.fwer.sidak = FALSE,
+                       ctl.fdr.bh = FALSE, ctl.fdr.storey = FALSE, pfdr = TRUE,
+                       lim.custom, lty.custom, lgd.custom, plot.signif = FALSE,
+                       main = NULL, col = NULL, verbose = 1) {
+  stopifnot(
+    is.numeric(pvalues),
+    is.vector(pvalues),
+    is.logical(plot.conf.int),
+    is.logical(ctl.fwer.bonf),
+    is.logical(ctl.fwer.sidak),
+    is.logical(ctl.fdr.bh),
+    is.logical(ctl.fdr.storey),
+    is.logical(plot.signif)
+  )
+  if (ctl.fdr.storey) {
     requireNamespace("qvalue")
-  if(! is.null(col))
-    stopifnot(is.vector(col),
-              length(col) == length(pvalues))
-  if(length(pch) == 1){
+  }
+  if (!is.null(col)) {
+    stopifnot(
+      is.vector(col),
+      length(col) == length(pvalues)
+    )
+  }
+  if (length(pch) == 1) {
     pch <- rep(pch, length(pvalues))
-  } else
+  } else {
     stopifnot(length(pch) == length(pvalues))
-  if(! is.null(thresh))
-    stopifnot(is.numeric(thresh),
-              length(thresh) == 1,
-              thresh >= 0,
-              thresh <= 1)
+  }
+  if (!is.null(thresh)) {
+    stopifnot(
+      is.numeric(thresh),
+      length(thresh) == 1,
+      thresh >= 0,
+      thresh <= 1
+    )
+  }
 
-  if(is.null(col))
+  if (is.null(col)) {
     col <- rep(1, length(pvalues))
+  }
 
   ## discard missing p values
   isna <- is.na(pvalues)
-  if(any(isna)){
-    if(verbose > 0){
+  if (any(isna)) {
+    if (verbose > 0) {
       msg <- paste0(sum(isna), " NA are discarded")
       write(msg, stdout())
     }
-    pvalues <- pvalues[! isna]
-    col <- col[! isna]
+    pvalues <- pvalues[!isna]
+    col <- col[!isna]
   }
 
   N <- length(pvalues)
-  expected <- - log10(1:N / N)
-  observed <- - log10(pvalues)
+  expected <- -log10(1:N / N)
+  observed <- -log10(pvalues)
   MAX <- max(c(expected, observed))
 
   ## calculate and plot the confidence interval
-  if(plot.conf.int){
+  if (plot.conf.int) {
     c95 <- rep(0, N)
     c05 <- rep(0, N)
-    for(j in 1:N){
-      c95[j] <- stats::qbeta(0.95, j, N-j+1)
-      c05[j] <- stats::qbeta(0.05, j, N-j+1)
+    for (j in 1:N) {
+      c95[j] <- stats::qbeta(0.95, j, N - j + 1)
+      c05[j] <- stats::qbeta(0.05, j, N - j + 1)
     }
-    c95 <- - log10(c95)
-    c05 <- - log10(c05)
-    graphics::plot(expected, c95, ylim=c(0,MAX), xlim=c(0,MAX), type="l",
-         axes=FALSE, xlab="", ylab="")
-    graphics::par(new=T)
-    graphics::plot(expected, c05, ylim=c(0,MAX), xlim=c(0,MAX), type="l",
-         axes=FALSE, xlab="", ylab="")
-    graphics::par(new=T)
+    c95 <- -log10(c95)
+    c05 <- -log10(c05)
+    graphics::plot(expected, c95,
+      ylim = c(0, MAX), xlim = c(0, MAX), type = "l",
+      axes = FALSE, xlab = "", ylab = ""
+    )
+    graphics::par(new = T)
+    graphics::plot(expected, c05,
+      ylim = c(0, MAX), xlim = c(0, MAX), type = "l",
+      axes = FALSE, xlab = "", ylab = ""
+    )
+    graphics::par(new = T)
   }
 
   ## add the Q-Q plot
-  if(is.null(main))
+  if (is.null(main)) {
     main <- paste0("Q-Q plot (", N, " p values)")
-  if(use.density){
-    graphics::smoothScatter(x=sort(expected), y=sort(observed),
-                            xlim=c(0,MAX), ylim=c(0,MAX),
-                            las=1, nrpoints=nrpoints, pch=pch,
-                            xlab=xlab, ylab=ylab, main=main)
-  } else
-    graphics::plot(x=sort(expected), y=sort(observed),
-                   xlim=c(0,MAX), ylim=c(0,MAX),
-                   las=1, col=col[order(observed)],
-                   pch=pch[order(observed)],
-                   xlab=xlab, ylab=ylab, main=main)
-  graphics::abline(0, 1, col="red")
+  }
+  if (use.density) {
+    graphics::smoothScatter(
+      x = sort(expected), y = sort(observed),
+      xlim = c(0, MAX), ylim = c(0, MAX),
+      las = 1, nrpoints = nrpoints, pch = pch,
+      xlab = xlab, ylab = ylab, main = main
+    )
+  } else {
+    graphics::plot(
+      x = sort(expected), y = sort(observed),
+      xlim = c(0, MAX), ylim = c(0, MAX),
+      las = 1, col = col[order(observed)],
+      pch = pch[order(observed)],
+      xlab = xlab, ylab = ylab, main = main
+    )
+  }
+  graphics::abline(0, 1, col = "red")
 
   ## multiple testing correction: FWER with Bonferroni
   pv.bonf <- NULL
-  if(ctl.fwer.bonf){
-    pv.bonf <- stats::p.adjust(pvalues, method="bonferroni")
-    if(verbose > 0){
-      msg <- paste0("signif tests at ", format(100*thresh, digits=2),
-                    "% (FWER, Bonf): ", sum(pv.bonf <= thresh))
+  if (ctl.fwer.bonf) {
+    pv.bonf <- stats::p.adjust(pvalues, method = "bonferroni")
+    if (verbose > 0) {
+      msg <- paste0(
+        "signif tests at ", format(100 * thresh, digits = 2),
+        "% (FWER, Bonf): ", sum(pv.bonf <= thresh)
+      )
       write(msg, stdout())
     }
     lim.pv.bonf <- adjustThreshBonf(length(pvalues), thresh)
-    if(plot.signif){
-      graphics::segments(x0=graphics::par("usr")[1], y0=-log10(lim.pv.bonf),
-                         x1=-log10(lim.pv.bonf), y1=-log10(lim.pv.bonf),
-                         lty=2)
+    if (plot.signif) {
+      graphics::segments(
+        x0 = graphics::par("usr")[1], y0 = -log10(lim.pv.bonf),
+        x1 = -log10(lim.pv.bonf), y1 = -log10(lim.pv.bonf),
+        lty = 2
+      )
     }
   }
 
   ## multiple testing correction: FWER with Sidak
   pv.sidak <- NULL
-  if(ctl.fwer.sidak){
+  if (ctl.fwer.sidak) {
     pv.sidak <- adjustPvaluesSidak(pvalues)
-    if(verbose > 0){
-      msg <- paste0("signif tests at ", format(100*thresh, digits=2),
-                    "% (FWER, Sidak): ", sum(pv.sidak <= thresh))
+    if (verbose > 0) {
+      msg <- paste0(
+        "signif tests at ", format(100 * thresh, digits = 2),
+        "% (FWER, Sidak): ", sum(pv.sidak <= thresh)
+      )
       write(msg, stdout())
     }
     lim.pv.sidak <- adjustThreshSidak(length(pvalues), thresh)
-    if(plot.signif){
-      graphics::segments(x0=graphics::par("usr")[1], y0=-log10(lim.pv.sidak),
-                         x1=-log10(lim.pv.sidak), y1=-log10(lim.pv.sidak),
-                         lty=2)
+    if (plot.signif) {
+      graphics::segments(
+        x0 = graphics::par("usr")[1], y0 = -log10(lim.pv.sidak),
+        x1 = -log10(lim.pv.sidak), y1 = -log10(lim.pv.sidak),
+        lty = 2
+      )
     }
   }
 
   ## multiple testing correction: FDR with B-H
   pv.bh <- NULL
-  if(ctl.fdr.bh){
-    pv.bh <- stats::p.adjust(pvalues, method="BH")
-    if(verbose > 0){
-      msg <- paste0("signif tests at ", format(100*thresh, digits=2),
-                    "% (FDR, BH): ", sum(pv.bh <= thresh))
+  if (ctl.fdr.bh) {
+    pv.bh <- stats::p.adjust(pvalues, method = "BH")
+    if (verbose > 0) {
+      msg <- paste0(
+        "signif tests at ", format(100 * thresh, digits = 2),
+        "% (FDR, BH): ", sum(pv.bh <= thresh)
+      )
       write(msg, stdout())
     }
-    lim.pv.bh <- sort(pvalues[pv.bh <= thresh], decreasing=TRUE)[1]
-    if(plot.signif){
-      graphics::segments(x0=graphics::par("usr")[1], y0=-log10(lim.pv.bh),
-                         x1=-log10(lim.pv.bh), y1=-log10(lim.pv.bh),
-                         lty=3)
+    lim.pv.bh <- sort(pvalues[pv.bh <= thresh], decreasing = TRUE)[1]
+    if (plot.signif) {
+      graphics::segments(
+        x0 = graphics::par("usr")[1], y0 = -log10(lim.pv.bh),
+        x1 = -log10(lim.pv.bh), y1 = -log10(lim.pv.bh),
+        lty = 3
+      )
     }
   }
 
   ## multiple testing correction: FDR with Storey
   qv.st <- NULL
-  if(ctl.fdr.storey){
-    out.st <- qvalue::qvalue(p=pvalues, fdr.level=thresh, pfdr=pfdr)
+  if (ctl.fdr.storey) {
+    out.st <- qvalue::qvalue(p = pvalues, fdr.level = thresh, pfdr = pfdr)
     qv.st <- out.st$qvalues
-    if(verbose > 0){
-      msg <- paste0("signif tests at ", format(100*thresh, digits=2),
-                    "% (FDR, Storey): ", sum(out.st$significant))
+    if (verbose > 0) {
+      msg <- paste0(
+        "signif tests at ", format(100 * thresh, digits = 2),
+        "% (FDR, Storey): ", sum(out.st$significant)
+      )
       write(msg, stdout())
     }
-    lim.pv.st <- sort(pvalues[out.st$qvalues <= thresh], decreasing=TRUE)[1]
-    if(plot.signif){
-      graphics::segments(x0=graphics::par("usr")[1], y0=-log10(lim.pv.st),
-                         x1=-log10(lim.pv.st), y1=-log10(lim.pv.st),
-                         lty=4)
+    lim.pv.st <- sort(pvalues[out.st$qvalues <= thresh], decreasing = TRUE)[1]
+    if (plot.signif) {
+      graphics::segments(
+        x0 = graphics::par("usr")[1], y0 = -log10(lim.pv.st),
+        x1 = -log10(lim.pv.st), y1 = -log10(lim.pv.st),
+        lty = 4
+      )
     }
   }
 
   ## multiple testing correction: plot custom limit
-  if(plot.signif & ! missing(lim.custom)){
-    graphics::segments(x0=graphics::par("usr")[1], y0=-log10(lim.custom),
-                       x1=-log10(lim.custom), y1=-log10(lim.custom),
-                       lty=lty.custom)
+  if (plot.signif & !missing(lim.custom)) {
+    graphics::segments(
+      x0 = graphics::par("usr")[1], y0 = -log10(lim.custom),
+      x1 = -log10(lim.custom), y1 = -log10(lim.custom),
+      lty = lty.custom
+    )
   }
 
   ## plot threshold lines on p value scale
-  if(plot.signif){
+  if (plot.signif) {
     lgd <- c()
     lty <- c()
-    if(ctl.fwer.bonf){
-      lgd <- c(lgd,
-               "threshold (FWER-Bonferroni)")
+    if (ctl.fwer.bonf) {
+      lgd <- c(
+        lgd,
+        "threshold (FWER-Bonferroni)"
+      )
       lty <- c(lty, 2)
     }
-    if(ctl.fwer.sidak){
-      lgd <- c(lgd,
-               "threshold (FWER-Sidak)")
+    if (ctl.fwer.sidak) {
+      lgd <- c(
+        lgd,
+        "threshold (FWER-Sidak)"
+      )
       lty <- c(lty, 2)
     }
-    if(ctl.fdr.bh){
-      lgd <- c(lgd,
-               expression(largest~significant~italic(p)~"value (FDR-BH)"))
+    if (ctl.fdr.bh) {
+      lgd <- c(
+        lgd,
+        expression(largest ~ significant ~ italic(p) ~ "value (FDR-BH)")
+      )
       lty <- c(lty, 3)
     }
-    if(ctl.fdr.storey){
-      lgd <- c(lgd,
-               expression(largest~significant~italic(p)~"value (FDR-Storey)"))
+    if (ctl.fdr.storey) {
+      lgd <- c(
+        lgd,
+        expression(largest ~ significant ~ italic(p) ~ "value (FDR-Storey)")
+      )
       lty <- c(lty, 4)
     }
-    if(! missing(lim.custom)){
-      lgd <- c(lgd,
-               lgd.custom)
+    if (!missing(lim.custom)) {
+      lgd <- c(
+        lgd,
+        lgd.custom
+      )
       lty <- c(lty, lty.custom)
     }
-    graphics::legend("bottomright", legend=lgd,
-                     lty=lty, bty="n", y.intersp=2)
+    graphics::legend("bottomright",
+      legend = lgd,
+      lty = lty, bty = "n", y.intersp = 2
+    )
   }
 
-  output <- data.frame(pvalues=pvalues)
-  if(! is.null(pv.bonf)){
+  output <- data.frame(pvalues = pvalues)
+  if (!is.null(pv.bonf)) {
     output$pv.bonf <- pv.bonf
     attr(output, "lim.pv.bonf") <- lim.pv.bonf
   }
-  if(! is.null(pv.sidak)){
+  if (!is.null(pv.sidak)) {
     output$pv.sidak <- pv.sidak
     attr(output, "lim.pv.sidak") <- lim.pv.sidak
   }
-  if(! is.null(pv.bh)){
+  if (!is.null(pv.bh)) {
     output$pv.bh <- pv.bh
     attr(output, "lim.pv.bh") <- lim.pv.bh
   }
-  if(! is.null(qv.st)){
+  if (!is.null(qv.st)) {
     output$qv.st <- qv.st
     attr(output, "lim.pv.st") <- lim.pv.st
   }
@@ -1637,67 +1828,84 @@ qqplotPval <- function(pvalues, use.density=FALSE, nrpoints=1000, pch=1,
 ##' @seealso \code{\link{qqplotPval}}, \code{\link{binaryClassif}}, \code{\link{adjustPvaluesSidak}}
 ##' @export
 significantTests <- function(pvalues,
-                             thresh.fwer.bonf=c(0.01, 0.05, 0.1),
-                             thresh.fwer.sidak=c(0.01, 0.05, 0.1),
-                             thresh.fdr.bh=c(0.01, 0.05, 0.1),
-                             thresh.fdr.storey=NULL, pfdr=TRUE){
-  stopifnot(is.numeric(pvalues),
-            is.vector(pvalues))
-  if(! is.null(thresh.fwer.bonf))
-    stopifnot(is.numeric(thresh.fwer.bonf),
-              is.vector(thresh.fwer.bonf),
-              all(thresh.fwer.bonf >= 0),
-              all(thresh.fwer.bonf <= 1))
-  if(! is.null(thresh.fwer.sidak))
-    stopifnot(is.numeric(thresh.fwer.sidak),
-              is.vector(thresh.fwer.sidak),
-              all(thresh.fwer.sidak >= 0),
-              all(thresh.fwer.sidak <= 1))
-  if(! is.null(thresh.fdr.bh))
-    stopifnot(is.numeric(thresh.fdr.bh),
-              is.vector(thresh.fdr.bh),
-              all(thresh.fdr.bh >= 0),
-              all(thresh.fdr.bh <= 1))
-  if(! is.null(thresh.fdr.storey)){
+                             thresh.fwer.bonf = c(0.01, 0.05, 0.1),
+                             thresh.fwer.sidak = c(0.01, 0.05, 0.1),
+                             thresh.fdr.bh = c(0.01, 0.05, 0.1),
+                             thresh.fdr.storey = NULL, pfdr = TRUE) {
+  stopifnot(
+    is.numeric(pvalues),
+    is.vector(pvalues)
+  )
+  if (!is.null(thresh.fwer.bonf)) {
+    stopifnot(
+      is.numeric(thresh.fwer.bonf),
+      is.vector(thresh.fwer.bonf),
+      all(thresh.fwer.bonf >= 0),
+      all(thresh.fwer.bonf <= 1)
+    )
+  }
+  if (!is.null(thresh.fwer.sidak)) {
+    stopifnot(
+      is.numeric(thresh.fwer.sidak),
+      is.vector(thresh.fwer.sidak),
+      all(thresh.fwer.sidak >= 0),
+      all(thresh.fwer.sidak <= 1)
+    )
+  }
+  if (!is.null(thresh.fdr.bh)) {
+    stopifnot(
+      is.numeric(thresh.fdr.bh),
+      is.vector(thresh.fdr.bh),
+      all(thresh.fdr.bh >= 0),
+      all(thresh.fdr.bh <= 1)
+    )
+  }
+  if (!is.null(thresh.fdr.storey)) {
     requireNamespace("qvalue")
-    stopifnot(is.numeric(thresh.fdr.storey),
-              is.vector(thresh.fdr.storey),
-              all(thresh.fdr.storey >= 0),
-              all(thresh.fdr.storey <= 1))
+    stopifnot(
+      is.numeric(thresh.fdr.storey),
+      is.vector(thresh.fdr.storey),
+      all(thresh.fdr.storey >= 0),
+      all(thresh.fdr.storey <= 1)
+    )
   }
 
-  output <- list(pvalues=pvalues)
+  output <- list(pvalues = pvalues)
 
-  if(! is.null(thresh.fwer.bonf)){
+  if (!is.null(thresh.fwer.bonf)) {
     output[["fwer.bonf"]] <-
-      data.frame(pv.adj=stats::p.adjust(pvalues, method="bonferroni"))
-    for(thresh in thresh.fwer.bonf)
+      data.frame(pv.adj = stats::p.adjust(pvalues, method = "bonferroni"))
+    for (thresh in thresh.fwer.bonf) {
       output[["fwer.bonf"]][[as.character(thresh)]] <-
         output[["fwer.bonf"]][["pv.adj"]] <= thresh
+    }
   }
 
-  if(! is.null(thresh.fwer.sidak)){
+  if (!is.null(thresh.fwer.sidak)) {
     output[["fwer.sidak"]] <-
-      data.frame(pv.adj=adjustPvaluesSidak(pvalues))
-    for(thresh in thresh.fwer.sidak)
+      data.frame(pv.adj = adjustPvaluesSidak(pvalues))
+    for (thresh in thresh.fwer.sidak) {
       output[["fwer.sidak"]][[as.character(thresh)]] <-
         output[["fwer.sidak"]][["pv.adj"]] <= thresh
+    }
   }
 
-  if(! is.null(thresh.fdr.bh)){
+  if (!is.null(thresh.fdr.bh)) {
     output[["fdr.bh"]] <-
-      data.frame(pv.adj=stats::p.adjust(pvalues, method="BH"))
-    for(thresh in thresh.fdr.bh)
+      data.frame(pv.adj = stats::p.adjust(pvalues, method = "BH"))
+    for (thresh in thresh.fdr.bh) {
       output[["fdr.bh"]][[as.character(thresh)]] <-
         output[["fdr.bh"]][["pv.adj"]] <= thresh
+    }
   }
 
-  if(! is.null(thresh.fdr.storey)){
-    tmp <- qvalue::qvalue(p=pvalues, pfdr=pfdr)
+  if (!is.null(thresh.fdr.storey)) {
+    tmp <- qvalue::qvalue(p = pvalues, pfdr = pfdr)
     output[["fdr.storey"]][["qv"]] <- tmp$qvalues
-    for(thresh in thresh.fdr.storey)
+    for (thresh in thresh.fdr.storey) {
       output[["fdr.storey"]][[as.character(thresh)]] <-
         output[["fdr.storey"]][["qv"]] <= thresh
+    }
     attr(output[["fdr.storey"]], "pi0") <- tmp$pi0
   }
 
@@ -1713,17 +1921,19 @@ significantTests <- function(pvalues,
 ##' @seealso \code{\link{adjustThreshSidak}}
 ##' @author Timothee Flutre
 ##' @export
-adjustThreshBonf <- function(nbPvals, thresh=0.05){
-  stopifnot(is.numeric(nbPvals),
-            length(nbPvals) == 1,
-            is.numeric(thresh),
-            length(thresh) == 1,
-            thresh >= 0,
-            thresh <= 1)
+adjustThreshBonf <- function(nbPvals, thresh = 0.05) {
+  stopifnot(
+    is.numeric(nbPvals),
+    length(nbPvals) == 1,
+    is.numeric(thresh),
+    length(thresh) == 1,
+    thresh >= 0,
+    thresh <= 1
+  )
 
   out <- NA
 
-  if(nbPvals > 0){
+  if (nbPvals > 0) {
     out <- thresh / nbPvals
   }
 
@@ -1739,17 +1949,19 @@ adjustThreshBonf <- function(nbPvals, thresh=0.05){
 ##' @seealso \code{\link{adjustThreshBonf}}
 ##' @author Timothee Flutre
 ##' @export
-adjustThreshSidak <- function(nbPvals, thresh=0.05){
-  stopifnot(is.numeric(nbPvals),
-            length(nbPvals) == 1,
-            is.numeric(thresh),
-            length(thresh) == 1,
-            thresh >= 0,
-            thresh <= 1)
+adjustThreshSidak <- function(nbPvals, thresh = 0.05) {
+  stopifnot(
+    is.numeric(nbPvals),
+    length(nbPvals) == 1,
+    is.numeric(thresh),
+    length(thresh) == 1,
+    thresh >= 0,
+    thresh <= 1
+  )
 
   out <- NA
 
-  if(nbPvals > 0){
+  if (nbPvals > 0) {
     out <- 1 - (1 - thresh)^(1 / nbPvals)
   }
 
@@ -1763,35 +1975,39 @@ adjustThreshSidak <- function(nbPvals, thresh=0.05){
 ##' @return numeric
 ##' @author Timothee Flutre
 ##' @export
-adjustPvaluesSidak <- function(pvalues){
-  stopifnot(is.numeric(pvalues),
-            is.vector(pvalues))
+adjustPvaluesSidak <- function(pvalues) {
+  stopifnot(
+    is.numeric(pvalues),
+    is.vector(pvalues)
+  )
 
   out <- NA
 
   ## if any NA in "pvalues", omit them
   hasNA <- FALSE
-  if(anyNA(pvalues)){
+  if (anyNA(pvalues)) {
     hasNA <- TRUE
     pvaluesInit <- pvalues
     pvalues <- stats::na.omit(pvalues)
   }
 
-  if(length(pvalues) > 0){
-    tmp <- data.frame(initord=order(pvalues),
-                      pvalue=sort(pvalues),
-                      k=length(pvalues):1)
+  if (length(pvalues) > 0) {
+    tmp <- data.frame(
+      initord = order(pvalues),
+      pvalue = sort(pvalues),
+      k = length(pvalues):1
+    )
     tmp$sidak <- 1 - (1 - tmp$pvalue)^(tmp$k)
-    idx <- 1 + which(tmp$sidak[2:nrow(tmp)] - tmp$sidak[1:(nrow(tmp)-1)] < 0)
-    while(length(idx) > 0){
-      tmp$sidak[idx] <- tmp$sidak[idx-1]
-      idx <- 1 + which(tmp$sidak[2:nrow(tmp)] - tmp$sidak[1:(nrow(tmp)-1)] < 0)
+    idx <- 1 + which(tmp$sidak[2:nrow(tmp)] - tmp$sidak[1:(nrow(tmp) - 1)] < 0)
+    while (length(idx) > 0) {
+      tmp$sidak[idx] <- tmp$sidak[idx - 1]
+      idx <- 1 + which(tmp$sidak[2:nrow(tmp)] - tmp$sidak[1:(nrow(tmp) - 1)] < 0)
     }
     out <- tmp$sidak[order(tmp$initord)]
 
     ## reintroduce the NA's
     ## copied from the code of naresid.exclude()
-    if(hasNA){
+    if (hasNA) {
       n <- length(pvalues)
       omit <- attr(pvalues, "na.action")
       keep <- rep.int(NA, n + length(omit))
@@ -1816,31 +2032,33 @@ adjustPvaluesSidak <- function(pvalues){
 ##' @seealso \code{\link{adjustThreshGalwey}}
 ##' @author Timothee Flutre
 ##' @export
-effNbIndepTests <- function(evCorX, corX, X, method="galwey", pkg="base", k){
-  stopifnot(method %in% c("galwey"),
-            pkg %in% c("base", "RSpectra"))
+effNbIndepTests <- function(evCorX, corX, X, method = "galwey", pkg = "base", k) {
+  stopifnot(
+    method %in% c("galwey"),
+    pkg %in% c("base", "RSpectra")
+  )
 
   out <- NA
 
-  if(missing(evCorX)){
-    if(missing(corX)){
-      if(missing(X)){
-        stop("missing X", call.=FALSE)
+  if (missing(evCorX)) {
+    if (missing(corX)) {
+      if (missing(X)) {
+        stop("missing X", call. = FALSE)
       }
       corX <- stats::cor(X)
     }
     stopifnot(isSymmetric(corX))
     ## corX <- as.matrix(Matrix::nearPD(corX)$mat)
-    if(pkg == "base"){
+    if (pkg == "base") {
       evCorX <- eigen(corX)$values
-    } else if(pkg == "RSpectra"){
-      stopifnot(requireNamespace("RSpectra", quietly=TRUE))
-      tmp <- RSpectra::eigs_sym(corX, k, which="LM", opts=list(retvec=FALSE))
+    } else if (pkg == "RSpectra") {
+      stopifnot(requireNamespace("RSpectra", quietly = TRUE))
+      tmp <- RSpectra::eigs_sym(corX, k, which = "LM", opts = list(retvec = FALSE))
       evCorX <- tmp$values
     }
   }
 
-  if(method == "galwey"){
+  if (method == "galwey") {
     evCorX[evCorX < 0] <- 0
     out <- sum(sqrt(evCorX))^2 / sum(evCorX)
   }
@@ -1862,14 +2080,16 @@ effNbIndepTests <- function(evCorX, corX, X, method="galwey", pkg="base", k){
 ##' @seealso \code{\link{effNbIndepTests}}, \code{\link{adjustThreshGalwey}}
 ##' @author Maxence Remerand, Timothee Flutre
 ##' @export
-effNbIndepTestsPerChr <- function(lcorX, method="galwey", pkg="base", k,
-                                  nb.cores=1){
-  stopifnot(is.list(lcorX),
-            all(sapply(lcorX, is.matrix)),
-            method %in% c("galwey"))
+effNbIndepTestsPerChr <- function(lcorX, method = "galwey", pkg = "base", k,
+                                  nb.cores = 1) {
+  stopifnot(
+    is.list(lcorX),
+    all(sapply(lcorX, is.matrix)),
+    method %in% c("galwey")
+  )
 
-  out <- parallel::mclapply(lcorX, function(corX){
-    effNbIndepTests(corX=corX, method=method, pkg=pkg, k=k)
+  out <- parallel::mclapply(lcorX, function(corX) {
+    effNbIndepTests(corX = corX, method = method, pkg = pkg, k = k)
   })
 
   return(out)
@@ -1884,7 +2104,7 @@ effNbIndepTestsPerChr <- function(lcorX, method="galwey", pkg="base", k,
 ##' @seealso \code{\link{effNbIndepTests}}
 ##' @author Timothee Flutre
 ##' @export
-adjustThreshGalwey <- function(effNbIndepTests, thresh=0.05){
+adjustThreshGalwey <- function(effNbIndepTests, thresh = 0.05) {
   ## see equation 21 in Galwey (2009)
   return(adjustThreshSidak(effNbIndepTests, thresh))
 }
@@ -1897,7 +2117,7 @@ adjustThreshGalwey <- function(effNbIndepTests, thresh=0.05){
 ##' @return numeric
 ##' @author Timothee Flutre
 ##' @export
-pooledVar <- function(v, n){
+pooledVar <- function(v, n) {
   ## https://en.wikipedia.org/wiki/Pooled_variance
   stopifnot(length(n) == length(v))
   out <- sum((n - 1) * v) / sum(n - 1)
@@ -1913,31 +2133,38 @@ pooledVar <- function(v, n){
 ##' @author Timothee Flutre
 ##' @seealso \code{\link{estimatePi0WithQbf}}, \code{\link{controlBayesFdr}}
 ##' @export
-estimatePi0WithEbf <- function(log10.bfs, verbose=1){
-  stopifnot(is.numeric(log10.bfs),
-            is.vector(log10.bfs))
+estimatePi0WithEbf <- function(log10.bfs, verbose = 1) {
+  stopifnot(
+    is.numeric(log10.bfs),
+    is.vector(log10.bfs)
+  )
 
   pi0.ebf <- 1
 
   isna <- is.na(log10.bfs)
-  if(any(isna)){
+  if (any(isna)) {
     warning(paste0(sum(isna), " NA are discarded"))
-    log10.bfs <- log10.bfs[! isna]
+    log10.bfs <- log10.bfs[!isna]
   }
-  if(verbose > 0)
+  if (verbose > 0) {
     message(paste0("nb of tests: ", length(log10.bfs)))
+  }
 
   tmp <- log10.bfs[order(log10.bfs)] # sort in increasing order
 
   d0 <- which(cumsum(10^tmp) / seq_along(10^tmp) >= 1)[1]
-  if(length(d0) > 0 & ! is.na(d0)){
-    if(verbose > 0)
+  if (length(d0) > 0 & !is.na(d0)) {
+    if (verbose > 0) {
       message(paste0("cutoff at the ", d0, "-th BF"))
+    }
 
     pi0.ebf <- d0 / length(tmp)
-    if(verbose > 0)
-      message(paste0("estimate pi0-hat = ",
-                     format(x=pi0.ebf, scientific=TRUE, digits=6)))
+    if (verbose > 0) {
+      message(paste0(
+        "estimate pi0-hat = ",
+        format(x = pi0.ebf, scientific = TRUE, digits = 6)
+      ))
+    }
   }
 
   return(pi0.ebf)
@@ -1953,18 +2180,24 @@ estimatePi0WithEbf <- function(log10.bfs, verbose=1){
 ##' @seealso \code{\link{estimatePi0WithEbf}}, \code{\link{controlBayesFdr}}
 ##' @author Timothee Flutre
 ##' @export
-estimatePi0WithQbf <- function(log10.bfs, gamma=0.5, verbose=1){
-  stopifnot(is.numeric(log10.bfs),
-            is.matrix(log10.bfs),
-            ncol(log10.bfs) == 2,
-            ! any(is.na(log10.bfs)))
-  if(verbose > 0)
+estimatePi0WithQbf <- function(log10.bfs, gamma = 0.5, verbose = 1) {
+  stopifnot(
+    is.numeric(log10.bfs),
+    is.matrix(log10.bfs),
+    ncol(log10.bfs) == 2,
+    !any(is.na(log10.bfs))
+  )
+  if (verbose > 0) {
     message(paste0("nb of tests: ", nrow(log10.bfs)))
+  }
 
-  pi0.qbf <- sum(log10.bfs[,1] <= log10.bfs[,2]) / (nrow(log10.bfs) * gamma)
-  if(verbose > 0)
-    message(paste0("estimate pi0-hat = ",
-                   format(x=pi0.qbf, scientific=TRUE, digits=6)))
+  pi0.qbf <- sum(log10.bfs[, 1] <= log10.bfs[, 2]) / (nrow(log10.bfs) * gamma)
+  if (verbose > 0) {
+    message(paste0(
+      "estimate pi0-hat = ",
+      format(x = pi0.qbf, scientific = TRUE, digits = 6)
+    ))
+  }
 
   return(pi0.qbf)
 }
@@ -1986,26 +2219,34 @@ estimatePi0WithQbf <- function(log10.bfs, gamma=0.5, verbose=1){
 ##' signif <- controlBayesFdr(log10.bfs, pi0)
 ##' }
 ##' @export
-controlBayesFdr <- function(log10.bfs, pi0, fdr.level=0.05, verbose=1){
-  stopifnot(is.numeric(log10.bfs),
-            is.vector(log10.bfs),
-            ! is.na(pi0))
-  if(verbose > 0)
-    message(paste0(length(log10.bfs), " tests and pi0-hat = ",
-                   format(x=pi0, scientific=TRUE, digits=6)))
+controlBayesFdr <- function(log10.bfs, pi0, fdr.level = 0.05, verbose = 1) {
+  stopifnot(
+    is.numeric(log10.bfs),
+    is.vector(log10.bfs),
+    !is.na(pi0)
+  )
+  if (verbose > 0) {
+    message(paste0(
+      length(log10.bfs), " tests and pi0-hat = ",
+      format(x = pi0, scientific = TRUE, digits = 6)
+    ))
+  }
 
   ## compute the posterior probability of each test being null
-  post.null <- pi0 / (pi0 + (1-pi0) * 10^log10.bfs)
+  post.null <- pi0 / (pi0 + (1 - pi0) * 10^log10.bfs)
 
   ## find the cutoff for which their cumulative mean is >= fdr.level
   idx <- order(post.null)
   post.null <- post.null[idx]
-  for(L in 1:length(post.null))
-    if(mean(post.null[1:L]) >= fdr.level)
+  for (L in 1:length(post.null)) {
+    if (mean(post.null[1:L]) >= fdr.level) {
       break
+    }
+  }
   log10.bf.L <- log10.bfs[idx[L]]
-  if(verbose > 0)
+  if (verbose > 0) {
     message(paste0(L, " significant tests, at cutoff log10(BF)=", log10.bf.L))
+  }
 
   significants <- log10.bfs >= log10.bf.L
 
@@ -2024,82 +2265,90 @@ controlBayesFdr <- function(log10.bfs, pi0, fdr.level=0.05, verbose=1){
 ##' @return nothing
 ##' @author Timothee Flutre
 ##' @export
-plotMcmcChain <- function(res.mcmc, param.name, subplots=1:4,
-                          pe=NULL, hi=NULL){
+plotMcmcChain <- function(res.mcmc, param.name, subplots = 1:4,
+                          pe = NULL, hi = NULL) {
   requireNamespaces("coda")
-  stopifnot(coda::is.mcmc(res.mcmc),
-            is.character(param.name),
-            param.name %in% colnames(res.mcmc),
-            is.vector(subplots), is.numeric(subplots))
-  if(! is.null(hi))
-    stopifnot(! is.null(pe))
+  stopifnot(
+    coda::is.mcmc(res.mcmc),
+    is.character(param.name),
+    param.name %in% colnames(res.mcmc),
+    is.vector(subplots), is.numeric(subplots)
+  )
+  if (!is.null(hi)) {
+    stopifnot(!is.null(pe))
+  }
 
   changed.par <- FALSE
-  if(1 %in% subplots & 2 %in% subplots & 3 %in% subplots & 4 %in% subplots &
-     all(graphics::par("mfrow") == c(1, 1))){
-    graphics::par(mfrow=c(2,2))
+  if (1 %in% subplots & 2 %in% subplots & 3 %in% subplots & 4 %in% subplots &
+    all(graphics::par("mfrow") == c(1, 1))) {
+    graphics::par(mfrow = c(2, 2))
     changed.par <- TRUE
   }
 
-  if(1 %in% subplots){
+  if (1 %in% subplots) {
     ## ts.plot(res.mcmc[, param.name],
     coda::traceplot(res.mcmc[, param.name],
-                    ## xlab="Iterations",
-                    ylab="Trace",
-                    main=paste0(param.name))
-    if(! is.null(pe)){
-      graphics::abline(h=pe, col="red")
-      if(! is.null(hi)){
-        graphics::abline(h=pe + 2 * hi, col="red", lty=2)
-        graphics::abline(h=pe - 2 * hi, col="red", lty=2)
+      ## xlab="Iterations",
+      ylab = "Trace",
+      main = paste0(param.name)
+    )
+    if (!is.null(pe)) {
+      graphics::abline(h = pe, col = "red")
+      if (!is.null(hi)) {
+        graphics::abline(h = pe + 2 * hi, col = "red", lty = 2)
+        graphics::abline(h = pe - 2 * hi, col = "red", lty = 2)
       }
     }
   }
 
-  if(2 %in% subplots){
+  if (2 %in% subplots) {
     ## acf(res.mcmc[, param.name],
     coda::autocorr.plot(res.mcmc[, param.name],
-                        main=paste0(param.name),
-                        ## xlab="Lag",
-                        ## ylab="Autocorrelation",
-                        auto.layout=FALSE,
-                        ask=FALSE)
+      main = paste0(param.name),
+      ## xlab="Lag",
+      ## ylab="Autocorrelation",
+      auto.layout = FALSE,
+      ask = FALSE
+    )
   }
 
-  if(3 %in% subplots){
+  if (3 %in% subplots) {
     ## ts.plot(cumsum(res.mcmc[, param.name]) / seq(along=res.mcmc[, param.name]),
     coda::cumuplot(res.mcmc[, param.name],
-                   probs=c(0.025, 0.5, 0.975),
-                   main=paste0(param.name),
-                   ## xlab="Iterations",
-                   ylab="Running quantiles",
-                   auto.layout=FALSE,
-                   ask=FALSE)
-    if(! is.null(pe)){
-      graphics::abline(h=pe, col="red")
-      if(! is.null(hi)){
-        graphics::abline(h=pe + 2 * hi, col="red", lty=2)
-        graphics::abline(h=pe - 2 * hi, col="red", lty=2)
+      probs = c(0.025, 0.5, 0.975),
+      main = paste0(param.name),
+      ## xlab="Iterations",
+      ylab = "Running quantiles",
+      auto.layout = FALSE,
+      ask = FALSE
+    )
+    if (!is.null(pe)) {
+      graphics::abline(h = pe, col = "red")
+      if (!is.null(hi)) {
+        graphics::abline(h = pe + 2 * hi, col = "red", lty = 2)
+        graphics::abline(h = pe - 2 * hi, col = "red", lty = 2)
       }
     }
   }
 
-  if(4 %in% subplots){
+  if (4 %in% subplots) {
     ## plot(density(res.mcmc[, param.name]), type="l",
     coda::densplot(res.mcmc[, param.name],
-                   ylab="Density",
-                   main=paste0(param.name))
-    if(! is.null(pe)){
-      graphics::abline(v=pe, col="red")
-      if(! is.null(hi)){
-        graphics::abline(v=pe + 2 * hi, col="red", lty=2)
-        graphics::abline(v=pe - 2 * hi, col="red", lty=2)
+      ylab = "Density",
+      main = paste0(param.name)
+    )
+    if (!is.null(pe)) {
+      graphics::abline(v = pe, col = "red")
+      if (!is.null(hi)) {
+        graphics::abline(v = pe + 2 * hi, col = "red", lty = 2)
+        graphics::abline(v = pe - 2 * hi, col = "red", lty = 2)
       }
     }
   }
 
-  if(changed.par)
-    graphics::par(mfrow=c(1,1))
+  if (changed.par) {
+    graphics::par(mfrow = c(1, 1))
+  }
 }
 
 ##' MCMC results
@@ -2110,28 +2359,34 @@ plotMcmcChain <- function(res.mcmc, param.name, subplots=1:4,
 ##' @return matrix with parameters in rows
 ##' @author Timothee Flutre
 ##' @export
-summaryMcmcChain <- function(res.mcmc, param.names){
+summaryMcmcChain <- function(res.mcmc, param.names) {
   requireNamespaces("coda")
-  stopifnot(coda::is.mcmc(res.mcmc),
-            all(is.character(param.names)),
-            all(param.names %in% colnames(res.mcmc)))
+  stopifnot(
+    coda::is.mcmc(res.mcmc),
+    all(is.character(param.names)),
+    all(param.names %in% colnames(res.mcmc))
+  )
 
   ## safespec0 in coda is not exported
-  safespectrum0 <- function(x){
+  safespectrum0 <- function(x) {
     result <- try(coda::spectrum0.ar(x)$spec)
-    if(methods::is(result, "try-error")) result <- NA
+    if (methods::is(result, "try-error")) result <- NA
     result
   }
 
-  out <- t(apply(res.mcmc[, param.names, drop=FALSE], 2, function(samples){
-    c(coda::effectiveSize(samples),
+  out <- t(apply(res.mcmc[, param.names, drop = FALSE], 2, function(samples) {
+    c(
+      coda::effectiveSize(samples),
       mean(samples),
       sqrt(safespectrum0(samples) / length(samples)),
       stats::sd(samples),
-      stats::quantile(samples, c(0.025, 0.5, 0.975)))
+      stats::quantile(samples, c(0.025, 0.5, 0.975))
+    )
   }))
-  colnames(out) <- c("ess", "mean", "se.mean", "sd",
-                     "0.025q", "0.5q", "0.975q")
+  colnames(out) <- c(
+    "ess", "mean", "se.mean", "sd",
+    "0.025q", "0.5q", "0.975q"
+  )
 
   return(out)
 }
@@ -2334,29 +2589,31 @@ summaryMcmcChain <- function(res.mcmc, param.names){
 ##' }
 ##' @export
 em_solve <- function(data, params, em_Estep, em_Mstep, em_loglik,
-                     thresh.cvg=10^(-3), nb.iters=10^3,
-                     logliks=rep(NA, 1 + nb.iters),
-                     print_position=stdout()){
+                     thresh.cvg = 10^(-3), nb.iters = 10^3,
+                     logliks = rep(NA, 1 + nb.iters),
+                     print_position = stdout()) {
   ## check inputs
-  stopifnot(is.list(params),
-            is.function(em_Estep),
-            is.function(em_Mstep),
-            is.function(em_loglik),
-            is.numeric(thresh.cvg),
-            length(thresh.cvg) == 1,
-            thresh.cvg > 0,
-            is.numeric(nb.iters),
-            length(nb.iters) == 1,
-            nb.iters >= 0,
-            is.vector(logliks),
-            length(logliks) >= 1 + nb.iters)
+  stopifnot(
+    is.list(params),
+    is.function(em_Estep),
+    is.function(em_Mstep),
+    is.function(em_loglik),
+    is.numeric(thresh.cvg),
+    length(thresh.cvg) == 1,
+    thresh.cvg > 0,
+    is.numeric(nb.iters),
+    length(nb.iters) == 1,
+    nb.iters >= 0,
+    is.vector(logliks),
+    length(logliks) >= 1 + nb.iters
+  )
 
   ## compute the observed-data log-likelihood of the initial parameters
   i <- 0
   logliks[i + 1] <- em_loglik(data, params)
 
   ## iterate
-  while(i <= nb.iters){
+  while (i <= nb.iters) {
     i <- i + 1
 
     ## E step
@@ -2367,24 +2624,33 @@ em_solve <- function(data, params, em_Estep, em_Mstep, em_loglik,
 
     ## compute the observed-data log-likelihood of the new parameters
     logliks[i + 1] <- em_loglik(data, params)
-    if(! is.null(print_position))
-      write(paste0("iter ", i, ":",
-                   " loglik=", round(logliks[i+1], 2)),
-            print_position)
+    if (!is.null(print_position)) {
+      write(
+        paste0(
+          "iter ", i, ":",
+          " loglik=", round(logliks[i + 1], 2)
+        ),
+        print_position
+      )
+    }
     ## check for bug(s) in the input functions
-    if(logliks[i+1] < logliks[i]){
-      msg <- paste("the observed-data log-likelihood is decreasing (",
-                   logliks[i+1], "<", logliks[i], ")")
+    if (logliks[i + 1] < logliks[i]) {
+      msg <- paste(
+        "the observed-data log-likelihood is decreasing (",
+        logliks[i + 1], "<", logliks[i], ")"
+      )
       stop(msg)
     }
 
     ## check for convergence
-    if(abs(logliks[i+1] - logliks[i]) <= thresh.cvg)
+    if (abs(logliks[i + 1] - logliks[i]) <= thresh.cvg) {
       break
+    }
   }
 
-  if(i < nb.iters)
-    logliks <- logliks[1:(i+1)]
+  if (i < nb.iters) {
+    logliks <- logliks[1:(i + 1)]
+  }
 
-  return(list(params=params, logliks=logliks))
+  return(list(params = params, logliks = logliks))
 }

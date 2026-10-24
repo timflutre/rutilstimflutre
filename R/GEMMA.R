@@ -11,39 +11,47 @@
 ##' @return invisible data.frame
 ##' @author Timothee Flutre
 ##' @export
-genoDoses2bimbam <- function(X=NULL, tX=NULL, alleles, file=NULL, format="mean"){
-  stopifnot(xor(is.null(X), is.null(tX)),
-            is.data.frame(alleles),
-            ncol(alleles) == 2,
-            ! is.null(row.names(alleles)),
-            format %in% c("mean", "basic"))
-  if(! is.null(X)){
-    stopIfNotValidGenosDose(X, check.hasColNames=FALSE, check.hasRowNames=FALSE)
+genoDoses2bimbam <- function(X = NULL, tX = NULL, alleles, file = NULL, format = "mean") {
+  stopifnot(
+    xor(is.null(X), is.null(tX)),
+    is.data.frame(alleles),
+    ncol(alleles) == 2,
+    !is.null(row.names(alleles)),
+    format %in% c("mean", "basic")
+  )
+  if (!is.null(X)) {
+    stopIfNotValidGenosDose(X, check.hasColNames = FALSE, check.hasRowNames = FALSE)
     tX <- t(X)
   }
-  stopifnot(all(rownames(alleles) %in% rownames(tX)),
-            all(rownames(tX) %in% rownames(alleles)))
+  stopifnot(
+    all(rownames(alleles) %in% rownames(tX)),
+    all(rownames(tX) %in% rownames(alleles))
+  )
   alleles <- convertFactorColumnsToCharacter(alleles)
-  alleles <- alleles[rownames(tX),] # put in same order
+  alleles <- alleles[rownames(tX), ] # put in same order
 
-  if(format == "mean"){
+  if (format == "mean") {
     out <- cbind(alleles, tX)
-    if(! is.null(file))
-      utils::write.table(x=out, file=file, quote=FALSE, sep="\t",
-                         row.names=TRUE, col.names=FALSE)
-  } else if(format == "basic"){
-    out <- genoDoses2genoClasses(tX=tX, alleles=alleles, na.string="??")
-    if(! is.null(file)){
+    if (!is.null(file)) {
+      utils::write.table(
+        x = out, file = file, quote = FALSE, sep = "\t",
+        row.names = TRUE, col.names = FALSE
+      )
+    }
+  } else if (format == "basic") {
+    out <- genoDoses2genoClasses(tX = tX, alleles = alleles, na.string = "??")
+    if (!is.null(file)) {
       file <- removeFileExtension(file, "gz")
-      cat(paste0(ncol(tX), "\n", nrow(tX), "\n"), file=file, sep="")
+      cat(paste0(ncol(tX), "\n", nrow(tX), "\n"), file = file, sep = "")
       sep <- ", "
-      cat(paste0("IND", sep, paste0(colnames(out), collapse=sep), "\n"),
-          file=file, sep="", append=TRUE)
-      tmp <- do.call(rbind, lapply(1:nrow(out), function(i){
-        paste0(rownames(out)[i], sep, paste0(out[i,], collapse=sep), "\n")
+      cat(paste0("IND", sep, paste0(colnames(out), collapse = sep), "\n"),
+        file = file, sep = "", append = TRUE
+      )
+      tmp <- do.call(rbind, lapply(1:nrow(out), function(i) {
+        paste0(rownames(out)[i], sep, paste0(out[i, ], collapse = sep), "\n")
       }))
-      cat(tmp, file=file, sep="", append=TRUE)
-      system2(command="gzip", args=file)
+      cat(tmp, file = file, sep = "", append = TRUE)
+      system2(command = "gzip", args = file)
     }
   }
 
@@ -162,84 +170,106 @@ genoDoses2bimbam <- function(X=NULL, tX=NULL, alleles, file=NULL, format="mean")
 ##'                 called.nulls=pvadj.DD$pv.bh > 0.05))
 ##' }
 ##' @export
-gemma <- function(model="ulmm", y, X, snp.coords, recode.genos=TRUE,
-                  alleles=NULL, maf=0.01,
-                  K.c=NULL, W=NULL, weights=NULL,
-                  exe=Sys.which("gemma"),
-                  out.dir=getwd(), task.id="gemma", verbose=1, clean="none",
-                  seed=1859, burnin=1000, nb.iters=7000, thin=10){
+gemma <- function(model = "ulmm", y, X, snp.coords, recode.genos = TRUE,
+                  alleles = NULL, maf = 0.01,
+                  K.c = NULL, W = NULL, weights = NULL,
+                  exe = Sys.which("gemma"),
+                  out.dir = getwd(), task.id = "gemma", verbose = 1, clean = "none",
+                  seed = 1859, burnin = 1000, nb.iters = 7000, thin = 10) {
   stopifnot(file.exists(exe))
   stopifnot(system(paste0(exe, " > /dev/null")) == 0)
   stopifnot(model %in% c("ulmm", "bslmm"))
-  if(! is.vector(y)){
-    if(is.matrix(y)){
-      stopifnot(ncol(y) == 1,
-                ! is.null(rownames(y)))
-      y <- stats::setNames(y[,1], rownames(y))
-    } else if(is.numeric(y) & is.atomic(y)){ # e.g. from ranef()
-      stopifnot(! is.null(names(y)))
+  if (!is.vector(y)) {
+    if (is.matrix(y)) {
+      stopifnot(
+        ncol(y) == 1,
+        !is.null(rownames(y))
+      )
+      y <- stats::setNames(y[, 1], rownames(y))
+    } else if (is.numeric(y) & is.atomic(y)) { # e.g. from ranef()
+      stopifnot(!is.null(names(y)))
       y <- stats::setNames(as.vector(y), names(y))
     }
   }
   stopIfNotValidGenosDose(X)
-  stopifnot(is.vector(y),
-            ! is.null(names(y)),
-            length(y) == nrow(X),
-            all(names(y) == rownames(X)),
-            .isValidSnpCoords(snp.coords),
-            all(colnames(X) %in% rownames(snp.coords)),
-            is.numeric(maf),
-            length(maf) == 1,
-            maf >= 0,
-            maf <= 1)
-  if(! is.null(K.c)){
+  stopifnot(
+    is.vector(y),
+    !is.null(names(y)),
+    length(y) == nrow(X),
+    all(names(y) == rownames(X)),
+    .isValidSnpCoords(snp.coords),
+    all(colnames(X) %in% rownames(snp.coords)),
+    is.numeric(maf),
+    length(maf) == 1,
+    maf >= 0,
+    maf <= 1
+  )
+  if (!is.null(K.c)) {
     stopifnot(is.matrix(K.c))
   }
-  if(! is.null(W))
-    stopifnot(is.matrix(W),
-              all(W[,1] == 1),
-              nrow(W) == length(y))
-  stopifnot(file.exists(out.dir),
-            is.character(task.id),
-            length(task.id) == 1,
-            clean %in% c("none", "some", "all"))
-  if(! is.null(alleles)){
-    if(is.matrix(alleles))
-      alleles <- as.data.frame(alleles)
-    stopifnot(is.data.frame(alleles),
-              ! is.null(rownames(alleles)),
-              ncol(alleles) == 2,
-              all(colnames(X) %in% rownames(alleles)))
+  if (!is.null(W)) {
+    stopifnot(
+      is.matrix(W),
+      all(W[, 1] == 1),
+      nrow(W) == length(y)
+    )
   }
-  if(! is.null(weights))
-    stopifnot(is.vector(weights),
-              is.numeric(weights),
-              ! is.null(names(weights)),
-              length(weights) == length(y),
-              all(names(weights) == names(y)),
-              all(weights[! is.na(weights)] >= 0))
+  stopifnot(
+    file.exists(out.dir),
+    is.character(task.id),
+    length(task.id) == 1,
+    clean %in% c("none", "some", "all")
+  )
+  if (!is.null(alleles)) {
+    if (is.matrix(alleles)) {
+      alleles <- as.data.frame(alleles)
+    }
+    stopifnot(
+      is.data.frame(alleles),
+      !is.null(rownames(alleles)),
+      ncol(alleles) == 2,
+      all(colnames(X) %in% rownames(alleles))
+    )
+  }
+  if (!is.null(weights)) {
+    stopifnot(
+      is.vector(weights),
+      is.numeric(weights),
+      !is.null(names(weights)),
+      length(weights) == length(y),
+      all(names(weights) == names(y)),
+      all(weights[!is.na(weights)] >= 0)
+    )
+  }
 
   out <- list()
 
   ## generate or reformat alleles
-  if(is.null(alleles)){
-    alleles <- data.frame(first=rep("A", ncol(X)),
-                          second=rep("B", ncol(X)),
-                          row.names=colnames(X),
-                          stringsAsFactors=FALSE)
-  } else
-    alleles <- alleles[colnames(X),]
+  if (is.null(alleles)) {
+    alleles <- data.frame(
+      first = rep("A", ncol(X)),
+      second = rep("B", ncol(X)),
+      row.names = colnames(X),
+      stringsAsFactors = FALSE
+    )
+  } else {
+    alleles <- alleles[colnames(X), ]
+  }
 
   ## for GEMMA, recode SNP genotypes in terms of minor alleles, if necessary
-  afs <- estimSnpAf(X=X)
+  afs <- estimSnpAf(X = X)
   recoded <- stats::setNames(rep(FALSE, ncol(X)), colnames(X))
-  if(recode.genos){
-    if(any(afs > 0.5)){
-      msg <- paste0(sum(afs > 0.5), " SNPs in X are not encoded",
-                    " in terms of their minor allele")
+  if (recode.genos) {
+    if (any(afs > 0.5)) {
+      msg <- paste0(
+        sum(afs > 0.5), " SNPs in X are not encoded",
+        " in terms of their minor allele"
+      )
       write(msg, stdout())
-      out.recode <- recodeGenosMinorSnpAllele(X=X, alleles=alleles,
-                                              verbose=verbose)
+      out.recode <- recodeGenosMinorSnpAllele(
+        X = X, alleles = alleles,
+        verbose = verbose
+      )
       X <- out.recode$X
       alleles <- out.recode$alleles
       recoded <- out.recode$recoded
@@ -247,158 +277,216 @@ gemma <- function(model="ulmm", y, X, snp.coords, recode.genos=TRUE,
   }
 
   ## discard SNPs with low MAF
-  mafs <- estimSnpMaf(afs=afs)
-  X <- discardSnpsLowMaf(X=X, mafs=mafs, thresh=maf, verbose=verbose)
-  alleles <- alleles[colnames(X),]
+  mafs <- estimSnpMaf(afs = afs)
+  X <- discardSnpsLowMaf(X = X, mafs = mafs, thresh = maf, verbose = verbose)
+  alleles <- alleles[colnames(X), ]
   recoded <- recoded[colnames(X)]
   out[["recoded"]] <- recoded
 
   ## reformat snp.coords
-  snp.coords <- snp.coords[colnames(X),]
-  if(! "coord" %in% colnames(snp.coords))
+  snp.coords <- snp.coords[colnames(X), ]
+  if (!"coord" %in% colnames(snp.coords)) {
     colnames(snp.coords)[colnames(snp.coords) == "pos"] <- "coord"
-  sc.gemma <- data.frame(snp=rownames(snp.coords),
-                         coord=snp.coords$coord,
-                         chr=snp.coords$chr,
-                         stringsAsFactors=FALSE)
+  }
+  sc.gemma <- data.frame(
+    snp = rownames(snp.coords),
+    coord = snp.coords$coord,
+    chr = snp.coords$chr,
+    stringsAsFactors = FALSE
+  )
 
   ## make design matrix, if necessary
-  if(is.null(W))
-    W <- matrix(data=1, nrow=nrow(X), ncol=1)
+  if (is.null(W)) {
+    W <- matrix(data = 1, nrow = nrow(X), ncol = 1)
+  }
 
   ## prepare input files
   tmp.files <- c()
   tmp.files <- c(tmp.files,
-                 genos=paste0(out.dir, "/genos_", task.id, ".txt.gz"))
-  genoDoses2bimbam(X=X, alleles=alleles,
-                   file=gzfile(tmp.files["genos"]))
+    genos = paste0(out.dir, "/genos_", task.id, ".txt.gz")
+  )
+  genoDoses2bimbam(
+    X = X, alleles = alleles,
+    file = gzfile(tmp.files["genos"])
+  )
   tmp.files <- c(tmp.files,
-                 snp.coords=paste0(out.dir, "/snp-coords_", task.id, ".txt"))
-  utils::write.table(x=sc.gemma,
-                     file=tmp.files["snp.coords"],
-                     quote=FALSE, sep="\t", row.names=FALSE, col.names=FALSE)
-  if(is.null(K.c)){
-    K.c <- estimGenRel(X=X, thresh=maf, relationships="additive",
-                       method="zhou", verbose=verbose)
-  } else
+    snp.coords = paste0(out.dir, "/snp-coords_", task.id, ".txt")
+  )
+  utils::write.table(
+    x = sc.gemma,
+    file = tmp.files["snp.coords"],
+    quote = FALSE, sep = "\t", row.names = FALSE, col.names = FALSE
+  )
+  if (is.null(K.c)) {
+    K.c <- estimGenRel(
+      X = X, thresh = maf, relationships = "additive",
+      method = "zhou", verbose = verbose
+    )
+  } else {
     K.c <- K.c[rownames(X), rownames(X)]
+  }
   tmp.files <- c(tmp.files,
-                 kinship.center=paste0(out.dir, "/kinship-center_", task.id,
-                                       ".txt"))
-  utils::write.table(x=K.c,
-                     file=tmp.files["kinship.center"],
-                     quote=FALSE, sep="\t", row.names=FALSE, col.names=FALSE)
+    kinship.center = paste0(
+      out.dir, "/kinship-center_", task.id,
+      ".txt"
+    )
+  )
+  utils::write.table(
+    x = K.c,
+    file = tmp.files["kinship.center"],
+    quote = FALSE, sep = "\t", row.names = FALSE, col.names = FALSE
+  )
   tmp.files <- c(tmp.files,
-                 covars=paste0(out.dir, "/covars_", task.id, ".txt"))
-  utils::write.table(x=W,
-                     file=tmp.files["covars"],
-                     quote=FALSE, sep="\t", row.names=FALSE, col.names=FALSE)
+    covars = paste0(out.dir, "/covars_", task.id, ".txt")
+  )
+  utils::write.table(
+    x = W,
+    file = tmp.files["covars"],
+    quote = FALSE, sep = "\t", row.names = FALSE, col.names = FALSE
+  )
   tmp.files <- c(tmp.files,
-                 phenos=paste0(out.dir, "/phenos_", task.id, ".txt.gz"))
-  utils::write.table(x=y,
-                     file=gzfile(tmp.files["phenos"]),
-                     quote=FALSE, sep="\t", row.names=FALSE, col.names=FALSE)
-  if(! is.null(weights)){
+    phenos = paste0(out.dir, "/phenos_", task.id, ".txt.gz")
+  )
+  utils::write.table(
+    x = y,
+    file = gzfile(tmp.files["phenos"]),
+    quote = FALSE, sep = "\t", row.names = FALSE, col.names = FALSE
+  )
+  if (!is.null(weights)) {
     tmp.files <- c(tmp.files,
-                   weights=paste0(out.dir, "/weights_", task.id, ".txt.gz"))
-    utils::write.table(x=weights,
-                       file=gzfile(tmp.files["weights"]),
-                       quote=FALSE, sep="\t", row.names=FALSE, col.names=FALSE)
+      weights = paste0(out.dir, "/weights_", task.id, ".txt.gz")
+    )
+    utils::write.table(
+      x = weights,
+      file = gzfile(tmp.files["weights"]),
+      quote = FALSE, sep = "\t", row.names = FALSE, col.names = FALSE
+    )
   }
 
   ## prepare cmd-line and execute it
-  cmd <- paste0("cd ", out.dir,
-                "; ", exe,
-                " -g ", tmp.files["genos"],
-                " -maf ", maf,
-                " -p ", tmp.files["phenos"],
-                " -a ", tmp.files["snp.coords"],
-                " -outdir ./",
-                " -o results_", task.id)
-  if(model == "ulmm"){
-    cmd <- paste0(cmd, " -k ", tmp.files["kinship.center"],
-                  " -c ", tmp.files["covars"],
-                  " -lmm 4")
-  } else if(model == "bslmm"){
-    cmd <- paste0(cmd, " -bslmm 1",
-                  " -w ", format(x=burnin, scientific=FALSE),
-                  " -s ", format(x=nb.iters, scientific=FALSE),
-                  " -rpace ", thin,
-                  " -seed ", seed)
+  cmd <- paste0(
+    "cd ", out.dir,
+    "; ", exe,
+    " -g ", tmp.files["genos"],
+    " -maf ", maf,
+    " -p ", tmp.files["phenos"],
+    " -a ", tmp.files["snp.coords"],
+    " -outdir ./",
+    " -o results_", task.id
+  )
+  if (model == "ulmm") {
+    cmd <- paste0(
+      cmd, " -k ", tmp.files["kinship.center"],
+      " -c ", tmp.files["covars"],
+      " -lmm 4"
+    )
+  } else if (model == "bslmm") {
+    cmd <- paste0(
+      cmd, " -bslmm 1",
+      " -w ", format(x = burnin, scientific = FALSE),
+      " -s ", format(x = nb.iters, scientific = FALSE),
+      " -rpace ", thin,
+      " -seed ", seed
+    )
   }
-  if(! is.null(weights))
-    cmd <- paste0(cmd,
-                  " -widv ", tmp.files["weights"])
-  if(verbose <= 0){
+  if (!is.null(weights)) {
+    cmd <- paste0(
+      cmd,
+      " -widv ", tmp.files["weights"]
+    )
+  }
+  if (verbose <= 0) {
     tmp.files <- c(tmp.files,
-                   stdoe=paste0(out.dir, "/stdouterr_gemma_", task.id, ".txt"))
+      stdoe = paste0(out.dir, "/stdouterr_gemma_", task.id, ".txt")
+    )
     cmd <- paste0(cmd, " > ", tmp.files["stdoe"], " 2>&1")
   }
-  if(verbose > 1)
+  if (verbose > 1) {
     write(cmd, stdout())
+  }
   system(cmd)
   out[["cmd"]] <- cmd
 
   ## load output files
   f <- paste0(out.dir, "/results_", task.id, ".log.txt")
   out[["log"]] <- readLines(f)
-  if(model == "ulmm"){
+  if (model == "ulmm") {
     idx <- grep("beta estimate in the null model", out[["log"]])
-    if(length(idx) == 1){
+    if (length(idx) == 1) {
       tmp1 <- strsplit(out$log[idx], " ")[[1]]
-      tmp2 <- strsplit(out$log[idx+1], " ")[[1]]
-      out[["global.mean"]] <- c(beta.hat=as.numeric(tmp1[length(tmp1)]),
-                                se.beta.hat=as.numeric(tmp2[length(tmp2)]))
+      tmp2 <- strsplit(out$log[idx + 1], " ")[[1]]
+      out[["global.mean"]] <- c(
+        beta.hat = as.numeric(tmp1[length(tmp1)]),
+        se.beta.hat = as.numeric(tmp2[length(tmp2)])
+      )
     }
-  } else if(model == "bslmm"){
+  } else if (model == "bslmm") {
     idx <- grep("estimated mean", out[["log"]])
-    if(length(idx) == 1){
+    if (length(idx) == 1) {
       tmp1 <- strsplit(out$log[idx], " ")[[1]]
-      out[["global.mean"]] <- c(beta.hat=as.numeric(tmp1[length(tmp1)]),
-                                se.beta.hat=NA)
+      out[["global.mean"]] <- c(
+        beta.hat = as.numeric(tmp1[length(tmp1)]),
+        se.beta.hat = NA
+      )
     }
   }
   idx <- grep("pve estimate in the null model", out[["log"]])
-  if(length(idx) == 1){
+  if (length(idx) == 1) {
     tmp1 <- strsplit(out$log[idx], " ")[[1]]
-    tmp2 <- strsplit(out$log[idx+1], " ")[[1]]
-    out[["pve"]] <- c(pve.hat=as.numeric(tmp1[length(tmp1)]),
-                      se.pve.hat=as.numeric(tmp2[length(tmp2)]))
+    tmp2 <- strsplit(out$log[idx + 1], " ")[[1]]
+    out[["pve"]] <- c(
+      pve.hat = as.numeric(tmp1[length(tmp1)]),
+      se.pve.hat = as.numeric(tmp2[length(tmp2)])
+    )
   }
-  if(clean == "all")
+  if (clean == "all") {
     file.remove(f)
-  if(model == "ulmm"){
+  }
+  if (model == "ulmm") {
     f <- paste0(out.dir, "/results_", task.id, ".assoc.txt")
-    tmp <- utils::read.table(file=f, sep="\t", header=TRUE, stringsAsFactors=FALSE)
+    tmp <- utils::read.table(file = f, sep = "\t", header = TRUE, stringsAsFactors = FALSE)
     rownames(tmp) <- tmp$rs
     out[["tests"]] <- tmp
-    if(clean == "all")
+    if (clean == "all") {
       file.remove(f)
-  } else if(model == "bslmm"){
+    }
+  } else if (model == "bslmm") {
     f <- paste0(out.dir, "/results_", task.id, ".hyp.txt")
     out[["hyperparams"]] <-
-      utils::read.table(file=f, header=FALSE, sep="\t", skip=1,
-                        stringsAsFactors=FALSE,
-                        col.names=c("h", "pve", "rho", "pge",
-                                    "pi", "n_gamma", ""))
+      utils::read.table(
+        file = f, header = FALSE, sep = "\t", skip = 1,
+        stringsAsFactors = FALSE,
+        col.names = c(
+          "h", "pve", "rho", "pge",
+          "pi", "n_gamma", ""
+        )
+      )
     out[["hyperparams"]][7] <- NULL
-    if(clean == "all")
+    if (clean == "all") {
       file.remove(f)
+    }
     f <- paste0(out.dir, "/results_", task.id, ".param.txt")
     out[["params"]] <-
-      utils::read.table(file=f, header=FALSE, sep="\t", skip=1,
-                        stringsAsFactors=FALSE,
-                        col.names=c("chr", "rs", "ps", "n_miss",
-                                    "alpha", "beta", "gamma"))
+      utils::read.table(
+        file = f, header = FALSE, sep = "\t", skip = 1,
+        stringsAsFactors = FALSE,
+        col.names = c(
+          "chr", "rs", "ps", "n_miss",
+          "alpha", "beta", "gamma"
+        )
+      )
     rownames(out[["params"]]) <- out[["params"]]$rs
-    if(clean == "all")
+    if (clean == "all") {
       file.remove(f)
+    }
   }
 
   ## clean temporary files
-  if(clean != "none")
-    for(f in tmp.files)
+  if (clean != "none") {
+    for (f in tmp.files) {
       file.remove(f)
+    }
+  }
 
   return(out)
 }
@@ -424,71 +512,88 @@ gemma <- function(model="ulmm", y, X, snp.coords, recode.genos=TRUE,
 ##' @author Timothee Flutre [aut,cre], Dalel Ahmed [ctb]
 ##' @seealso \code{link{gemma}}, \code{\link{plotHistPval}}, \code{\link{qqplotPval}}
 ##' @export
-gemmaUlmmPerChr <- function(y, X, snp.coords, recode.genos=TRUE,
-                            alleles=NULL, maf=0.01,
-                            chr.ids=NULL, W, weights=NULL,
-                            exe=Sys.which("gemma"),
-                            out.dir=getwd(), task.id="gemma",
-                            clean="none", verbose=1){
+gemmaUlmmPerChr <- function(y, X, snp.coords, recode.genos = TRUE,
+                            alleles = NULL, maf = 0.01,
+                            chr.ids = NULL, W, weights = NULL,
+                            exe = Sys.which("gemma"),
+                            out.dir = getwd(), task.id = "gemma",
+                            clean = "none", verbose = 1) {
   stopifnot(file.exists(exe))
   stopifnot(system(paste0(exe, " > /dev/null")) == 0)
-  if(is.matrix(y)){
-    stopifnot(ncol(y) == 1,
-              ! is.null(rownames(y)))
-    y <- stats::setNames(y[,1], rownames(y))
+  if (is.matrix(y)) {
+    stopifnot(
+      ncol(y) == 1,
+      !is.null(rownames(y))
+    )
+    y <- stats::setNames(y[, 1], rownames(y))
   }
   stopIfNotValidGenosDose(X)
-  stopifnot(is.vector(y),
-            ! is.null(names(y)),
-            length(y) == nrow(X),
-            all(names(y) == rownames(X)),
-            .isValidSnpCoords(snp.coords),
-            all(colnames(X) %in% rownames(snp.coords)),
-            is.numeric(maf),
-            length(maf) == 1,
-            maf >= 0,
-            maf <= 1,
-            is.matrix(W),
-            all(W[,1] == 1),
-            nrow(W) == length(y),
-            file.exists(out.dir),
-            is.character(task.id),
-            length(task.id) == 1,
-            clean %in% c("none", "some", "all"))
-  if(! is.null(alleles))
-    stopifnot(is.data.frame(alleles),
-              ! is.null(rownames(alleles)),
-              ncol(alleles) == 2,
-              all(colnames(X) %in% rownames(alleles)))
-  if(! is.null(weights))
-    stopifnot(is.vector(weights),
-              is.numeric(weights),
-              ! is.null(names(weights)),
-              length(weights) == length(y),
-              all(names(weights) == names(y)),
-              all(weights[! is.na(weights)] >= 0))
+  stopifnot(
+    is.vector(y),
+    !is.null(names(y)),
+    length(y) == nrow(X),
+    all(names(y) == rownames(X)),
+    .isValidSnpCoords(snp.coords),
+    all(colnames(X) %in% rownames(snp.coords)),
+    is.numeric(maf),
+    length(maf) == 1,
+    maf >= 0,
+    maf <= 1,
+    is.matrix(W),
+    all(W[, 1] == 1),
+    nrow(W) == length(y),
+    file.exists(out.dir),
+    is.character(task.id),
+    length(task.id) == 1,
+    clean %in% c("none", "some", "all")
+  )
+  if (!is.null(alleles)) {
+    stopifnot(
+      is.data.frame(alleles),
+      !is.null(rownames(alleles)),
+      ncol(alleles) == 2,
+      all(colnames(X) %in% rownames(alleles))
+    )
+  }
+  if (!is.null(weights)) {
+    stopifnot(
+      is.vector(weights),
+      is.numeric(weights),
+      !is.null(names(weights)),
+      length(weights) == length(y),
+      all(names(weights) == names(y)),
+      all(weights[!is.na(weights)] >= 0)
+    )
+  }
 
   out <- list()
 
   ## generate or reformat alleles
-  if(is.null(alleles)){
-    alleles <- data.frame(first=rep("A", ncol(X)),
-                          second=rep("B", ncol(X)),
-                          row.names=colnames(X),
-                          stringsAsFactors=FALSE)
-  } else
-    alleles <- alleles[colnames(X),]
+  if (is.null(alleles)) {
+    alleles <- data.frame(
+      first = rep("A", ncol(X)),
+      second = rep("B", ncol(X)),
+      row.names = colnames(X),
+      stringsAsFactors = FALSE
+    )
+  } else {
+    alleles <- alleles[colnames(X), ]
+  }
 
   ## for GEMMA, recode SNP genotypes in terms of minor alleles, if necessary
-  afs <- estimSnpAf(X=X)
+  afs <- estimSnpAf(X = X)
   recoded <- stats::setNames(rep(FALSE, ncol(X)), colnames(X))
-  if(recode.genos){
-    if(any(afs > 0.5)){
-      msg <- paste0(sum(afs > 0.5), " SNPs in X are not encoded",
-                    " in terms of their minor allele")
+  if (recode.genos) {
+    if (any(afs > 0.5)) {
+      msg <- paste0(
+        sum(afs > 0.5), " SNPs in X are not encoded",
+        " in terms of their minor allele"
+      )
       write(msg, stdout())
-      out.recode <- recodeGenosMinorSnpAllele(X=X, alleles=alleles,
-                                              verbose=verbose)
+      out.recode <- recodeGenosMinorSnpAllele(
+        X = X, alleles = alleles,
+        verbose = verbose
+      )
       X <- out.recode$X
       alleles <- out.recode$alleles
       recoded <- out.recode$recoded
@@ -496,40 +601,47 @@ gemmaUlmmPerChr <- function(y, X, snp.coords, recode.genos=TRUE,
   }
 
   ## discard SNPs with low MAF
-  mafs <- estimSnpMaf(afs=afs)
-  X <- discardSnpsLowMaf(X=X, mafs=mafs, thresh=maf, verbose=verbose)
-  alleles <- alleles[colnames(X),]
+  mafs <- estimSnpMaf(afs = afs)
+  X <- discardSnpsLowMaf(X = X, mafs = mafs, thresh = maf, verbose = verbose)
+  alleles <- alleles[colnames(X), ]
   recoded <- recoded[colnames(X)]
   out[["recoded"]] <- recoded
 
   ## reformat snp.coords
-  snp.coords <- snp.coords[colnames(X),]
-  if(! "coord" %in% colnames(snp.coords))
+  snp.coords <- snp.coords[colnames(X), ]
+  if (!"coord" %in% colnames(snp.coords)) {
     colnames(snp.coords)[colnames(snp.coords) == "pos"] <- "coord"
+  }
 
-  if(is.null(chr.ids))
+  if (is.null(chr.ids)) {
     chr.ids <- sort(unique(as.character(snp.coords$chr)))
+  }
 
   ## launch GEMMA for each chromosome
   out.pc <- list()
-  for(chr.id in chr.ids){
+  for (chr.id in chr.ids) {
     subset.snp.ids <- (snp.coords$chr == chr.id)
-    if(verbose > 0)
+    if (verbose > 0) {
       write(paste0(chr.id, ": ", sum(subset.snp.ids), " SNPs"), stdout())
-    K.c <- estimGenRel(X=X[, ! subset.snp.ids], thresh=maf,
-                       relationships="additive", method="zhou",
-                       verbose=verbose)
-    out.chr.id <- gemma(model="ulmm",
-                        y=y,
-                        X=X[, subset.snp.ids],
-                        snp.coords=snp.coords[subset.snp.ids,],
-                        recode.genos=recode.genos,
-                        alleles=alleles[subset.snp.ids,],
-                        maf=maf, K.c=K.c, W=W, weights=weights,
-                        exe=exe,
-                        out.dir=out.dir,
-                        task.id=paste0(task.id, "-", chr.id),
-                        verbose=verbose-1, clean=clean)
+    }
+    K.c <- estimGenRel(
+      X = X[, !subset.snp.ids], thresh = maf,
+      relationships = "additive", method = "zhou",
+      verbose = verbose
+    )
+    out.chr.id <- gemma(
+      model = "ulmm",
+      y = y,
+      X = X[, subset.snp.ids],
+      snp.coords = snp.coords[subset.snp.ids, ],
+      recode.genos = recode.genos,
+      alleles = alleles[subset.snp.ids, ],
+      maf = maf, K.c = K.c, W = W, weights = weights,
+      exe = exe,
+      out.dir = out.dir,
+      task.id = paste0(task.id, "-", chr.id),
+      verbose = verbose - 1, clean = clean
+    )
     out.pc[[chr.id]] <- out.chr.id
   }
 
@@ -540,7 +652,7 @@ gemmaUlmmPerChr <- function(y, X, snp.coords, recode.genos=TRUE,
   out[["pve"]] <- t(sapply(out.pc, `[[`, "pve"))
   out[["tests"]] <- do.call(rbind, lapply(out.pc, `[[`, "tests"))
   rownames(out$tests) <- out$tests$rs
-  out$tests <- out$tests[colnames(X),]
+  out$tests <- out$tests[colnames(X), ]
 
   return(out)
 }

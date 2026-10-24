@@ -11,79 +11,98 @@
 ##' @return nothing
 ##' @author Timothee Flutre
 ##' @export
-writeInputsFastphase <- function(X, snp.coords, alleles, file, verbose=0){
+writeInputsFastphase <- function(X, snp.coords, alleles, file, verbose = 0) {
   stopifnot(file.exists(Sys.which("fcgene")))
-  stopIfNotValidGenosDose(X, check.noNA=FALSE)
-  stopifnot(.isValidSnpCoords(snp.coords),
-            is.data.frame(alleles),
-            ncol(alleles) == 2)
+  stopIfNotValidGenosDose(X, check.noNA = FALSE)
+  stopifnot(
+    .isValidSnpCoords(snp.coords),
+    is.data.frame(alleles),
+    ncol(alleles) == 2
+  )
 
-  if(file.exists(file))
+  if (file.exists(file)) {
     file.remove(file)
+  }
 
   alleles <- convertFactorColumnsToCharacter(alleles)
 
   ## put in same order
-  snp.coords <- snp.coords[colnames(X),]
-  alleles <- alleles[colnames(X),]
+  snp.coords <- snp.coords[colnames(X), ]
+  alleles <- alleles[colnames(X), ]
 
-  if(verbose > 0)
+  if (verbose > 0) {
     write("save SNP genotypes as 'r-formatted' file for fcGENE...", stdout())
-  tmp.geno.file <- tempfile(pattern="genotypes_", fileext=".txt")
+  }
+  tmp.geno.file <- tempfile(pattern = "genotypes_", fileext = ".txt")
   sep <- "\t"
-  txt <- paste0("SAMPLE_ID", sep, paste0(colnames(X), collapse=sep), "\n")
-  cat(txt, file=tmp.geno.file, sep="")
-  tmp <- do.call(rbind, lapply(1:nrow(X), function(i){
-    paste0(rownames(X)[i], sep, paste0(X[i,], collapse=sep), "\n")
+  txt <- paste0("SAMPLE_ID", sep, paste0(colnames(X), collapse = sep), "\n")
+  cat(txt, file = tmp.geno.file, sep = "")
+  tmp <- do.call(rbind, lapply(1:nrow(X), function(i) {
+    paste0(rownames(X)[i], sep, paste0(X[i, ], collapse = sep), "\n")
   }))
-  cat(tmp, file=tmp.geno.file, sep="", append=TRUE)
+  cat(tmp, file = tmp.geno.file, sep = "", append = TRUE)
 
-  if(verbose > 0)
+  if (verbose > 0) {
     write("save 'snpinfo'...", stdout())
-  tmp.snpinfo.file <- tempfile(pattern="snpinfo_", fileext=".txt")
-  snp.info <- data.frame(snpid=rownames(snp.coords),
-                         rsid=rownames(snp.coords),
-                         position=snp.coords$pos,
-                         allele1=alleles[,2],
-                         allele2=alleles[,1],
-                         stringsAsFactors=FALSE)
-  utils::write.table(x=snp.info, file=tmp.snpinfo.file, quote=FALSE, sep="\t",
-                     row.names=FALSE)
+  }
+  tmp.snpinfo.file <- tempfile(pattern = "snpinfo_", fileext = ".txt")
+  snp.info <- data.frame(
+    snpid = rownames(snp.coords),
+    rsid = rownames(snp.coords),
+    position = snp.coords$pos,
+    allele1 = alleles[, 2],
+    allele2 = alleles[, 1],
+    stringsAsFactors = FALSE
+  )
+  utils::write.table(
+    x = snp.info, file = tmp.snpinfo.file, quote = FALSE, sep = "\t",
+    row.names = FALSE
+  )
 
-  if(verbose > 0)
+  if (verbose > 0) {
     write("convert with fcGENE...", stdout())
-  tmp.out.prefix <- tempfile(pattern="output")
-  args <- paste0("--rgeno ", tmp.geno.file,
-                 " --snpinfo ", tmp.snpinfo.file,
-                 " --oformat fastphase",
-                 " --out ", tmp.out.prefix)
-  retVal <- system2(command="fcgene", args=args, stdout=TRUE, stderr=TRUE)
-  if(! is.null(attributes(retVal)) && attr(retVal, "status") != 0){
+  }
+  tmp.out.prefix <- tempfile(pattern = "output")
+  args <- paste0(
+    "--rgeno ", tmp.geno.file,
+    " --snpinfo ", tmp.snpinfo.file,
+    " --oformat fastphase",
+    " --out ", tmp.out.prefix
+  )
+  retVal <- system2(command = "fcgene", args = args, stdout = TRUE, stderr = TRUE)
+  if (!is.null(attributes(retVal)) && attr(retVal, "status") != 0) {
     print(retVal)
     stop()
   }
-  if(verbose > 1)
+  if (verbose > 1) {
     print(retVal)
-
-  if(verbose > 0)
-    write("rename (and compress if necessary)...", stdout())
-  use.gzip <- grepl(".gz", file)
-  if(use.gzip)
-    file <- removeFileExtension(file, "gz")
-  file.copy(from=paste0(tmp.out.prefix, ".inp"), to=file)
-  if(use.gzip){
-    if(file.exists(paste0(file, ".gz")))
-      file.remove(paste0(file, ".gz"))
-    system2(command="gzip", args=file)
   }
 
-  if(verbose > 0)
+  if (verbose > 0) {
+    write("rename (and compress if necessary)...", stdout())
+  }
+  use.gzip <- grepl(".gz", file)
+  if (use.gzip) {
+    file <- removeFileExtension(file, "gz")
+  }
+  file.copy(from = paste0(tmp.out.prefix, ".inp"), to = file)
+  if (use.gzip) {
+    if (file.exists(paste0(file, ".gz"))) {
+      file.remove(paste0(file, ".gz"))
+    }
+    system2(command = "gzip", args = file)
+  }
+
+  if (verbose > 0) {
     write("clean...", stdout())
-  tmp <- file.remove(c(tmp.geno.file, tmp.snpinfo.file,
-                       paste0(tmp.out.prefix, ".inp"),
-                       paste0(tmp.out.prefix, "_fcgene.log"),
-                       paste0(tmp.out.prefix, "_pedinfo.txt"),
-                       paste0(tmp.out.prefix, "_snpinfo.txt")))
+  }
+  tmp <- file.remove(c(
+    tmp.geno.file, tmp.snpinfo.file,
+    paste0(tmp.out.prefix, ".inp"),
+    paste0(tmp.out.prefix, "_fcgene.log"),
+    paste0(tmp.out.prefix, "_pedinfo.txt"),
+    paste0(tmp.out.prefix, "_snpinfo.txt")
+  ))
 }
 
 ##' Read genotypes from fastPHASE
@@ -94,23 +113,27 @@ writeInputsFastphase <- function(X, snp.coords, alleles, file, verbose=0){
 ##' @return matrix with genotypes in rows (2 per genotype) and SNPs in columns
 ##' @author Timothee Flutre
 ##' @export
-readGenosFastphase <- function(file, snp.ids){
-  stopifnot(file.exists(file),
-            is.vector(snp.ids))
+readGenosFastphase <- function(file, snp.ids) {
+  stopifnot(
+    file.exists(file),
+    is.vector(snp.ids)
+  )
 
-  lines <- readLines(file, warn=FALSE)
+  lines <- readLines(file, warn = FALSE)
   idx <- which(grepl("SSS", lines))
-  lines <- lines[(idx+1):length(lines)]
+  lines <- lines[(idx + 1):length(lines)]
   stopifnot(length(lines) %% 3 == 0)
 
-  genos <- matrix(data=NA, nrow=2 * (length(lines) / 3), ncol=nchar(lines[2]))
-  rownames(genos) <- paste0(rep(lines[seq(1,length(lines),3)], each=2),
-                             c("_g1", "_g2"))
+  genos <- matrix(data = NA, nrow = 2 * (length(lines) / 3), ncol = nchar(lines[2]))
+  rownames(genos) <- paste0(
+    rep(lines[seq(1, length(lines), 3)], each = 2),
+    c("_g1", "_g2")
+  )
   colnames(genos) <- snp.ids
-  for(i in seq(1, length(lines), 3)){
+  for (i in seq(1, length(lines), 3)) {
     ind.id <- paste0(lines[i], "_g1")
     ind.idx <- which(rownames(genos) == ind.id)
-    genos[ind.idx:(ind.idx+1),] <- do.call(rbind, strsplit(lines[(i+1):(i+2)], ""))
+    genos[ind.idx:(ind.idx + 1), ] <- do.call(rbind, strsplit(lines[(i + 1):(i + 2)], ""))
   }
 
   return(genos)
@@ -124,25 +147,29 @@ readGenosFastphase <- function(file, snp.ids){
 ##' @return matrix with haplotypes in rows (2 per genotype) and SNPs in columns
 ##' @author Timothee Flutre
 ##' @export
-readHaplosFastphase <- function(file, snp.ids){
-  stopifnot(file.exists(file),
-            is.vector(snp.ids))
+readHaplosFastphase <- function(file, snp.ids) {
+  stopifnot(
+    file.exists(file),
+    is.vector(snp.ids)
+  )
 
-  lines <- readLines(file, warn=FALSE)
-  idx <- (which(grepl("BEGIN GENOTYPES", lines))+1):(which(grepl("END GENOTYPES", lines))-1)
+  lines <- readLines(file, warn = FALSE)
+  idx <- (which(grepl("BEGIN GENOTYPES", lines)) + 1):(which(grepl("END GENOTYPES", lines)) - 1)
   lines <- lines[idx]
   lines <- gsub(" ", "", lines)
-  lines <- lines[! lines == ""]
+  lines <- lines[!lines == ""]
   stopifnot(length(lines) %% 3 == 0)
 
-  haplos <- matrix(data=NA, nrow=2 * (length(lines) / 3), ncol=nchar(lines[2]))
-  rownames(haplos) <- paste0(rep(lines[seq(1,length(lines),3)], each=2),
-                             c("_h1", "_h2"))
+  haplos <- matrix(data = NA, nrow = 2 * (length(lines) / 3), ncol = nchar(lines[2]))
+  rownames(haplos) <- paste0(
+    rep(lines[seq(1, length(lines), 3)], each = 2),
+    c("_h1", "_h2")
+  )
   colnames(haplos) <- snp.ids
-  for(i in seq(1, length(lines), 3)){
+  for (i in seq(1, length(lines), 3)) {
     ind.id <- paste0(lines[i], "_h1")
     ind.idx <- which(rownames(haplos) == ind.id)
-    haplos[ind.idx:(ind.idx+1),] <- do.call(rbind, strsplit(lines[(i+1):(i+2)], ""))
+    haplos[ind.idx:(ind.idx + 1), ] <- do.call(rbind, strsplit(lines[(i + 1):(i + 2)], ""))
   }
 
   return(haplos)
@@ -222,76 +249,92 @@ readHaplosFastphase <- function(file, snp.ids){
 ##' 100 * sum(X.imp.fP != X) / sum(is.na(X.na))
 ##' }
 ##' @export
-runFastphase <- function(X, snp.coords, alleles, out.dir=getwd(),
-                         task.id="fastphase", nb.starts=20, nb.iters=25,
-                         nb.samp.haplos=50, estim.haplos=TRUE,
-                         nb.clusters=10, seed=1859, clean=FALSE,
-                         verbose=1){
+runFastphase <- function(X, snp.coords, alleles, out.dir = getwd(),
+                         task.id = "fastphase", nb.starts = 20, nb.iters = 25,
+                         nb.samp.haplos = 50, estim.haplos = TRUE,
+                         nb.clusters = 10, seed = 1859, clean = FALSE,
+                         verbose = 1) {
   exe.name <- "fastPHASE"
   stopifnot(file.exists(Sys.which(exe.name)))
-  stopIfNotValidGenosDose(X, check.noNA=FALSE)
+  stopIfNotValidGenosDose(X, check.noNA = FALSE)
 
   out <- list()
 
   out.dir <- path.expand(out.dir)
   task.id <- paste0(out.dir, "/", task.id)
 
-  if(verbose > 0){
+  if (verbose > 0) {
     msg <- "prepare input files..."
     write(msg, stdout())
   }
   tmp.files <- c()
   tmp.files["genos"] <- paste0(task.id, "_input-genos.txt")
-  writeInputsFastphase(X=X, snp.coords=snp.coords, alleles=alleles,
-                       file=tmp.files["genos"], verbose=verbose-1)
+  writeInputsFastphase(
+    X = X, snp.coords = snp.coords, alleles = alleles,
+    file = tmp.files["genos"], verbose = verbose - 1
+  )
 
-  if(verbose > 0){
+  if (verbose > 0) {
     msg <- paste0("run ", exe.name, "...")
     write(msg, stdout())
   }
-  args <- paste0("-o", task.id,
-                 " -T", nb.starts,
-                 " -C", nb.iters,
-                 " -H", nb.samp.haplos,
-                 " -K", nb.clusters,
-                 " -S", seed)
-  if(estim.haplos)
+  args <- paste0(
+    "-o", task.id,
+    " -T", nb.starts,
+    " -C", nb.iters,
+    " -H", nb.samp.haplos,
+    " -K", nb.clusters,
+    " -S", seed
+  )
+  if (estim.haplos) {
     args <- paste0(args, " -i")
+  }
   args <- paste0(args, " ", tmp.files["genos"])
-  if(verbose > 0){
+  if (verbose > 0) {
     msg <- paste(exe.name, args)
     write(msg, stdout())
   }
   tmp.files["stdouterr"] <- paste0(task.id, "_stdouterr.txt")
-  ret <- system2(command=exe.name, args=args,
-                 stdout=tmp.files["stdouterr"], stderr=tmp.files["stdouterr"],
-                 wait=TRUE)
+  ret <- system2(
+    command = exe.name, args = args,
+    stdout = tmp.files["stdouterr"], stderr = tmp.files["stdouterr"],
+    wait = TRUE
+  )
 
-  if(file.exists(tmp.files["stdouterr"]))
+  if (file.exists(tmp.files["stdouterr"])) {
     out$stdouterr <- readLines(tmp.files["stdouterr"])
-  if(ret != 0){
+  }
+  if (ret != 0) {
     msg <- paste0("command '", exe.name, "' returned '", ret, "'")
     warning(msg)
-  } else{
-    if(verbose > 0){
+  } else {
+    if (verbose > 0) {
       msg <- "load files..."
       write(msg, stdout())
     }
-    out$genos <- readGenosFastphase(tmp.files["genos"],
-                                    rownames(snp.coords))
-    if(estim.haplos){
+    out$genos <- readGenosFastphase(
+      tmp.files["genos"],
+      rownames(snp.coords)
+    )
+    if (estim.haplos) {
       tmp.files["haplos_switch"] <- paste0(task.id, "_hapguess_switch.out")
       tmp.files["haplos_indiv"] <- paste0(task.id, "_hapguess_indiv.out")
       tmp.files["finallik"] <- paste0(task.id, "_finallikelihoods")
       tmp.files["origchars"] <- paste0(task.id, "_origchars")
-      out$haplos.switch <- readHaplosFastphase(tmp.files["haplos_switch"],
-                                               rownames(snp.coords))
-      out$haplos.indiv <- readHaplosFastphase(tmp.files["haplos_indiv"],
-                                              rownames(snp.coords))
+      out$haplos.switch <- readHaplosFastphase(
+        tmp.files["haplos_switch"],
+        rownames(snp.coords)
+      )
+      out$haplos.indiv <- readHaplosFastphase(
+        tmp.files["haplos_indiv"],
+        rownames(snp.coords)
+      )
     }
-    if(clean)
-      for(f in tmp.files)
+    if (clean) {
+      for (f in tmp.files) {
         file.remove(f)
+      }
+    }
   }
 
   return(out)

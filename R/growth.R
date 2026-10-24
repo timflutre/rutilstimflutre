@@ -19,33 +19,38 @@
 ##'      main="Logistic with noise")
 ##' }
 ##' @export
-simulLogistic <- function(t=1:20, a=50, g.t0=1, r=0.6, sigma2=0){
-  stopifnot(is.numeric(t),
-            length(t) > 0,
-            is.numeric(a),
-            length(a) == 1,
-            is.numeric(g.t0),
-            length(g.t0) == 1,
-            is.numeric(r),
-            length(r) == 1,
-            is.numeric(sigma2),
-            length(sigma2) == 1,
-            sigma2 >= 0)
+simulLogistic <- function(t = 1:20, a = 50, g.t0 = 1, r = 0.6, sigma2 = 0) {
+  stopifnot(
+    is.numeric(t),
+    length(t) > 0,
+    is.numeric(a),
+    length(a) == 1,
+    is.numeric(g.t0),
+    length(g.t0) == 1,
+    is.numeric(r),
+    length(r) == 1,
+    is.numeric(sigma2),
+    length(sigma2) == 1,
+    sigma2 >= 0
+  )
 
-  t <- t[! is.na(t)]
+  t <- t[!is.na(t)]
 
   b <- (a - g.t0) / g.t0
 
-  g.t <- a / (1 + b * exp(- r * t))
+  g.t <- a / (1 + b * exp(-r * t))
   y.t <- g.t
-  if(sigma2 > 0)
-    y.t <- y.t + stats::rnorm(n=length(t), mean=0, sd=sqrt(sigma2))
+  if (sigma2 > 0) {
+    y.t <- y.t + stats::rnorm(n = length(t), mean = 0, sd = sqrt(sigma2))
+  }
 
   tI <- log(b) / r
   g.tI <- a / 2
 
-  return(list(t=t, a=a, g.t0=g.t0, r=r, b=b,
-              g.t=g.t, y.t=y.t, tI=tI, g.tI=g.tI))
+  return(list(
+    t = t, a = a, g.t0 = g.t0, r = r, b = b,
+    g.t = g.t, y.t = y.t, tI = tI, g.tI = g.tI
+  ))
 }
 
 ##' Generalised logistic growth (Richards' curve)
@@ -75,35 +80,40 @@ simulLogistic <- function(t=1:20, a=50, g.t0=1, r=0.6, sigma2=0){
 ##'        pch=c(NA,1,19), legend=c("dynamics", "state", "obs."))
 ##' }
 ##' @export
-simulGeneralisedLogistic <- function(t=seq(-1.5, 3.5, 0.5),
-                                     a=0, k=1, r=3, nu=0.5, b=0.5, c=1,
-                                     sigma2=0){
-  stopifnot(is.numeric(t),
-            length(t) > 0,
-            is.numeric(a),
-            length(a) == 1,
-            is.numeric(k),
-            length(k) == 1,
-            is.numeric(r),
-            length(r) == 1,
-            is.numeric(nu),
-            length(nu) == 1,
-            nu > 0,
-            is.numeric(b),
-            length(b) == 1,
-            is.numeric(c),
-            length(c) == 1,
-            is.numeric(sigma2),
-            length(sigma2) == 1,
-            sigma2 >= 0)
+simulGeneralisedLogistic <- function(t = seq(-1.5, 3.5, 0.5),
+                                     a = 0, k = 1, r = 3, nu = 0.5, b = 0.5, c = 1,
+                                     sigma2 = 0) {
+  stopifnot(
+    is.numeric(t),
+    length(t) > 0,
+    is.numeric(a),
+    length(a) == 1,
+    is.numeric(k),
+    length(k) == 1,
+    is.numeric(r),
+    length(r) == 1,
+    is.numeric(nu),
+    length(nu) == 1,
+    nu > 0,
+    is.numeric(b),
+    length(b) == 1,
+    is.numeric(c),
+    length(c) == 1,
+    is.numeric(sigma2),
+    length(sigma2) == 1,
+    sigma2 >= 0
+  )
 
-  t <- t[! is.na(t)]
+  t <- t[!is.na(t)]
 
-  g.t <- a + (k - a) / ((c + b * exp(- r * t))^(1 / nu))
+  g.t <- a + (k - a) / ((c + b * exp(-r * t))^(1 / nu))
   y.t <- g.t
-  if(sigma2 > 0)
-    y.t <- y.t + stats::rnorm(n=length(t), mean=0, sd=sqrt(sigma2))
+  if (sigma2 > 0) {
+    y.t <- y.t + stats::rnorm(n = length(t), mean = 0, sd = sqrt(sigma2))
+  }
 
-  return(list(t=t, a=a, k=k, r=r, nu=nu, b=b, c=c,
-              g.t=g.t, y.t=y.t))
+  return(list(
+    t = t, a = a, k = k, r = r, nu = nu, b = b, c = c,
+    g.t = g.t, y.t = y.t
+  ))
 }

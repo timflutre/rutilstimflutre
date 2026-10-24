@@ -3,7 +3,7 @@
 ##' SNP heterozygosity
 ##'
 ##' Compute the observed and expected heterozygosity (H_o and H_e), averaged over all SNPs.
-##' @param X matrix of bi-allelic SNP genotypes encoded in allele doses in \{0,1,2\}, with genotypes in rows and SNPs in columns; missing values should be encoded as N; SNPs with NAs will be discarded
+##' @param X matrix of bi-allelic SNP genotypes encoded in allele doses in \{0,1,2\}, with genotypes in rows and SNPs in columns; missing values should be encoded as NA; SNPs with NAs will be discarded
 ##' @param verbose verbosity level (0/1)
 ##' @return named vector of two numeric values
 ##' @seealso \code{\link{estimSnpMaf}}
@@ -39,21 +39,51 @@
 ##' ## Ho < He: deficit of heterozygotes (Wahlund effect)
 ##' }
 ##' @export
-avgSnpHeterozygosity <- function(X, verbose=1) {
+avgSnpHeterozygosity <- function(X, verbose = 1) {
   out <- setNames(rep(NA, 2), c("exp", "obs"))
 
-  if (any(is.na(X)))
+  if (any(is.na(X))) {
     X <- discardMarkersMissGenos(X, verbose)
+  }
   nbGenos <- nrow(X)
 
   afs <- estimSnpAf(X)
   He_perSNP <- 2 * afs * (1 - afs)
   out["exp"] <- mean(He_perSNP)
 
-  Ho_perSNP <- apply(X, 2, function(x){
+  Ho_perSNP <- apply(X, 2, function(x) {
     sum(x == 1) / nbGenos
   })
   out["obs"] <- mean(Ho_perSNP)
+
+  return(out)
+}
+
+##' Genetic diversity
+##'
+##' Compute Watterson's theta (Watterson, 1975; \doi{10.1016/0040-5809(75)90020-9}).
+##' @param X matrix of bi-allelic SNP genotypes encoded in allele doses in \{0,1,2\}, with genotypes in rows and SNPs in columns; missing values should be encoded as NA; these NAs will be ignored
+##' @param verbose verbosity level (0/1)
+##' @return numeric
+##' @author Timothee Flutre
+##' @export
+thetaWatterson <- function(X, verbose = 1) {
+  out <- NA
+
+  n <- nrow(X)
+  stopifnot(n >= 2)
+
+  ## nb of segregating sites
+  S <- sum(apply(X, 2, var, na.rm = TRUE) > 0, na.rm = TRUE)
+
+  ## (n-1)-th harmonic number
+  a_n <- sum(1 / (1:(n - 1)))
+
+  out <- S / a_n
+
+  attr(out, "n") <- n
+  attr(out, "S") <- S
+  attr(out, "a_n") <- a_n
 
   return(out)
 }
@@ -65,10 +95,10 @@ avgSnpHeterozygosity <- function(X, verbose=1) {
 ##' @return numeric
 ##' @author Timothee Flutre
 ##' @export
-clusteredness <- function(q.ik){
+clusteredness <- function(q.ik) {
   I <- nrow(q.ik)
   K <- ncol(q.ik)
-  (1/I) * sum(sqrt((K/(K-1)) * rowSums((q.ik - (1/K))^2)))
+  (1 / I) * sum(sqrt((K / (K - 1)) * rowSums((q.ik - (1 / K))^2)))
 }
 
 ##' Genetic clustering
@@ -80,9 +110,11 @@ clusteredness <- function(q.ik){
 ##' @return list
 ##' @author Timothee Flutre
 ##' @export
-statsStrongAssign <- function(assign.probs, assign.grps, thresh.strong.assign=0.8){
-  stopifnot(nrow(assign.probs) == length(assign.grps),
-            all(unique(assign.grps) %in% colnames(assign.probs)))
+statsStrongAssign <- function(assign.probs, assign.grps, thresh.strong.assign = 0.8) {
+  stopifnot(
+    nrow(assign.probs) == length(assign.grps),
+    all(unique(assign.grps) %in% colnames(assign.probs))
+  )
   out <- list()
   assign.grps <- as.character(assign.grps)
   id.grps <- sort(unique(assign.grps))
@@ -90,7 +122,7 @@ statsStrongAssign <- function(assign.probs, assign.grps, thresh.strong.assign=0.
   out[["nb.samples.per.grp"]] <- stats::setNames(rep(NA, nb.grps), id.grps)
   out[["nb.samples.strong.assign.per.grp"]] <- stats::setNames(rep(NA, nb.grps), id.grps)
   out[["perc.samples.strong.assign.per.grp"]] <- stats::setNames(rep(NA, nb.grps), id.grps)
-  for(id in id.grps){
+  for (id in id.grps) {
     idx <- which(assign.grps == id)
     out[["nb.samples.per.grp"]][id] <- length(idx)
     out[["nb.samples.strong.assign.per.grp"]][id] <-
@@ -108,26 +140,34 @@ statsStrongAssign <- function(assign.probs, assign.grps, thresh.strong.assign=0.
 ##' @return list
 ##' @author Timothee Flutre
 ##' @export
-readOutSTRUCTURE <- function(out.file){
+readOutSTRUCTURE <- function(out.file) {
   stopifnot(file.exists(out.file))
 
   out <- list()
 
-  tmp <- readLines(out.file, warn=FALSE)
+  tmp <- readLines(out.file, warn = FALSE)
 
   idx.start <- grep("^Inferred ancestry of individuals:$", tmp)
   idx.end <- grep("^Estimated Allele Frequencies in each cluster$", tmp)
-  ancestries <- tmp[(idx.start+2):(idx.end-3)]
-  ancestries <- as.data.frame(t(sapply(strsplit(ancestries, " "),
-                                       function(x){x[! x == ""]})),
-                              stringsAsFactors=FALSE)
-  stopifnot(all(ancestries[,4] == ":"))
+  ancestries <- tmp[(idx.start + 2):(idx.end - 3)]
+  ancestries <- as.data.frame(
+    t(sapply(
+      strsplit(ancestries, " "),
+      function(x) {
+        x[!x == ""]
+      }
+    )),
+    stringsAsFactors = FALSE
+  )
+  stopifnot(all(ancestries[, 4] == ":"))
   nb.clusters <- ncol(ancestries) - 4
-  colnames(ancestries) <- c("index", "label", "perc.miss", "sep",
-                            paste0("cluster", 1:nb.clusters))
+  colnames(ancestries) <- c(
+    "index", "label", "perc.miss", "sep",
+    paste0("cluster", 1:nb.clusters)
+  )
   rownames(ancestries) <- ancestries$label
   ancestries$index <- as.integer(ancestries$index)
-  for(i in 1:nb.clusters){
+  for (i in 1:nb.clusters) {
     col.idx <- ncol(ancestries) - i + 1
     ancestries[, col.idx] <- as.numeric(ancestries[, col.idx])
   }
@@ -146,33 +186,42 @@ readOutSTRUCTURE <- function(out.file){
 ##' @author Timothee Flutre
 ##' @seealso \code{\link{readOutSTRUCTURE}}
 ##' @export
-structure2clumpp <- function(struct.files, clumpp.file, verbose=1){
-  stopifnot(all(file.exists(struct.files)),
-            ! clumpp.file %in% struct.files)
-  if(file.exists(clumpp.file))
+structure2clumpp <- function(struct.files, clumpp.file, verbose = 1) {
+  stopifnot(
+    all(file.exists(struct.files)),
+    !clumpp.file %in% struct.files
+  )
+  if (file.exists(clumpp.file)) {
     file.remove(clumpp.file)
+  }
 
   out <- list()
 
-  if(verbose > 0){
-    msg <- paste0("gather ", length(struct.files), " output files",
-                  " from STRUCTURE",
-                  " to use with CLUMPP")
+  if (verbose > 0) {
+    msg <- paste0(
+      "gather ", length(struct.files), " output files",
+      " from STRUCTURE",
+      " to use with CLUMPP"
+    )
     write(msg, stdout())
   }
 
-  for(i in seq_along(struct.files)){
+  for (i in seq_along(struct.files)) {
     tmp <- readOutSTRUCTURE(struct.files[i])
     out[[struct.files[i]]] <- tmp
     tmp <- tmp$ancestries
-    tmp <- cbind(tmp$index,           # col 1) ignored by CLUMPP
-                 tmp$index,           # col 2) integer identifying the individuals
-                 tmp$perc.miss,       # col 3) ignored by CLUMPP
-                 rep(1, nrow(tmp)),   # col 4) ignored by CLUMPP
-                 tmp$sep,             # col 5) ignored by CLUMPP
-                 tmp[,5:ncol(tmp)])   # cols 6...) membership coefficients
-    utils::write.table(x=tmp, file=clumpp.file, append=TRUE, quote=FALSE,
-                       sep=" ", row.names=FALSE, col.names=FALSE)
+    tmp <- cbind(
+      tmp$index, # col 1) ignored by CLUMPP
+      tmp$index, # col 2) integer identifying the individuals
+      tmp$perc.miss, # col 3) ignored by CLUMPP
+      rep(1, nrow(tmp)), # col 4) ignored by CLUMPP
+      tmp$sep, # col 5) ignored by CLUMPP
+      tmp[, 5:ncol(tmp)]
+    ) # cols 6...) membership coefficients
+    utils::write.table(
+      x = tmp, file = clumpp.file, append = TRUE, quote = FALSE,
+      sep = " ", row.names = FALSE, col.names = FALSE
+    )
   }
 
   invisible(out)

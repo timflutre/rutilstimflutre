@@ -7,7 +7,7 @@
 avgSnpHeterozygosity(X, verbose = 1)
 }
 \arguments{
-\item{X}{matrix of bi-allelic SNP genotypes encoded in allele doses in \{0,1,2\}, with genotypes in rows and SNPs in columns; missing values should be encoded as N; SNPs with NAs will be discarded}
+\item{X}{matrix of bi-allelic SNP genotypes encoded in allele doses in \{0,1,2\}, with genotypes in rows and SNPs in columns; missing values should be encoded as NA; SNPs with NAs will be discarded}
 
 \item{verbose}{verbosity level (0/1)}
 }
