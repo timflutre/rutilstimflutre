@@ -67,6 +67,17 @@ genomes <- simulCoalescent(nb.inds=nb.genos,
                            pop.mut.rate=4 * Ne * mu * chrom.len,
                            pop.recomb.rate=4 * Ne * c * chrom.len,
                            chrom.len=chrom.len)
+
+## with pop structure:
+mig_rates <- c("high"=10^2, "med"=10, "low"=0.5)
+nb_pops <- 10
+level_mig_rate <- "low"
+genomes <- simulCoalescent(nb.inds=nb.genos,
+                           pop.mut.rate=4 * Ne * mu * chrom.len,
+                           pop.recomb.rate=4 * Ne * c * chrom.len,
+                           chrom.len=chrom.len,
+                           nb.pops=nb_pops,
+                           mig.rate=mig_rates[level_mig_rate])
 }
 }
 \seealso{
