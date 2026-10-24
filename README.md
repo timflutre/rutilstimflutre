@@ -52,6 +52,11 @@ $ R CMD check rutilstimflutre_<version>.tar.gz
 It may be necessary to `export _R_CHECK_FORCE_SUGGESTS_=0` before `R CMD check`.
 It is also possible to skip the vignettes with `--no-build-vignettes` and `--no-vignettes`.
 
+To only run the tests, first build and install the package, and then:
+```
+cd tests; Rscript -e 'source("testthat.R")'
+```
+
 When developping, here are a few useful tips:
 ```
 R> detach("package:rutilstimflutre", unload=TRUE)

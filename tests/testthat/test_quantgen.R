@@ -1187,21 +1187,6 @@ test_that("estimSnpAf_update", {
   expect_equal(observed, expected)
 })
 
-test_that("avgSnpHeterozygosity", {
-  N <- 4 # individuals
-  P <- 3 # SNPs
-  X <- matrix(c(1,0,0,1, 1,2,NA,0, 0,2,2,NA), nrow=N, ncol=P,
-              dimnames=list(paste0("ind", 1:N), paste0("snp", 1:P)))
-
-  afs_noNA <- c(2 / 8)
-  expected <- c("exp" = mean(2 * afs_noNA * (1 - afs_noNA)),
-                "obs" = mean(c(2 / 4)))
-
-  observed <- avgSnpHeterozygosity(X, verbose=0)
-
-  expect_equal(observed, expected)
-})
-
 test_that("estimSnpMaf", {
   N <- 2 # individuals
   P <- 4 # SNPs

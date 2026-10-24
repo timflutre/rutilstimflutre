@@ -1,5 +1,63 @@
 ## Contains functions useful for population genetics.
 
+##' SNP heterozygosity
+##'
+##' Compute the observed and expected heterozygosity (H_o and H_e), averaged over all SNPs.
+##' @param X matrix of bi-allelic SNP genotypes encoded in allele doses in \{0,1,2\}, with genotypes in rows and SNPs in columns; missing values should be encoded as N; SNPs with NAs will be discarded
+##' @param verbose verbosity level (0/1)
+##' @return named vector of two numeric values
+##' @seealso \code{\link{estimSnpMaf}}
+##' @author Timothee Flutre
+##' @examples
+##' \dontrun{set.seed(1859)
+##' library(scrm)
+##' nb.genos <- 100
+##' Ne <- 10^4
+##' chrom.len <- 10^5
+##' mu <- 10^(-8)
+##' c <- 10^(-8)
+##'
+##' ## under HWE:
+##' genomes <- simulCoalescent(nb.inds=nb.genos,
+##'                            pop.mut.rate=4 * Ne * mu * chrom.len,
+##'                            pop.recomb.rate=4 * Ne * c * chrom.len,
+##'                            chrom.len=chrom.len)
+##' avgSnpHeterozygosity(genomes$genos)
+##' ## Ho ~= He as expected under HWE
+##'
+##' ## with medium pop struct:
+##' mig_rates <- c("high"=10^2, "med"=10, "low"=0.5)
+##' nb_pops <- 10
+##' level_mig_rate <- "low"
+##' genomes <- simulCoalescent(nb.inds=nb.genos,
+##'                            pop.mut.rate=4 * Ne * mu * chrom.len,
+##'                            pop.recomb.rate=4 * Ne * c * chrom.len,
+##'                            chrom.len=chrom.len,
+##'                            nb.pops=nb_pops,
+##'                            mig.rate=mig_rates[level_mig_rate])
+##' avgSnpHeterozygosity(genomes$genos)
+##' ## Ho < He: deficit of heterozygotes (Wahlund effect)
+##' }
+##' @export
+avgSnpHeterozygosity <- function(X, verbose=1) {
+  out <- setNames(rep(NA, 2), c("exp", "obs"))
+
+  if (any(is.na(X)))
+    X <- discardMarkersMissGenos(X, verbose)
+  nbGenos <- nrow(X)
+
+  afs <- estimSnpAf(X)
+  He_perSNP <- 2 * afs * (1 - afs)
+  out["exp"] <- mean(He_perSNP)
+
+  Ho_perSNP <- apply(X, 2, function(x){
+    sum(x == 1) / nbGenos
+  })
+  out["obs"] <- mean(Ho_perSNP)
+
+  return(out)
+}
+
 ##' Clusteredness
 ##'
 ##' Computes the statistic which "measures the extent to which a randomly chosen individual is inferred to have ancestry in only one cluster (clusteredness = 1), with the other extreme being equal membership in all clusters (clusteredness = 0)", from \href{http://dx.plos.org/10.1371/journal.pgen.0010070}{Rosenberg et al (2005)}.
