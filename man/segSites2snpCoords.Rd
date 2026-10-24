@@ -2,7 +2,7 @@
 % Please edit documentation in R/quantgen.R
 \name{segSites2snpCoords}
 \alias{segSites2snpCoords}
-\title{Site frequency spectrum}
+\title{Site frequency spectrum to physical map}
 \usage{
 segSites2snpCoords(seg.sites, snp.ids, chrom.len, prefix = "chr", verbose = 1)
 }

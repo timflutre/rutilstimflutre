@@ -18,6 +18,7 @@ simulCoalescent(
   get.tmrca = FALSE,
   get.alleles = FALSE,
   permute.alleles = TRUE,
+  Ne = NULL,
   verbose = 1
 )
 }
@@ -48,6 +49,8 @@ simulCoalescent(
 
 \item{permute.alleles}{if TRUE, the reference alleles are randomly chosen between ancestral and derived alleles}
 
+\item{Ne}{effective population size; if given, the genetic map will be returned in addition to the physical map}
+
 \item{verbose}{verbosity level (0/1/2)}
 }
 \value{
@@ -66,7 +69,9 @@ c <- 10^(-8)
 genomes <- simulCoalescent(nb.inds=nb.genos,
                            pop.mut.rate=4 * Ne * mu * chrom.len,
                            pop.recomb.rate=4 * Ne * c * chrom.len,
-                           chrom.len=chrom.len)
+                           chrom.len=chrom.len, Ne=Ne)
+tapply(genomes$snp.coords$pos, genomes$snp.coords$chr, max)
+tapply(genomes$genmap$pos_cM, genomes$genmap$chr, max)
 
 ## with pop structure:
 mig_rates <- c("high"=10^2, "med"=10, "low"=0.5)

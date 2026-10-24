@@ -4605,7 +4605,7 @@ segSites2allDoses <- function(seg.sites, ind.ids = NULL, snp.ids = NULL,
   return(X)
 }
 
-##' Site frequency spectrum
+##' Site frequency spectrum to physical map
 ##'
 ##' Make a data.frame of SNP coordinates (1-based) from the SFS of independent replicates.
 ##' @param seg.sites list of haplotypes returned by \code{scrm}, each component of which corresponds to a matrix with haplotypes in rows and SNP in columns
@@ -4667,6 +4667,53 @@ segSites2snpCoords <- function(seg.sites, snp.ids, chrom.len, prefix = "chr",
   }
 
   return(snp.coords)
+}
+
+##' Site frequency spectrum to genetic map
+##'
+##' Make a data.frame of SNP coordinates in recombination units from the SFS of independent replicates.
+##' @param seg.sites list of haplotypes returned by \code{scrm}, each component of which corresponds to a matrix with haplotypes in rows and SNP in columns
+##' @param snp.ids vector of identifiers (one per SNP)
+##' @param chrom.len chromosome length (same for all)
+##' @param Ne effective population size
+##' @param prefix character string
+##' @param verbose verbosity level (0/1)
+##' @return data.frame with SNPs in rows and 2 columns (chr, pos_cM)
+##' @author Timothee Flutre
+##' @export
+segSites2genMap <- function(seg.sites, snp.ids, chrom.len, Ne,
+                            prefix = "chr", verbose = 1) {
+  stopIfNotValidHaplos(
+    haplos = seg.sites, check.hasColNames = TRUE,
+    check.noNA = FALSE
+  )
+  stopifnot(sum(sapply(seg.sites, ncol)) == length(snp.ids))
+
+  if (verbose > 0) {
+    msg <- "make a data.frame with genetic map ..."
+    write(msg, stdout())
+  }
+
+  nb.chrs <- length(seg.sites)
+  nb.snps.per.chr <- sapply(seg.sites, ncol)
+  nb.snps <- sum(nb.snps.per.chr)
+
+  ## fill up the output data.frame
+  genmap <- data.frame(
+    chr = rep(NA, nb.snps),
+    pos_cM = NA,
+    row.names = snp.ids
+  )
+  genmap$chr <- rep(paste0(prefix, 1:nb.chrs), nb.snps.per.chr)
+
+  for (i in 1:nb.chrs) {
+    chr <- unique(genmap$chr)[i]
+    ## message(chr) # when debugging
+    idx <- which(genmap$chr == chr)
+    genmap$pos_cM[idx] <- (as.numeric(colnames(seg.sites[[i]])) / (4 * Ne)) * 100
+  }
+
+  return(genmap)
 }
 
 ##' Genotypes
@@ -4897,6 +4944,7 @@ simulRefAltSnpAlleles <- function(nb.snps = NULL, snp.ids = NULL,
 ##' @param get.tmrca get time to most recent common ancestor and local tree lengths
 ##' @param get.alleles get fake alleles sampled in \{A,T,G,C\}
 ##' @param permute.alleles if TRUE, the reference alleles are randomly chosen between ancestral and derived alleles
+##' @param Ne effective population size; if given, the genetic map will be returned in addition to the physical map
 ##' @param verbose verbosity level (0/1/2)
 ##' @return list with haplotypes (list), genotypes as allele doses (matrix) and SNP coordinates (data.frame)
 ##' @author Timothee Flutre
@@ -4911,7 +4959,9 @@ simulRefAltSnpAlleles <- function(nb.snps = NULL, snp.ids = NULL,
 ##' genomes <- simulCoalescent(nb.inds=nb.genos,
 ##'                            pop.mut.rate=4 * Ne * mu * chrom.len,
 ##'                            pop.recomb.rate=4 * Ne * c * chrom.len,
-##'                            chrom.len=chrom.len)
+##'                            chrom.len=chrom.len, Ne=Ne)
+##' tapply(genomes$snp.coords$pos, genomes$snp.coords$chr, max)
+##' tapply(genomes$genmap$pos_cM, genomes$genmap$chr, max)
 ##'
 ##' ## with pop structure:
 ##' mig_rates <- c("high"=10^2, "med"=10, "low"=0.5)
@@ -4938,6 +4988,7 @@ simulCoalescent <- function(nb.inds = 500,
                             get.tmrca = FALSE,
                             get.alleles = FALSE,
                             permute.alleles = TRUE,
+                            Ne = NULL,
                             verbose = 1) {
   requireNamespace("scrm", quietly = TRUE)
   stopifnot(
@@ -5004,6 +5055,9 @@ simulCoalescent <- function(nb.inds = 500,
   if (verbose > 1) {
     print(utils::str(sum.stats))
   }
+  if (is.null(Ne))
+    out[["seg.sites"]] <- sum.stats$seg_sites
+  out[["sfs"]] <- sum.stats$sfs
 
   prefix <- "chr"
   names(sum.stats$seg_sites) <- paste0(prefix, 1:nb.reps)
@@ -5020,11 +5074,21 @@ simulCoalescent <- function(nb.inds = 500,
     1:nb.snps
   )
   snp.coords <- segSites2snpCoords(
-    seg.sites = sum.stats$seg_sites,
-    snp.ids = snp.ids, chrom.len = chrom.len,
+    seg.sites = sum.stats$seg_sites, snp.ids = snp.ids,
+    chrom.len = chrom.len,
     prefix = prefix, verbose = verbose
   )
   out[["snp.coords"]] <- snp.coords
+
+  ## genetic map
+  if (!is.null(Ne)) {
+    genmap <- segSites2genMap(
+      seg.sites = sum.stats$seg_sites, snp.ids = snp.ids,
+      chrom.len = chrom.len, Ne = Ne,
+      prefix = prefix, verbose = verbose
+    )
+    out[["genmap"]] <- genmap
+  }
 
   if (verbose > 0) {
     msg <- "randomize haplotypes to make diploid genotypes ..."
